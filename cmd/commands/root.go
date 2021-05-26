@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var die = util.Die
+
 func NewRoot() *cobra.Command {
 	s := store.Get()
 
