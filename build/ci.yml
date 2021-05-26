@@ -141,6 +141,70 @@ steps:
       push_quay_dev:
         title: push to quay
         registry: "${{REGISTRY_INTEGRATION_QUAY}}"
+
+  build_binaries:
+    <<: *deps
+    stage: Build
+    title: build binaries
+    commands:
+    - make ./dist/cf-${TARGET}.sha256 DEV_MODE=false
+    scale:
+      linux_amd64:
+        title: linux_amd64
+        environment:
+         - TARGET=linux-amd64
+      linux_arm64:
+        title: linux_arm64
+        environment:
+         - TARGET=linux-arm64
+      linux_s390x:
+        title: linux_s390x
+        environment:
+         - TARGET=linux-s390x
+      linux_ppc64le:
+        title: linux_ppc64le
+        environment:
+         - TARGET=linux-ppc64le
+      windows_amd64:
+        title: windows_amd64
+        environment:
+         - TARGET=windows-amd64
+      darwin_amd64:
+        title: darwin_amd64
+        environment:
+         - TARGET=darwin-amd64
+    when:
+      branch:
+        only: [ "main" ]
+      steps:
+      - name: test
+        on:
+        - success
+      - name: codegen
+        on:
+        - success
+      - name: lint
+        on:
+        - success
+  
+  create_release:
+    <<: *deps
+    stage: Release
+    title: create github release
+    commands:
+    - export GIT_REPO=${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}
+    - export GIT_BRANCH=${{CF_BRANCH}}
+    - make release
+    when:
+      branch:
+        only: [ "main" ]
+      steps:
+      - name: build_binaries
+        on:
+        - success
+      - name: build
+        on:
+        - success
         
   push_prod:
     stage: Release
@@ -152,13 +216,7 @@ steps:
     - ${{VERSION}}
     when:
       steps:
-      - name: build
-        on:
-        - success
-      - name: codecov-report
-        on:
-        - success
-      - name: codegen
+      - name: create_release
         on:
         - success
       branch:

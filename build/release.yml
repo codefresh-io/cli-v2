@@ -202,7 +202,7 @@ steps:
     - ${{CF_BRANCH_TAG_NORMALIZED}}
     when:
       steps:
-      - name: build_binaries
+      - name: create_release
         on:
         - success
       - name: build
