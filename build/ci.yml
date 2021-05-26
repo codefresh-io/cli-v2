@@ -53,6 +53,7 @@ steps:
     title: download modules
     commands:
     - go mod download -x
+    - make clean
     when:
       steps:
       - name: compare_versions
