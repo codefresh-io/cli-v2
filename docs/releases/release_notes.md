@@ -7,10 +7,10 @@ VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releas
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/$VERSION/cli-v2-linux-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
-mv ./cli-v2-* /usr/local/bin/cli-v2
+mv ./cf-* /usr/local/bin/cf
 
 # check the installation
-cli-v2 version
+cf version
 ```
 
 ### Mac
@@ -22,8 +22,8 @@ VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releas
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/$VERSION/cli-v2-darwin-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
-mv ./cli-v2-* /usr/local/bin/cli-v2
+mv ./cf-* /usr/local/bin/cf
 
 # check the installation
-cli-v2 version
+cf version
 ```
