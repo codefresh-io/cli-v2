@@ -39,10 +39,10 @@ steps:
     title: compare versions
     image: alpine/semver
     commands:
-    - semver -c -i $
+    - semver ${{CUR_VERSION}} -r ">${{LATEST_VERSION}}" || (echo "bump version" && exit 1)
     when:
       steps:
-      - name: main_clone
+      - name: prepare_env_vars
         on:
         - success
 
