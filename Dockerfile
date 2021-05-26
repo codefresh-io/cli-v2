@@ -48,7 +48,7 @@ RUN apk -U add --no-cache git
 COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=base /etc/passwd /etc/passwd
 COPY --from=base /etc/group /etc/group
-COPY --chown=codefresh:codefresh --from=codefresh-build /go/src/github.com/codefresh-io/cli-v2/dist/* /usr/local/bin/codefresh
+COPY --chown=codefresh:codefresh --from=codefresh-build /go/src/github.com/codefresh-io/cli-v2/dist/* /usr/local/bin/cf
 
 USER codefresh:codefresh
 
