@@ -6,6 +6,7 @@ stages:
 - Test
 - Build
 - Push Dev
+- Release
 
 steps:
   
@@ -39,7 +40,7 @@ steps:
     title: compare versions
     image: alpine/semver
     commands:
-    - semver ${{CUR_VERSION}} -r ">${{LATEST_VERSION}}" || (echo "bump version" && exit 1)
+    - semver "${{VERSION}}" -r ">${{LATEST_VERSION}}" || (echo "bump version" && exit 1)
     when:
       steps:
       - name: prepare_env_vars
@@ -148,14 +149,20 @@ steps:
     candidate: ${{build}}
     tags:
     - latest
-    - 
+    - ${{VERSION}}
     when:
       steps:
       - name: build
         on:
         - success
+      - name: codecov-report
+        on:
+        - success
+      - name: codegen
+        on:
+        - success
       branch:
-        ignore: [ "main" ]
+        only: [ "main" ]
     scale:
       push_quay:
         title: push to quay
