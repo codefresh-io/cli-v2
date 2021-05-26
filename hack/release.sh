@@ -32,10 +32,10 @@ if [[ "$PRE_RELEASE" ]]; then
     echo ""
 fi
 
-echo "gh release create --repo $GIT_REPO -t $VERSION -F $FILE --target main --prerelease=$PRERELEASE main ./dist/*.tar.gz ./dist/*.sha256"
+echo "gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/*.tar.gz ./dist/*.sha256"
 
 if [[ "$DRY_RUN" == "1" ]]; then
     exit 0
 fi
 
-gh release create --repo $GIT_REPO -t $VERSION -F $FILE --target main --prerelease=$PRERELEASE main ./dist/*.tar.gz ./dist/*.sha256
+gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/*.tar.gz ./dist/*.sha256
