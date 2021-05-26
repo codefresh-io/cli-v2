@@ -40,7 +40,7 @@ steps:
     title: compare versions
     image: alpine/semver
     commands:
-    - semver "${{VERSION}}" -r ">${{LATEST_VERSION}}" || (echo "bump version" && exit 1)
+    - semver "${{VERSION}}" -r ">${{LATEST_VERSION}}" || (echo "bump version! current is ${{VERSION}} latest is ${{LATEST_VERSION}}" && exit 1)
     when:
       steps:
       - name: prepare_env_vars
