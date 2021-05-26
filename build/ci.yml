@@ -20,12 +20,26 @@ steps:
   prepare_env_vars: &deps
     stage: Prepare
     title: prepare-env
-    image: quay.io/roi_codefresh/golang-ci-helper:latest
+    image: quay.io/codefresh/golang-ci-helper:latest
     commands:
     - cf_export GO111MODULE=on
     - cf_export GOCACHE=/codefresh/volume/gocache # change gopath to codefresh shared volume
     - cf_export GOPATH=/codefresh/volume/gopath
     - cf_export PATH=$PATH:/codefresh/volume/gopath/bin
+    - cf_export LATEST_VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    - cf_export VERSION=$(make cur-version)
+    when:
+      steps:
+      - name: main_clone
+        on:
+        - success
+  
+  compare_versions: 
+    stage: Prepare
+    title: compare versions
+    image: alpine/semver
+    commands:
+    - semver -c -i $
     when:
       steps:
       - name: main_clone
@@ -40,7 +54,7 @@ steps:
     - go mod download -x
     when:
       steps:
-      - name: prepare_env_vars
+      - name: compare_versions
         on:
         - success
 
@@ -104,7 +118,7 @@ steps:
     disable_push: true
     when:
       steps:
-      - name: main_clone
+      - name: compare_versions
         on:
         - success
 
@@ -124,5 +138,25 @@ steps:
         ignore: [ "main" ]
     scale:
       push_quay_dev:
+        title: push to quay
+        registry: "${{REGISTRY_INTEGRATION_QUAY}}"
+        
+  push_prod:
+    stage: Release
+    title: promote image
+    type: push
+    candidate: ${{build}}
+    tags:
+    - latest
+    - 
+    when:
+      steps:
+      - name: build
+        on:
+        - success
+      branch:
+        ignore: [ "main" ]
+    scale:
+      push_quay:
         title: push to quay
         registry: "${{REGISTRY_INTEGRATION_QUAY}}"

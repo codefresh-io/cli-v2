@@ -55,6 +55,10 @@ bin-local: cli-local
 .PHONY: image
 image: cli-image
 
+.PHONY: cur-version
+cur-version:
+	@echo -n $(VERSION)
+
 .PHONY: cli
 cli: $(OUT_DIR)/$(CLI_NAME)-linux-amd64.sha256 $(OUT_DIR)/$(CLI_NAME)-linux-arm64.sha256 $(OUT_DIR)/$(CLI_NAME)-linux-ppc64le.sha256 $(OUT_DIR)/$(CLI_NAME)-linux-s390x.sha256 $(OUT_DIR)/$(CLI_NAME)-darwin-amd64.sha256 $(OUT_DIR)/$(CLI_NAME)-windows-amd64.sha256
 

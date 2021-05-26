@@ -4,8 +4,6 @@
 
 [![Codefresh build status]( https://g.codefresh.io/api/badges/pipeline/codefresh-inc/cli-v2%2Fci?type=cf-1&key=eyJhbGciOiJIUzI1NiJ9.NTY3MmQ4ZGViNjcyNGI2ZTM1OWFkZjYy.AN2wExsAsq7FseTbVxxWls8muNx_bBUnQWQVS8IgDTI)]( https://g.codefresh.io/pipelines/edit/new/builds?id=60ae2ae330acb8f9c9bace7f&pipeline=ci&projects=cli-v2&projectId=60ae2a8498763b36c241d563)
 [![codecov](https://codecov.io/gh/codefresh-io/cli-v2/branch/main/graph/badge.svg?token=IDyZNfRUfY)](https://codecov.io/gh/codefresh-io/cli-v2)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/codefresh-io/cli-v2)
-![GitHub all releases](https://img.shields.io/github/downloads/codefresh-io/cli-v2/total)
 
 ## Introduction
 
