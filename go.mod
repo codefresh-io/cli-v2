@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/argoproj-labs/argocd-autopilot v0.1.8
 	github.com/briandowns/spinner v1.12.0
+	github.com/codefresh-io/go-sdk v0.25.9
 	github.com/sirupsen/logrus v1.8.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
@@ -12,6 +13,8 @@ require (
 )
 
 replace (
+
+	github.com/codefresh-io/go-sdk => /Users/roikramer/workspaces/product/go-sdk
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.4
