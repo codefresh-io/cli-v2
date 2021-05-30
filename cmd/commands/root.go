@@ -41,6 +41,7 @@ variables in advanced to simplify the use of those commands.
 
 	cmd.AddCommand(NewVersionCommand())
 	cmd.AddCommand(NewAuthCommand())
+	cmd.AddCommand(NewRuntimeCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 
