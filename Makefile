@@ -1,4 +1,4 @@
-VERSION=v0.0.7
+VERSION=v0.0.8
 OUT_DIR=dist
 
 CLI_NAME?=cf
