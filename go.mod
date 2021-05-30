@@ -9,9 +9,9 @@ require (
 	github.com/codefresh-io/go-sdk v0.25.9
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/sirupsen/logrus v1.8.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
@@ -20,8 +20,8 @@ require (
 )
 
 replace (
-	github.com/codefresh-io/go-sdk => ../go-sdk
 	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
+	github.com/codefresh-io/go-sdk => ../go-sdk
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.4
