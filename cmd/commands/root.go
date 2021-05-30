@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/spf13/cobra"
 )
+
+var cfConfig *config.Config
 
 func NewRoot() *cobra.Command {
 	s := store.Get()
@@ -23,6 +26,9 @@ pushing changes to it.
 It is recommended that you export the $GIT_TOKEN and $GIT_REPO environment
 variables in advanced to simplify the use of those commands.
 `),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return cfConfig.Load()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -31,7 +37,10 @@ variables in advanced to simplify the use of those commands.
 		DisableAutoGenTag: true, // disable the date in the command docs
 	}
 
+	cfConfig = config.AddFlags(cmd.PersistentFlags())
+
 	cmd.AddCommand(NewVersionCommand())
+	cmd.AddCommand(NewAuthCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 

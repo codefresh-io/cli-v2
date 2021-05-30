@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 )
 
@@ -31,21 +32,23 @@ var (
 	ErrInvalidConfig = errors.New("invalid config")
 )
 
+var newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
+
 type Config struct {
 	insecure       bool
 	path           string
 	requestTimeout time.Duration
-	CurrentContext string                 `json:"current-context"`
-	Contexts       map[string]AuthContext `json:"contexts"`
+	CurrentContext string                 `mapstructure:"current-context"`
+	Contexts       map[string]AuthContext `mapstructure:"contexts"`
 }
 
 type AuthContext struct {
-	Type   string `json:"type"`
-	Name   string `json:"name"`
-	URL    string `json:"url"`
-	Token  string `json:"token"`
-	Beta   bool   `json:"beta"`
-	OnPrem bool   `json:"onPrem"`
+	Type   string `mapstructure:"type"`
+	Name   string `mapstructure:"name"`
+	URL    string `mapstructure:"url"`
+	Token  string `mapstructure:"token"`
+	Beta   bool   `mapstructure:"beta"`
+	OnPrem bool   `mapstructure:"onPrem"`
 }
 
 func AddFlags(f *pflag.FlagSet) *Config {
@@ -58,12 +61,15 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	return conf
 }
 
-func (c *Config) Load(pathOverride string) error {
+func (c *Config) Load() error {
 	viper.SetConfigType(configFileFormat)
 	viper.SetConfigName(configFileName)
 	viper.AddConfigPath(c.path)
 
 	if err := viper.ReadInConfig(); err != nil {
+		if errors.As(err, &viper.ConfigFileNotFoundError{}) {
+			log.G().Debug("config file not found")
+		}
 		return err
 	}
 
@@ -93,7 +99,7 @@ func (c *Config) clientForContext(ctx AuthContext) codefresh.Codefresh {
 		httpClient.Transport = customTransport
 	}
 
-	return codefresh.New(&codefresh.ClientOptions{
+	return newCodefresh(&codefresh.ClientOptions{
 		Auth: codefresh.AuthOptions{
 			Token: ctx.Token,
 		},
@@ -103,31 +109,55 @@ func (c *Config) clientForContext(ctx AuthContext) codefresh.Codefresh {
 }
 
 func (c *Config) Write(ctx context.Context, w io.Writer) error {
-	tb := tabwriter.NewWriter(w, 0, 0, 4, ' ', 0)
-	_, err := tb.Write([]byte("NAME\tURL\tACCOUNT\tSTATUS"))
+	tb := tabwriter.NewWriter(w, 0, 0, 8, ' ', 0)
+	writerLock := sync.Mutex{}
+	ar := util.NewAsyncRunner(len(c.Contexts))
+
+	_, err := fmt.Fprintln(tb, "NAME\tURL\tACCOUNT\tSTATUS")
 	if err != nil {
 		return err
 	}
 
 	for name, context := range c.Contexts {
-		status := "VALID"
-		usr, err := c.clientForContext(context).Users().GetCurrent(ctx)
-		if err != nil {
-			status = "REVOKED"
-		}
-		acc := usr.GetActiveAccount()
-		_, err = tb.Write([]byte(fmt.Sprintf("%s\t%s\t%s\t%s",
-			name,
-			context.URL,
-			acc.Name,
-			status,
-		)))
-		if err != nil {
-			return err
-		}
+		// capture local variables for closure
+		name := name
+		context := context
+
+		ar.Run(func() error {
+			status := "VALID"
+			accName := ""
+
+			usr, err := c.clientForContext(context).Users().GetCurrent(ctx)
+			if err != nil {
+				if ctx.Err() != nil { // context canceled
+					return ctx.Err()
+				}
+				status = err.Error()
+
+			} else {
+				accName = usr.GetActiveAccount().Name
+			}
+
+			writerLock.Lock()
+			_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\n",
+				name,
+				context.URL,
+				accName,
+				status,
+			)
+			writerLock.Unlock()
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 
-	return nil
+	if err := ar.Wait(); err != nil {
+		return err
+	}
+
+	return tb.Flush()
 }
 
 func (c *Config) validate() {
@@ -141,5 +171,5 @@ func init() {
 	if err != nil {
 		log.G().WithError(err).Fatal("failed to get user home directory")
 	}
-	defaultPath = filepath.Join(homedir, configFileName)
+	defaultPath = homedir
 }
