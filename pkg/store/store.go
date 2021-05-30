@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 )
 
@@ -25,23 +26,28 @@ type Version struct {
 }
 
 type Store struct {
-	BinaryName                         string
-	DefaultAPI                         string
-	Version                            Version
-	InstallationManifestsURL           string
-	InstallationManifestsNamespacedURL string
+	BinaryName string
+	Version    Version
+	DefaultAPI string
+
+	ArgoCDManifestsURL        string
+	ArgoEventsManifestsURL    string
+	ArgoRolloutsManifestsURL  string
+	ArgoWorkflowsManifestsURL string
 }
 
 // Get returns the global store
 func Get() *Store {
-
 	return &s
 }
 
 func init() {
 	s.BinaryName = binaryName
-	s.InstallationManifestsURL = installationManifestsURL
 	s.DefaultAPI = "https://g.codefresh.io"
+	s.ArgoCDManifestsURL = filepath.Join(installationManifestsURL, "argo-cd")
+	s.ArgoEventsManifestsURL = filepath.Join(installationManifestsURL, "argo-events")
+	s.ArgoRolloutsManifestsURL = filepath.Join(installationManifestsURL, "argo-rollouts")
+	s.ArgoWorkflowsManifestsURL = filepath.Join(installationManifestsURL, "argo-workflows")
 
 	initVersion()
 }

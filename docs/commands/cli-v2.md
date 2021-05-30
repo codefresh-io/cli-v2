@@ -27,5 +27,6 @@ cli-v2 [flags]
 
 ### SEE ALSO
 
+* [cli-v2 runtime](cli-v2_runtime.md)	 - Manage Codefresh runtimes
 * [cli-v2 version](cli-v2_version.md)	 - Show cli version
 
