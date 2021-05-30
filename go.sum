@@ -98,8 +98,6 @@ github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYU
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/argoproj-labs/applicationset v0.1.0 h1:vrC90k72x8F0LyaAXwFz3kpSDRo+fEcD3J4U4VBQkGU=
 github.com/argoproj-labs/applicationset v0.1.0/go.mod h1:/6IQ0fcBtQkr19Hbqy+xpCjNNx8lp+VpKeZugz7cVKA=
-github.com/argoproj-labs/argocd-autopilot v0.1.8 h1:eQ80mXA8N4AB2x3dYoMnY4b0ZFbJeXGihy8Qx2GatAM=
-github.com/argoproj-labs/argocd-autopilot v0.1.8/go.mod h1:kMIqrH0SCtwV7aPXPJ5oXrSgEiv+0JRxXu+vi4vBi2c=
 github.com/argoproj/argo-cd v1.8.1 h1:AQhYVqmWnNHXJxc2S6ZiHcY5BEegZMeVPivMpAchB6M=
 github.com/argoproj/argo-cd v1.8.1/go.mod h1:Vfl7OGgBC83dVWgq58wU6UR3kG864h0dtHEIQ8xqw4s=
 github.com/argoproj/argo-cd/v2 v2.0.0 h1:wbB6ySEVY4Xhhv+EL0wKIY4OJ6dzEaGHdwGCddA39DM=
@@ -282,7 +280,6 @@ github.com/go-errors/errors v1.0.1/go.mod h1:f4zRHt4oKfwPJE5k8C9vpYG+aDHdBFUsgrm
 github.com/go-git/gcfg v1.5.0 h1:Q5ViNfGF8zFgyJWPqYwA7qGFoMTEiBmdlkcfRmpIMa4=
 github.com/go-git/gcfg v1.5.0/go.mod h1:5m20vg6GwYabIxaOonVkTdrILxQMpEShl1xiMF4ua+E=
 github.com/go-git/go-billy/v5 v5.0.0/go.mod h1:pmpqyWchKfYfrkb/UVH4otLvyi/5gJlGI4Hb3ZqZ3W0=
-github.com/go-git/go-billy/v5 v5.1.0 h1:4pl5BV4o7ZG/lterP4S6WzJ6xr49Ba5ET9ygheTYahk=
 github.com/go-git/go-billy/v5 v5.1.0/go.mod h1:pmpqyWchKfYfrkb/UVH4otLvyi/5gJlGI4Hb3ZqZ3W0=
 github.com/go-git/go-billy/v5 v5.3.1 h1:CPiOUAzKtMRvolEKw+bG1PLRpT7D3LIs3/3ey4Aiu34=
 github.com/go-git/go-billy/v5 v5.3.1/go.mod h1:pmpqyWchKfYfrkb/UVH4otLvyi/5gJlGI4Hb3ZqZ3W0=
