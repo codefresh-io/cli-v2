@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -32,6 +35,14 @@ var defaultPath = ""
 // Errors
 var (
 	ErrInvalidConfig = errors.New("invalid config")
+
+	ErrContextDoesNotExist = func(context string) error {
+		return fmt.Errorf(
+			util.Doc(
+				fmt.Sprintf("%s: current context '%s' does not exist in config file. run '<BIN> auth create-context' to create one.", ErrInvalidConfig, context),
+			),
+		)
+	}
 )
 
 var newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
@@ -41,8 +52,8 @@ type Config struct {
 	path            string
 	contextOverride string
 	requestTimeout  time.Duration
-	CurrentContext  string                 `mapstructure:"current-context"`
-	Contexts        map[string]AuthContext `mapstructure:"contexts"`
+	CurrentContext  string                 `mapstructure:"current-context" json:"current-context"`
+	Contexts        map[string]AuthContext `mapstructure:"contexts" json:"contexts"`
 }
 
 type AuthContext struct {
@@ -71,6 +82,9 @@ func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error 
 	if len(c.Contexts) == 0 {
 		return fmt.Errorf(util.Doc("%s: command requires authentication, run '<BIN> auth create-context'"), cmd.CommandPath())
 	}
+
+	c.validate()
+
 	return nil
 }
 
@@ -80,7 +94,7 @@ func (c *Config) Load() error {
 	viper.AddConfigPath(c.path)
 
 	if err := viper.ReadInConfig(); err != nil {
-		if errors.Is(err, &viper.ConfigFileNotFoundError{}) {
+		if errors.As(err, &viper.ConfigFileNotFoundError{}) {
 			log.G().Debug("config file not found")
 			if c.path == defaultPath {
 				return nil
@@ -98,6 +112,16 @@ func (c *Config) Load() error {
 	return nil
 }
 
+// Save persists the config to the file it was read from
+func (c *Config) Save() error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filepath.Join(c.path, configFileName), data, 0644)
+}
+
 // GetCurrentContext returns current authentication context
 // or the one specified with --auth-context.
 func (c *Config) GetCurrentContext() AuthContext {
@@ -112,6 +136,63 @@ func (c *Config) GetCurrentContext() AuthContext {
 // override context (if specified with --auth-context).
 func (c *Config) NewClient() codefresh.Codefresh {
 	return c.clientForContext(c.GetCurrentContext())
+}
+
+// Delete
+func (c *Config) DeleteContext(name string) error {
+	if _, exists := c.Contexts[name]; !exists {
+		return ErrContextDoesNotExist(name)
+	}
+
+	delete(c.Contexts, name)
+	if c.CurrentContext == name {
+		log.G().Warnf(util.Doc("delete context is set as current context, specify a new current context with '<BIN> auth use-context'"))
+		c.CurrentContext = ""
+	}
+
+	return c.Save()
+}
+
+func (c *Config) UseContext(ctx context.Context, name string) error {
+	if _, exists := c.Contexts[name]; !exists {
+		return ErrContextDoesNotExist(name)
+	}
+
+	c.CurrentContext = name
+	_, err := c.NewClient().Users().GetCurrent(ctx)
+	if err != nil {
+		return err
+	}
+
+	return c.Save()
+}
+
+func (c *Config) NewContext(ctx context.Context, name, token, url string) error {
+	if _, exists := c.Contexts[name]; exists {
+		return fmt.Errorf("authentication context with the name '%s' already exists", name)
+	}
+
+	authCtx := AuthContext{
+		Name:  name,
+		URL:   url,
+		Token: token,
+		Type:  "APIKey",
+		Beta:  false,
+	}
+
+	// validate new context
+	client := c.clientForContext(authCtx)
+	usr, err := client.Users().GetCurrent(ctx)
+	if err != nil {
+		return err
+	}
+	authCtx.OnPrem = isAdminUser(usr)
+
+	if c.Contexts == nil {
+		c.Contexts = map[string]AuthContext{}
+	}
+	c.Contexts[name] = authCtx
+	return nil
 }
 
 func (c *Config) clientForContext(ctx AuthContext) codefresh.Codefresh {
@@ -197,9 +278,21 @@ func (c *Config) validate() {
 		}
 	}
 
-	if _, ok := c.Contexts[c.CurrentContext]; !ok {
+	if _, ok := c.Contexts[c.CurrentContext]; !ok && c.CurrentContext != "" {
 		log.G().Fatalf("%s: current context '%s' does not exist in config file", ErrInvalidConfig, c.CurrentContext)
 	}
+
+	if c.CurrentContext == "" {
+	}
+}
+
+func isAdminUser(usr *codefresh.User) bool {
+	for _, role := range usr.Roles {
+		if role == "Admin" {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {

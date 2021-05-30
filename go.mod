@@ -8,6 +8,7 @@ require (
 	github.com/briandowns/spinner v1.12.0
 	github.com/codefresh-io/go-sdk v0.25.9
 	github.com/fatih/color v1.12.0
+	github.com/ghodss/yaml v1.0.0
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.0

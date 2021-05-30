@@ -26,6 +26,7 @@ type Version struct {
 
 type Store struct {
 	BinaryName                         string
+	DefaultAPI                         string
 	Version                            Version
 	InstallationManifestsURL           string
 	InstallationManifestsNamespacedURL string
@@ -40,6 +41,7 @@ func Get() *Store {
 func init() {
 	s.BinaryName = binaryName
 	s.InstallationManifestsURL = installationManifestsURL
+	s.DefaultAPI = "https://g.codefresh.io"
 
 	initVersion()
 }
