@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"text/tabwriter"
 	"time"
 
+	"github.com/fatih/color"
+	"github.com/juju/ansiterm"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -24,8 +26,8 @@ const configFileName = ".cfconfig"
 const configFileFormat = "yaml"
 const defaultRequestTimeout = time.Second * 30
 
+var greenStar = color.GreenString("*")
 var defaultPath = ""
-var stdout = os.Stdout
 
 // Errors
 var (
@@ -35,11 +37,12 @@ var (
 var newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
 
 type Config struct {
-	insecure       bool
-	path           string
-	requestTimeout time.Duration
-	CurrentContext string                 `mapstructure:"current-context"`
-	Contexts       map[string]AuthContext `mapstructure:"contexts"`
+	insecure        bool
+	path            string
+	contextOverride string
+	requestTimeout  time.Duration
+	CurrentContext  string                 `mapstructure:"current-context"`
+	Contexts        map[string]AuthContext `mapstructure:"contexts"`
 }
 
 type AuthContext struct {
@@ -55,10 +58,20 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	conf := &Config{path: defaultPath}
 
 	f.StringVar(&conf.path, "cfconfig", defaultPath, "Custom path for authentication contexts config file")
+	f.StringVar(&conf.contextOverride, "auth-context", "", "Run the next command using a specific authentication context")
 	f.BoolVar(&conf.insecure, "insecure", false, "Disable certificate validation for TLS connections (e.g. to g.codefresh.io)")
 	f.DurationVar(&conf.requestTimeout, "request-timeout", defaultRequestTimeout, "Request timeout")
 
 	return conf
+}
+
+// RequireAuthentication is ment to be used as cobra PreRunE or PersistentPreRunE function
+// on commands that require authentication context.
+func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error {
+	if len(c.Contexts) == 0 {
+		return fmt.Errorf(util.Doc("%s: command requires authentication, run '<BIN> auth create-context'"), cmd.CommandPath())
+	}
+	return nil
 }
 
 func (c *Config) Load() error {
@@ -67,8 +80,11 @@ func (c *Config) Load() error {
 	viper.AddConfigPath(c.path)
 
 	if err := viper.ReadInConfig(); err != nil {
-		if errors.As(err, &viper.ConfigFileNotFoundError{}) {
+		if errors.Is(err, &viper.ConfigFileNotFoundError{}) {
 			log.G().Debug("config file not found")
+			if c.path == defaultPath {
+				return nil
+			}
 		}
 		return err
 	}
@@ -82,10 +98,18 @@ func (c *Config) Load() error {
 	return nil
 }
 
+// GetCurrentContext returns current authentication context
+// or the one specified with --auth-context.
 func (c *Config) GetCurrentContext() AuthContext {
-	return c.Contexts[c.CurrentContext]
+	ctx := c.CurrentContext
+	if c.contextOverride != "" {
+		ctx = c.contextOverride
+	}
+	return c.Contexts[ctx]
 }
 
+// NewClient creates a new codefresh client for the current context or for
+// override context (if specified with --auth-context).
 func (c *Config) NewClient() codefresh.Codefresh {
 	return c.clientForContext(c.GetCurrentContext())
 }
@@ -109,11 +133,11 @@ func (c *Config) clientForContext(ctx AuthContext) codefresh.Codefresh {
 }
 
 func (c *Config) Write(ctx context.Context, w io.Writer) error {
-	tb := tabwriter.NewWriter(w, 0, 0, 8, ' ', 0)
+	tb := ansiterm.NewTabWriter(w, 0, 0, 4, ' ', 0)
 	writerLock := sync.Mutex{}
 	ar := util.NewAsyncRunner(len(c.Contexts))
 
-	_, err := fmt.Fprintln(tb, "NAME\tURL\tACCOUNT\tSTATUS")
+	_, err := fmt.Fprintln(tb, "CURRENT\tNAME\tURL\tACCOUNT\tSTATUS")
 	if err != nil {
 		return err
 	}
@@ -126,6 +150,7 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 		ar.Run(func() error {
 			status := "VALID"
 			accName := ""
+			current := ""
 
 			usr, err := c.clientForContext(context).Users().GetCurrent(ctx)
 			if err != nil {
@@ -138,8 +163,13 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 				accName = usr.GetActiveAccount().Name
 			}
 
+			if name == c.CurrentContext {
+				current = greenStar
+			}
+
 			writerLock.Lock()
-			_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\n",
+			_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+				current,
 				name,
 				context.URL,
 				accName,
@@ -161,8 +191,14 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 }
 
 func (c *Config) validate() {
+	if c.contextOverride != "" {
+		if _, ok := c.Contexts[c.contextOverride]; !ok {
+			log.G().Fatalf("%s: selected context '%s' does not exist in config file", ErrInvalidConfig, c.contextOverride)
+		}
+	}
+
 	if _, ok := c.Contexts[c.CurrentContext]; !ok {
-		log.G().WithError(ErrInvalidConfig).Fatalf("current context '%s' does not exist in config file", c.CurrentContext)
+		log.G().Fatalf("%s: current context '%s' does not exist in config file", ErrInvalidConfig, c.CurrentContext)
 	}
 }
 

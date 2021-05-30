@@ -15,8 +15,9 @@ type (
 
 func NewRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "runtime",
-		Short: "Manage Codefresh runtimes",
+		Use:               "runtime",
+		Short:             "Manage Codefresh runtimes",
+		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 			exit(1)
@@ -43,9 +44,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 }
 
 func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
-	err := apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		
-	})
+	err := apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{})
 	// autopilot repo create --owner --name -> cloneUrl
 	// 					 repo bootstrap --repo --app
 	//           project create codefresh

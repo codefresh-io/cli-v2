@@ -29,6 +29,7 @@ func TestConfig_Write(t *testing.T) {
 						URL:   "https://g.codefresh.io",
 					},
 				},
+				CurrentContext: "foo",
 			},
 			prepFn: func(t *testing.T, usersMock *mocks.UsersAPI) {
 				usersMock.On("GetCurrent", mock.Anything).Return(&codefresh.User{
@@ -46,6 +47,7 @@ func TestConfig_Write(t *testing.T) {
 				assert.Contains(t, out, "foo")
 				assert.Contains(t, out, "VALID")
 				assert.Contains(t, out, "bar")
+				assert.Contains(t, out, "*")
 			},
 		},
 	}
