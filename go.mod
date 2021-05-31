@@ -6,7 +6,7 @@ require (
 	github.com/argoproj-labs/argocd-autopilot v0.1.8
 	github.com/argoproj/argo-cd/v2 v2.0.0
 	github.com/briandowns/spinner v1.12.0
-	github.com/codefresh-io/go-sdk v0.25.9
+	github.com/codefresh-io/go-sdk v0.26.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -21,7 +21,6 @@ require (
 
 replace (
 	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
-	github.com/codefresh-io/go-sdk => ../go-sdk
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.4
