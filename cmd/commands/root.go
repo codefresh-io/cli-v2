@@ -40,7 +40,7 @@ variables in advanced to simplify the use of those commands.
 	cfConfig = config.AddFlags(cmd.PersistentFlags())
 
 	cmd.AddCommand(NewVersionCommand())
-	cmd.AddCommand(NewAuthCommand())
+	cmd.AddCommand(NewConfigCommand())
 	cmd.AddCommand(NewRuntimeCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })

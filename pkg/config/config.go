@@ -39,7 +39,7 @@ var (
 	ErrContextDoesNotExist = func(context string) error {
 		return fmt.Errorf(
 			util.Doc(
-				fmt.Sprintf("%s: current context '%s' does not exist in config file. run '<BIN> auth create-context' to create one.", ErrInvalidConfig, context),
+				fmt.Sprintf("%s: current context '%s' does not exist in config file. run '<BIN> config create-context' to create one.", ErrInvalidConfig, context),
 			),
 		)
 	}
@@ -80,7 +80,7 @@ func AddFlags(f *pflag.FlagSet) *Config {
 // on commands that require authentication context.
 func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error {
 	if len(c.Contexts) == 0 {
-		return fmt.Errorf(util.Doc("%s: command requires authentication, run '<BIN> auth create-context'"), cmd.CommandPath())
+		return fmt.Errorf(util.Doc("%s: command requires authentication, run '<BIN> config create-context'"), cmd.CommandPath())
 	}
 
 	c.validate()
@@ -146,7 +146,7 @@ func (c *Config) DeleteContext(name string) error {
 
 	delete(c.Contexts, name)
 	if c.CurrentContext == name {
-		log.G().Warnf(util.Doc("delete context is set as current context, specify a new current context with '<BIN> auth use-context'"))
+		log.G().Warnf(util.Doc("delete context is set as current context, specify a new current context with '<BIN> config use-context'"))
 		c.CurrentContext = ""
 	}
 
@@ -167,7 +167,7 @@ func (c *Config) UseContext(ctx context.Context, name string) error {
 	return c.Save()
 }
 
-func (c *Config) NewContext(ctx context.Context, name, token, url string) error {
+func (c *Config) CreateContext(ctx context.Context, name, token, url string) error {
 	if _, exists := c.Contexts[name]; exists {
 		return fmt.Errorf("authentication context with the name '%s' already exists", name)
 	}
@@ -184,7 +184,7 @@ func (c *Config) NewContext(ctx context.Context, name, token, url string) error 
 	client := c.clientForContext(authCtx)
 	usr, err := client.Users().GetCurrent(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create '%s' with the provided options: %w", name, err)
 	}
 	authCtx.OnPrem = isAdminUser(usr)
 

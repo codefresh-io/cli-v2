@@ -12,19 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewAuthCommand() *cobra.Command {
+func NewConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "auth",
+		Use:   "config",
 		Short: "Manage Codefresh authentication contexts",
-		Long: util.Doc(`By default, <BIN> authentication contexts are persisted at $HOME/.cfconfig.
+		Long: util.Doc(`By default, Codefresh authentication contexts are persisted at $HOME/.cfconfig.
 You can create, delete and list authentication contexts using the following
 commands, respectively:
 
-		<BIN> auth create-context <NAME> --api-key <key>
+		<BIN> config create-context <NAME> --api-key <key>
 
-		<BIN> auth delete-context <NAME>
+		<BIN> config delete-context <NAME>
 
-		<BIN> auth get-contexts
+		<BIN> config get-contexts
 `),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
@@ -32,15 +32,16 @@ commands, respectively:
 		},
 	}
 
-	cmd.AddCommand(NewAuthGetContextsCommand())
-	cmd.AddCommand(NewAuthUseContextCommand())
-	cmd.AddCommand(NewAuthCreateContextCommand())
-	cmd.AddCommand(NewAuthDeleteContextCommand())
+	cmd.AddCommand(NewConfigGetContextsCommand())
+	cmd.AddCommand(NewConfigCurrentContextCommand())
+	cmd.AddCommand(NewConfigUseContextCommand())
+	cmd.AddCommand(NewConfigCreateContextCommand())
+	cmd.AddCommand(NewConfigDeleteContextCommand())
 
 	return cmd
 }
 
-func NewAuthCreateContextCommand() *cobra.Command {
+func NewConfigCreateContextCommand() *cobra.Command {
 	var (
 		apiKey string
 		url    string
@@ -52,12 +53,12 @@ func NewAuthCreateContextCommand() *cobra.Command {
 		Example: util.Doc(`
 # Create a new context named 'test':
 
-		<BIN> auth create-context test --api-key TOKEN`),
+		<BIN> config create-context test --api-key TOKEN`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide context name to use")
 			}
-			return RunAuthCreateContext(cmd.Context(), args[0], apiKey, url)
+			return RunConfigCreateContext(cmd.Context(), args[0], apiKey, url)
 		},
 	}
 
@@ -68,15 +69,15 @@ func NewAuthCreateContextCommand() *cobra.Command {
 	return cmd
 }
 
-func RunAuthCreateContext(ctx context.Context, context, apiKey, url string) error {
-	if err := cfConfig.NewContext(ctx, context, apiKey, url); err != nil {
+func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) error {
+	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
 		return err
 	}
 	log.G().Infof("create new context: %s", context)
-	return RunAuthUseContext(ctx, context)
+	return RunConfigUseContext(ctx, context)
 }
 
-func NewAuthGetContextsCommand() *cobra.Command {
+func NewConfigGetContextsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get-contexts",
 		Aliases: []string{"view"},
@@ -84,39 +85,64 @@ func NewAuthGetContextsCommand() *cobra.Command {
 		Example: util.Doc(`
 # List all authentication contexts:
 
-		<BIN> auth get-contexts`),
+		<BIN> config get-contexts`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunAuthGetContexts(cmd.Context())
+			return RunConfigGetContexts(cmd.Context())
 		},
 	}
 
 	return cmd
 }
 
-func RunAuthGetContexts(ctx context.Context) error {
+func RunConfigGetContexts(ctx context.Context) error {
 	return cfConfig.Write(ctx, os.Stdout)
 }
 
-func NewAuthUseContextCommand() *cobra.Command {
+func NewConfigCurrentContextCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "current-context",
+		Short: "Shows the currently selected Codefresh authentication context",
+		Example: util.Doc(`
+# Shows the current context:
+
+		<BIN> config current-context`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return RunConfigCurrentContext(cmd.Context())
+		},
+	}
+
+	return cmd
+}
+
+func RunConfigCurrentContext(ctx context.Context) error {
+	cur := cfConfig.GetCurrentContext()
+	if cur.Name == "" {
+		log.G().Fatal(util.Doc("no currently selected context, use '<BIN> config use-context' to select a context"))
+	}
+	log.G().Info(cur.Name)
+	return nil
+}
+
+func NewConfigUseContextCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "use-context CONTEXT",
 		Short: "Switch the current authentication context",
 		Example: util.Doc(`
 # Switch to another authentication context:
 
-		<BIN> auth use-context test`),
+		<BIN> config use-context test`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide context name to use")
 			}
-			return RunAuthUseContext(cmd.Context(), args[0])
+			return RunConfigUseContext(cmd.Context(), args[0])
 		},
 	}
 
 	return cmd
 }
 
-func RunAuthUseContext(ctx context.Context, context string) error {
+func RunConfigUseContext(ctx context.Context, context string) error {
 	if err := cfConfig.UseContext(ctx, context); err != nil {
 		return err
 	}
@@ -124,26 +150,26 @@ func RunAuthUseContext(ctx context.Context, context string) error {
 	return nil
 }
 
-func NewAuthDeleteContextCommand() *cobra.Command {
+func NewConfigDeleteContextCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete-context CONTEXT",
 		Short: "Delete the specified authentication context",
 		Example: util.Doc(`
 # Deleting an authentication context name 'test':
 
-		<BIN> auth delete-context test`),
+		<BIN> config delete-context test`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide context name to use")
 			}
-			return RunAuthDeleteContext(cmd.Context(), args[0])
+			return RunConfigDeleteContext(cmd.Context(), args[0])
 		},
 	}
 
 	return cmd
 }
 
-func RunAuthDeleteContext(ctx context.Context, context string) error {
+func RunConfigDeleteContext(ctx context.Context, context string) error {
 	if err := cfConfig.DeleteContext(context); err != nil {
 		return err
 	}
