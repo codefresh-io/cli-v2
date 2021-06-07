@@ -33,6 +33,7 @@ type Store struct {
 	ArgoEventsManifestsURL    string
 	ArgoRolloutsManifestsURL  string
 	ArgoWorkflowsManifestsURL string
+	CFTokenSecret             string
 }
 
 // Get returns the global store
@@ -47,7 +48,7 @@ func init() {
 	s.ArgoEventsManifestsURL = filepath.Join(installationManifestsURL, "argo-events")
 	s.ArgoRolloutsManifestsURL = filepath.Join(installationManifestsURL, "argo-rollouts")
 	s.ArgoWorkflowsManifestsURL = filepath.Join(installationManifestsURL, "argo-workflows")
-
+	s.CFTokenSecret = "codefresh-token"
 	initVersion()
 }
 

@@ -3,24 +3,24 @@ module github.com/codefresh-io/cli-v2
 go 1.16
 
 require (
-	github.com/argoproj-labs/argocd-autopilot v0.1.8
-	github.com/argoproj/argo-cd/v2 v2.0.0
-	github.com/briandowns/spinner v1.12.0
+	github.com/argoproj-labs/argocd-autopilot v0.2.0
+	github.com/argoproj/argo-cd/v2 v2.0.3
+	github.com/briandowns/spinner v1.13.0
 	github.com/codefresh-io/go-sdk v0.26.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
-	github.com/sirupsen/logrus v1.8.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
+	k8s.io/api v0.20.4
+	k8s.io/apimachinery v0.20.4
 )
 
 replace (
-	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.4

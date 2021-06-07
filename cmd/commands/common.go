@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 
+	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,8 @@ import (
 var (
 	die  = util.Die
 	exit = os.Exit
+
+	cfConfig *config.Config
 )
 
 func postInitCommands(commands []*cobra.Command) {

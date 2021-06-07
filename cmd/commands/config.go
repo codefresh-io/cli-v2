@@ -14,8 +14,9 @@ import (
 
 func NewConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "config",
-		Short: "Manage Codefresh authentication contexts",
+		Use:               "config",
+		Short:             "Manage Codefresh authentication contexts",
+		PersistentPreRunE: cfConfig.Load,
 		Long: util.Doc(`By default, Codefresh authentication contexts are persisted at $HOME/.cfconfig.
 You can create, delete and list authentication contexts using the following
 commands, respectively:

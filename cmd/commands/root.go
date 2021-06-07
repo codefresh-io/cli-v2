@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cfConfig *config.Config
-
 func NewRoot() *cobra.Command {
 	s := store.Get()
 
@@ -26,9 +24,6 @@ pushing changes to it.
 It is recommended that you export the $GIT_TOKEN and $GIT_REPO environment
 variables in advanced to simplify the use of those commands.
 `),
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return cfConfig.Load()
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

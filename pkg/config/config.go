@@ -57,12 +57,12 @@ type Config struct {
 }
 
 type AuthContext struct {
-	Type   string `mapstructure:"type"`
-	Name   string `mapstructure:"name"`
-	URL    string `mapstructure:"url"`
-	Token  string `mapstructure:"token"`
-	Beta   bool   `mapstructure:"beta"`
-	OnPrem bool   `mapstructure:"onPrem"`
+	Type   string `mapstructure:"type" json:"type"`
+	Name   string `mapstructure:"name" json:"name"`
+	URL    string `mapstructure:"url" json:"url"`
+	Token  string `mapstructure:"token" json:"token"`
+	Beta   bool   `mapstructure:"beta" json:"beta"`
+	OnPrem bool   `mapstructure:"onPrem" json:"onPrem"`
 }
 
 func AddFlags(f *pflag.FlagSet) *Config {
@@ -79,6 +79,10 @@ func AddFlags(f *pflag.FlagSet) *Config {
 // RequireAuthentication is ment to be used as cobra PreRunE or PersistentPreRunE function
 // on commands that require authentication context.
 func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error {
+	if err := c.Load(cmd, args); err != nil {
+		return err
+	}
+
 	if len(c.Contexts) == 0 {
 		return fmt.Errorf(util.Doc("%s: command requires authentication, run '<BIN> config create-context'"), cmd.CommandPath())
 	}
@@ -88,7 +92,7 @@ func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error 
 	return nil
 }
 
-func (c *Config) Load() error {
+func (c *Config) Load(cmd *cobra.Command, args []string) error {
 	viper.SetConfigType(configFileFormat)
 	viper.SetConfigName(configFileName)
 	viper.AddConfigPath(c.path)
