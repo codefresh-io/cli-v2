@@ -1,4 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://raw.githubusercontent.com/argoproj/argo-events/v1.3.1/manifests/install.yaml
+  # events from master to get the secureHeaders for now, should move to next release when available
+  - https://raw.githubusercontent.com/argoproj/argo-events/master/manifests/install.yaml
+  - eventbus.yaml

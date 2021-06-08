@@ -34,6 +34,12 @@ type Store struct {
 	ArgoRolloutsManifestsURL  string
 	ArgoWorkflowsManifestsURL string
 	CFTokenSecret             string
+	CFTokenSecretKey          string
+	CFComponentKey            string
+	EventReportingEndpoint    string
+	EventBusName              string
+	ComponentsReporterName    string
+	ComponentsReporterSA      string
 }
 
 // Get returns the global store
@@ -49,6 +55,12 @@ func init() {
 	s.ArgoRolloutsManifestsURL = filepath.Join(installationManifestsURL, "argo-rollouts")
 	s.ArgoWorkflowsManifestsURL = filepath.Join(installationManifestsURL, "argo-workflows")
 	s.CFTokenSecret = "codefresh-token"
+	s.CFTokenSecretKey = "token"
+	s.CFComponentKey = "codefresh.io/component"
+	s.EventReportingEndpoint = "/argo/api/events"
+	s.EventBusName = "codefresh-eventbus"
+	s.ComponentsReporterName = "components-reporter"
+	s.ComponentsReporterSA = "components-reporter-sa"
 	initVersion()
 }
 

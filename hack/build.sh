@@ -7,7 +7,7 @@ if [[ ! -z "${GO_FLAGS}" ]]; then
     done
 fi
 
-${PACKR_CMD} build -ldflags=" \
+go build -ldflags=" \
     -extldflags '-static' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.binaryName=${BINARY_NAME}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.version=${VERSION}' \
