@@ -285,9 +285,6 @@ func (c *Config) validate() {
 	if _, ok := c.Contexts[c.CurrentContext]; !ok && c.CurrentContext != "" {
 		log.G().Fatalf("%s: current context '%s' does not exist in config file", ErrInvalidConfig, c.CurrentContext)
 	}
-
-	if c.CurrentContext == "" {
-	}
 }
 
 func isAdminUser(usr *codefresh.User) bool {
