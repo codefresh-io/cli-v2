@@ -22,11 +22,16 @@ cli-v2 [flags]
 ### Options
 
 ```
-  -h, --help   help for cli-v2
+      --auth-context string        Run the next command using a specific authentication context
+      --cfconfig string            Custom path for authentication contexts config file (default "/home/user")
+  -h, --help                       help for cli-v2
+      --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
+      --request-timeout duration   Request timeout (default 30s)
 ```
 
 ### SEE ALSO
 
+* [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 * [cli-v2 runtime](cli-v2_runtime.md)	 - Manage Codefresh runtimes
 * [cli-v2 version](cli-v2_version.md)	 - Show cli version
 

@@ -1,16 +1,24 @@
-## cli-v2 version
+## cli-v2 config delete-context
 
-Show cli version
+Delete the specified authentication context
 
 ```
-cli-v2 version [flags]
+cli-v2 config delete-context CONTEXT [flags]
+```
+
+### Examples
+
+```
+
+# Deleting an authentication context name 'test':
+
+        cli-v2 config delete-context test
 ```
 
 ### Options
 
 ```
-  -h, --help   help for version
-      --long   display full version information
+  -h, --help   help for delete-context
 ```
 
 ### Options inherited from parent commands
@@ -24,5 +32,5 @@ cli-v2 version [flags]
 
 ### SEE ALSO
 
-* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
+* [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 
