@@ -16,5 +16,5 @@ go build -ldflags=" \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.ArgoCDManifestsURL=${ARGOCD_INSTALLATION_MANIFESTS_URL}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.ArgoEventsManifestsURL=${EVENTS_INSTALLATION_MANIFESTS_URL}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.ArgoRolloutsManifestsURL=${ROLLOUTS_INSTALLATION_MANIFESTS_URL}' \
-    -X 'github.com/codefresh-io/cli-v2/pkg/store.ArgoWorkflowsManifestsURL=${WORKFLOWS_INSTALLATION_MANIFESTS_URL}' \
-    -v -o ${OUT_FILE} ${MAIN}"
+    -X 'github.com/codefresh-io/cli-v2/pkg/store.ArgoWorkflowsManifestsURL=${WORKFLOWS_INSTALLATION_MANIFESTS_URL}'" \
+    -v -o ${OUT_FILE} ${MAIN}
