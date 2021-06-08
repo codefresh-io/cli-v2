@@ -2,18 +2,20 @@ package store
 
 import (
 	"fmt"
-	"path/filepath"
 	"runtime"
 )
 
 var s Store
 
 var (
-	binaryName               = "cli-v2"
-	version                  = "v99.99.99"
-	buildDate                = ""
-	gitCommit                = ""
-	installationManifestsURL = "manifests"
+	binaryName                = "cli-v2"
+	version                   = "v99.99.99"
+	buildDate                 = ""
+	gitCommit                 = ""
+	ArgoCDManifestsURL        = "manifests/argo-cd"
+	ArgoEventsManifestsURL    = "manifests/argo-events"
+	ArgoRolloutsManifestsURL  = "manifests/argo-rollouts"
+	ArgoWorkflowsManifestsURL = "manifests/argo-workflows"
 )
 
 type Version struct {
@@ -50,10 +52,10 @@ func Get() *Store {
 func init() {
 	s.BinaryName = binaryName
 	s.DefaultAPI = "https://g.codefresh.io"
-	s.ArgoCDManifestsURL = filepath.Join(installationManifestsURL, "argo-cd")
-	s.ArgoEventsManifestsURL = filepath.Join(installationManifestsURL, "argo-events")
-	s.ArgoRolloutsManifestsURL = filepath.Join(installationManifestsURL, "argo-rollouts")
-	s.ArgoWorkflowsManifestsURL = filepath.Join(installationManifestsURL, "argo-workflows")
+	s.ArgoCDManifestsURL = ArgoCDManifestsURL
+	s.ArgoEventsManifestsURL = ArgoEventsManifestsURL
+	s.ArgoRolloutsManifestsURL = ArgoRolloutsManifestsURL
+	s.ArgoWorkflowsManifestsURL = ArgoWorkflowsManifestsURL
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
 	s.CFComponentKey = "codefresh.io/component"
