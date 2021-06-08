@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -95,4 +96,42 @@ func Doc(doc string) string {
 	doc = strings.ReplaceAll(doc, "<BIN>", store.Get().BinaryName)
 	doc = strings.ReplaceAll(doc, "\t", indentation)
 	return doc
+}
+
+type AsyncRunner struct {
+	wg   sync.WaitGroup
+	errC chan error
+}
+
+// NewAsyncRunner initializes a new AsyncRunner that can run up to
+// n async operations.
+func NewAsyncRunner(n int) *AsyncRunner {
+	return &AsyncRunner{
+		wg:   sync.WaitGroup{},
+		errC: make(chan error, n),
+	}
+}
+
+// Run runs another async operation
+func (ar *AsyncRunner) Run(f func() error) {
+	ar.wg.Add(1)
+	go func() {
+		defer ar.wg.Done()
+		if err := f(); err != nil {
+			ar.errC <- err
+		}
+	}()
+}
+
+// Wait waits for all async operations to finish and returns an error
+// if one of the async operations returned an error, otherwise, returns
+// nil.
+func (ar *AsyncRunner) Wait() error {
+	ar.wg.Wait()
+	select {
+	case err := <-ar.errC:
+		return err
+	default:
+		return nil
+	}
 }

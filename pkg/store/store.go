@@ -8,11 +8,14 @@ import (
 var s Store
 
 var (
-	binaryName               = "cli-v2"
-	version                  = "v99.99.99"
-	buildDate                = ""
-	gitCommit                = ""
-	installationManifestsURL = "manifests"
+	binaryName                = "cli-v2"
+	version                   = "v99.99.99"
+	buildDate                 = ""
+	gitCommit                 = ""
+	ArgoCDManifestsURL        = "manifests/argo-cd"
+	ArgoEventsManifestsURL    = "manifests/argo-events"
+	ArgoRolloutsManifestsURL  = "manifests/argo-rollouts"
+	ArgoWorkflowsManifestsURL = "manifests/argo-workflows"
 )
 
 type Version struct {
@@ -25,22 +28,41 @@ type Version struct {
 }
 
 type Store struct {
-	BinaryName                         string
-	Version                            Version
-	InstallationManifestsURL           string
-	InstallationManifestsNamespacedURL string
+	BinaryName                string
+	DefaultAPI                string
+	Version                   Version
+	ArgoCDManifestsURL        string
+	ArgoEventsManifestsURL    string
+	ArgoRolloutsManifestsURL  string
+	ArgoWorkflowsManifestsURL string
+	CFTokenSecret             string
+	CFTokenSecretKey          string
+	CFComponentKey            string
+	EventReportingEndpoint    string
+	EventBusName              string
+	ComponentsReporterName    string
+	ComponentsReporterSA      string
 }
 
 // Get returns the global store
 func Get() *Store {
-
 	return &s
 }
 
 func init() {
 	s.BinaryName = binaryName
-	s.InstallationManifestsURL = installationManifestsURL
-
+	s.DefaultAPI = "https://g.codefresh.io"
+	s.ArgoCDManifestsURL = ArgoCDManifestsURL
+	s.ArgoEventsManifestsURL = ArgoEventsManifestsURL
+	s.ArgoRolloutsManifestsURL = ArgoRolloutsManifestsURL
+	s.ArgoWorkflowsManifestsURL = ArgoWorkflowsManifestsURL
+	s.CFTokenSecret = "codefresh-token"
+	s.CFTokenSecretKey = "token"
+	s.CFComponentKey = "codefresh.io/component"
+	s.EventReportingEndpoint = "/argo/api/events"
+	s.EventBusName = "codefresh-eventbus"
+	s.ComponentsReporterName = "components-reporter"
+	s.ComponentsReporterSA = "components-reporter-sa"
 	initVersion()
 }
 

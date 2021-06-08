@@ -1,16 +1,24 @@
-## cli-v2 version
+## cli-v2 config use-context
 
-Show cli version
+Switch the current authentication context
 
 ```
-cli-v2 version [flags]
+cli-v2 config use-context CONTEXT [flags]
+```
+
+### Examples
+
+```
+
+# Switch to another authentication context:
+
+        cli-v2 config use-context test
 ```
 
 ### Options
 
 ```
-  -h, --help   help for version
-      --long   display full version information
+  -h, --help   help for use-context
 ```
 
 ### Options inherited from parent commands
@@ -24,5 +32,5 @@ cli-v2 version [flags]
 
 ### SEE ALSO
 
-* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
+* [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 

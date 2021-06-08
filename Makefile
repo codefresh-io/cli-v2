@@ -1,20 +1,23 @@
-VERSION=v0.0.7
+VERSION=v0.0.8
 OUT_DIR=dist
 
 CLI_NAME?=cf
 IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
-INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests?ref=$(VERSION)"
-INSTALLATION_MANIFESTS_NAMESPACED_URL="github.com/codefresh-io/cli-v2/manifests/namespace-install?ref=$(VERSION)"
+ARGOCD_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-cd?ref=$(VERSION)"
+EVENTS_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-events?ref=$(VERSION)"
+ROLLOUTS_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-rollouts?ref=$(VERSION)"
+WORKFLOWS_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-workflows?ref=$(VERSION)"
 
-DEV_INSTALLATION_MANIFESTS_URL="manifests/"
-DEV_INSTALLATION_MANIFESTS_NAMESPACED_URL="manifests/namespace-install"
+DEV_ARGOCD_INSTALLATION_MANIFESTS_URL="manifests/argo-cd"
+DEV_EVENTS_INSTALLATION_MANIFESTS_URL="manifests/argo-events"
+DEV_ROLLOUTS_INSTALLATION_MANIFESTS_URL="manifests/argo-rollouts"
+DEV_WORKFLOWS_INSTALLATION_MANIFESTS_URL="manifests/argo-workflows"
 
 CLI_SRCS := $(shell find . -name '*.go')
 
 MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
-PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
 
 GIT_COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -22,8 +25,10 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 DEV_MODE?=true
 
 ifeq (${DEV_MODE},true)
-	INSTALLATION_MANIFESTS_URL=${DEV_INSTALLATION_MANIFESTS_URL}
-	INSTALLATION_MANIFESTS_NAMESPACED_URL=${DEV_INSTALLATION_MANIFESTS_NAMESPACED_URL}
+	ARGOCD_INSTALLATION_MANIFESTS_URL=${ARGOCD_DEV_INSTALLATION_MANIFESTS_URL}
+	EVENTS_INSTALLATION_MANIFESTS_URL=${EVENTS_DEV_INSTALLATION_MANIFESTS_URL}
+	ROLLOUTS_INSTALLATION_MANIFESTS_URL=${ROLLOUTS_DEV_INSTALLATION_MANIFESTS_URL}
+	WORKFLOWS_INSTALLATION_MANIFESTS_URL=${WORKFLOWS_DEV_INSTALLATION_MANIFESTS_URL}
 endif
 
 ifndef GOBIN
@@ -81,16 +86,17 @@ $(OUT_DIR)/$(CLI_NAME)-%.sha256:
 	@make $(OUT_DIR)/$(CLI_NAME)-$*.tar.gz
 	openssl dgst -sha256 "$(OUT_DIR)/$(CLI_NAME)-$*.tar.gz" | awk '{ print $$2 }' > "$(OUT_DIR)/$(CLI_NAME)-$*".sha256
 
-$(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS) $(GOBIN)/packr
+$(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	@GO_FLAGS=$(GO_FLAGS) \
 	BUILD_DATE=$(BUILD_DATE) \
 	BINARY_NAME=$(CLI_NAME) \
 	VERSION=$(VERSION) \
 	GIT_COMMIT=$(GIT_COMMIT) \
-	PACKR_CMD=$(PACKR_CMD) \
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \
-	INSTALLATION_MANIFESTS_URL=$(INSTALLATION_MANIFESTS_URL) \
-	INSTALLATION_MANIFESTS_NAMESPACED_URL=$(INSTALLATION_MANIFESTS_NAMESPACED_URL) \
+	ARGOCD_INSTALLATION_MANIFESTS_URL=$(ARGOCD_INSTALLATION_MANIFESTS_URL) \
+	EVENTS_INSTALLATION_MANIFESTS_URL=$(EVENTS_INSTALLATION_MANIFESTS_URL) \
+	ROLLOUTS_INSTALLATION_MANIFESTS_URL=$(ROLLOUTS_INSTALLATION_MANIFESTS_URL) \
+	WORKFLOWS_INSTALLATION_MANIFESTS_URL=$(WORKFLOWS_INSTALLATION_MANIFESTS_URL) \
 	MAIN=./cmd \
 	./hack/build.sh
 
@@ -167,11 +173,4 @@ $(GOBIN)/interfacer:
 	@cd /tmp
 	@echo installing: interfacer
 	@GO111MODULE=on go get -v github.com/rjeczalik/interfaces/cmd/interfacer@v0.1.1
-	@cd ${cwd}
-
-$(GOBIN)/packr: cwd=$(shell pwd)
-$(GOBIN)/packr:
-	@cd /tmp
-	@echo installing: packr
-	@GO111MODULE=on go get -v github.com/gobuffalo/packr/packr@v1.30.1
 	@cd ${cwd}

@@ -1,16 +1,15 @@
-## cli-v2 version
+## cli-v2 runtime
 
-Show cli version
+Manage Codefresh runtimes
 
 ```
-cli-v2 version [flags]
+cli-v2 runtime [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for version
-      --long   display full version information
+  -h, --help   help for runtime
 ```
 
 ### Options inherited from parent commands
@@ -25,4 +24,5 @@ cli-v2 version [flags]
 ### SEE ALSO
 
 * [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
+* [cli-v2 runtime create](cli-v2_runtime_create.md)	 - Create a new Codefresh runtime
 

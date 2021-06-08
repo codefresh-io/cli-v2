@@ -1,16 +1,24 @@
-## cli-v2 version
+## cli-v2 config get-contexts
 
-Show cli version
+Lists all Codefresh authentication contexts
 
 ```
-cli-v2 version [flags]
+cli-v2 config get-contexts [flags]
+```
+
+### Examples
+
+```
+
+# List all authentication contexts:
+
+        cli-v2 config get-contexts
 ```
 
 ### Options
 
 ```
-  -h, --help   help for version
-      --long   display full version information
+  -h, --help   help for get-contexts
 ```
 
 ### Options inherited from parent commands
@@ -24,5 +32,5 @@ cli-v2 version [flags]
 
 ### SEE ALSO
 
-* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
+* [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 
