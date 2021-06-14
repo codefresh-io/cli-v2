@@ -1,5 +1,6 @@
-VERSION=v0.0.9
+VERSION=v0.0.10
 OUT_DIR=dist
+YEAR?=$(shell date +"%Y")
 
 CLI_NAME?=cf
 IMAGE_REPOSITORY?=quay.io
@@ -115,11 +116,12 @@ lint: $(GOBIN)/golangci-lint tidy
 
 .PHONY: test
 test:
-	./hack/test.sh
+	@./hack/test.sh
 
 .PHONY: codegen
 codegen: $(GOBIN)/mockery
 	go generate ./...
+	go run ./hack/license.go --license ./hack/boilerplate.txt --year $(YEAR) .
 
 .PHONY: pre-commit
 pre-commit: lint
@@ -137,7 +139,7 @@ serve-docs:
 
 .PHONY: release
 release: tidy check-worktree
-	./hack/release.sh
+	@./hack/release.sh
 
 .PHONY: clean
 clean:
@@ -167,10 +169,3 @@ $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.36.0
-
-$(GOBIN)/interfacer: cwd=$(shell pwd)
-$(GOBIN)/interfacer:
-	@cd /tmp
-	@echo installing: interfacer
-	@GO111MODULE=on go get -v github.com/rjeczalik/interfaces/cmd/interfacer@v0.1.1
-	@cd ${cwd}
