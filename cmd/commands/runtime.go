@@ -351,7 +351,7 @@ func createEventSource(repofs fs.FS, path, runtimeName string) error {
 					},
 					Namespace: runtimeName,
 					Filter: &eventsourcev1alpha1.ResourceFilter{
-						AfterStart: true,
+						AfterStart: false,
 						Labels: []eventsourcev1alpha1.Selector{
 							{
 								Key:       store.Get().CFComponentKey,
