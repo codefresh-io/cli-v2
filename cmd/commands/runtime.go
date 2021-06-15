@@ -428,7 +428,7 @@ func createSensor(repofs fs.FS, path, namespace string) error {
 							},
 							SecureHeaders: []*apicommon.SecureHeader{
 								{
-									Name: "X-Access-Token",
+									Name: "Autorization",
 									ValueFrom: &apicommon.ValueFromSource{
 										SecretKeyRef: &v1.SecretKeySelector{
 											LocalObjectReference: v1.LocalObjectReference{
@@ -469,7 +469,7 @@ func createSensor(repofs fs.FS, path, namespace string) error {
 							},
 							SecureHeaders: []*apicommon.SecureHeader{
 								{
-									Name: "X-Access-Token",
+									Name: "Autorization",
 									ValueFrom: &apicommon.ValueFromSource{
 										SecretKeyRef: &v1.SecretKeySelector{
 											LocalObjectReference: v1.LocalObjectReference{
