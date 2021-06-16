@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/argoproj-labs/applicationset v0.1.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.1
+	github.com/argoproj-labs/argocd-autopilot v0.2.4
 	github.com/argoproj/argo-cd/v2 v2.0.3
 	github.com/argoproj/argo-events v0.17.1-0.20210527154554-3f05846796c2
 	github.com/briandowns/spinner v1.13.0
@@ -19,6 +19,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
 )
