@@ -207,8 +207,9 @@ func createCodefreshResources(ctx context.Context, cloneOpts *git.CloneOptions, 
 
 func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string) error {
 	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
-		CloneOpts:   cloneOpts,
-		ProjectName: projectName,
+		CloneOpts:     cloneOpts,
+		AppsCloneOpts: &git.CloneOptions{},
+		ProjectName:   projectName,
 		AppOpts: &application.CreateOptions{
 			AppName:       appName,
 			AppSpecifier:  appURL,
