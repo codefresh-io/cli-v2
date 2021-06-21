@@ -145,15 +145,15 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 		return err
 	}
 
-	if err = createApp(ctx, installOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, installOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
 		return fmt.Errorf("failed to create application events: %w", err)
 	}
 
-	if err = createApp(ctx, installOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, installOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
 		return fmt.Errorf("failed to create application rollouts: %w", err)
 	}
 
-	if err = createApp(ctx, installOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, installOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
 		return fmt.Errorf("failed to create application workflows: %w", err)
 	}
 
@@ -175,7 +175,7 @@ func createCodefreshResources(ctx context.Context, cloneOpts *git.CloneOptions, 
 	}
 
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ComponentsReporterName, opts.RuntimeName, "resources")
-	if err := createApp(ctx, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, opts.RuntimeName); err != nil {
+	if err := createApp(ctx, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, application.AppTypeDirectory, opts.RuntimeName); err != nil {
 		return err
 	}
 
@@ -205,13 +205,15 @@ func createCodefreshResources(ctx context.Context, cloneOpts *git.CloneOptions, 
 	})
 }
 
-func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, appName, appURL, namespace string) error {
+func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string) error {
 	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
-		CloneOpts:   cloneOpts,
-		ProjectName: projectName,
+		CloneOpts:     cloneOpts,
+		AppsCloneOpts: &git.CloneOptions{},
+		ProjectName:   projectName,
 		AppOpts: &application.CreateOptions{
 			AppName:       appName,
 			AppSpecifier:  appURL,
+			AppType:       appType,
 			DestNamespace: namespace,
 		},
 	})
