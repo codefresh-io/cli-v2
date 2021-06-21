@@ -51,11 +51,13 @@ type Store struct {
 	ArgoWorkflowsManifestsURL string
 	CFTokenSecret             string
 	CFTokenSecretKey          string
-	CFComponentKey            string
+	CFType					  string
 	EventReportingEndpoint    string
 	EventBusName              string
 	ComponentsReporterName    string
 	ComponentsReporterSA      string
+	CFComponentType			  string
+	CFRuntimeType			  string
 }
 
 // Get returns the global store
@@ -72,11 +74,13 @@ func init() {
 	s.ArgoWorkflowsManifestsURL = ArgoWorkflowsManifestsURL
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
-	s.CFComponentKey = "codefresh.io/component"
+	s.CFType = "codefresh.io/type"
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.EventBusName = "codefresh-eventbus"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
+	s.CFComponentType = "component"
+	s.CFRuntimeType = "runtime"
 	initVersion()
 }
 
