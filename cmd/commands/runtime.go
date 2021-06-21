@@ -229,8 +229,12 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 	if appset.Spec.Template.Labels == nil {
 		appset.Spec.Template.Labels = make(map[string]string)
 	}
+	if appset.Labels == nil {
+		appset.Labels = make(map[string]string)
+	}
 
-	appset.Spec.Template.Labels[store.Get().CFComponentKey] = "{{ appName }}"
+	appset.Spec.Template.Labels[store.Get().CFType] = store.Get().CFComponentType
+	appset.Labels[store.Get().CFType] = store.Get().CFRuntimeType
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
@@ -356,9 +360,9 @@ func createEventSource(repofs fs.FS, path, runtimeName string) error {
 						AfterStart: false,
 						Labels: []eventsourcev1alpha1.Selector{
 							{
-								Key:       store.Get().CFComponentKey,
-								Operation: "!=",
-								Value:     "",
+								Key:       store.Get().CFType,
+								Operation: "==",
+								Value:     store.Get().CFComponentType,
 							},
 						},
 					},
@@ -376,12 +380,12 @@ func createEventSource(repofs fs.FS, path, runtimeName string) error {
 					},
 					Namespace: runtimeName,
 					Filter: &eventsourcev1alpha1.ResourceFilter{
-						AfterStart: true,
+						AfterStart: false,
 						Labels: []eventsourcev1alpha1.Selector{
 							{
-								Key:       store.Get().CFComponentKey,
-								Operation: "!=",
-								Value:     "",
+								Key:       store.Get().CFType,
+								Operation: "==",
+								Value:     store.Get().CFRuntimeType,
 							},
 						},
 					},
@@ -430,7 +434,7 @@ func createSensor(repofs fs.FS, path, namespace string) error {
 							},
 							SecureHeaders: []*apicommon.SecureHeader{
 								{
-									Name: "Autorization",
+									Name: "Authorization",
 									ValueFrom: &apicommon.ValueFromSource{
 										SecretKeyRef: &v1.SecretKeySelector{
 											LocalObjectReference: v1.LocalObjectReference{
@@ -471,7 +475,7 @@ func createSensor(repofs fs.FS, path, namespace string) error {
 							},
 							SecureHeaders: []*apicommon.SecureHeader{
 								{
-									Name: "Autorization",
+									Name: "Authorization",
 									ValueFrom: &apicommon.ValueFromSource{
 										SecretKeyRef: &v1.SecretKeySelector{
 											LocalObjectReference: v1.LocalObjectReference{
