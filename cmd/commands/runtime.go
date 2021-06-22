@@ -362,7 +362,7 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 			"components": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "Application",
+				Resource:  "applications",
 				Namespace: namespace,
 				Selectors: []eventUtils.CreateSelectorOptions{
 					{
@@ -375,7 +375,7 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 			"runtime": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "AppProject",
+				Resource:  "appprojects",
 				Namespace: namespace,
 				Selectors: []eventUtils.CreateSelectorOptions{
 					{
@@ -434,59 +434,66 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		ServiceAccountName: store.Get().ComponentsReporterSA,
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventUtils.CreateResourceEventSourceOptions{
-			"clusterWorkflowTemplate": {
+			// "clusterWorkflowTemplate": {
+			// 	Group:     "argoproj.io",
+			// 	Version:   "v1alpha1",
+			// 	Resource:  "clusterworkflowtemplates",
+			// 	Namespace: runtimeName,
+			// 	Selectors: selectors,
+			// },
+			"cronWorkflow": {
 				Group:     "argoproj.io",
-				Version:   "v1",
-				Resource:  "ClusterWorkflowTemplate",
+				Version:   "v1alpha1",
+				Resource:  "cronworkflows",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"workflowTemplate": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "WorkflowTemplate",
+				Resource:  "workflowtemplates",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"workflow": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "Workflow",
+				Resource:  "workflows",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"appProject": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "AppProject",
+				Resource:  "appprojects",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"application": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "Application",
+				Resource:  "applications",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"eventBus": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "EventBus",
+				Resource:  "eventbus",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"eventSource": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "EventSource",
+				Resource:  "eventsources",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
 			"sensor": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
-				Resource:  "Sensor",
+				Resource:  "sensors",
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},

@@ -11,7 +11,7 @@ require (
 	github.com/codefresh-io/go-sdk v0.26.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
+	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
@@ -27,7 +27,7 @@ require (
 
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
-	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
+	github.com/argoproj-labs/argocd-autopilot => github.com/argoproj-labs/argocd-autopilot v0.0.5-0.20210621142203-8a883a7232bb
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1
