@@ -4,9 +4,10 @@ go 1.16
 
 require (
 	github.com/argoproj-labs/applicationset v0.1.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.4
+	github.com/argoproj-labs/argocd-autopilot v0.2.7
 	github.com/argoproj/argo-cd/v2 v2.0.3
-	github.com/argoproj/argo-events v0.17.1-0.20210527154554-3f05846796c2
+	github.com/argoproj/argo-events v1.3.1
+	github.com/argoproj/argo-workflows/v3 v3.1.0
 	github.com/briandowns/spinner v1.13.0
 	github.com/codefresh-io/go-sdk v0.26.2
 	github.com/fatih/color v1.12.0
@@ -19,13 +20,13 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
 )
 
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
+	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1

@@ -42,22 +42,23 @@ type Version struct {
 }
 
 type Store struct {
-	BinaryName                string
-	DefaultAPI                string
-	Version                   Version
 	ArgoCDManifestsURL        string
 	ArgoEventsManifestsURL    string
 	ArgoRolloutsManifestsURL  string
 	ArgoWorkflowsManifestsURL string
+	BinaryName                string
+	CFComponentType           string
+	CFRuntimeType             string
 	CFTokenSecret             string
 	CFTokenSecretKey          string
-	CFType					  string
-	EventReportingEndpoint    string
-	EventBusName              string
+	CFType                    string
 	ComponentsReporterName    string
 	ComponentsReporterSA      string
-	CFComponentType			  string
-	CFRuntimeType			  string
+	DefaultAPI                string
+	EventBusName              string
+	EventReportingEndpoint    string
+	GitSourceName             string
+	Version                   Version
 }
 
 // Get returns the global store
@@ -66,21 +67,22 @@ func Get() *Store {
 }
 
 func init() {
-	s.BinaryName = binaryName
-	s.DefaultAPI = "https://g.codefresh.io"
 	s.ArgoCDManifestsURL = ArgoCDManifestsURL
 	s.ArgoEventsManifestsURL = ArgoEventsManifestsURL
 	s.ArgoRolloutsManifestsURL = ArgoRolloutsManifestsURL
 	s.ArgoWorkflowsManifestsURL = ArgoWorkflowsManifestsURL
+	s.BinaryName = binaryName
+	s.CFComponentType = "component"
+	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
 	s.CFType = "codefresh.io/type"
-	s.EventReportingEndpoint = "/argo/api/events"
-	s.EventBusName = "codefresh-eventbus"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
-	s.CFComponentType = "component"
-	s.CFRuntimeType = "runtime"
+	s.DefaultAPI = "https://g.codefresh.io"
+	s.EventBusName = "codefresh-eventbus"
+	s.EventReportingEndpoint = "/argo/api/events"
+	s.GitSourceName = "default-git-source"
 	initVersion()
 }
 
