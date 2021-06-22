@@ -234,10 +234,6 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
-	if err := createEventBus(repofs, resPath, opts.RuntimeName); err != nil {
-		return err
-	}
-
 	if err := createEventSource(repofs, resPath, opts.RuntimeName); err != nil {
 		return err
 	}
@@ -354,14 +350,6 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 	}
 
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
-}
-
-func createEventBus(repofs fs.FS, path, runtimeName string) error {
-	eventSource := eventUtils.CreateEventBus(&eventUtils.CreateEventBusOptions{
-		Name:      store.Get().EventBusName,
-		Namespace: runtimeName,
-	})
-	return repofs.WriteYamls(repofs.Join(path, "event-bus.yaml"), eventSource)
 }
 
 func createEventSource(repofs fs.FS, path, namespace string) error {

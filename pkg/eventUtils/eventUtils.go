@@ -4,8 +4,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
-	eventbusreg "github.com/argoproj/argo-events/pkg/apis/eventbus"
-	eventbusv1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventbus/v1alpha1"
 	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
 	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
@@ -16,10 +14,6 @@ import (
 )
 
 type (
-	CreateEventBusOptions struct {
-		Name      string
-		Namespace string
-	}
 	CreateEventDependencyOptions struct {
 		Name            string
 		EventSourceName string
@@ -63,27 +57,6 @@ type (
 		DependencyName string
 	}
 )
-
-func CreateEventBus(opts *CreateEventBusOptions) *eventbusv1alpha1.EventBus {
-	return &eventbusv1alpha1.EventBus{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventbusreg.Kind,
-			APIVersion: eventbusreg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      opts.Name,
-			Namespace: opts.Namespace,
-		},
-		Spec: eventbusv1alpha1.EventBusSpec{
-			NATS: &eventbusv1alpha1.NATSBus{
-				Native: &eventbusv1alpha1.NativeStrategy{
-					Replicas: 3,
-					Auth:     &eventbusv1alpha1.AuthStrategyToken,
-				},
-			},
-		},
-	}
-}
 
 func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.EventDependency {
 	return &sensorsv1alpha1.EventDependency{
