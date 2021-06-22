@@ -43,11 +43,11 @@ import (
 
 type (
 	RuntimeCreateOptions struct {
-		RuntimeName string
-		KubeContext string
-		KubeFactory kube.Factory
-		installRepo *apcmd.RepoCreateOptions
-		gitSrcRepo  *apcmd.RepoCreateOptions
+		RuntimeName   string
+		KubeContext   string
+		KubeFactory   kube.Factory
+		insCreateOpts *apcmd.RepoCreateOptions
+		gsCreateOpts  *apcmd.RepoCreateOptions
 	}
 )
 
@@ -69,9 +69,9 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeCreateCommand() *cobra.Command {
 	var (
-		f           kube.Factory
-		installRepo *apcmd.RepoCreateOptions
-		gitSrcRepo  *apcmd.RepoCreateOptions
+		f             kube.Factory
+		insCreateOpts *apcmd.RepoCreateOptions
+		gsCreateOpts  *apcmd.RepoCreateOptions
 	)
 
 	cmd := &cobra.Command{
@@ -93,30 +93,30 @@ func NewRuntimeCreateCommand() *cobra.Command {
 `),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := &RuntimeCreateOptions{
-				KubeContext: "",
-				KubeFactory: f,
-				installRepo: installRepo,
-				gitSrcRepo:  gitSrcRepo,
+				KubeContext:   "",
+				KubeFactory:   f,
+				insCreateOpts: insCreateOpts,
+				gsCreateOpts:  gsCreateOpts,
 			}
 			if len(args) < 1 {
 				log.G().Fatal("must enter runtime name")
 			}
 
 			opts.RuntimeName = args[0]
-			installRepo.Public = false
+			insCreateOpts.Public = false
 			return RunRuntimeCreate(cmd.Context(), opts)
 		},
 	}
 
-	installRepo = apcmd.AddRepoCreateFlags(cmd, "install")
-	gitSrcRepo = apcmd.AddRepoCreateFlags(cmd, "git-src")
+	insCreateOpts = apcmd.AddRepoCreateFlags(cmd, "install")
+	gsCreateOpts = apcmd.AddRepoCreateFlags(cmd, "git-src")
 	f = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
 
 func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
-	insCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.installRepo)
+	insCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.insCreateOpts)
 	if err != nil {
 		return err
 	}
@@ -167,11 +167,11 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 		return fmt.Errorf("failed to create components-reporter: %w", err)
 	}
 
-	if opts.gitSrcRepo.Token == "" {
-		opts.gitSrcRepo.Token = opts.installRepo.Token
+	if opts.gsCreateOpts.Token == "" {
+		opts.gsCreateOpts.Token = opts.insCreateOpts.Token
 	}
 
-	gsCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.gitSrcRepo)
+	gsCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.gsCreateOpts)
 	if err != nil {
 		return err
 	}
