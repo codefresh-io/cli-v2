@@ -6,12 +6,12 @@ require (
 	github.com/argoproj-labs/applicationset v0.1.0
 	github.com/argoproj-labs/argocd-autopilot v0.2.6
 	github.com/argoproj/argo-cd/v2 v2.0.3
-	github.com/argoproj/argo-events v0.17.1-0.20210527154554-3f05846796c2
+	github.com/argoproj/argo-events v1.3.1
+	github.com/argoproj/argo-workflows/v3 v3.1.0
 	github.com/briandowns/spinner v1.13.0
 	github.com/codefresh-io/go-sdk v0.26.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
@@ -20,7 +20,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
 )
@@ -28,6 +27,7 @@ require (
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
 	github.com/argoproj-labs/argocd-autopilot => github.com/argoproj-labs/argocd-autopilot v0.0.5-0.20210621142203-8a883a7232bb
+	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1

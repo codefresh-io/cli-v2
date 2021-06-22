@@ -4,7 +4,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -12,6 +12,7 @@ type (
 	CreateAppOptions struct {
 		Name        string
 		Namespace   string
+		Project     string
 		RepoURL     string
 		Revision    string
 		SrcPath     string
@@ -20,15 +21,15 @@ type (
 	}
 )
 
-func CreateApp(opts *CreateAppOptions) *argocdv1alpha1.Application {
+func CreateApp(opts *CreateAppOptions) *cdv1alpha1.Application {
 	if opts.DestServer == "" {
 		opts.DestServer = apstore.Default.DestServer
 	}
 
-	app := &argocdv1alpha1.Application{
+	app := &cdv1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       argocdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
-			APIVersion: argocdv1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+			Kind:       cdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+			APIVersion: cdv1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.Namespace,
@@ -41,31 +42,28 @@ func CreateApp(opts *CreateAppOptions) *argocdv1alpha1.Application {
 				"resources-finalizer.argocd.argoproj.io",
 			},
 		},
-		Spec: argocdv1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: argocdv1alpha1.ApplicationSource{
+		Spec: cdv1alpha1.ApplicationSpec{
+			Project: opts.Project,
+			Source: cdv1alpha1.ApplicationSource{
 				RepoURL:        opts.RepoURL,
 				Path:           opts.SrcPath,
 				TargetRevision: opts.Revision,
 			},
-			Destination: argocdv1alpha1.ApplicationDestination{
+			Destination: cdv1alpha1.ApplicationDestination{
 				Server:    opts.DestServer,
 				Namespace: opts.Namespace,
 			},
-			SyncPolicy: &argocdv1alpha1.SyncPolicy{
-				Automated: &argocdv1alpha1.SyncPolicyAutomated{
+			SyncPolicy: &cdv1alpha1.SyncPolicy{
+				Automated: &cdv1alpha1.SyncPolicyAutomated{
 					SelfHeal:   true,
 					Prune:      true,
 					AllowEmpty: true,
 				},
-				SyncOptions: []string{
-					"allowEmpty=true",
-				},
 			},
-			IgnoreDifferences: []argocdv1alpha1.ResourceIgnoreDifferences{
+			IgnoreDifferences: []cdv1alpha1.ResourceIgnoreDifferences{
 				{
-					Group: "argoproj.io",
-					Kind:  "Application",
+					Group: cdv1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					Kind:  cdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
 					JSONPointers: []string{
 						"/status",
 					},

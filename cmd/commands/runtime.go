@@ -33,8 +33,8 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/ghodss/yaml"
-	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -184,6 +184,10 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 	// 	FS: fs.Create(memfs.New()),
 	// }
 	// gsCloneOpts.Parse()
+
+	if err = createDemoWorkflowTemplate(ctx, gsCloneOpts, "git-source1", opts.RuntimeName); err != nil {
+		return err
+	}
 
 	if err = createGitSource(ctx, insCloneOpts, gsCloneOpts, "git-source1", opts.RuntimeName); err != nil {
 		return fmt.Errorf("failed to create git-source1: %w", err)
@@ -405,15 +409,51 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) e
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
 
-func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
-	var err error
-
-	insRepo, insFs, err := insCloneOpts.Clone(ctx)
+func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
+	gsRepo, gsFs, err := gsCloneOpts.Clone(ctx)
 	if err != nil {
 		return err
 	}
 
-	gsRepo, gsFs, err := gsCloneOpts.Clone(ctx)
+	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
+	wfTemplate := &wfv1alpha1.WorkflowTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       wfv1alpha1.WorkflowSchemaGroupVersionKind.Kind,
+			APIVersion: wfv1alpha1.WorkflowSchemaGroupVersionKind.GroupVersion().String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hello world",
+			Namespace: runtimeName,
+		},
+		Spec: wfv1alpha1.WorkflowTemplateSpec{
+			WorkflowSpec: wfv1alpha1.WorkflowSpec{
+				Entrypoint: "whalesay",
+				Templates: []wfv1alpha1.Template{
+					{
+						Name: "whalesay",
+						Container: &v1.Container{
+							Image:   "docker/whalesay",
+							Command: []string{"cowsay"},
+							Args:    []string{"Hello World"},
+						},
+					},
+				},
+			},
+		},
+	}
+	if err = gsFs.WriteYamls(gsPath, wfTemplate); err != nil {
+		return err
+	}
+
+	return gsRepo.Persist(ctx, &git.PushOptions{
+		CommitMsg: fmt.Sprintf("Created %s Directory", gsPath),
+	})
+}
+
+func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
+	var err error
+
+	insRepo, insFs, err := insCloneOpts.Clone(ctx)
 	if err != nil {
 		return err
 	}
@@ -529,6 +569,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	app := cdUtils.CreateApp(&cdUtils.CreateAppOptions{
 		Name:      gsSyncName,
 		Namespace: runtimeName,
+		Project:   runtimeName,
 		RepoURL:   gsCloneOpts.URL(),
 		Revision:  gsCloneOpts.Revision(),
 		SrcPath:   fullGsPath,
@@ -537,19 +578,8 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		return err
 	}
 
-	if err = billyUtils.WriteFile(gsFs, gsFs.Join(gsPath, "DUMMY"), []byte{}, 0666); err != nil {
-		return err
-	}
-
 	err = insRepo.Persist(ctx, &git.PushOptions{
 		CommitMsg: fmt.Sprintf("Created %s Resources", gsName),
-	})
-	if err != nil {
-		return err
-	}
-
-	err = gsRepo.Persist(ctx, &git.PushOptions{
-		CommitMsg: fmt.Sprintf("Created %s Directory", gsPath),
 	})
 	if err != nil {
 		return err
