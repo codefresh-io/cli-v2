@@ -33,6 +33,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
@@ -185,12 +186,12 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 	// }
 	// gsCloneOpts.Parse()
 
-	if err = createDemoWorkflowTemplate(ctx, gsCloneOpts, "git-source1", opts.RuntimeName); err != nil {
+	if err = createDemoWorkflowTemplate(ctx, gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
 		return err
 	}
 
-	if err = createGitSource(ctx, insCloneOpts, gsCloneOpts, "git-source1", opts.RuntimeName); err != nil {
-		return fmt.Errorf("failed to create git-source1: %w", err)
+	if err = createGitSource(ctx, insCloneOpts, gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
 	return nil
@@ -418,11 +419,11 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
 	wfTemplate := &wfv1alpha1.WorkflowTemplate{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       wfv1alpha1.WorkflowSchemaGroupVersionKind.Kind,
-			APIVersion: wfv1alpha1.WorkflowSchemaGroupVersionKind.GroupVersion().String(),
+			Kind:       wf.WorkflowTemplateKind,
+			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "hello world",
+			Name:      "demo-workflow-template",
 			Namespace: runtimeName,
 		},
 		Spec: wfv1alpha1.WorkflowTemplateSpec{
@@ -441,7 +442,7 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 			},
 		},
 	}
-	if err = gsFs.WriteYamls(gsPath, wfTemplate); err != nil {
+	if err = gsFs.WriteYamls(gsFs.Join(gsPath, "demo-wf-template.yaml"), wfTemplate); err != nil {
 		return err
 	}
 
@@ -566,15 +567,16 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 
 	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
 	fullGsPath := gsCloneOpts.FS.Join(gsCloneOpts.FS.Root(), gsPath)[1:]
-	app := cdUtils.CreateApp(&cdUtils.CreateAppOptions{
+	syncApp := cdUtils.CreateApp(&cdUtils.CreateAppOptions{
 		Name:      gsSyncName,
 		Namespace: runtimeName,
 		Project:   runtimeName,
+		SyncWave:  10,
 		RepoURL:   gsCloneOpts.URL(),
 		Revision:  gsCloneOpts.Revision(),
 		SrcPath:   fullGsPath,
 	})
-	if err = insFs.WriteYamls(insFs.Join(resPath, gsName+"-synchronize.yaml"), app); err != nil {
+	if err = insFs.WriteYamls(insFs.Join(resPath, gsName+"-synchronize.yaml"), syncApp); err != nil {
 		return err
 	}
 

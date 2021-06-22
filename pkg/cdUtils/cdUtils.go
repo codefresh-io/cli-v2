@@ -1,6 +1,8 @@
 package cdUtils
 
 import (
+	"fmt"
+
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
@@ -13,6 +15,7 @@ type (
 		Name        string
 		Namespace   string
 		Project     string
+		SyncWave    int
 		RepoURL     string
 		Revision    string
 		SrcPath     string
@@ -34,6 +37,9 @@ func CreateApp(opts *CreateAppOptions) *cdv1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.Namespace,
 			Name:      opts.Name,
+			Annotations: map[string]string{
+				"argocd.argoproj.io/sync-wave": fmt.Sprintf("%d", opts.SyncWave),
+			},
 			Labels: map[string]string{
 				"app.kubernetes.io/managed-by": store.Get().BinaryName,
 				"app.kubernetes.io/name":       opts.Name,
