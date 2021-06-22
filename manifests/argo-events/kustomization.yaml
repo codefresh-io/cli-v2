@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   # events from master to get the secureHeaders for now, should move to next release when available
   - https://raw.githubusercontent.com/argoproj/argo-events/master/manifests/install.yaml
-  - eventbus.yaml

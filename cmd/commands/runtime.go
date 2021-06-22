@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/codefresh-io/cli-v2/pkg/cdUtils"
+	"github.com/codefresh-io/cli-v2/pkg/eventUtils"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -31,18 +33,12 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
-	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
-	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
-	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	"github.com/ghodss/yaml"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type (
@@ -51,7 +47,7 @@ type (
 		KubeContext string
 		KubeFactory kube.Factory
 		installRepo *apcmd.RepoCreateOptions
-		// gitSrcRepo  *apcmd.RepoCreateOptions
+		gitSrcRepo  *apcmd.RepoCreateOptions
 	}
 )
 
@@ -75,7 +71,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 	var (
 		f           kube.Factory
 		installRepo *apcmd.RepoCreateOptions
-		//gitSrcRepo  *apcmd.RepoCreateOptions
+		gitSrcRepo  *apcmd.RepoCreateOptions
 	)
 
 	cmd := &cobra.Command{
@@ -100,7 +96,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 				KubeContext: "",
 				KubeFactory: f,
 				installRepo: installRepo,
-				// gitSrcRepo:  gitSrcRepo,
+				gitSrcRepo:  gitSrcRepo,
 			}
 			if len(args) < 1 {
 				log.G().Fatal("must enter runtime name")
@@ -113,58 +109,104 @@ func NewRuntimeCreateCommand() *cobra.Command {
 	}
 
 	installRepo = apcmd.AddRepoCreateFlags(cmd, "install")
-	// gitSrcRepo = apcmd.AddRepoCreateFlags(cmd, "git-src")
+	gitSrcRepo = apcmd.AddRepoCreateFlags(cmd, "git-src")
 	f = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
 
 func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
-	installOpts, err := apcmd.RunRepoCreate(ctx, opts.installRepo)
+	insCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.installRepo)
 	if err != nil {
 		return err
 	}
 
-	installOpts.Progress = ioutil.Discard
+	// var err error
+	// installOpts := &git.CloneOptions{
+	// 	Repo: "github.com/noam-codefresh/demo",
+	// 	Auth: git.Auth{
+	// 		Password: "<TOKEN>",
+	// 	},
+	// 	FS: fs.Create(memfs.New()),
+	// }
+	// installOpts.Parse()
+
+	insCloneOpts.Progress = ioutil.Discard
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: store.Get().ArgoCDManifestsURL,
 		Namespace:    opts.RuntimeName,
 		KubeContext:  opts.KubeContext,
 		KubeFactory:  opts.KubeFactory,
-		CloneOptions: installOpts,
+		CloneOptions: insCloneOpts,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
-		CloneOpts:   installOpts,
+		CloneOpts:   insCloneOpts,
 		ProjectName: opts.RuntimeName,
 	})
 	if err != nil {
 		return err
 	}
 
-	if err = createApp(ctx, installOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
-		return fmt.Errorf("failed to create application events: %w", err)
+	if err = createApp(ctx, insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+		return fmt.Errorf("failed to create events application: %w", err)
 	}
 
-	if err = createApp(ctx, installOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
-		return fmt.Errorf("failed to create application rollouts: %w", err)
+	if err = createApp(ctx, insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+		return fmt.Errorf("failed to create rollouts application: %w", err)
 	}
 
-	if err = createApp(ctx, installOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
-		return fmt.Errorf("failed to create application workflows: %w", err)
+	if err = createApp(ctx, insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+		return fmt.Errorf("failed to create workflows application: %w", err)
 	}
 
-	if err = createCodefreshResources(ctx, installOpts, opts); err != nil {
-		return fmt.Errorf("failed to update project file: %w", err)
+	if err = createComponentsReporter(ctx, insCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create components-reporter: %w", err)
+	}
+
+	if opts.gitSrcRepo.Token == "" {
+		opts.gitSrcRepo.Token = opts.installRepo.Token
+	}
+
+	gsCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.gitSrcRepo)
+	if err != nil {
+		return err
+	}
+
+	// gsCloneOpts := &git.CloneOptions{
+	// 	Repo: "github.com/noam-codefresh/git-source",
+	// 	Auth: git.Auth{
+	// 		Password: gsCreateOpts.Token,
+	// 	},
+	// 	FS: fs.Create(memfs.New()),
+	// }
+	// gsCloneOpts.Parse()
+
+	if err = createGitSource(ctx, insCloneOpts, gsCloneOpts, "git-source1", opts.RuntimeName); err != nil {
+		return fmt.Errorf("failed to create git-source1: %w", err)
 	}
 
 	return nil
 }
 
-func createCodefreshResources(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeCreateOptions) error {
+func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string) error {
+	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
+		CloneOpts:     cloneOpts,
+		AppsCloneOpts: &git.CloneOptions{},
+		ProjectName:   projectName,
+		AppOpts: &application.CreateOptions{
+			AppName:       appName,
+			AppSpecifier:  appURL,
+			AppType:       appType,
+			DestNamespace: namespace,
+		},
+	})
+}
+
+func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeCreateOptions) error {
 	tokenSecret, err := getTokenSecret(opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -192,30 +234,20 @@ func createCodefreshResources(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
+	if err := createEventBus(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
 	if err := createEventSource(repofs, resPath, opts.RuntimeName); err != nil {
 		return err
 	}
 
-	if err := createSensor(repofs, resPath, opts.RuntimeName); err != nil {
+	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName, store.Get().ComponentsReporterName); err != nil {
 		return err
 	}
 
 	return r.Persist(ctx, &git.PushOptions{
 		CommitMsg: "Created Codefresh Resources",
-	})
-}
-
-func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string) error {
-	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
-		CloneOpts:     cloneOpts,
-		AppsCloneOpts: &git.CloneOptions{},
-		ProjectName:   projectName,
-		AppOpts: &application.CreateOptions{
-			AppName:       appName,
-			AppSpecifier:  appURL,
-			AppType:       appType,
-			DestNamespace: namespace,
-		},
 	})
 }
 
@@ -233,8 +265,12 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		appset.Labels = make(map[string]string)
 	}
 
-	appset.Spec.Template.Labels[store.Get().CFType] = store.Get().CFComponentType
-	appset.Labels[store.Get().CFType] = store.Get().CFRuntimeType
+	if project.ObjectMeta.Labels == nil {
+		project.ObjectMeta.Labels = make(map[string]string)
+	}
+
+	appset.Spec.Template.Labels[store.Get().CFType] = "component"
+	project.ObjectMeta.Labels[store.Get().CFType] = "runtime"
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
@@ -320,193 +356,214 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createEventSource(repofs fs.FS, path, runtimeName string) error {
-	eventSource := &eventsourcev1alpha1.EventSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsourcereg.Kind,
-			APIVersion: eventsourcereg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterName,
-			Namespace: runtimeName,
-		},
-		Spec: eventsourcev1alpha1.EventSourceSpec{
-			Template: &eventsourcev1alpha1.Template{
-				ServiceAccountName: store.Get().ComponentsReporterSA,
-			},
-			Service: &eventsourcev1alpha1.Service{
-				Ports: []v1.ServicePort{
-					{
-						Port:       int32(12000),
-						TargetPort: intstr.FromInt(12000),
-					},
-				},
-			},
-			EventBusName: store.Get().EventBusName,
-			Resource: map[string]eventsourcev1alpha1.ResourceEventSource{
-				"components": {
-					EventTypes: []eventsourcev1alpha1.ResourceEventType{
-						eventsourcev1alpha1.ADD,
-						eventsourcev1alpha1.UPDATE,
-						eventsourcev1alpha1.DELETE,
-					},
-					GroupVersionResource: metav1.GroupVersionResource{
-						Group:    "argoproj.io",
-						Version:  "v1alpha1",
-						Resource: "applications",
-					},
-					Namespace: runtimeName,
-					Filter: &eventsourcev1alpha1.ResourceFilter{
-						AfterStart: false,
-						Labels: []eventsourcev1alpha1.Selector{
-							{
-								Key:       store.Get().CFType,
-								Operation: "==",
-								Value:     store.Get().CFComponentType,
-							},
-						},
-					},
-				},
-				"runtime": {
-					EventTypes: []eventsourcev1alpha1.ResourceEventType{
-						eventsourcev1alpha1.ADD,
-						eventsourcev1alpha1.UPDATE,
-						eventsourcev1alpha1.DELETE,
-					},
-					GroupVersionResource: metav1.GroupVersionResource{
-						Group:    "argoproj.io",
-						Version:  "v1alpha1",
-						Resource: "applicationsets",
-					},
-					Namespace: runtimeName,
-					Filter: &eventsourcev1alpha1.ResourceFilter{
-						AfterStart: false,
-						Labels: []eventsourcev1alpha1.Selector{
-							{
-								Key:       store.Get().CFType,
-								Operation: "==",
-								Value:     store.Get().CFRuntimeType,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+func createEventBus(repofs fs.FS, path, runtimeName string) error {
+	eventSource := eventUtils.CreateEventBus(&eventUtils.CreateEventBusOptions{
+		Name:      store.Get().EventBusName,
+		Namespace: runtimeName,
+	})
+	return repofs.WriteYamls(repofs.Join(path, "event-bus.yaml"), eventSource)
+}
 
+func createEventSource(repofs fs.FS, path, namespace string) error {
+	eventSource := eventUtils.CreateEventSource(&eventUtils.CreateEventSourceOptions{
+		Name:               store.Get().ComponentsReporterName,
+		Namespace:          namespace,
+		ServiceAccountName: store.Get().ComponentsReporterSA,
+		EventBusName:       store.Get().EventBusName,
+		Resource: map[string]eventUtils.CreateResourceEventSourceOptions{
+			"components": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "Application",
+				Namespace: namespace,
+				Selectors: []eventUtils.CreateSelectorOptions{
+					{
+						Key:       store.Get().CFType,
+						Operation: "==",
+						Value:     store.Get().CFComponentType,
+					},
+				},
+			},
+			"runtime": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "AppProject",
+				Namespace: namespace,
+				Selectors: []eventUtils.CreateSelectorOptions{
+					{
+						Key:       store.Get().CFType,
+						Operation: "==",
+						Value:     store.Get().CFRuntimeType,
+					},
+				},
+			},
+		},
+	})
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, path, namespace string) error {
-	sensor := &sensorsv1alpha1.Sensor{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sensorreg.Kind,
-			APIVersion: sensorreg.Group + "/v1alpha1",
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) error {
+	sensor := eventUtils.CreateSensor(&eventUtils.CreateSensorOptions{
+		Name:            name,
+		Namespace:       namespace,
+		EventSourceName: eventSourceName,
+		EventBusName:    store.Get().EventBusName,
+		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
+		Triggers: []string{
+			"components",
+			"runtime",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterName,
-			Namespace: namespace,
-		},
-		Spec: sensorsv1alpha1.SensorSpec{
-			EventBusName: store.Get().EventBusName,
-			Dependencies: []sensorsv1alpha1.EventDependency{
-				{
-					Name:            "components",
-					EventSourceName: store.Get().ComponentsReporterName,
-					EventName:       "components",
-				},
-				{
-					Name:            "runtime",
-					EventSourceName: store.Get().ComponentsReporterName,
-					EventName:       "runtime",
-				},
-			},
-			Triggers: []sensorsv1alpha1.Trigger{
-				{
-					Template: &sensorsv1alpha1.TriggerTemplate{
-						Conditions: "components",
-						Name:       "http-trigger",
-						HTTP: &sensorsv1alpha1.HTTPTrigger{
-							URL:    cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-							Method: "POST",
-							Headers: map[string]string{
-								"Content-Type": "application/json",
-							},
-							SecureHeaders: []*apicommon.SecureHeader{
-								{
-									Name: "Authorization",
-									ValueFrom: &apicommon.ValueFromSource{
-										SecretKeyRef: &v1.SecretKeySelector{
-											LocalObjectReference: v1.LocalObjectReference{
-												Name: store.Get().CFTokenSecret,
-											},
-											Key: store.Get().CFTokenSecretKey,
-										},
-									},
-								},
-							},
-							Payload: []sensorsv1alpha1.TriggerParameter{
-								{
-									Src: &sensorsv1alpha1.TriggerParameterSource{
-										DependencyName: "components",
-										DataKey:        "body",
-									},
-									Dest: "data",
-								},
-							},
-						},
-					},
-					RetryStrategy: &apicommon.Backoff{
-						Steps: 3,
-						Duration: &apicommon.Int64OrString{
-							StrVal: "3s",
-						},
-					},
-				},
-				{
-					Template: &sensorsv1alpha1.TriggerTemplate{
-						Conditions: "runtime",
-						Name:       "http-trigger",
-						HTTP: &sensorsv1alpha1.HTTPTrigger{
-							URL:    cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-							Method: "POST",
-							Headers: map[string]string{
-								"Content-Type": "application/json",
-							},
-							SecureHeaders: []*apicommon.SecureHeader{
-								{
-									Name: "Authorization",
-									ValueFrom: &apicommon.ValueFromSource{
-										SecretKeyRef: &v1.SecretKeySelector{
-											LocalObjectReference: v1.LocalObjectReference{
-												Name: store.Get().CFTokenSecret,
-											},
-											Key: store.Get().CFTokenSecretKey,
-										},
-									},
-								},
-							},
-							Payload: []sensorsv1alpha1.TriggerParameter{
-								{
-									Src: &sensorsv1alpha1.TriggerParameterSource{
-										DependencyName: "runtime",
-										DataKey:        "body",
-									},
-									Dest: "data",
-								},
-							},
-						},
-					},
-					RetryStrategy: &apicommon.Backoff{
-						Steps: 3,
-						Duration: &apicommon.Int64OrString{
-							StrVal: "3s",
-						},
-					},
-				},
-			},
-		},
+	})
+	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
+}
+
+func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
+	var err error
+
+	insRepo, insFs, err := insCloneOpts.Clone(ctx)
+	if err != nil {
+		return err
 	}
 
-	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
+	gsRepo, gsFs, err := gsCloneOpts.Clone(ctx)
+	if err != nil {
+		return err
+	}
+
+	resPath := insFs.Join(apstore.Default.AppsDir, gsName, runtimeName, "resources")
+	eventSourceName := gsName + "-event-source"
+	gsSyncName := gsName + "-synchronize"
+	selectors := []eventUtils.CreateSelectorOptions{
+		{
+			Key:       "app.kubernetes.io/instance",
+			Operation: "==",
+			Value:     gsSyncName,
+		},
+	}
+	eventSource := eventUtils.CreateEventSource(&eventUtils.CreateEventSourceOptions{
+		Name:               eventSourceName,
+		Namespace:          runtimeName,
+		ServiceAccountName: store.Get().ComponentsReporterSA,
+		EventBusName:       store.Get().EventBusName,
+		Resource: map[string]eventUtils.CreateResourceEventSourceOptions{
+			"clusterWorkflowTemplate": {
+				Group:     "argoproj.io",
+				Version:   "v1",
+				Resource:  "ClusterWorkflowTemplate",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"workflowTemplate": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "WorkflowTemplate",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"workflow": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "Workflow",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"appProject": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "AppProject",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"application": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "Application",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"eventBus": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "EventBus",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"eventSource": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "EventSource",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+			"sensor": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "Sensor",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
+		},
+	})
+	if err := insFs.WriteYamls(insFs.Join(resPath, "event-source.yaml"), eventSource); err != nil {
+		return err
+	}
+
+	sensor := eventUtils.CreateSensor(&eventUtils.CreateSensorOptions{
+		Name:            gsName + "-sensor",
+		Namespace:       runtimeName,
+		EventSourceName: eventSourceName,
+		EventBusName:    store.Get().EventBusName,
+		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
+		Triggers: []string{
+			"clusterWorkflowTemplate",
+			"workflowTemplate",
+			"workflow",
+			"appProject",
+			"application",
+			"eventBus",
+			"eventSource",
+			"sensor",
+		},
+	})
+	if err = insFs.WriteYamls(insFs.Join(resPath, "sensor.yaml"), sensor); err != nil {
+		return err
+	}
+
+	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
+	fullGsPath := gsCloneOpts.FS.Join(gsCloneOpts.FS.Root(), gsPath)[1:]
+	app := cdUtils.CreateApp(&cdUtils.CreateAppOptions{
+		Name:      gsSyncName,
+		Namespace: runtimeName,
+		RepoURL:   gsCloneOpts.URL(),
+		Revision:  gsCloneOpts.Revision(),
+		SrcPath:   fullGsPath,
+	})
+	if err = insFs.WriteYamls(insFs.Join(resPath, gsName+"-synchronize.yaml"), app); err != nil {
+		return err
+	}
+
+	if err = billyUtils.WriteFile(gsFs, gsFs.Join(gsPath, "DUMMY"), []byte{}, 0666); err != nil {
+		return err
+	}
+
+	err = insRepo.Persist(ctx, &git.PushOptions{
+		CommitMsg: fmt.Sprintf("Created %s Resources", gsName),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = gsRepo.Persist(ctx, &git.PushOptions{
+		CommitMsg: fmt.Sprintf("Created %s Directory", gsPath),
+	})
+	if err != nil {
+		return err
+	}
+
+	fullResPath := insFs.Join(insFs.Root(), resPath)
+	if err = createApp(ctx, insCloneOpts, runtimeName, gsName, insCloneOpts.URL()+fullResPath, application.AppTypeDirectory, runtimeName); err != nil {
+		return fmt.Errorf("failed to create git-source: %w", err)
+	}
+
+	return nil
 }
