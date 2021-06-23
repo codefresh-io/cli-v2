@@ -168,6 +168,14 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 		return fmt.Errorf("failed to create components-reporter: %w", err)
 	}
 
+	if opts.gsCreateOpts.Owner == "" {
+		opts.gsCreateOpts.Owner = opts.insCreateOpts.Owner
+	}
+
+	if opts.gsCreateOpts.Repo == "" {
+		opts.gsCreateOpts.Repo = opts.insCreateOpts.Repo + "-git-source"
+	}
+
 	if opts.gsCreateOpts.Token == "" {
 		opts.gsCreateOpts.Token = opts.insCreateOpts.Token
 	}
@@ -538,6 +546,13 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 				Namespace: runtimeName,
 				Selectors: selectors,
 			},
+			"rollout": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "rollouts",
+				Namespace: runtimeName,
+				Selectors: selectors,
+			},
 		},
 	})
 	if err := insFs.WriteYamls(insFs.Join(resPath, "event-source.yaml"), eventSource); err != nil {
@@ -551,7 +566,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
 		Triggers: []string{
-			"clusterWorkflowTemplate",
+			// "clusterWorkflowTemplate",
 			"workflowTemplate",
 			"workflow",
 			"appProject",
@@ -559,6 +574,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 			"eventBus",
 			"eventSource",
 			"sensor",
+			"rollout",
 		},
 	})
 	if err = insFs.WriteYamls(insFs.Join(resPath, "sensor.yaml"), sensor); err != nil {
