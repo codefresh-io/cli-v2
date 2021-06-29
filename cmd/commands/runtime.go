@@ -158,15 +158,15 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 		return err
 	}
 
-	if err = createApp(ctx, nil, opts.insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
 		return fmt.Errorf("failed to create rollouts application: %w", err)
 	}
 
-	if err = createApp(ctx, nil, opts.insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
 		return fmt.Errorf("failed to create workflows application: %w", err)
 	}
 
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, true); err != nil {
 		return fmt.Errorf("failed to create events application: %w", err)
 	}
 
@@ -185,9 +185,9 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 	return nil
 }
 
-func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string) error {
+func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string, wait bool) error {
 	timeout := time.Duration(0)
-	if f != nil {
+	if wait {
 		timeout = store.Get().WaitTimeout
 	}
 
@@ -217,7 +217,7 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 	}
 
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ComponentsReporterName, opts.RuntimeName, "resources")
-	if err := createApp(ctx, nil, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, application.AppTypeDirectory, opts.RuntimeName); err != nil {
+	if err := createApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, application.AppTypeDirectory, opts.RuntimeName, false); err != nil {
 		return err
 	}
 
@@ -591,7 +591,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	}
 
 	fullResPath := insFs.Join(insFs.Root(), resPath)
-	if err = createApp(ctx, nil, insCloneOpts, runtimeName, gsName, insCloneOpts.URL()+fullResPath, application.AppTypeDirectory, runtimeName); err != nil {
+	if err = createApp(ctx, nil, insCloneOpts, runtimeName, gsName, insCloneOpts.URL()+fullResPath, application.AppTypeDirectory, runtimeName, false); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 
