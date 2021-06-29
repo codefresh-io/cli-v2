@@ -17,6 +17,7 @@ package store
 import (
 	"fmt"
 	"runtime"
+	"time"
 )
 
 var s Store
@@ -59,6 +60,7 @@ type Store struct {
 	EventReportingEndpoint    string
 	GitSourceName             string
 	Version                   Version
+	WaitTimeout               time.Duration
 }
 
 // Get returns the global store
@@ -83,6 +85,7 @@ func init() {
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.GitSourceName = "default-git-source"
+	s.WaitTimeout = 5 * time.Minute
 	initVersion()
 }
 

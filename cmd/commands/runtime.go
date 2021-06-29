@@ -17,7 +17,7 @@ package commands
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/cdUtils"
 	"github.com/codefresh-io/cli-v2/pkg/eventUtils"
@@ -32,10 +32,12 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/ghodss/yaml"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -44,11 +46,11 @@ import (
 
 type (
 	RuntimeCreateOptions struct {
-		RuntimeName   string
-		KubeContext   string
-		KubeFactory   kube.Factory
-		insCreateOpts *apcmd.RepoCreateOptions
-		gsCreateOpts  *apcmd.RepoCreateOptions
+		RuntimeName  string
+		KubeContext  string
+		KubeFactory  kube.Factory
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts  *git.CloneOptions
 	}
 )
 
@@ -70,9 +72,9 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeCreateCommand() *cobra.Command {
 	var (
-		f             kube.Factory
-		insCreateOpts *apcmd.RepoCreateOptions
-		gsCreateOpts  *apcmd.RepoCreateOptions
+		f            kube.Factory
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -92,120 +94,103 @@ func NewRuntimeCreateCommand() *cobra.Command {
 
 	<BIN> runtime create runtime-name --install-owner owner --install-name gitops_repo
 `),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := &RuntimeCreateOptions{
-				KubeContext:   "",
-				KubeFactory:   f,
-				insCreateOpts: insCreateOpts,
-				gsCreateOpts:  gsCreateOpts,
+		PreRun: func(_ *cobra.Command, _ []string) {
+			if gsCloneOpts.Auth.Password == "" {
+				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
+
+			insCloneOpts.Parse()
+			if gsCloneOpts.Repo == "" {
+				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
+				gsCloneOpts.Repo = host + orgRepo + "_git_source" + suffix
+			}
+
+			gsCloneOpts.Parse()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				log.G().Fatal("must enter runtime name")
 			}
 
-			opts.RuntimeName = args[0]
-			insCreateOpts.Public = false
-			return RunRuntimeCreate(cmd.Context(), opts)
+			return RunRuntimeCreate(cmd.Context(), &RuntimeCreateOptions{
+				RuntimeName:  args[0],
+				KubeContext:  "",
+				KubeFactory:  f,
+				insCloneOpts: insCloneOpts,
+				gsCloneOpts:  gsCloneOpts,
+			})
 		},
 	}
 
-	insCreateOpts = apcmd.AddRepoCreateFlags(cmd, "install")
-	gsCreateOpts = apcmd.AddRepoCreateFlags(cmd, "git-src")
+	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		Prefix:           "install",
+		CreateIfNotExist: true,
+		FS:               memfs.New(),
+	})
+	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		Prefix:           "git-src",
+		Optional:         true,
+		CreateIfNotExist: true,
+		FS:               memfs.New(),
+	})
 	f = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
 
 func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
-	insCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.insCreateOpts)
-	if err != nil {
-		return err
-	}
-
-	// var err error
-	// installOpts := &git.CloneOptions{
-	// 	Repo: "github.com/noam-codefresh/demo",
-	// 	Auth: git.Auth{
-	// 		Password: "<TOKEN>",
-	// 	},
-	// 	FS: fs.Create(memfs.New()),
-	// }
-	// installOpts.Parse()
-
-	insCloneOpts.Progress = ioutil.Discard
-	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
+	err := apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: store.Get().ArgoCDManifestsURL,
 		Namespace:    opts.RuntimeName,
 		KubeContext:  opts.KubeContext,
 		KubeFactory:  opts.KubeFactory,
-		CloneOptions: insCloneOpts,
+		CloneOptions: opts.insCloneOpts,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
-		CloneOpts:   insCloneOpts,
+		CloneOpts:   opts.insCloneOpts,
 		ProjectName: opts.RuntimeName,
 	})
 	if err != nil {
 		return err
 	}
 
-	if err = createApp(ctx, insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
-		return fmt.Errorf("failed to create events application: %w", err)
-	}
-
-	if err = createApp(ctx, insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
 		return fmt.Errorf("failed to create rollouts application: %w", err)
 	}
 
-	if err = createApp(ctx, insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName); err != nil {
+	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
 		return fmt.Errorf("failed to create workflows application: %w", err)
 	}
 
-	if err = createComponentsReporter(ctx, insCloneOpts, opts); err != nil {
+	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, true); err != nil {
+		return fmt.Errorf("failed to create events application: %w", err)
+	}
+
+	if err = createComponentsReporter(ctx, opts.insCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create components-reporter: %w", err)
 	}
 
-	if opts.gsCreateOpts.Owner == "" {
-		opts.gsCreateOpts.Owner = opts.insCreateOpts.Owner
-	}
-
-	if opts.gsCreateOpts.Repo == "" {
-		opts.gsCreateOpts.Repo = opts.insCreateOpts.Repo + "-git-source"
-	}
-
-	if opts.gsCreateOpts.Token == "" {
-		opts.gsCreateOpts.Token = opts.insCreateOpts.Token
-	}
-
-	gsCloneOpts, err := apcmd.RunRepoCreate(ctx, opts.gsCreateOpts)
-	if err != nil {
+	if err = createDemoWorkflowTemplate(ctx, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
 		return err
 	}
 
-	// gsCloneOpts := &git.CloneOptions{
-	// 	Repo: "github.com/noam-codefresh/git-source",
-	// 	Auth: git.Auth{
-	// 		Password: gsCreateOpts.Token,
-	// 	},
-	// 	FS: fs.Create(memfs.New()),
-	// }
-	// gsCloneOpts.Parse()
-
-	if err = createDemoWorkflowTemplate(ctx, gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
-		return err
-	}
-
-	if err = createGitSource(ctx, insCloneOpts, gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
+	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
 	return nil
 }
 
-func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string) error {
+func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string, wait bool) error {
+	timeout := time.Duration(0)
+	if wait {
+		timeout = store.Get().WaitTimeout
+	}
+
 	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
 		CloneOpts:     cloneOpts,
 		AppsCloneOpts: &git.CloneOptions{},
@@ -216,6 +201,8 @@ func createApp(ctx context.Context, cloneOpts *git.CloneOptions, projectName, ap
 			AppType:       appType,
 			DestNamespace: namespace,
 		},
+		KubeFactory: f,
+		Timeout:     timeout,
 	})
 }
 
@@ -230,11 +217,11 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 	}
 
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ComponentsReporterName, opts.RuntimeName, "resources")
-	if err := createApp(ctx, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, application.AppTypeDirectory, opts.RuntimeName); err != nil {
+	if err := createApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, application.AppTypeDirectory, opts.RuntimeName, false); err != nil {
 		return err
 	}
 
-	r, repofs, err := cloneOpts.Clone(ctx)
+	r, repofs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -419,7 +406,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) e
 }
 
 func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
-	gsRepo, gsFs, err := gsCloneOpts.Clone(ctx)
+	gsRepo, gsFs, err := gsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -462,7 +449,7 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
 	var err error
 
-	insRepo, insFs, err := insCloneOpts.Clone(ctx)
+	insRepo, insFs, err := insCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -604,7 +591,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	}
 
 	fullResPath := insFs.Join(insFs.Root(), resPath)
-	if err = createApp(ctx, insCloneOpts, runtimeName, gsName, insCloneOpts.URL()+fullResPath, application.AppTypeDirectory, runtimeName); err != nil {
+	if err = createApp(ctx, nil, insCloneOpts, runtimeName, gsName, insCloneOpts.URL()+fullResPath, application.AppTypeDirectory, runtimeName, false); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 
