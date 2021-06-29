@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/argoproj-labs/applicationset v0.1.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.7
+	github.com/argoproj-labs/argocd-autopilot v0.2.8
 	github.com/argoproj/argo-cd/v2 v2.0.3
 	github.com/argoproj/argo-events v1.3.1
 	github.com/argoproj/argo-workflows/v3 v3.1.0
@@ -12,6 +12,7 @@ require (
 	github.com/codefresh-io/go-sdk v0.26.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
