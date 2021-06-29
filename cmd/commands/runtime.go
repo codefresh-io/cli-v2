@@ -31,8 +31,8 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -172,10 +172,6 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 
 	if err = createComponentsReporter(ctx, opts.insCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create components-reporter: %w", err)
-	}
-
-	if opts.gsCloneOpts.Auth.Password == "" {
-		opts.gsCloneOpts.Auth.Password = opts.insCloneOpts.Auth.Password
 	}
 
 	if err = createDemoWorkflowTemplate(ctx, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
