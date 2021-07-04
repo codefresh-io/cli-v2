@@ -17,6 +17,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/cdUtils"
@@ -24,6 +25,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/juju/ansiterm"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -66,6 +68,7 @@ func NewRuntimeCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewRuntimeCreateCommand())
+	cmd.AddCommand(NewRuntimeListCommand())
 
 	return cmd
 }
@@ -183,6 +186,60 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 	}
 
 	return nil
+}
+
+func NewRuntimeListCommand() *cobra.Command {
+	
+
+	cmd := &cobra.Command{
+		Use:   "list ",
+		Short: "Lost all Codefresh runtimes",
+		Example: util.Doc(`<BIN> runtime list`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return listRuntimes(cmd.Context())
+		},
+	}
+	return cmd
+}
+
+func listRuntimes(ctx context.Context) error {
+	runtimes, err := cfConfig.NewClient().ArgoRuntime().List()
+	if err != nil {
+		return err
+	}
+	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tSTATUS\tVERSION")
+	for _, rt := range runtimes {
+		status := "N/A"
+		namespace:= "N/A"
+		name := "N/A"
+		cluster := "N/A"
+		version := "N/A"
+		if rt.Status != nil {
+			status = rt.Status.String()
+		}
+		if rt.Namespace != nil {
+			namespace = *rt.Namespace
+		}
+		if rt.ObjectMeta != nil  && rt.ObjectMeta.Name != nil {
+			name = *rt.ObjectMeta.Name
+		}
+		if rt.Cluster != nil {
+			cluster = *rt.Cluster
+		}
+		if rt.Version != nil {
+			version = *rt.Version
+		}
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+				name,
+				namespace,
+				cluster,
+				status,
+				version,
+			)
+	}
+	return tb.Flush()
+
 }
 
 func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string, wait bool) error {
