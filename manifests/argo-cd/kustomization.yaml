@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v2.0.4/manifests/install.yaml
-  - https://raw.githubusercontent.com/argoproj-labs/applicationset/master/manifests/install.yaml # TODO: switch to the next release when available
+  - https://raw.githubusercontent.com/argoproj-labs/applicationset/master/manifests/install.yaml?ref=2c62537a8e5a # TODO: switch to the next release when available
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
