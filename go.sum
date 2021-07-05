@@ -164,8 +164,6 @@ github.com/ardielle/ardielle-go v1.5.2/go.mod h1:I4hy1n795cUhaVt/ojz83SNVCYIGsAF
 github.com/ardielle/ardielle-tools v1.5.4/go.mod h1:oZN+JRMnqGiIhrzkRN9l26Cej9dEx4jeNG6A+AdkShk=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a h1:8Nm2KtOu/G7NtoAgucj4TkX8rghzwgFJGXNrAmuz7gc=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a/go.mod h1:5rxggh8ymYXedQDIYylNzIHe6jdshDNasIBCVJuR1iU=
-github.com/argoproj-labs/argocd-autopilot v0.2.8 h1:whsV51FygB5OI2qGgLui0aHTVt/V+9M0VgOfz1U+m3I=
-github.com/argoproj-labs/argocd-autopilot v0.2.8/go.mod h1:mFkBpj09ofv0oe4K7LcN3Ds1pAXUEOLum/Lk8KUJXH0=
 github.com/argoproj/argo-cd v1.8.1/go.mod h1:Vfl7OGgBC83dVWgq58wU6UR3kG864h0dtHEIQ8xqw4s=
 github.com/argoproj/argo-cd v1.8.7 h1:CkIu8p/gcTY/fOZWM2tHuSCIAV2HggXjJftrT1IIT3k=
 github.com/argoproj/argo-cd v1.8.7/go.mod h1:tqFZW5Lr9KBCDsvOaE5Fh8M1eJ1ThvR58pyyLv8Zqvs=
@@ -177,8 +175,9 @@ github.com/argoproj/argo-workflows/v3 v3.1.0 h1:YrTppFW7VYZsFnDB7/9A0nI3V+VVqozv
 github.com/argoproj/argo-workflows/v3 v3.1.0/go.mod h1:Z8Wc7uDOGw8TRdhqqREHLFE5SAgS0ENqqwaLakv56MU=
 github.com/argoproj/gitops-engine v0.2.1/go.mod h1:OxXp8YaT73rw9gEBnGBWg55af80nkV/uIjWCbJu1Nw0=
 github.com/argoproj/gitops-engine v0.2.2/go.mod h1:OxXp8YaT73rw9gEBnGBWg55af80nkV/uIjWCbJu1Nw0=
-github.com/argoproj/gitops-engine v0.3.2 h1:m5bjOk/bWwMsFBGFpurdK31/hC5UuLMQn0hAd51TlEk=
 github.com/argoproj/gitops-engine v0.3.2/go.mod h1:IBHhAkqlC+3r/wBWUitWSidQhPzlLoSTWp2htq3dyQk=
+github.com/argoproj/gitops-engine v0.3.3 h1:zRNwKRj3h+EBpciy/+Eyo4vW2GTG3UG4HXAdWn0mQRI=
+github.com/argoproj/gitops-engine v0.3.3/go.mod h1:IBHhAkqlC+3r/wBWUitWSidQhPzlLoSTWp2htq3dyQk=
 github.com/argoproj/pkg v0.2.0/go.mod h1:F4TZgInLUEjzsWFB/BTJBsewoEy0ucnKSq6vmQiD/yc=
 github.com/argoproj/pkg v0.8.1/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/argoproj/pkg v0.9.0 h1:PfWWYykfcEQdN0g41XLbVh/aonTjD+dPkvDp3hwpLYM=
@@ -256,6 +255,8 @@ github.com/clusterhq/flocker-go v0.0.0-20160920122132-2b8b7259d313/go.mod h1:P1w
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa/go.mod h1:zn76sxSg3SzpJ0PPJaLDCu+Bu0Lg3sKTORVIj19EIF8=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
+github.com/codefresh-io/argocd-autopilot v0.0.5-0.20210705105702-c75edb56f6ca h1:64voGQi6TTK5zUSAsKmdCgBONZ980//F6oTS+Xn/kg4=
+github.com/codefresh-io/argocd-autopilot v0.0.5-0.20210705105702-c75edb56f6ca/go.mod h1:o3HQ3wBzSFlLILnFDFWMkHetHTSjwwC30runsLvwVp8=
 github.com/codefresh-io/go-sdk v0.26.2 h1:nGiLEOXaYGd7DbwKpqeTm1XXVCATayQm/pU3DwA6wqc=
 github.com/codefresh-io/go-sdk v0.26.2/go.mod h1:0m0ATMmbFzvrc3CwUTB10MGO6hydsZdzLeHCAOyAvyM=
 github.com/colinmarc/hdfs v1.1.4-0.20180802165501-48eb8d6c34a9/go.mod h1:0DumPviB681UcSuJErAbDIOx6SIaJWj463TymfZG02I=
