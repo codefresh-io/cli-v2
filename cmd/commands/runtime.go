@@ -193,7 +193,7 @@ func NewRuntimeListCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list ",
-		Short: "Lost all Codefresh runtimes",
+		Short: "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listRuntimes(cmd.Context())
