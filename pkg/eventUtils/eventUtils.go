@@ -182,7 +182,7 @@ func CreateTrigger(opts *CreateTriggerOptions) *sensorsv1alpha1.Trigger {
 	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Conditions: opts.Conditions,
-			Name:       "http-trigger",
+			Name:       opts.DependencyName + "-http-trigger",
 			HTTP: &sensorsv1alpha1.HTTPTrigger{
 				URL:    opts.URL,
 				Method: "POST",

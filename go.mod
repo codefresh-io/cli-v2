@@ -27,7 +27,7 @@ require (
 
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
-	github.com/argoproj-labs/argocd-autopilot => github.com/codefresh-io/argocd-autopilot v0.0.5-0.20210705105702-c75edb56f6ca
+	github.com/argoproj-labs/argocd-autopilot => github.com/codefresh-io/argocd-autopilot v0.0.5-0.20210705145215-7552c395bf4a // update once autopilot has a new release
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
