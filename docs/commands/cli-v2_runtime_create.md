@@ -21,7 +21,7 @@ cli-v2 runtime create [runtime_name] [flags]
 
 # Adds a new runtime
 
-    cli-v2 runtime create runtime-name --install-owner owner --install-name gitops_repo
+    cli-v2 runtime create runtime-name --install-repo gitops_repo
 
 ```
 
