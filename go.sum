@@ -164,8 +164,8 @@ github.com/ardielle/ardielle-go v1.5.2/go.mod h1:I4hy1n795cUhaVt/ojz83SNVCYIGsAF
 github.com/ardielle/ardielle-tools v1.5.4/go.mod h1:oZN+JRMnqGiIhrzkRN9l26Cej9dEx4jeNG6A+AdkShk=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a h1:8Nm2KtOu/G7NtoAgucj4TkX8rghzwgFJGXNrAmuz7gc=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a/go.mod h1:5rxggh8ymYXedQDIYylNzIHe6jdshDNasIBCVJuR1iU=
-github.com/argoproj-labs/argocd-autopilot v0.2.8 h1:whsV51FygB5OI2qGgLui0aHTVt/V+9M0VgOfz1U+m3I=
-github.com/argoproj-labs/argocd-autopilot v0.2.8/go.mod h1:mFkBpj09ofv0oe4K7LcN3Ds1pAXUEOLum/Lk8KUJXH0=
+github.com/argoproj-labs/argocd-autopilot v0.2.9 h1:zYStiQq1cCT1EkfwEpdMEVfSkj+7ZEe1CwilmXGoldQ=
+github.com/argoproj-labs/argocd-autopilot v0.2.9/go.mod h1:o3HQ3wBzSFlLILnFDFWMkHetHTSjwwC30runsLvwVp8=
 github.com/argoproj/argo-cd v1.8.1/go.mod h1:Vfl7OGgBC83dVWgq58wU6UR3kG864h0dtHEIQ8xqw4s=
 github.com/argoproj/argo-cd v1.8.7 h1:CkIu8p/gcTY/fOZWM2tHuSCIAV2HggXjJftrT1IIT3k=
 github.com/argoproj/argo-cd v1.8.7/go.mod h1:tqFZW5Lr9KBCDsvOaE5Fh8M1eJ1ThvR58pyyLv8Zqvs=
@@ -177,8 +177,9 @@ github.com/argoproj/argo-workflows/v3 v3.1.0 h1:YrTppFW7VYZsFnDB7/9A0nI3V+VVqozv
 github.com/argoproj/argo-workflows/v3 v3.1.0/go.mod h1:Z8Wc7uDOGw8TRdhqqREHLFE5SAgS0ENqqwaLakv56MU=
 github.com/argoproj/gitops-engine v0.2.1/go.mod h1:OxXp8YaT73rw9gEBnGBWg55af80nkV/uIjWCbJu1Nw0=
 github.com/argoproj/gitops-engine v0.2.2/go.mod h1:OxXp8YaT73rw9gEBnGBWg55af80nkV/uIjWCbJu1Nw0=
-github.com/argoproj/gitops-engine v0.3.2 h1:m5bjOk/bWwMsFBGFpurdK31/hC5UuLMQn0hAd51TlEk=
 github.com/argoproj/gitops-engine v0.3.2/go.mod h1:IBHhAkqlC+3r/wBWUitWSidQhPzlLoSTWp2htq3dyQk=
+github.com/argoproj/gitops-engine v0.3.3 h1:zRNwKRj3h+EBpciy/+Eyo4vW2GTG3UG4HXAdWn0mQRI=
+github.com/argoproj/gitops-engine v0.3.3/go.mod h1:IBHhAkqlC+3r/wBWUitWSidQhPzlLoSTWp2htq3dyQk=
 github.com/argoproj/pkg v0.2.0/go.mod h1:F4TZgInLUEjzsWFB/BTJBsewoEy0ucnKSq6vmQiD/yc=
 github.com/argoproj/pkg v0.8.1/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/argoproj/pkg v0.9.0 h1:PfWWYykfcEQdN0g41XLbVh/aonTjD+dPkvDp3hwpLYM=
