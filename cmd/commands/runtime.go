@@ -209,6 +209,9 @@ func listRuntimes(ctx context.Context) error {
 	}
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tSTATUS\tVERSION")
+	if err != nil {
+		return err
+	}
 	for _, rt := range runtimes {
 		status := "N/A"
 		namespace:= "N/A"
@@ -237,6 +240,9 @@ func listRuntimes(ctx context.Context) error {
 				status,
 				version,
 			)
+			if err != nil {
+				return err
+			}
 	}
 	return tb.Flush()
 
