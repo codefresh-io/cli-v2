@@ -50,9 +50,17 @@ type (
 	RuntimeCreateOptions struct {
 		RuntimeName  string
 		KubeContext  string
-		KubeFactory  kube.Factory
-		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
+		insCloneOpts *git.CloneOptions
+		KubeFactory  kube.Factory
+	}
+
+	RuntimeDeleteOptions struct {
+		RuntimeName string
+		KubeContext string
+		Timeout     time.Duration
+		CloneOpts   *git.CloneOptions
+		KubeFactory kube.Factory
 	}
 )
 
@@ -69,6 +77,7 @@ func NewRuntimeCommand() *cobra.Command {
 
 	cmd.AddCommand(NewRuntimeCreateCommand())
 	cmd.AddCommand(NewRuntimeListCommand())
+	cmd.AddCommand(NewRuntimeDeleteCommand())
 
 	return cmd
 }
@@ -95,7 +104,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 
 # Adds a new runtime
 
-	<BIN> runtime create runtime-name --install-owner owner --install-name gitops_repo
+	<BIN> runtime create runtime-name --install-repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			if gsCloneOpts.Auth.Password == "" {
@@ -111,16 +120,17 @@ func NewRuntimeCreateCommand() *cobra.Command {
 			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			if len(args) < 1 {
-				log.G().Fatal("must enter runtime name")
+				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			return RunRuntimeCreate(cmd.Context(), &RuntimeCreateOptions{
+			return RunRuntimeCreate(ctx, &RuntimeCreateOptions{
 				RuntimeName:  args[0],
-				KubeContext:  "",
-				KubeFactory:  f,
-				insCloneOpts: insCloneOpts,
+				KubeContext:  cmd.Flag("context").Value.String(),
 				gsCloneOpts:  gsCloneOpts,
+				insCloneOpts: insCloneOpts,
+				KubeFactory:  f,
 			})
 		},
 	}
@@ -246,6 +256,64 @@ func listRuntimes(ctx context.Context) error {
 	}
 	return tb.Flush()
 
+func NewRuntimeDeleteCommand() *cobra.Command {
+	var (
+		f         kube.Factory
+		cloneOpts *git.CloneOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:   "delete [runtime_name]",
+		Short: "Deletes a Codefresh runtime",
+		Example: util.Doc(`
+# To run this command you need to create a personal access token for your git provider
+# and provide it using:
+
+		export GIT_TOKEN=<token>
+
+# or with the flag:
+
+		--git-token <token>
+
+# Adds a new runtime
+
+	<BIN> runtime delete runtime-name --repo gitops_repo
+`),
+		PreRun: func(_ *cobra.Command, _ []string) {
+			cloneOpts.Parse()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			return RunRuntimeDelete(ctx, &RuntimeDeleteOptions{
+				RuntimeName: args[0],
+				KubeContext: cmd.Flag("context").Value.String(),
+				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				CloneOpts:   cloneOpts,
+				KubeFactory: f,
+			})
+		},
+	}
+
+	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		FS: memfs.New(),
+	})
+	f = kube.AddFlags(cmd.Flags())
+
+	return cmd
+}
+
+func RunRuntimeDelete(ctx context.Context, opts *RuntimeDeleteOptions) error {
+	return apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+		Namespace:    opts.RuntimeName,
+		KubeContext:  opts.KubeContext,
+		Timeout:      opts.Timeout,
+		CloneOptions: opts.CloneOpts,
+		KubeFactory:  opts.KubeFactory,
+	})
 }
 
 func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string, wait bool) error {
@@ -305,9 +373,10 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
-	return r.Persist(ctx, &git.PushOptions{
+	_, err = r.Persist(ctx, &git.PushOptions{
 		CommitMsg: "Created Codefresh Resources",
 	})
+	return err
 }
 
 func updateProject(repofs fs.FS, runtimeName string) error {
@@ -504,9 +573,10 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 		return err
 	}
 
-	return gsRepo.Persist(ctx, &git.PushOptions{
+	_, err = gsRepo.Persist(ctx, &git.PushOptions{
 		CommitMsg: fmt.Sprintf("Created %s Directory", gsPath),
 	})
+	return err
 }
 
 func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
@@ -646,7 +716,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		return err
 	}
 
-	err = insRepo.Persist(ctx, &git.PushOptions{
+	_, err = insRepo.Persist(ctx, &git.PushOptions{
 		CommitMsg: fmt.Sprintf("Created %s Resources", gsName),
 	})
 	if err != nil {

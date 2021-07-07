@@ -1,9 +1,9 @@
-## cli-v2 runtime create
+## cli-v2 runtime delete
 
-Create a new Codefresh runtime
+Deletes a Codefresh runtime
 
 ```
-cli-v2 runtime create [runtime_name] [flags]
+cli-v2 runtime delete [runtime_name] [flags]
 ```
 
 ### Examples
@@ -13,15 +13,15 @@ cli-v2 runtime create [runtime_name] [flags]
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
 
-        export INSTALL_GIT_TOKEN=<token>
+        export GIT_TOKEN=<token>
 
 # or with the flag:
 
-        --install-git-token <token>
+        --git-token <token>
 
 # Adds a new runtime
 
-    cli-v2 runtime create runtime-name --install-repo gitops_repo
+    cli-v2 runtime delete runtime-name --repo gitops_repo
 
 ```
 
@@ -36,16 +36,12 @@ cli-v2 runtime create [runtime_name] [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-      --git-src-git-token string       Your git provider api token [GIT_SRC_GIT_TOKEN]
-      --git-src-provider string        The git provider, one of: github
-      --git-src-repo string            Repository URL [GIT_SRC_GIT_REPO]
-  -h, --help                           help for create
+  -t, --git-token string               Your git provider api token [GIT_TOKEN]
+  -h, --help                           help for delete
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --install-git-token string       Your git provider api token [INSTALL_GIT_TOKEN]
-      --install-provider string        The git provider, one of: github
-      --install-repo string            Repository URL [INSTALL_GIT_REPO]
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string               If present, the namespace scope for this CLI request
+      --repo string                    Repository URL [GIT_REPO]
   -s, --server string                  The address and port of the Kubernetes API server
       --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
       --token string                   Bearer token for authentication to the API server

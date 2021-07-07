@@ -7,11 +7,8 @@
 
 ### Linux
 ```bash
-# get the latest version or change to a specific version
-VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-
 # download and extract the binary
-curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/$VERSION/cf-linux-amd64.tar.gz | tar zx
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.21/cf-linux-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
 mv ./cf-* /usr/local/bin/cf
@@ -22,11 +19,8 @@ cf version
 
 ### Mac
 ```bash
-# get the latest version or change to a specific version
-VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-
 # download and extract the binary
-curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/$VERSION/cf-darwin-amd64.tar.gz | tar zx
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.21/cf-darwin-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
 mv ./cf-* /usr/local/bin/cf
