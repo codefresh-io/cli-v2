@@ -255,6 +255,7 @@ func listRuntimes(ctx context.Context) error {
 			}
 	}
 	return tb.Flush()
+}
 
 func NewRuntimeDeleteCommand() *cobra.Command {
 	var (
