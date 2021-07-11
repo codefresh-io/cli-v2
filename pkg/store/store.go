@@ -27,10 +27,12 @@ var (
 	version                   = "v99.99.99"
 	buildDate                 = ""
 	gitCommit                 = ""
+	RuntimeDefURL             = "manifests/runtime.yaml"
 	ArgoCDManifestsURL        = "manifests/argo-cd"
 	ArgoEventsManifestsURL    = "manifests/argo-events"
 	ArgoRolloutsManifestsURL  = "manifests/argo-rollouts"
 	ArgoWorkflowsManifestsURL = "manifests/argo-workflows"
+	ComponentsReporterURL     = "manifests/components-reporter"
 )
 
 type Version struct {
@@ -55,10 +57,12 @@ type Store struct {
 	CFType                    string
 	ComponentsReporterName    string
 	ComponentsReporterSA      string
+	ComponentsReporterURL     string
 	DefaultAPI                string
 	EventBusName              string
 	EventReportingEndpoint    string
 	GitSourceName             string
+	RuntimeDefURL             string
 	Version                   Version
 	WaitTimeout               time.Duration
 }
@@ -81,10 +85,12 @@ func init() {
 	s.CFType = "codefresh.io/type"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
+	s.ComponentsReporterURL = ComponentsReporterURL
 	s.DefaultAPI = "https://g.codefresh.io"
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.GitSourceName = "default-git-source"
+	s.RuntimeDefURL = RuntimeDefURL
 	s.WaitTimeout = 5 * time.Minute
 	initVersion()
 }

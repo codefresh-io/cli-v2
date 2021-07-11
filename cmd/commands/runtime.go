@@ -17,7 +17,10 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/cdUtils"
@@ -27,6 +30,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/juju/ansiterm"
 
+	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -47,6 +51,15 @@ import (
 )
 
 type (
+	RuntimeDef struct {
+		Version            semver.Version
+		BootstrapSpecifier string
+		Components         map[string]struct {
+			URL  string
+			Wait bool
+		}
+	}
+
 	RuntimeCreateOptions struct {
 		RuntimeName  string
 		KubeContext  string
@@ -152,8 +165,13 @@ func NewRuntimeCreateCommand() *cobra.Command {
 }
 
 func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
-	err := apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier: store.Get().ArgoCDManifestsURL,
+	runDef, err := getRuntimeDef()
+	if err != nil {
+		return err
+	}
+
+	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
+		AppSpecifier: runDef.BootstrapSpecifier,
 		Namespace:    opts.RuntimeName,
 		KubeContext:  opts.KubeContext,
 		KubeFactory:  opts.KubeFactory,
@@ -171,16 +189,10 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 		return err
 	}
 
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
-		return fmt.Errorf("failed to create rollouts application: %w", err)
-	}
-
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
-		return fmt.Errorf("failed to create workflows application: %w", err)
-	}
-
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, true); err != nil {
-		return fmt.Errorf("failed to create events application: %w", err)
+	for name, component := range runDef.Components {
+		if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, name, component.URL, application.AppTypeKustomize, opts.RuntimeName, component.Wait); err != nil {
+			return fmt.Errorf("failed to create '%s' application: %w", name, err)
+		}
 	}
 
 	if err = createComponentsReporter(ctx, opts.insCloneOpts, opts); err != nil {
@@ -199,32 +211,32 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 }
 
 func NewRuntimeListCommand() *cobra.Command {
-	
-
 	cmd := &cobra.Command{
-		Use:   "list ",
-		Short: "List all Codefresh runtimes",
+		Use:     "list ",
+		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return listRuntimes(cmd.Context())
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return listRuntimes()
 		},
 	}
 	return cmd
 }
 
-func listRuntimes(ctx context.Context) error {
+func listRuntimes() error {
 	runtimes, err := cfConfig.NewClient().ArgoRuntime().List()
 	if err != nil {
 		return err
 	}
+
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tSTATUS\tVERSION")
 	if err != nil {
 		return err
 	}
+
 	for _, rt := range runtimes {
 		status := "N/A"
-		namespace:= "N/A"
+		namespace := "N/A"
 		name := "N/A"
 		cluster := "N/A"
 		version := "N/A"
@@ -234,7 +246,7 @@ func listRuntimes(ctx context.Context) error {
 		if rt.Namespace != nil {
 			namespace = *rt.Namespace
 		}
-		if rt.ObjectMeta != nil  && rt.ObjectMeta.Name != nil {
+		if rt.ObjectMeta != nil && rt.ObjectMeta.Name != nil {
 			name = *rt.ObjectMeta.Name
 		}
 		if rt.Cluster != nil {
@@ -244,16 +256,17 @@ func listRuntimes(ctx context.Context) error {
 			version = *rt.Version
 		}
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
-				name,
-				namespace,
-				cluster,
-				status,
-				version,
-			)
-			if err != nil {
-				return err
-			}
+			name,
+			namespace,
+			cluster,
+			status,
+			version,
+		)
+		if err != nil {
+			return err
+		}
 	}
+
 	return tb.Flush()
 }
 
@@ -315,6 +328,39 @@ func RunRuntimeDelete(ctx context.Context, opts *RuntimeDeleteOptions) error {
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
 	})
+}
+
+func getRuntimeDef() (*RuntimeDef, error) {
+	var (
+		runDef RuntimeDef
+		body   []byte
+		err    error
+	)
+
+	if strings.HasPrefix(store.RuntimeDefURL, "http") {
+		res, err := http.Get(store.RuntimeDefURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download runtime definition: %w", err)
+		}
+
+		defer res.Body.Close()
+		body, err = ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
+		}
+	} else {
+		body, err = ioutil.ReadFile(store.RuntimeDefURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
+		}
+	}
+
+	err = yaml.Unmarshal(body, &runDef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal runtime definition data: %w", err)
+	}
+
+	return &runDef, nil
 }
 
 func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string, wait bool) error {
