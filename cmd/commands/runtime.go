@@ -28,7 +28,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/juju/ansiterm"
 
 	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
@@ -44,6 +43,7 @@ import (
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -74,6 +74,12 @@ type (
 		Timeout     time.Duration
 		CloneOpts   *git.CloneOptions
 		KubeFactory kube.Factory
+	}
+
+	RuntimeUpdateOptions struct {
+		RuntimeName string
+		Version     *semver.Version
+		CloneOpts   *git.CloneOptions
 	}
 )
 
@@ -289,7 +295,7 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 
 		--git-token <token>
 
-# Adds a new runtime
+# Deletes a runtime
 
 	<BIN> runtime delete runtime-name --repo gitops_repo
 `),
@@ -328,6 +334,65 @@ func RunRuntimeDelete(ctx context.Context, opts *RuntimeDeleteOptions) error {
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
 	})
+}
+
+func NewRuntimeUpdateCommand() *cobra.Command {
+	var (
+		cloneOpts *git.CloneOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:   "update [runtime_name]",
+		Short: "Updates a Codefresh runtime",
+		Example: util.Doc(`
+# To run this command you need to create a personal access token for your git provider
+# and provide it using:
+
+		export GIT_TOKEN=<token>
+
+# or with the flag:
+
+		--git-token <token>
+
+# Updates a runtime to version v0.0.30
+
+	<BIN> runtime update runtime-name v0.0.30 --repo gitops_repo
+`),
+		PreRun: func(_ *cobra.Command, _ []string) {
+			cloneOpts.Parse()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var version *semver.Version
+			ctx := cmd.Context()
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if len(args) > 1 {
+				version = semver.MustParse(args[1])
+			}
+
+			return RunRuntimeUpdate(ctx, &RuntimeUpdateOptions{
+				RuntimeName: args[0],
+				Version:     version,
+				CloneOpts:   cloneOpts,
+			})
+		},
+	}
+
+	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		FS: memfs.New(),
+	})
+
+	return cmd
+}
+
+func RunRuntimeUpdate(ctx context.Context, opts *RuntimeUpdateOptions) error {
+	// if opts.Version == nil - get the latest version from github api (OR - make version mandatory for now)
+	// call getRuntimeDef(version) - change func to accept a version param, update url template with it
+	// iterate over runtimeDef components, for each one - update the base kustomization.yaml (or create a new app)
+	// iterate over the filesystem, for each component that was not updated - delete it
+	return nil
 }
 
 func getRuntimeDef() (*RuntimeDef, error) {
