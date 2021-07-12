@@ -23,16 +23,11 @@ import (
 var s Store
 
 var (
-	binaryName                = "cli-v2"
-	version                   = "v99.99.99"
-	buildDate                 = ""
-	gitCommit                 = ""
-	RuntimeDefURL             = "manifests/runtime.yaml"
-	ArgoCDManifestsURL        = "manifests/argo-cd"
-	ArgoEventsManifestsURL    = "manifests/argo-events"
-	ArgoRolloutsManifestsURL  = "manifests/argo-rollouts"
-	ArgoWorkflowsManifestsURL = "manifests/argo-workflows"
-	ComponentsReporterURL     = "manifests/components-reporter"
+	binaryName    = "cli-v2"
+	version       = "v99.99.99"
+	buildDate     = ""
+	gitCommit     = ""
+	RuntimeDefURL = "manifests/runtime.yaml"
 )
 
 type Version struct {
@@ -45,26 +40,22 @@ type Version struct {
 }
 
 type Store struct {
-	ArgoCDManifestsURL        string
-	ArgoEventsManifestsURL    string
-	ArgoRolloutsManifestsURL  string
-	ArgoWorkflowsManifestsURL string
-	BinaryName                string
-	CFComponentType           string
-	CFRuntimeType             string
-	CFTokenSecret             string
-	CFTokenSecretKey          string
-	CFType                    string
-	ComponentsReporterName    string
-	ComponentsReporterSA      string
-	ComponentsReporterURL     string
-	DefaultAPI                string
-	EventBusName              string
-	EventReportingEndpoint    string
-	GitSourceName             string
-	RuntimeDefURL             string
-	Version                   Version
-	WaitTimeout               time.Duration
+	BinaryName             string
+	CFComponentType        string
+	CFRuntimeType          string
+	CFTokenSecret          string
+	CFTokenSecretKey       string
+	CFType                 string
+	ComponentsReporterName string
+	ComponentsReporterSA   string
+	ComponentsReporterURL  string
+	DefaultAPI             string
+	EventBusName           string
+	EventReportingEndpoint string
+	GitSourceName          string
+	RuntimeDefURL          string
+	Version                Version
+	WaitTimeout            time.Duration
 }
 
 // Get returns the global store
@@ -73,10 +64,6 @@ func Get() *Store {
 }
 
 func init() {
-	s.ArgoCDManifestsURL = ArgoCDManifestsURL
-	s.ArgoEventsManifestsURL = ArgoEventsManifestsURL
-	s.ArgoRolloutsManifestsURL = ArgoRolloutsManifestsURL
-	s.ArgoWorkflowsManifestsURL = ArgoWorkflowsManifestsURL
 	s.BinaryName = binaryName
 	s.CFComponentType = "component"
 	s.CFRuntimeType = "runtime"
@@ -85,7 +72,6 @@ func init() {
 	s.CFType = "codefresh.io/type"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
-	s.ComponentsReporterURL = ComponentsReporterURL
 	s.DefaultAPI = "https://g.codefresh.io"
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/argo/api/events"
