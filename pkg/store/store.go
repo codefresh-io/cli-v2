@@ -45,7 +45,6 @@ type Store struct {
 	CFRuntimeType          string
 	CFTokenSecret          string
 	CFTokenSecretKey       string
-	CFType                 string
 	ComponentsReporterName string
 	ComponentsReporterSA   string
 	ComponentsReporterURL  string
@@ -53,7 +52,9 @@ type Store struct {
 	EventBusName           string
 	EventReportingEndpoint string
 	GitSourceName          string
+	LabelKeyCFType         string
 	RuntimeDefURL          string
+	RuntimeFilename        string
 	Version                Version
 	WaitTimeout            time.Duration
 }
@@ -69,14 +70,15 @@ func init() {
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
-	s.CFType = "codefresh.io/type"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.GitSourceName = "default-git-source"
+	s.LabelKeyCFType = "codefresh.io/type"
 	s.RuntimeDefURL = RuntimeDefURL
+	s.RuntimeFilename = "runtime.yaml"
 	s.WaitTimeout = 5 * time.Minute
 	initVersion()
 }

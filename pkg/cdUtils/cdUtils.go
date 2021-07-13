@@ -45,8 +45,8 @@ func CreateApp(opts *CreateAppOptions) *cdv1alpha1.Application {
 
 	app := &cdv1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       cdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
 			APIVersion: cdv1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+			Kind:       cdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.Namespace,
@@ -55,7 +55,7 @@ func CreateApp(opts *CreateAppOptions) *cdv1alpha1.Application {
 				"argocd.argoproj.io/sync-wave": fmt.Sprintf("%d", opts.SyncWave),
 			},
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": store.Get().BinaryName,
+				apstore.Default.LabelKeyAppManagedBy: store.Get().BinaryName,
 				"app.kubernetes.io/name":       opts.Name,
 			},
 			Finalizers: []string{
