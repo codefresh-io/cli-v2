@@ -108,6 +108,7 @@ test:
 
 .PHONY: codegen
 codegen: $(GOBIN)/mockery
+	rm -f ./docs/commands/*
 	go generate ./...
 	go run ./hack/license.go --license ./hack/boilerplate.txt --year $(YEAR) .
 

@@ -1,9 +1,9 @@
-## cli-v2 runtime delete
+## cli-v2 runtime uninstall
 
-Deletes a Codefresh runtime
+Uninstall a Codefresh runtime
 
 ```
-cli-v2 runtime delete [runtime_name] [flags]
+cli-v2 runtime uninstall [runtime_name] [flags]
 ```
 
 ### Examples
@@ -19,9 +19,9 @@ cli-v2 runtime delete [runtime_name] [flags]
 
         --git-token <token>
 
-# Adds a new runtime
+# Deletes a runtime
 
-    cli-v2 runtime delete runtime-name --repo gitops_repo
+    cli-v2 runtime uninstall runtime-name --repo gitops_repo
 
 ```
 
@@ -37,7 +37,7 @@ cli-v2 runtime delete [runtime_name] [flags]
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
   -t, --git-token string               Your git provider api token [GIT_TOKEN]
-  -h, --help                           help for delete
+  -h, --help                           help for uninstall
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string               If present, the namespace scope for this CLI request

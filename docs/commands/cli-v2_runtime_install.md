@@ -1,9 +1,9 @@
-## cli-v2 runtime create
+## cli-v2 runtime install
 
-Create a new Codefresh runtime
+Install a new Codefresh runtime
 
 ```
-cli-v2 runtime create [runtime_name] [flags]
+cli-v2 runtime install [runtime_name] [flags]
 ```
 
 ### Examples
@@ -21,7 +21,7 @@ cli-v2 runtime create [runtime_name] [flags]
 
 # Adds a new runtime
 
-    cli-v2 runtime create runtime-name --install-repo gitops_repo
+    cli-v2 runtime install runtime-name --install-repo gitops_repo
 
 ```
 
@@ -39,7 +39,7 @@ cli-v2 runtime create [runtime_name] [flags]
       --git-src-git-token string       Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-provider string        The git provider, one of: github
       --git-src-repo string            Repository URL [GIT_SRC_GIT_REPO]
-  -h, --help                           help for create
+  -h, --help                           help for install
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --install-git-token string       Your git provider api token [INSTALL_GIT_TOKEN]
       --install-provider string        The git provider, one of: github
