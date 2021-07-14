@@ -6,7 +6,7 @@ CLI_NAME?=cf
 IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
-RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/runtime.yaml?ref=$(VERSION)"
+RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/runtime.yaml"
 
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 

@@ -4,16 +4,17 @@ metadata:
   name: "{{ name }}"
   namespace: "{{ namespace }}"
 spec:
-  version: 1.0.0
-  bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd?ref=v0.0.24
+  defVersion: 1.0.0
+  version: 0.0.25
+  bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
     - name: events
       type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-events?ref=v0.0.24
+      url: github.com/codefresh-io/cli-v2/manifests/argo-events
       wait: true
     - name: rollouts
       type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts?ref=v0.0.24
+      url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts
     - name: workflows
       type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows?ref=v0.0.24
+      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows

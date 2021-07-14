@@ -383,9 +383,17 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 }
 
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
+	if opts.Version == nil {
+		opts.Version = store.Get().Version.Version
+	}
+
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
+	}
+
+	if newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+		return fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
 	}
 
 	r, fs, err := opts.CloneOpts.GetRepo(ctx)
@@ -398,7 +406,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("failed to load current runtime definition: %w", err)
 	}
 
-	if curRt.Spec.Version.Compare(newRt.Spec.Version) >= 0 {
+	if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
 		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
 	}
 

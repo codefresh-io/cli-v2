@@ -49,6 +49,7 @@ type (
 	}
 
 	RuntimeSpec struct {
+		DefVersion         *semver.Version `json:"defVersion"`
 		Version            *semver.Version `json:"version"`
 		BootstrapSpecifier string          `json:"bootstrapSpecifier"`
 		Components         []AppDef        `json:"components"`
@@ -69,18 +70,16 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	)
 
 	if strings.HasPrefix(store.RuntimeDefURL, "http") {
-		urlString := store.RuntimeDefURL
-		if version != nil {
-			urlObj, err := url.Parse(urlString)
-			if err != nil {
-				return nil, fmt.Errorf("failed parsing url: %w", err)
-			}
-
-			urlObj.Query().Set("ref", version.String())
-			urlString = urlObj.String()
+		urlObj, err := url.Parse(store.RuntimeDefURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing url: %w", err)
 		}
 
-		res, err := http.Get(urlString)
+		if urlObj.Query().Get("ref") == "" {
+			urlObj.Query().Set("ref", version.String())
+		}
+
+		res, err := http.Get(urlObj.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 		}
@@ -146,8 +145,58 @@ func (r *Runtime) Save(fs fs.FS, filename string) error {
 	return fs.WriteYamls(filename, cm)
 }
 
-func (a *Runtime) Component(name string) *AppDef {
-	for _, c := range a.Spec.Components {
+func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
+	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
+		return nil, fmt.Errorf("failed to save runtime definition: %w", err)
+	}
+
+	return newComponents, nil
+}
+
+func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
+	log.G().Infof("Upgrading bootstrap specifier")
+	argocdFilename := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName, "kustomization.yaml")
+	if err := updateKustomization(fs, argocdFilename, r.fullSpecifier(), newRt.fullSpecifier()); err != nil {
+		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
+	}
+
+	newComponents := make([]AppDef, 0)
+	for _, newComponent := range newRt.Components {
+		curComponent := r.component(newComponent.Name)
+		if curComponent != nil {
+			log.G().Infof("Upgrading '%s'", newComponent.Name)
+			curURL := buildFullURL(curComponent.URL, r.Version)
+			newURL := buildFullURL(newComponent.URL, r.Version)
+			baseFilename := fs.Join(apstore.Default.AppsDir, curComponent.Name, apstore.Default.BaseDir, "kustomization.yaml")
+			if err := updateKustomization(fs, baseFilename, curURL, newURL); err != nil {
+				return nil, fmt.Errorf("failed to upgrade app '%s': %w", curComponent.Name, err)
+			}
+		} else {
+			log.G().Debugf("marking '%s' to be created later", newComponent.Name)
+			newComponents = append(newComponents, newComponent)
+		}
+	}
+
+	for _, curComponent := range r.Components {
+		newComponent := newRt.component(curComponent.Name)
+		if newComponent == nil {
+			log.G().Infof("Deleting '%s'", curComponent.Name)
+			if err := curComponent.delete(fs); err != nil {
+				return nil, fmt.Errorf("failed to delete app '%s': %w", curComponent.Name, err)
+			}
+		}
+	}
+
+	return newComponents, nil
+}
+
+func (a *RuntimeSpec) component(name string) *AppDef {
+	for _, c := range a.Components {
 		if c.Name == name {
 			return &c
 		}
@@ -156,46 +205,8 @@ func (a *Runtime) Component(name string) *AppDef {
 	return nil
 }
 
-func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
-	if r.Spec.BootstrapSpecifier != newRt.Spec.BootstrapSpecifier {
-		log.G().Infof("Upgrading bootstrap specifier")
-		argocdFilename := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName, "kustomization.yaml")
-		if err := updateKustomization(fs, argocdFilename, r.Spec.BootstrapSpecifier, newRt.Spec.BootstrapSpecifier); err != nil {
-			return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
-		}
-	}
-
-	newComponents := make([]AppDef, 0)
-	for _, component := range newRt.Spec.Components {
-		curComponent := r.Component(component.Name)
-		if curComponent != nil {
-			if curComponent.URL != component.URL {
-				log.G().Infof("Upgrading '%s'", component.Name)
-				if err := curComponent.Update(fs, &component); err != nil {
-					return nil, fmt.Errorf("failed to upgrade app '%s': %w", curComponent.Name, err)
-				}
-			}
-		} else {
-			log.G().Debugf("marking '%s' to be created later", component.Name)
-			newComponents = append(newComponents, component)
-		}
-	}
-
-	for _, curComponent := range r.Spec.Components {
-		newComponent := newRt.Component(curComponent.Name)
-		if newComponent == nil {
-			log.G().Infof("Deleting '%s'", curComponent.Name)
-			if err := curComponent.Delete(fs); err != nil {
-				return nil, fmt.Errorf("failed to delete app '%s': %w", curComponent.Name, err)
-			}
-		}
-	}
-
-	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
-		return nil, fmt.Errorf("failed to save runtime definition: %w", err)
-	}
-
-	return newComponents, nil
+func (r *RuntimeSpec) fullSpecifier() string {
+	return buildFullURL(r.BootstrapSpecifier, r.DefVersion)
 }
 
 func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string) error {
@@ -219,13 +230,8 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 	})
 }
 
-func (a *AppDef) Delete(fs fs.FS) error {
+func (a *AppDef) delete(fs fs.FS) error {
 	return billyUtils.RemoveAll(fs, fs.Join(apstore.Default.AppsDir, a.Name))
-}
-
-func (a *AppDef) Update(fs fs.FS, newApp *AppDef) error {
-	baseFilename := fs.Join(apstore.Default.AppsDir, a.Name, apstore.Default.BaseDir, "kustomization.yaml")
-	return updateKustomization(fs, baseFilename, a.URL, newApp.URL)
 }
 
 func updateKustomization(fs fs.FS, filename, fromURL, toURL string) error {
@@ -251,4 +257,13 @@ func updateKustomization(fs fs.FS, filename, fromURL, toURL string) error {
 	}
 
 	return fs.WriteYamls(filename, kust)
+}
+
+func buildFullURL(urlString string, version *semver.Version) string {
+	urlObj, _ := url.Parse(urlString)
+	if urlObj.Query().Get("ref") == "" {
+		urlObj.Query().Add("ref", version.String())
+	}
+
+	return urlObj.String()
 }

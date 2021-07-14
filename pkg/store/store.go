@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 var s Store
@@ -27,11 +29,12 @@ var (
 	version       = "v99.99.99"
 	buildDate     = ""
 	gitCommit     = ""
+	maxDefVersion = "1.0.0"
 	RuntimeDefURL = "manifests/runtime.yaml"
 )
 
 type Version struct {
-	Version    string
+	Version    *semver.Version
 	BuildDate  string
 	GitCommit  string
 	GoVersion  string
@@ -53,6 +56,7 @@ type Store struct {
 	EventReportingEndpoint string
 	GitSourceName          string
 	LabelKeyCFType         string
+	MaxDefVersion          *semver.Version
 	RuntimeDefURL          string
 	RuntimeFilename        string
 	Version                Version
@@ -77,6 +81,7 @@ func init() {
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.GitSourceName = "default-git-source"
 	s.LabelKeyCFType = "codefresh.io/type"
+	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
 	s.WaitTimeout = 5 * time.Minute
@@ -84,7 +89,7 @@ func init() {
 }
 
 func initVersion() {
-	s.Version.Version = version
+	s.Version.Version = semver.MustParse(version)
 	s.Version.BuildDate = buildDate
 	s.Version.GitCommit = gitCommit
 	s.Version.GoVersion = runtime.Version()
