@@ -142,19 +142,24 @@ func (a *Runtime) Component(name string) *AppDef {
 	return nil
 }
 
-func (r *Runtime) Update(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
-	argocdFilename := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName, "kustomization.yaml")
-	if err := updateKustomization(fs, argocdFilename, r.Spec.BootstrapSpecifier, newRt.Spec.BootstrapSpecifier); err != nil {
-		return nil, fmt.Errorf("failed to update bootstrap specifier: %w", err)
+func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
+	if r.Spec.BootstrapSpecifier != newRt.Spec.BootstrapSpecifier {
+		log.G().Infof("Upgrading bootstrap specifier")
+		argocdFilename := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName, "kustomization.yaml")
+		if err := updateKustomization(fs, argocdFilename, r.Spec.BootstrapSpecifier, newRt.Spec.BootstrapSpecifier); err != nil {
+			return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
+		}
 	}
 
 	newComponents := make([]AppDef, 0)
 	for _, component := range newRt.Spec.Components {
 		curComponent := r.Component(component.Name)
 		if curComponent != nil {
-			log.G().Infof("Updating '%s'", component.Name)
-			if err := curComponent.Update(fs, &component); err != nil {
-				return nil, fmt.Errorf("failed to update app '%s': %w", curComponent.Name, err)
+			if curComponent.URL != component.URL {
+				log.G().Infof("Upgrading '%s'", component.Name)
+				if err := curComponent.Update(fs, &component); err != nil {
+					return nil, fmt.Errorf("failed to upgrade app '%s': %w", curComponent.Name, err)
+				}
 			}
 		} else {
 			log.G().Debugf("marking '%s' to be created later", component.Name)

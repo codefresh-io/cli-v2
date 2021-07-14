@@ -49,7 +49,7 @@ import (
 )
 
 type (
-	RuntimeCreateOptions struct {
+	RuntimeInstallOptions struct {
 		RuntimeName  string
 		KubeContext  string
 		gsCloneOpts  *git.CloneOptions
@@ -57,7 +57,7 @@ type (
 		KubeFactory  kube.Factory
 	}
 
-	RuntimeDeleteOptions struct {
+	RuntimeUninstallOptions struct {
 		RuntimeName string
 		KubeContext string
 		Timeout     time.Duration
@@ -65,7 +65,7 @@ type (
 		KubeFactory kube.Factory
 	}
 
-	RuntimeUpdateOptions struct {
+	RuntimeUpgradeOptions struct {
 		RuntimeName string
 		Version     *semver.Version
 		CloneOpts   *git.CloneOptions
@@ -83,15 +83,15 @@ func NewRuntimeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewRuntimeCreateCommand())
+	cmd.AddCommand(NewRuntimeInstallCommand())
 	cmd.AddCommand(NewRuntimeListCommand())
-	cmd.AddCommand(NewRuntimeDeleteCommand())
-	cmd.AddCommand(NewRuntimeUpdateCommand())
+	cmd.AddCommand(NewRuntimeUninsatllCommand())
+	cmd.AddCommand(NewRuntimeUpgradeCommand())
 
 	return cmd
 }
 
-func NewRuntimeCreateCommand() *cobra.Command {
+func NewRuntimeInstallCommand() *cobra.Command {
 	var (
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
@@ -99,8 +99,8 @@ func NewRuntimeCreateCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create [runtime_name]",
-		Short: "Create a new Codefresh runtime",
+		Use:   "install [runtime_name]",
+		Short: "Install a new Codefresh runtime",
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
@@ -113,7 +113,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 
 # Adds a new runtime
 
-	<BIN> runtime create runtime-name --install-repo gitops_repo
+	<BIN> runtime install runtime-name --install-repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			if gsCloneOpts.Auth.Password == "" {
@@ -134,7 +134,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			return RunRuntimeCreate(ctx, &RuntimeCreateOptions{
+			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
 				KubeContext:  cmd.Flag("context").Value.String(),
 				gsCloneOpts:  gsCloneOpts,
@@ -160,7 +160,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 	return cmd
 }
 
-func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
+func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt, err := runtime.Download(nil, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -217,13 +217,13 @@ func NewRuntimeListCommand() *cobra.Command {
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return listRuntimes()
+			return RunRuntimeList()
 		},
 	}
 	return cmd
 }
 
-func listRuntimes() error {
+func RunRuntimeList() error {
 	runtimes, err := cfConfig.NewClient().ArgoRuntime().List()
 	if err != nil {
 		return err
@@ -271,15 +271,15 @@ func listRuntimes() error {
 	return tb.Flush()
 }
 
-func NewRuntimeDeleteCommand() *cobra.Command {
+func NewRuntimeUninsatllCommand() *cobra.Command {
 	var (
 		f         kube.Factory
 		cloneOpts *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete [runtime_name]",
-		Short: "Deletes a Codefresh runtime",
+		Use:   "uninstall [runtime_name]",
+		Short: "Uninstall a Codefresh runtime",
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
@@ -292,7 +292,7 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 
 # Deletes a runtime
 
-	<BIN> runtime delete runtime-name --repo gitops_repo
+	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			cloneOpts.Parse()
@@ -303,7 +303,7 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			return RunRuntimeDelete(ctx, &RuntimeDeleteOptions{
+			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 				RuntimeName: args[0],
 				KubeContext: cmd.Flag("context").Value.String(),
 				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
@@ -321,7 +321,7 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 	return cmd
 }
 
-func RunRuntimeDelete(ctx context.Context, opts *RuntimeDeleteOptions) error {
+func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	return apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		KubeContext:  opts.KubeContext,
@@ -331,14 +331,14 @@ func RunRuntimeDelete(ctx context.Context, opts *RuntimeDeleteOptions) error {
 	})
 }
 
-func NewRuntimeUpdateCommand() *cobra.Command {
+func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
 		cloneOpts *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
-		Use:   "update [runtime_name]",
-		Short: "Updates a Codefresh runtime",
+		Use:   "upgrade [runtime_name]",
+		Short: "Upgrade a Codefresh runtime",
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
@@ -349,9 +349,9 @@ func NewRuntimeUpdateCommand() *cobra.Command {
 
 		--git-token <token>
 
-# Updates a runtime to version v0.0.30
+# Upgrade a runtime to version v0.0.30
 
-	<BIN> runtime update runtime-name v0.0.30 --repo gitops_repo
+	<BIN> runtime upgrade runtime-name v0.0.30 --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			cloneOpts.Parse()
@@ -367,7 +367,7 @@ func NewRuntimeUpdateCommand() *cobra.Command {
 				version = semver.MustParse(args[1])
 			}
 
-			return RunRuntimeUpdate(ctx, &RuntimeUpdateOptions{
+			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
 				RuntimeName: args[0],
 				Version:     version,
 				CloneOpts:   cloneOpts,
@@ -382,7 +382,7 @@ func NewRuntimeUpdateCommand() *cobra.Command {
 	return cmd
 }
 
-func RunRuntimeUpdate(ctx context.Context, opts *RuntimeUpdateOptions) error {
+func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -399,12 +399,12 @@ func RunRuntimeUpdate(ctx context.Context, opts *RuntimeUpdateOptions) error {
 	}
 
 	if curRt.Spec.Version.Compare(newRt.Spec.Version) >= 0 {
-		return fmt.Errorf("must update to version > %s", curRt.Spec.Version)
+		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
 	}
 
-	newComponents, err := curRt.Update(fs, newRt)
+	newComponents, err := curRt.Upgrade(fs, newRt)
 	if err != nil {
-		return fmt.Errorf("failed to update runtime: %w", err)
+		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
 
 	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Upgraded to %s", opts.Version)}); err != nil {
@@ -437,7 +437,7 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return err
 }
 
-func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeCreateOptions) error {
+func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
 	tokenSecret, err := getTokenSecret(opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)

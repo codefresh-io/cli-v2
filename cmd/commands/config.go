@@ -132,9 +132,10 @@ func NewConfigCurrentContextCommand() *cobra.Command {
 func RunConfigCurrentContext(ctx context.Context) error {
 	cur := cfConfig.GetCurrentContext()
 	if cur.Name == "" {
-		log.G().Fatal(util.Doc("no currently selected context, use '<BIN> config use-context' to select a context"))
+		log.G(ctx).Fatal(util.Doc("no currently selected context, use '<BIN> config use-context' to select a context"))
 	}
-	log.G().Info(cur.Name)
+
+	log.G(ctx).Info(cur.Name)
 	return nil
 }
 
@@ -188,6 +189,7 @@ func RunConfigDeleteContext(ctx context.Context, context string) error {
 	if err := cfConfig.DeleteContext(context); err != nil {
 		return err
 	}
-	log.G().Infof("delete context: %s", context)
+
+	log.G(ctx).Infof("delete context: %s", context)
 	return nil
 }
