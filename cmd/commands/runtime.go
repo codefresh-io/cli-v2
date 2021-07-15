@@ -23,10 +23,11 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/cdUtils"
 	"github.com/codefresh-io/cli-v2/pkg/eventUtils"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/juju/ansiterm"
 
+	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -40,6 +41,7 @@ import (
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -47,20 +49,24 @@ import (
 )
 
 type (
-	RuntimeCreateOptions struct {
+	RuntimeInstallOptions struct {
 		RuntimeName  string
-		KubeContext  string
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
 	}
 
-	RuntimeDeleteOptions struct {
+	RuntimeUninstallOptions struct {
 		RuntimeName string
-		KubeContext string
 		Timeout     time.Duration
 		CloneOpts   *git.CloneOptions
 		KubeFactory kube.Factory
+	}
+
+	RuntimeUpgradeOptions struct {
+		RuntimeName string
+		Version     *semver.Version
+		CloneOpts   *git.CloneOptions
 	}
 )
 
@@ -75,14 +81,15 @@ func NewRuntimeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewRuntimeCreateCommand())
+	cmd.AddCommand(NewRuntimeInstallCommand())
 	cmd.AddCommand(NewRuntimeListCommand())
-	cmd.AddCommand(NewRuntimeDeleteCommand())
+	cmd.AddCommand(NewRuntimeUninsatllCommand())
+	cmd.AddCommand(NewRuntimeUpgradeCommand())
 
 	return cmd
 }
 
-func NewRuntimeCreateCommand() *cobra.Command {
+func NewRuntimeInstallCommand() *cobra.Command {
 	var (
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
@@ -90,8 +97,8 @@ func NewRuntimeCreateCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create [runtime_name]",
-		Short: "Create a new Codefresh runtime",
+		Use:   "install [runtime_name]",
+		Short: "Install a new Codefresh runtime",
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
@@ -104,7 +111,7 @@ func NewRuntimeCreateCommand() *cobra.Command {
 
 # Adds a new runtime
 
-	<BIN> runtime create runtime-name --install-repo gitops_repo
+	<BIN> runtime install runtime-name --install-repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			if gsCloneOpts.Auth.Password == "" {
@@ -125,9 +132,8 @@ func NewRuntimeCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			return RunRuntimeCreate(ctx, &RuntimeCreateOptions{
+			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
-				KubeContext:  cmd.Flag("context").Value.String(),
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
@@ -151,16 +157,20 @@ func NewRuntimeCreateCommand() *cobra.Command {
 	return cmd
 }
 
-func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
-	err := apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier: store.Get().ArgoCDManifestsURL,
+func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	rt, err := runtime.Download(nil, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to download runtime definition: %w", err)
+	}
+
+	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
+		AppSpecifier: rt.Spec.BootstrapSpecifier,
 		Namespace:    opts.RuntimeName,
-		KubeContext:  opts.KubeContext,
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -168,19 +178,18 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 		ProjectName: opts.RuntimeName,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create project: %w", err)
 	}
 
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "rollouts", store.Get().ArgoRolloutsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
-		return fmt.Errorf("failed to create rollouts application: %w", err)
+	for _, component := range rt.Spec.Components {
+		log.G(ctx).Infof("creating component '%s'", component.Name)
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName); err != nil {
+			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+		}
 	}
 
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "workflows", store.Get().ArgoWorkflowsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, false); err != nil {
-		return fmt.Errorf("failed to create workflows application: %w", err)
-	}
-
-	if err = createApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, "events", store.Get().ArgoEventsManifestsURL, application.AppTypeKustomize, opts.RuntimeName, true); err != nil {
-		return fmt.Errorf("failed to create events application: %w", err)
+	if err = persistRuntime(ctx, opts.insCloneOpts, rt); err != nil {
+		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
 	if err = createComponentsReporter(ctx, opts.insCloneOpts, opts); err != nil {
@@ -188,7 +197,7 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 	}
 
 	if err = createDemoWorkflowTemplate(ctx, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
-		return err
+		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
 	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
@@ -199,32 +208,32 @@ func RunRuntimeCreate(ctx context.Context, opts *RuntimeCreateOptions) error {
 }
 
 func NewRuntimeListCommand() *cobra.Command {
-	
-
 	cmd := &cobra.Command{
-		Use:   "list ",
-		Short: "List all Codefresh runtimes",
+		Use:     "list ",
+		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return listRuntimes(cmd.Context())
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return RunRuntimeList()
 		},
 	}
 	return cmd
 }
 
-func listRuntimes(ctx context.Context) error {
+func RunRuntimeList() error {
 	runtimes, err := cfConfig.NewClient().ArgoRuntime().List()
 	if err != nil {
 		return err
 	}
+
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tSTATUS\tVERSION")
 	if err != nil {
 		return err
 	}
+
 	for _, rt := range runtimes {
 		status := "N/A"
-		namespace:= "N/A"
+		namespace := "N/A"
 		name := "N/A"
 		cluster := "N/A"
 		version := "N/A"
@@ -234,7 +243,7 @@ func listRuntimes(ctx context.Context) error {
 		if rt.Namespace != nil {
 			namespace = *rt.Namespace
 		}
-		if rt.ObjectMeta != nil  && rt.ObjectMeta.Name != nil {
+		if rt.ObjectMeta != nil && rt.ObjectMeta.Name != nil {
 			name = *rt.ObjectMeta.Name
 		}
 		if rt.Cluster != nil {
@@ -244,28 +253,29 @@ func listRuntimes(ctx context.Context) error {
 			version = *rt.Version
 		}
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
-				name,
-				namespace,
-				cluster,
-				status,
-				version,
-			)
-			if err != nil {
-				return err
-			}
+			name,
+			namespace,
+			cluster,
+			status,
+			version,
+		)
+		if err != nil {
+			return err
+		}
 	}
+
 	return tb.Flush()
 }
 
-func NewRuntimeDeleteCommand() *cobra.Command {
+func NewRuntimeUninsatllCommand() *cobra.Command {
 	var (
 		f         kube.Factory
 		cloneOpts *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete [runtime_name]",
-		Short: "Deletes a Codefresh runtime",
+		Use:   "uninstall [runtime_name]",
+		Short: "Uninstall a Codefresh runtime",
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
@@ -276,9 +286,9 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 
 		--git-token <token>
 
-# Adds a new runtime
+# Deletes a runtime
 
-	<BIN> runtime delete runtime-name --repo gitops_repo
+	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			cloneOpts.Parse()
@@ -289,9 +299,8 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			return RunRuntimeDelete(ctx, &RuntimeDeleteOptions{
+			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 				RuntimeName: args[0],
-				KubeContext: cmd.Flag("context").Value.String(),
 				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
@@ -307,38 +316,130 @@ func NewRuntimeDeleteCommand() *cobra.Command {
 	return cmd
 }
 
-func RunRuntimeDelete(ctx context.Context, opts *RuntimeDeleteOptions) error {
+func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	return apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
-		KubeContext:  opts.KubeContext,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
 	})
 }
 
-func createApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, appName, appURL, appType, namespace string, wait bool) error {
-	timeout := time.Duration(0)
-	if wait {
-		timeout = store.Get().WaitTimeout
+func NewRuntimeUpgradeCommand() *cobra.Command {
+	var (
+		cloneOpts *git.CloneOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:   "upgrade [runtime_name]",
+		Short: "Upgrade a Codefresh runtime",
+		Example: util.Doc(`
+# To run this command you need to create a personal access token for your git provider
+# and provide it using:
+
+		export GIT_TOKEN=<token>
+
+# or with the flag:
+
+		--git-token <token>
+
+# Upgrade a runtime to version v0.0.30
+
+	<BIN> runtime upgrade runtime-name v0.0.30 --repo gitops_repo
+`),
+		PreRun: func(_ *cobra.Command, _ []string) {
+			cloneOpts.Parse()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var version *semver.Version
+			ctx := cmd.Context()
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if len(args) > 1 {
+				version = semver.MustParse(args[1])
+			}
+
+			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
+				RuntimeName: args[0],
+				Version:     version,
+				CloneOpts:   cloneOpts,
+			})
+		},
 	}
 
-	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
-		CloneOpts:     cloneOpts,
-		AppsCloneOpts: &git.CloneOptions{},
-		ProjectName:   projectName,
-		AppOpts: &application.CreateOptions{
-			AppName:       appName,
-			AppSpecifier:  appURL,
-			AppType:       appType,
-			DestNamespace: namespace,
-		},
-		KubeFactory: f,
-		Timeout:     timeout,
+	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		FS: memfs.New(),
 	})
+
+	return cmd
 }
 
-func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeCreateOptions) error {
+func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
+	if opts.Version == nil {
+		opts.Version = store.Get().Version.Version
+	}
+
+	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to download runtime definition: %w", err)
+	}
+
+	if newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+		return fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
+	}
+
+	r, fs, err := opts.CloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename))
+	if err != nil {
+		return fmt.Errorf("failed to load current runtime definition: %w", err)
+	}
+
+	if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
+		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
+	}
+
+	newComponents, err := curRt.Upgrade(fs, newRt)
+	if err != nil {
+		return fmt.Errorf("failed to upgrade runtime: %w", err)
+	}
+
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Upgraded to %s", opts.Version)}); err != nil {
+		return err
+	}
+
+	for _, component := range newComponents {
+		log.G(ctx).Infof("Creating app '%s'", component.Name)
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName); err != nil {
+			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
+	r, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
+		return err
+	}
+
+	_, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Persisted runtime data",
+	})
+	return err
+}
+
+func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
 	tokenSecret, err := getTokenSecret(opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -349,7 +450,12 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 	}
 
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ComponentsReporterName, opts.RuntimeName, "resources")
-	if err := createApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().ComponentsReporterName, cloneOpts.URL()+"/"+resPath, application.AppTypeDirectory, opts.RuntimeName, false); err != nil {
+	appDef := &runtime.AppDef{
+		Name: store.Get().ComponentsReporterName,
+		Type: application.AppTypeDirectory,
+		URL:  cloneOpts.URL() + "/" + resPath,
+	}
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName); err != nil {
 		return err
 	}
 
@@ -398,8 +504,8 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
-	appset.Spec.Template.Labels[store.Get().CFType] = "component"
-	project.ObjectMeta.Labels[store.Get().CFType] = "runtime"
+	appset.Spec.Template.Labels[store.Get().LabelKeyCFType] = "component"
+	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = "runtime"
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
@@ -499,7 +605,7 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 				Namespace: namespace,
 				Selectors: []eventUtils.CreateSelectorOptions{
 					{
-						Key:       store.Get().CFType,
+						Key:       store.Get().LabelKeyCFType,
 						Operation: "==",
 						Value:     store.Get().CFComponentType,
 					},
@@ -512,7 +618,7 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 				Namespace: namespace,
 				Selectors: []eventUtils.CreateSelectorOptions{
 					{
-						Key:       store.Get().CFType,
+						Key:       store.Get().LabelKeyCFType,
 						Operation: "==",
 						Value:     store.Get().CFRuntimeType,
 					},
@@ -724,8 +830,12 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		return err
 	}
 
-	fullResPath := insFs.Join(insFs.Root(), resPath)
-	if err = createApp(ctx, nil, insCloneOpts, runtimeName, gsName, insCloneOpts.URL()+fullResPath, application.AppTypeDirectory, runtimeName, false); err != nil {
+	appDef := &runtime.AppDef{
+		Name: gsName,
+		Type: application.AppTypeDirectory,
+		URL:  insCloneOpts.URL() + insFs.Join(insFs.Root(), resPath),
+	}
+	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 

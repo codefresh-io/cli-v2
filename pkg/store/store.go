@@ -18,23 +18,23 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 var s Store
 
 var (
-	binaryName                = "cli-v2"
-	version                   = "v99.99.99"
-	buildDate                 = ""
-	gitCommit                 = ""
-	ArgoCDManifestsURL        = "manifests/argo-cd"
-	ArgoEventsManifestsURL    = "manifests/argo-events"
-	ArgoRolloutsManifestsURL  = "manifests/argo-rollouts"
-	ArgoWorkflowsManifestsURL = "manifests/argo-workflows"
+	binaryName    = "cli-v2"
+	version       = "v99.99.99"
+	buildDate     = ""
+	gitCommit     = ""
+	maxDefVersion = "1.0.0"
+	RuntimeDefURL = "manifests/runtime.yaml"
 )
 
 type Version struct {
-	Version    string
+	Version    *semver.Version
 	BuildDate  string
 	GitCommit  string
 	GoVersion  string
@@ -43,24 +43,24 @@ type Version struct {
 }
 
 type Store struct {
-	ArgoCDManifestsURL        string
-	ArgoEventsManifestsURL    string
-	ArgoRolloutsManifestsURL  string
-	ArgoWorkflowsManifestsURL string
-	BinaryName                string
-	CFComponentType           string
-	CFRuntimeType             string
-	CFTokenSecret             string
-	CFTokenSecretKey          string
-	CFType                    string
-	ComponentsReporterName    string
-	ComponentsReporterSA      string
-	DefaultAPI                string
-	EventBusName              string
-	EventReportingEndpoint    string
-	GitSourceName             string
-	Version                   Version
-	WaitTimeout               time.Duration
+	BinaryName             string
+	CFComponentType        string
+	CFRuntimeType          string
+	CFTokenSecret          string
+	CFTokenSecretKey       string
+	ComponentsReporterName string
+	ComponentsReporterSA   string
+	ComponentsReporterURL  string
+	DefaultAPI             string
+	EventBusName           string
+	EventReportingEndpoint string
+	GitSourceName          string
+	LabelKeyCFType         string
+	MaxDefVersion          *semver.Version
+	RuntimeDefURL          string
+	RuntimeFilename        string
+	Version                Version
+	WaitTimeout            time.Duration
 }
 
 // Get returns the global store
@@ -69,28 +69,27 @@ func Get() *Store {
 }
 
 func init() {
-	s.ArgoCDManifestsURL = ArgoCDManifestsURL
-	s.ArgoEventsManifestsURL = ArgoEventsManifestsURL
-	s.ArgoRolloutsManifestsURL = ArgoRolloutsManifestsURL
-	s.ArgoWorkflowsManifestsURL = ArgoWorkflowsManifestsURL
 	s.BinaryName = binaryName
 	s.CFComponentType = "component"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
-	s.CFType = "codefresh.io/type"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.GitSourceName = "default-git-source"
+	s.LabelKeyCFType = "codefresh.io/type"
+	s.MaxDefVersion = semver.MustParse(maxDefVersion)
+	s.RuntimeDefURL = RuntimeDefURL
+	s.RuntimeFilename = "runtime.yaml"
 	s.WaitTimeout = 5 * time.Minute
 	initVersion()
 }
 
 func initVersion() {
-	s.Version.Version = version
+	s.Version.Version = semver.MustParse(version)
 	s.Version.BuildDate = buildDate
 	s.Version.GitCommit = gitCommit
 	s.Version.GoVersion = runtime.Version()

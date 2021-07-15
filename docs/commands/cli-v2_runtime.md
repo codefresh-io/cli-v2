@@ -24,7 +24,8 @@ cli-v2 runtime [flags]
 ### SEE ALSO
 
 * [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
-* [cli-v2 runtime create](cli-v2_runtime_create.md)	 - Create a new Codefresh runtime
-* [cli-v2 runtime delete](cli-v2_runtime_delete.md)	 - Deletes a Codefresh runtime
+* [cli-v2 runtime install](cli-v2_runtime_install.md)	 - Install a new Codefresh runtime
 * [cli-v2 runtime list](cli-v2_runtime_list.md)	 - List all Codefresh runtimes
+* [cli-v2 runtime uninstall](cli-v2_runtime_uninstall.md)	 - Uninstall a Codefresh runtime
+* [cli-v2 runtime upgrade](cli-v2_runtime_upgrade.md)	 - Upgrade a Codefresh runtime
 

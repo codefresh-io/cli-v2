@@ -1,4 +1,4 @@
-VERSION=v0.0.24
+VERSION=v0.0.25
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
 
@@ -6,15 +6,9 @@ CLI_NAME?=cf
 IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
-ARGOCD_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-cd?ref=$(VERSION)"
-EVENTS_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-events?ref=$(VERSION)"
-ROLLOUTS_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-rollouts?ref=$(VERSION)"
-WORKFLOWS_INSTALLATION_MANIFESTS_URL="github.com/codefresh-io/cli-v2/manifests/argo-workflows?ref=$(VERSION)"
+RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/runtime.yaml"
 
-DEV_ARGOCD_INSTALLATION_MANIFESTS_URL="manifests/argo-cd"
-DEV_EVENTS_INSTALLATION_MANIFESTS_URL="manifests/argo-events"
-DEV_ROLLOUTS_INSTALLATION_MANIFESTS_URL="manifests/argo-rollouts"
-DEV_WORKFLOWS_INSTALLATION_MANIFESTS_URL="manifests/argo-workflows"
+DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 
 CLI_SRCS := $(shell find . -name '*.go')
 
@@ -26,10 +20,7 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 DEV_MODE?=true
 
 ifeq (${DEV_MODE},true)
-	ARGOCD_INSTALLATION_MANIFESTS_URL=${DEV_ARGOCD_INSTALLATION_MANIFESTS_URL}
-	EVENTS_INSTALLATION_MANIFESTS_URL=${DEV_EVENTS_INSTALLATION_MANIFESTS_URL}
-	ROLLOUTS_INSTALLATION_MANIFESTS_URL=${DEV_ROLLOUTS_INSTALLATION_MANIFESTS_URL}
-	WORKFLOWS_INSTALLATION_MANIFESTS_URL=${DEV_WORKFLOWS_INSTALLATION_MANIFESTS_URL}
+	RUNTIME_DEF_URL=${DEV_RUNTIME_DEF_URL}
 endif
 
 ifndef GOBIN
@@ -94,10 +85,7 @@ $(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	VERSION=$(VERSION) \
 	GIT_COMMIT=$(GIT_COMMIT) \
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \
-	ARGOCD_INSTALLATION_MANIFESTS_URL=$(ARGOCD_INSTALLATION_MANIFESTS_URL) \
-	EVENTS_INSTALLATION_MANIFESTS_URL=$(EVENTS_INSTALLATION_MANIFESTS_URL) \
-	ROLLOUTS_INSTALLATION_MANIFESTS_URL=$(ROLLOUTS_INSTALLATION_MANIFESTS_URL) \
-	WORKFLOWS_INSTALLATION_MANIFESTS_URL=$(WORKFLOWS_INSTALLATION_MANIFESTS_URL) \
+	RUNTIME_DEF_URL=$(RUNTIME_DEF_URL) \
 	MAIN=./cmd \
 	./hack/build.sh
 
@@ -120,6 +108,7 @@ test:
 
 .PHONY: codegen
 codegen: $(GOBIN)/mockery
+	rm -f ./docs/commands/*
 	go generate ./...
 	go run ./hack/license.go --license ./hack/boilerplate.txt --year $(YEAR) .
 

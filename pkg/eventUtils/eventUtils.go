@@ -17,6 +17,7 @@ package eventUtils
 import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
+	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
 	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
 	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
@@ -94,6 +95,9 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      opts.Name,
 			Namespace: opts.Namespace,
+			Labels: map[string]string{
+				apstore.Default.LabelKeyAppManagedBy: store.Get().BinaryName,
+			},
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			Template: &eventsourcev1alpha1.Template{
@@ -169,6 +173,9 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      opts.Name,
 			Namespace: opts.Namespace,
+			Labels: map[string]string{
+				apstore.Default.LabelKeyAppManagedBy: store.Get().BinaryName,
+			},
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: opts.EventBusName,

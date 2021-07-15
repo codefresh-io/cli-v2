@@ -3,8 +3,9 @@ module github.com/codefresh-io/cli-v2
 go 1.16
 
 require (
+	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/argoproj-labs/applicationset v0.1.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.9
+	github.com/argoproj-labs/argocd-autopilot v0.2.11
 	github.com/argoproj/argo-cd/v2 v2.0.3
 	github.com/argoproj/argo-events v1.3.1
 	github.com/argoproj/argo-workflows/v3 v3.1.0
@@ -23,6 +24,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
+	sigs.k8s.io/kustomize/api v0.8.8
 )
 
 replace (
