@@ -51,7 +51,6 @@ import (
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
-		KubeContext  string
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
@@ -59,7 +58,6 @@ type (
 
 	RuntimeUninstallOptions struct {
 		RuntimeName string
-		KubeContext string
 		Timeout     time.Duration
 		CloneOpts   *git.CloneOptions
 		KubeFactory kube.Factory
@@ -136,7 +134,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
-				KubeContext:  cmd.Flag("context").Value.String(),
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
@@ -169,7 +166,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: rt.Spec.BootstrapSpecifier,
 		Namespace:    opts.RuntimeName,
-		KubeContext:  opts.KubeContext,
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
 	})
@@ -305,7 +301,6 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 
 			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 				RuntimeName: args[0],
-				KubeContext: cmd.Flag("context").Value.String(),
 				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
@@ -324,7 +319,6 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	return apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
-		KubeContext:  opts.KubeContext,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
