@@ -27,7 +27,7 @@ steps:
     - cf_export GOCACHE=/codefresh/volume/gocache # change gopath to codefresh shared volume
     - cf_export GOPATH=/codefresh/volume/gopath
     - cf_export PATH=$PATH:/codefresh/volume/gopath/bin
-    - cf_export LATEST_VERSION=$(curl --silent -H "Authorization:Bearer ${{GITHUB_TOKEN}}" "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    - cf_export LATEST_VERSION=$(curl --silent -H "Authorization:Bearer ${{GITHUB_TOKEN}}" "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | jq -r ".tag_name")
     - cf_export VERSION=$(make cur-version)
     when:
       steps:
