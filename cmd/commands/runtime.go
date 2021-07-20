@@ -129,12 +129,22 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var (
+				version *semver.Version
+				err     error
+			)
 			ctx := cmd.Context()
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			version := semver.MustParse(versionStr)
+			if versionStr != "" {
+				version, err = semver.NewVersion(versionStr)
+				if err != nil {
+					return err
+				}
+			}
+
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
 				Version:      version,
@@ -357,12 +367,22 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			cloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var (
+				version *semver.Version
+				err     error
+			)
 			ctx := cmd.Context()
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			version := semver.MustParse(versionStr)
+			if versionStr != "" {
+				version, err = semver.NewVersion(versionStr)
+				if err != nil {
+					return err
+				}
+			}
+
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
 				RuntimeName: args[0],
 				Version:     version,
