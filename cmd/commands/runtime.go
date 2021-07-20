@@ -169,7 +169,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier: rt.Spec.BootstrapSpecifier,
+		AppSpecifier: rt.Spec.FullSpecifier(),
 		Namespace:    opts.RuntimeName,
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
@@ -188,7 +188,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, rt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -418,7 +418,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, newRt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -458,7 +458,7 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, nil); err != nil {
 		return err
 	}
 
@@ -838,7 +838,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		Type: application.AppTypeDirectory,
 		URL:  insCloneOpts.URL() + insFs.Join(insFs.Root(), resPath),
 	}
-	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName); err != nil {
+	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, nil); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 

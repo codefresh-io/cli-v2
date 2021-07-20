@@ -157,7 +157,7 @@ func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
 func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	log.G().Infof("Upgrading bootstrap specifier")
 	argocdFilename := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName, "kustomization.yaml")
-	if err := updateKustomization(fs, argocdFilename, r.fullSpecifier(), newRt.fullSpecifier()); err != nil {
+	if err := updateKustomization(fs, argocdFilename, r.FullSpecifier(), newRt.FullSpecifier()); err != nil {
 		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
 	}
 
@@ -201,11 +201,11 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 	return nil
 }
 
-func (r *RuntimeSpec) fullSpecifier() string {
+func (r *RuntimeSpec) FullSpecifier() string {
 	return buildFullURL(r.BootstrapSpecifier, r.DefVersion)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string, version *semver.Version) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -217,7 +217,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		ProjectName:   projectName,
 		AppOpts: &application.CreateOptions{
 			AppName:       a.Name,
-			AppSpecifier:  a.URL,
+			AppSpecifier:  buildFullURL(a.URL, version),
 			AppType:       a.Type,
 			DestNamespace: projectName,
 		},
@@ -256,6 +256,10 @@ func updateKustomization(fs fs.FS, filename, fromURL, toURL string) error {
 }
 
 func buildFullURL(urlString string, version *semver.Version) string {
+	if version == nil {
+		return urlString
+	}
+
 	urlObj, _ := url.Parse(urlString)
 	if urlObj.Query().Get("ref") == "" {
 		urlObj.Query().Add("ref", version.String())
