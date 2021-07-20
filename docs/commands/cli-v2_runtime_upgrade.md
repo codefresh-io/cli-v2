@@ -31,7 +31,7 @@ cli-v2 runtime upgrade [runtime_name] [flags]
   -t, --git-token string   Your git provider api token [GIT_TOKEN]
   -h, --help               help for upgrade
       --repo string        Repository URL [GIT_REPO]
-      --version string     The runtime version to install, defaults to latest
+      --version string     The runtime version to upgrade to, defaults to latest
 ```
 
 ### Options inherited from parent commands
