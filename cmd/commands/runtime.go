@@ -51,6 +51,7 @@ import (
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
+		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
@@ -91,6 +92,7 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		versionStr   string
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
@@ -127,13 +129,25 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var (
+				version *semver.Version
+				err     error
+			)
 			ctx := cmd.Context()
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
+			if versionStr != "" {
+				version, err = semver.NewVersion(versionStr)
+				if err != nil {
+					return err
+				}
+			}
+
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
+				Version:      version,
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
@@ -141,6 +155,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "install",
 		CreateIfNotExist: true,
@@ -158,13 +173,13 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	rt, err := runtime.Download(nil, opts.RuntimeName)
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier: rt.Spec.BootstrapSpecifier,
+		AppSpecifier: rt.Spec.FullSpecifier(),
 		Namespace:    opts.RuntimeName,
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
@@ -183,7 +198,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, rt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -327,7 +342,8 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		cloneOpts *git.CloneOptions
+		versionStr string
+		cloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -351,14 +367,20 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			cloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var version *semver.Version
+			var (
+				version *semver.Version
+				err     error
+			)
 			ctx := cmd.Context()
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			if len(args) > 1 {
-				version = semver.MustParse(args[1])
+			if versionStr != "" {
+				version, err = semver.NewVersion(versionStr)
+				if err != nil {
+					return err
+				}
 			}
 
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
@@ -369,6 +391,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		FS: memfs.New(),
 	})
@@ -415,7 +438,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, newRt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -455,7 +478,7 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, nil); err != nil {
 		return err
 	}
 
@@ -835,7 +858,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		Type: application.AppTypeDirectory,
 		URL:  insCloneOpts.URL() + insFs.Join(insFs.Root(), resPath),
 	}
-	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName); err != nil {
+	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, nil); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 
