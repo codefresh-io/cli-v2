@@ -400,10 +400,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 }
 
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
-	if opts.Version == nil {
-		opts.Version = store.Get().Version.Version
-	}
-
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -432,7 +428,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
 
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Upgraded to %s", opts.Version)}); err != nil {
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Upgraded to %s", newRt.Spec.Version)}); err != nil {
 		return err
 	}
 

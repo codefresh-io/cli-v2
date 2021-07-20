@@ -167,7 +167,7 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 		if curComponent != nil {
 			log.G().Infof("Upgrading '%s'", newComponent.Name)
 			curURL := buildFullURL(curComponent.URL, r.Version)
-			newURL := buildFullURL(newComponent.URL, r.Version)
+			newURL := buildFullURL(newComponent.URL, newRt.Version)
 			baseFilename := fs.Join(apstore.Default.AppsDir, curComponent.Name, apstore.Default.BaseDir, "kustomization.yaml")
 			if err := updateKustomization(fs, baseFilename, curURL, newURL); err != nil {
 				return nil, fmt.Errorf("failed to upgrade app '%s': %w", curComponent.Name, err)
