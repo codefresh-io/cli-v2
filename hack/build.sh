@@ -13,5 +13,5 @@ go build -ldflags=" \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.version=${VERSION}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.buildDate=${BUILD_DATE}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.gitCommit=${GIT_COMMIT}' \
-    -X 'github.com/codefresh-io/cli-v2/pkg/store.RuntimeDefURL=${RUNTIME_DEF_URL}' \
+    -X 'github.com/codefresh-io/cli-v2/pkg/store.RuntimeDefURL=${RUNTIME_DEF_URL}'" \
     -v -o ${OUT_FILE} ${MAIN}
