@@ -21,7 +21,7 @@ cli-v2 runtime upgrade [runtime_name] [flags]
 
 # Upgrade a runtime to version v0.0.30
 
-    cli-v2 runtime upgrade runtime-name v0.0.30 --repo gitops_repo
+    cli-v2 runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 
 ```
 

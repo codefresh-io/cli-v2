@@ -361,7 +361,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 # Upgrade a runtime to version v0.0.30
 
-	<BIN> runtime upgrade runtime-name v0.0.30 --repo gitops_repo
+	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			cloneOpts.Parse()
