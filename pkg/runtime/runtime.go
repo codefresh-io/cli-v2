@@ -263,7 +263,7 @@ func buildFullURL(urlString string, version *semver.Version) string {
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", version.String())
+		v.Add("ref", "v"+version.String())
 		urlObj.RawQuery = v.Encode()
 	}
 
