@@ -37,6 +37,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --install-repo string        Repository URL [INSTALL_GIT_REPO]
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string           If present, the namespace scope for this CLI request
+      --version string             The runtime version to install, defaults to latest
 ```
 
 ### Options inherited from parent commands

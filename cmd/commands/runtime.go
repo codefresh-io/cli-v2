@@ -51,6 +51,7 @@ import (
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
+		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
@@ -91,6 +92,7 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		versionStr   string
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
@@ -132,8 +134,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
+			version := semver.MustParse(versionStr)
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
+				Version:      version,
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
@@ -141,6 +145,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "install",
 		CreateIfNotExist: true,
@@ -158,7 +163,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	rt, err := runtime.Download(nil, opts.RuntimeName)
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
@@ -327,7 +332,8 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		cloneOpts *git.CloneOptions
+		versionStr string
+		cloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -351,16 +357,12 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			cloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var version *semver.Version
 			ctx := cmd.Context()
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			if len(args) > 1 {
-				version = semver.MustParse(args[1])
-			}
-
+			version := semver.MustParse(versionStr)
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
 				RuntimeName: args[0],
 				Version:     version,
@@ -369,6 +371,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		FS: memfs.New(),
 	})
