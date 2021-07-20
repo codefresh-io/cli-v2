@@ -202,7 +202,7 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 }
 
 func (r *RuntimeSpec) FullSpecifier() string {
-	return buildFullURL(r.BootstrapSpecifier, r.DefVersion)
+	return buildFullURL(r.BootstrapSpecifier, r.Version)
 }
 
 func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string, version *semver.Version) error {
