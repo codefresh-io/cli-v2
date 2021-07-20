@@ -70,16 +70,12 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	)
 
 	if strings.HasPrefix(store.RuntimeDefURL, "http") {
-		urlObj, err := url.Parse(store.RuntimeDefURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed parsing url: %w", err)
+		urlString := store.RuntimeDefURL
+		if version != nil {
+			urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
 		}
 
-		if urlObj.Query().Get("ref") == "" {
-			urlObj.Query().Set("ref", version.String())
-		}
-
-		res, err := http.Get(urlObj.String())
+		res, err := http.Get(urlString)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 		}

@@ -38,4 +38,4 @@ if [[ "$DRY_RUN" == "1" ]]; then
     exit 0
 fi
 
-gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/*.tar.gz ./dist/*.sha256
+gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml
