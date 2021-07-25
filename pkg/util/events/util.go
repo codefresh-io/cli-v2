@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventUtils
+package util
 
 import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -215,7 +215,7 @@ func CreateTrigger(opts *CreateTriggerOptions) *sensorsv1alpha1.Trigger {
 							DependencyName: opts.DependencyName,
 							DataKey:        "body",
 						},
-						Dest: "data",
+						Dest: "data.object",
 					},
 				},
 			},

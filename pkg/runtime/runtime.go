@@ -130,7 +130,7 @@ func (r *Runtime) Save(fs fs.FS, filename string) error {
 			Namespace: r.Namespace,
 			Labels: map[string]string{
 				apstore.Default.LabelKeyAppManagedBy: store.Get().BinaryName,
-				store.Get().LabelKeyCFType:           "runtimeDef",
+				store.Get().LabelKeyCFType:           store.Get().CFRuntimeDefType,
 			},
 		},
 		Data: map[string]string{

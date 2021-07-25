@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cdUtils
+package util
 
 import (
 	"fmt"
@@ -56,7 +56,7 @@ func CreateApp(opts *CreateAppOptions) *cdv1alpha1.Application {
 			},
 			Labels: map[string]string{
 				apstore.Default.LabelKeyAppManagedBy: store.Get().BinaryName,
-				"app.kubernetes.io/name":       opts.Name,
+				"app.kubernetes.io/name":             opts.Name,
 			},
 			Finalizers: []string{
 				"resources-finalizer.argocd.argoproj.io",
