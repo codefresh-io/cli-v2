@@ -31,12 +31,12 @@ cli-v2 runtime install [runtime_name] [flags]
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-provider string    The git provider, one of: gitea|github
       --git-src-repo string        Repository URL [GIT_SRC_GIT_REPO]
+  -t, --git-token string           Your git provider api token [GIT_TOKEN]
   -h, --help                       help for install
-      --install-git-token string   Your git provider api token [INSTALL_GIT_TOKEN]
-      --install-provider string    The git provider, one of: gitea|github
-      --install-repo string        Repository URL [INSTALL_GIT_REPO]
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string           If present, the namespace scope for this CLI request
+      --provider string            The git provider, one of: gitea|github
+      --repo string                Repository URL [GIT_REPO]
       --version string             The runtime version to install, defaults to latest
 ```
 
