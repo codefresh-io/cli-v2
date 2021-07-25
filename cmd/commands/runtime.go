@@ -20,12 +20,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/pkg/cdUtils"
-	"github.com/codefresh-io/cli-v2/pkg/eventUtils"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
+	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 
 	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
@@ -523,8 +523,8 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
-	appset.Spec.Template.Labels[store.Get().LabelKeyCFType] = "component"
-	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = "runtime"
+	appset.Spec.Template.Labels[store.Get().LabelKeyCFType] = store.Get().CFComponentType
+	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
@@ -611,18 +611,18 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 }
 
 func createEventSource(repofs fs.FS, path, namespace string) error {
-	eventSource := eventUtils.CreateEventSource(&eventUtils.CreateEventSourceOptions{
+	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 		Name:               store.Get().ComponentsReporterName,
 		Namespace:          namespace,
 		ServiceAccountName: store.Get().ComponentsReporterSA,
 		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventUtils.CreateResourceEventSourceOptions{
+		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			"components": {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
 				Resource:  "applications",
 				Namespace: namespace,
-				Selectors: []eventUtils.CreateSelectorOptions{
+				Selectors: []eventsutil.CreateSelectorOptions{
 					{
 						Key:       store.Get().LabelKeyCFType,
 						Operation: "==",
@@ -635,7 +635,7 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 				Version:   "v1alpha1",
 				Resource:  "appprojects",
 				Namespace: namespace,
-				Selectors: []eventUtils.CreateSelectorOptions{
+				Selectors: []eventsutil.CreateSelectorOptions{
 					{
 						Key:       store.Get().LabelKeyCFType,
 						Operation: "==",
@@ -649,7 +649,7 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 }
 
 func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) error {
-	sensor := eventUtils.CreateSensor(&eventUtils.CreateSensorOptions{
+	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
@@ -716,19 +716,19 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	resPath := insFs.Join(apstore.Default.AppsDir, gsName, runtimeName, "resources")
 	eventSourceName := gsName + "-event-source"
 	gsSyncName := gsName + "-synchronize"
-	selectors := []eventUtils.CreateSelectorOptions{
+	selectors := []eventsutil.CreateSelectorOptions{
 		{
 			Key:       "app.kubernetes.io/instance",
 			Operation: "==",
 			Value:     gsSyncName,
 		},
 	}
-	eventSource := eventUtils.CreateEventSource(&eventUtils.CreateEventSourceOptions{
+	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 		Name:               eventSourceName,
 		Namespace:          runtimeName,
 		ServiceAccountName: store.Get().ComponentsReporterSA,
 		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventUtils.CreateResourceEventSourceOptions{
+		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			// "clusterWorkflowTemplate": {
 			// 	Group:     "argoproj.io",
 			// 	Version:   "v1alpha1",
@@ -805,7 +805,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		return err
 	}
 
-	sensor := eventUtils.CreateSensor(&eventUtils.CreateSensorOptions{
+	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            gsName + "-sensor",
 		Namespace:       runtimeName,
 		EventSourceName: eventSourceName,
@@ -829,7 +829,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 
 	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
 	fullGsPath := gsCloneOpts.FS.Join(gsCloneOpts.FS.Root(), gsPath)[1:]
-	syncApp := cdUtils.CreateApp(&cdUtils.CreateAppOptions{
+	syncApp := cdutil.CreateApp(&cdutil.CreateAppOptions{
 		Name:      gsSyncName,
 		Namespace: runtimeName,
 		Project:   runtimeName,

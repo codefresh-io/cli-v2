@@ -45,6 +45,7 @@ type Version struct {
 type Store struct {
 	BinaryName             string
 	CFComponentType        string
+	CFRuntimeDefType       string
 	CFRuntimeType          string
 	CFTokenSecret          string
 	CFTokenSecretKey       string
@@ -71,6 +72,7 @@ func Get() *Store {
 func init() {
 	s.BinaryName = binaryName
 	s.CFComponentType = "component"
+	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
@@ -80,7 +82,7 @@ func init() {
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/argo/api/events"
 	s.GitSourceName = "default-git-source"
-	s.LabelKeyCFType = "codefresh.io/type"
+	s.LabelKeyCFType = "codefresh.io/entity"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
