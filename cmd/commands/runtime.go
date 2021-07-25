@@ -157,7 +157,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		Prefix:           "install",
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
 	})
@@ -178,6 +177,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
+	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: rt.Spec.FullSpecifier(),
 		Namespace:    opts.RuntimeName,
@@ -219,6 +219,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
+	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
 	return nil
 }
 
@@ -332,12 +333,19 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	return apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+	log.G(ctx).Infof("uninstalling runtime '%s'", opts.RuntimeName)
+	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
 	})
+	if err != nil {
+		return fmt.Errorf("failed uninstalling runtime: %w", err)
+	}
+
+	log.G(ctx).Infof("done uninstalling runtime '%s'", opts.RuntimeName)
+	return nil
 }
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
