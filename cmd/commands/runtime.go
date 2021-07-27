@@ -254,22 +254,6 @@ func RunRuntimeList() error {
 		name := rt.Metadata.Name
 		version := rt.Metadata.Version
 
-		// TODO: understand this part of the code
-		// if rt.HealthStatus != nil {
-		// 	status = rt.HealthStatus
-		// }
-		// if len(rt.Metadata.Namespace) > 0 {
-		// 	namespace = *rt.Metadata.Namespace
-		// }
-		// if rt.Metadata.Name != nil && rt.Metadata.Name != nil {
-		// 	name = *rt.ObjectMeta.Name
-		// }
-		// if rt.Cluster != nil {
-		// 	cluster = *rt.Cluster
-		// }
-		// if rt.Version != nil {
-		// 	version = *rt.Version
-		// }
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
