@@ -252,7 +252,7 @@ func RunRuntimeList() error {
 		namespace := rt.Metadata.Namespace
 		cluster := rt.Cluster
 		name := rt.Metadata.Name
-		version := rt.Metadata.Version
+		version := rt.RuntimeVersion
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			name,
