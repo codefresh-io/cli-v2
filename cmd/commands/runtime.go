@@ -250,24 +250,30 @@ func RunRuntimeList() error {
 	for _, rt := range runtimes {
 		status := "N/A"
 		namespace := "N/A"
-		name := "N/A"
 		cluster := "N/A"
+		name := "N/A"
 		version := "N/A"
-		if rt.Status != nil {
-			status = rt.Status.String()
+
+		if rt.HealthMessage != nil {
+			status = *rt.HealthMessage
 		}
-		if rt.Namespace != nil {
-			namespace = *rt.Namespace
+
+		if rt.Metadata.Namespace != "" {
+			namespace = rt.Metadata.Namespace
 		}
-		if rt.ObjectMeta != nil && rt.ObjectMeta.Name != nil {
-			name = *rt.ObjectMeta.Name
+
+		if rt.Cluster != "" {
+			cluster = rt.Cluster
 		}
-		if rt.Cluster != nil {
-			cluster = *rt.Cluster
+
+		if rt.Metadata.Name != "" {
+			name = rt.Metadata.Name
 		}
-		if rt.Version != nil {
-			version = *rt.Version
+
+		if rt.RuntimeVersion != "" {
+			version = rt.RuntimeVersion
 		}
+
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
