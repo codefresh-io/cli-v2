@@ -258,19 +258,19 @@ func RunRuntimeList() error {
 			status = *rt.HealthMessage
 		}
 
-		if rt.Metadata.Namespace == "" {
+		if rt.Metadata.Namespace != "" {
 			namespace = rt.Metadata.Namespace
 		}
 
-		if rt.Cluster == "" {
+		if rt.Cluster != "" {
 			cluster = rt.Cluster
 		}
 
-		if rt.Metadata.Name == "" {
+		if rt.Metadata.Name != "" {
 			name = rt.Metadata.Name
 		}
 
-		if rt.RuntimeVersion == "" {
+		if rt.RuntimeVersion != "" {
 			version = rt.RuntimeVersion
 		}
 
