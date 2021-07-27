@@ -265,6 +265,8 @@ github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa/go.mod h1:z
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/codefresh-io/argo-platform v1.35.0 h1:9rboz3DYnfdH9UdQhDQ6dkVLJWhnR5eHqH7mM+kyQcc=
 github.com/codefresh-io/argo-platform v1.35.0/go.mod h1:rNms+r6lqY5QPEkHROmh5jXKA8VrasuN6CfleuX2xFY=
+github.com/codefresh-io/go-sdk v0.27.1 h1:lN4VJhHxQKrMDth8yphl2kGRmxA4WWmJZA0YvTqxUtg=
+github.com/codefresh-io/go-sdk v0.27.1/go.mod h1:lm2qPmSJfqUBc+xUOB14/34paYLd1tIePMLMcdSxecs=
 github.com/colinmarc/hdfs v1.1.4-0.20180802165501-48eb8d6c34a9/go.mod h1:0DumPviB681UcSuJErAbDIOx6SIaJWj463TymfZG02I=
 github.com/colinmarc/hdfs v1.1.4-0.20180805212432-9746310a4d31/go.mod h1:vSBumefK4HA5uiRSwNP+3ofgrEoScpCS2MMWcWXEuQ4=
 github.com/container-storage-interface/spec v1.3.0/go.mod h1:6URME8mwIBbpVyZV93Ce5St17xBiQJQY67NDsuohiy4=
