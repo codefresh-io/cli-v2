@@ -1,6 +1,6 @@
 module github.com/codefresh-io/cli-v2
 
-go 1.16
+go 1.17
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
@@ -30,6 +30,7 @@ require (
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
+	github.com/codefresh-io/go-sdk => /Users/elad-codefresh/work/go-sdk
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1
@@ -56,4 +57,5 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.21.1
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.21.1
 	sigs.k8s.io/kustomize => sigs.k8s.io/kustomize/v4 v4.1.3
+	github.com/codefresh-io/go-sdk => /Users/elad-codefresh/work/go-sdk
 )
