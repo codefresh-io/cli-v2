@@ -255,9 +255,9 @@ func RunRuntimeList() error {
 		version := rt.Metadata.Version
 
 		// TODO: understand this part of the code
-		if rt.HealthStatus != nil {
-			status = rt.HealthStatus
-		}
+		// if rt.HealthStatus != nil {
+		// 	status = rt.HealthStatus
+		// }
 		// if len(rt.Metadata.Namespace) > 0 {
 		// 	namespace = *rt.Metadata.Namespace
 		// }
