@@ -250,15 +250,15 @@ func RunRuntimeList() error {
 	for _, rt := range runtimes {
 		status := rt.HealthStatus
 		namespace := rt.Metadata.Namespace
-		name := rt.Metadata.Name
 		cluster := rt.Cluster
-		version := rt.Version
+		name := rt.Metadata.Name
+		version := rt.Metadata.Version
 
 		// TODO: understand this part of the code
-		// if rt.HealthStatus != nil {
-		// 	status = rt.HealthStatus.String()
-		// }
-		// if rt.Metadata.Namespace != nil {
+		if rt.HealthStatus != nil {
+			status = rt.HealthStatus
+		}
+		// if len(rt.Metadata.Namespace) > 0 {
 		// 	namespace = *rt.Metadata.Namespace
 		// }
 		// if rt.Metadata.Name != nil && rt.Metadata.Name != nil {
@@ -269,7 +269,7 @@ func RunRuntimeList() error {
 		// }
 		// if rt.Version != nil {
 		// 	version = *rt.Version
-		}
+		// }
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
