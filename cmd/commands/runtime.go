@@ -51,6 +51,7 @@ import (
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
+		RuntimeToken string
 		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
@@ -176,6 +177,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
+
+	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get a runtime creation response: %w", err)
+	}
+	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
@@ -473,7 +480,7 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 }
 
 func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	tokenSecret, err := getTokenSecret(opts.RuntimeName)
+	tokenSecret, err := getTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
@@ -552,8 +559,7 @@ var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.Ap
 	return proj, appSet, nil
 }
 
-func getTokenSecret(namespace string) ([]byte, error) {
-	token := cfConfig.GetCurrentContext().Token
+func getTokenSecret(namespace string, token string) ([]byte, error) {
 	return yaml.Marshal(&v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
