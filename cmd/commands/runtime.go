@@ -182,7 +182,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to get a runtime creation response: %w", err)
 	}
-
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
