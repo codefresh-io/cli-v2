@@ -51,6 +51,7 @@ import (
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
+		RuntimeToken string
 		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
@@ -177,6 +178,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
+	//TODO: add platform call later in the function.
+	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get a runtime creation response: %w", err)
+	}
+	
+	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
+
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: rt.Spec.FullSpecifier(),
@@ -185,7 +194,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CloneOptions: opts.insCloneOpts,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to bootstrap repository: %w", err)
+		return fmt.Errorf("failed to bootstrap repository: %w", err) // TODO: getting this error for some reason. maybe the token thing.
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -473,7 +482,7 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 }
 
 func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	tokenSecret, err := getTokenSecret(opts.RuntimeName)
+	tokenSecret, err := getTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
@@ -552,8 +561,7 @@ var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.Ap
 	return proj, appSet, nil
 }
 
-func getTokenSecret(namespace string) ([]byte, error) {
-	token := cfConfig.GetCurrentContext().Token
+func getTokenSecret(namespace string, token string) ([]byte, error) {
 	return yaml.Marshal(&v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
