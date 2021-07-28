@@ -178,12 +178,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	//TODO: add platform call later in the function.
 	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to get a runtime creation response: %w", err)
 	}
-	
+
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
@@ -194,7 +193,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CloneOptions: opts.insCloneOpts,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to bootstrap repository: %w", err) // TODO: getting this error for some reason. maybe the token thing.
+		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
