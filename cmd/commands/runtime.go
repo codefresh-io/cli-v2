@@ -56,6 +56,7 @@ type (
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
+		cfBaseURL    string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -69,6 +70,7 @@ type (
 		RuntimeName string
 		Version     *semver.Version
 		CloneOpts   *git.CloneOptions
+		cfBaseURL   string
 	}
 )
 
@@ -152,6 +154,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
+				cfBaseURL:    cfConfig.GetCurrentContext().URL,
 			})
 		},
 	}
@@ -210,7 +213,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	if err = persistRuntime(ctx, opts.insCloneOpts, rt); err != nil {
+	rtOpts := &runtime.RuntimeOptions{
+		BaseURL: opts.cfBaseURL,
+	}
+	if err = persistRuntime(ctx, opts.insCloneOpts, rt, rtOpts); err != nil {
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
@@ -222,7 +228,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
-	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
+	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName, opts.cfBaseURL); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
@@ -408,6 +414,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				RuntimeName: args[0],
 				Version:     version,
 				CloneOpts:   cloneOpts,
+				cfBaseURL:   cfConfig.GetCurrentContext().URL,
 			})
 		},
 	}
@@ -444,7 +451,10 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
 	}
 
-	newComponents, err := curRt.Upgrade(fs, newRt)
+	rtOpts := &runtime.RuntimeOptions{
+		BaseURL: opts.cfBaseURL,
+	}
+	newComponents, err := curRt.Upgrade(fs, newRt, rtOpts)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
@@ -463,13 +473,13 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	return nil
 }
 
-func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
+func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime, rtOpts *runtime.RuntimeOptions) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
+	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), rtOpts); err != nil {
 		return err
 	}
 
@@ -516,7 +526,7 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName, store.Get().ComponentsReporterName); err != nil {
+	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName, store.Get().ComponentsReporterName, opts.cfBaseURL); err != nil {
 		return err
 	}
 
@@ -668,13 +678,13 @@ func createEventSource(repofs fs.FS, path, namespace string) error {
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, cfBaseURL string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
-		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
+		TriggerURL:      cfBaseURL + store.Get().EventReportingEndpoint,
 		Triggers: []string{
 			"components",
 			"runtime",
@@ -725,7 +735,7 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 	return err
 }
 
-func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
+func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL string) error {
 	var err error
 
 	insRepo, insFs, err := insCloneOpts.GetRepo(ctx)
@@ -830,7 +840,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		Namespace:       runtimeName,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
-		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
+		TriggerURL:      cfBaseURL + store.Get().EventReportingEndpoint,
 		Triggers: []string{
 			// "clusterWorkflowTemplate",
 			"workflowTemplate",

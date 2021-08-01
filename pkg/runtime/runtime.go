@@ -55,6 +55,10 @@ type (
 		Components         []AppDef        `json:"components"`
 	}
 
+	RuntimeOptions struct {
+		BaseURL string          `json:"baseUrl"`
+	}
+
 	AppDef struct {
 		Name string `json:"name"`
 		Type string `json:"type"`
@@ -114,7 +118,7 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 	return runtime, yaml.Unmarshal([]byte(data), runtime)
 }
 
-func (r *Runtime) Save(fs fs.FS, filename string) error {
+func (r *Runtime) Save(fs fs.FS, filename string, opts *RuntimeOptions) error {
 	data, err := yaml.Marshal(r)
 	if err != nil {
 		return err
@@ -135,19 +139,20 @@ func (r *Runtime) Save(fs fs.FS, filename string) error {
 		},
 		Data: map[string]string{
 			"runtime": string(data),
+			"base-url": opts.BaseURL,//cfConfig.GetCurrentContext().URL,
 		},
 	}
 
 	return fs.WriteYamls(filename, cm)
 }
 
-func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
+func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime, rtOpts *RuntimeOptions) ([]AppDef, error) {
 	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
+	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), rtOpts); err != nil {
 		return nil, fmt.Errorf("failed to save runtime definition: %w", err)
 	}
 
