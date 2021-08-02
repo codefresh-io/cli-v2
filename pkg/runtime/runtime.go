@@ -139,7 +139,7 @@ func (r *Runtime) Save(fs fs.FS, filename string, opts *RuntimeOptions) error {
 		},
 		Data: map[string]string{
 			"runtime": string(data),
-			"base-url": opts.BaseURL,//cfConfig.GetCurrentContext().URL,
+			"base-url": opts.BaseURL,
 		},
 	}
 
