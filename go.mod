@@ -5,10 +5,11 @@ go 1.16
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/argoproj-labs/applicationset v0.1.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.12
-	github.com/argoproj/argo-cd/v2 v2.0.3
+	github.com/argoproj-labs/argocd-autopilot v0.2.13
+	github.com/argoproj/argo-cd/v2 v2.1.0-rc1
 	github.com/argoproj/argo-events v1.3.1
 	github.com/argoproj/argo-workflows/v3 v3.1.0
+	github.com/argoproj/gitops-engine v0.3.3 // indirect
 	github.com/briandowns/spinner v1.13.0
 	github.com/codefresh-io/go-sdk v0.30.1
 	github.com/fatih/color v1.12.0
@@ -30,6 +31,7 @@ require (
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
+	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1

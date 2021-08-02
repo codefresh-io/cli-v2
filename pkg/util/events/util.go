@@ -25,7 +25,6 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type (
@@ -41,6 +40,7 @@ type (
 		ServiceAccountName string
 		EventBusName       string
 		Resource           map[string]CreateResourceEventSourceOptions
+		Generic            map[string]CreateGenericEventSourceOptions
 	}
 
 	CreateResourceEventSourceOptions struct {
@@ -49,6 +49,12 @@ type (
 		Resource  string
 		Namespace string
 		Selectors []CreateSelectorOptions
+	}
+
+	CreateGenericEventSourceOptions struct {
+		URL             string
+		Insecure        bool
+		TokenSecretName string
 	}
 
 	CreateSelectorOptions struct {
@@ -82,9 +88,25 @@ func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.
 }
 
 func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.EventSource {
-	resource := make(map[string]eventsourcev1alpha1.ResourceEventSource)
-	for key, res := range opts.Resource {
-		resource[key] = *CreateResourceEventSource(&res)
+	var resource map[string]eventsourcev1alpha1.ResourceEventSource
+	var generic map[string]eventsourcev1alpha1.GenericEventSource
+	if len(opts.Resource) != 0 {
+		resource = make(map[string]eventsourcev1alpha1.ResourceEventSource)
+		for key, res := range opts.Resource {
+			resource[key] = *CreateResourceEventSource(&res)
+		}
+	}
+
+	if len(opts.Generic) != 0 {
+		generic = make(map[string]eventsourcev1alpha1.GenericEventSource)
+		for key, res := range opts.Generic {
+			generic[key] = *CreateGenericEventSource(&res)
+		}
+	}
+
+	tpl := &eventsourcev1alpha1.Template{}
+	if opts.ServiceAccountName != "" {
+		tpl.ServiceAccountName = opts.ServiceAccountName
 	}
 
 	return &eventsourcev1alpha1.EventSource{
@@ -103,16 +125,23 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 			Template: &eventsourcev1alpha1.Template{
 				ServiceAccountName: opts.ServiceAccountName,
 			},
-			Service: &eventsourcev1alpha1.Service{
-				Ports: []v1.ServicePort{
-					{
-						Port:       int32(12000),
-						TargetPort: intstr.FromInt(12000),
-					},
-				},
-			},
 			EventBusName: opts.EventBusName,
 			Resource:     resource,
+			Generic:      generic,
+		},
+	}
+}
+
+func CreateGenericEventSource(opts *CreateGenericEventSourceOptions) *eventsourcev1alpha1.GenericEventSource {
+	return &eventsourcev1alpha1.GenericEventSource{
+		URL:      opts.URL,
+		Insecure: opts.Insecure,
+		Config:   "{}", // not required ATM
+		AuthSecret: &v1.SecretKeySelector{
+			LocalObjectReference: v1.LocalObjectReference{
+				Name: opts.TokenSecretName,
+			},
+			Key: "token",
 		},
 	}
 }
