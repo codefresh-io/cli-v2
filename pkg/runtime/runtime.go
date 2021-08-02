@@ -210,7 +210,7 @@ func (r *RuntimeSpec) FullSpecifier() string {
 	return buildFullURL(r.BootstrapSpecifier, r.Version)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string, version *semver.Version) error {
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string, version *semver.Version) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -225,6 +225,9 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			AppSpecifier:  buildFullURL(a.URL, version),
 			AppType:       a.Type,
 			DestNamespace: projectName,
+			Labels: map[string]string{
+				store.Get().LabelKeyCFType: cfType,
+			},
 		},
 		KubeFactory: f,
 		Timeout:     timeout,

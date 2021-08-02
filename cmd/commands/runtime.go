@@ -187,6 +187,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to get a runtime creation response: %w", err)
 	}
+
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
@@ -203,6 +204,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
 		CloneOpts:   opts.insCloneOpts,
 		ProjectName: opts.RuntimeName,
+		Labels: map[string]string{
+			store.Get().LabelKeyCFType: "{{ labels.type }}",
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create project: %w", err)
@@ -210,7 +214,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, rt.Spec.Version); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType, rt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -464,7 +468,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, newRt.Spec.Version); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, newRt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -504,7 +508,7 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, nil); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, nil); err != nil {
 		return err
 	}
 
@@ -543,18 +547,10 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		return err
 	}
 
-	if appset.Spec.Template.Labels == nil {
-		appset.Spec.Template.Labels = make(map[string]string)
-	}
-	if appset.Labels == nil {
-		appset.Labels = make(map[string]string)
-	}
-
 	if project.ObjectMeta.Labels == nil {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
-	appset.Spec.Template.Labels[store.Get().LabelKeyCFType] = store.Get().CFComponentType
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
 	return repofs.WriteYamls(projPath, project, appset)
 }
@@ -884,7 +880,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		Type: application.AppTypeDirectory,
 		URL:  insCloneOpts.URL() + insFs.Join(insFs.Root(), resPath),
 	}
-	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, nil); err != nil {
+	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 

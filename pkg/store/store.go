@@ -45,6 +45,7 @@ type Version struct {
 type Store struct {
 	BinaryName             string
 	CFComponentType        string
+	CFGitSourceType        string
 	CFRuntimeDefType       string
 	CFRuntimeType          string
 	CFTokenSecret          string
@@ -72,6 +73,7 @@ func Get() *Store {
 func init() {
 	s.BinaryName = binaryName
 	s.CFComponentType = "component"
+	s.CFGitSourceType = "git-source"
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
