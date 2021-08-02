@@ -167,8 +167,6 @@ github.com/ardielle/ardielle-go v1.5.2/go.mod h1:I4hy1n795cUhaVt/ojz83SNVCYIGsAF
 github.com/ardielle/ardielle-tools v1.5.4/go.mod h1:oZN+JRMnqGiIhrzkRN9l26Cej9dEx4jeNG6A+AdkShk=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a h1:8Nm2KtOu/G7NtoAgucj4TkX8rghzwgFJGXNrAmuz7gc=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a/go.mod h1:5rxggh8ymYXedQDIYylNzIHe6jdshDNasIBCVJuR1iU=
-github.com/argoproj-labs/argocd-autopilot v0.2.11 h1:ysxOnVuRtvEe0Qj9apPMHcYi77oxTeu9LuZVDcOupl4=
-github.com/argoproj-labs/argocd-autopilot v0.2.11/go.mod h1:o+e85vsYHC7FqUgxgQMAcIOmlRmVvcAwCw/fPXPz3xY=
 github.com/argoproj-labs/argocd-autopilot v0.2.12 h1:xQoGlXAr6+BSRTRKg1xtAkSVBaHNoq9YvEiv6ASC31g=
 github.com/argoproj-labs/argocd-autopilot v0.2.12/go.mod h1:o+e85vsYHC7FqUgxgQMAcIOmlRmVvcAwCw/fPXPz3xY=
 github.com/argoproj/argo-cd v1.8.1/go.mod h1:Vfl7OGgBC83dVWgq58wU6UR3kG864h0dtHEIQ8xqw4s=
