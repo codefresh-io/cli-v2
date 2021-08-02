@@ -205,7 +205,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CloneOpts:   opts.insCloneOpts,
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
-			store.Get().LabelKeyCFType: "{{ labels.type }}",
+			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 		},
 	})
 	if err != nil {

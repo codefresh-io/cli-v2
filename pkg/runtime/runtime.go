@@ -25,6 +25,7 @@ import (
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -226,7 +227,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			AppType:       a.Type,
 			DestNamespace: projectName,
 			Labels: map[string]string{
-				store.Get().LabelKeyCFType: cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
 			},
 		},
 		KubeFactory: f,
