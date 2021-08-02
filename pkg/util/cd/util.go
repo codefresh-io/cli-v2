@@ -15,12 +15,17 @@
 package util
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	cdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,6 +42,49 @@ type (
 		NoFinalizer bool
 	}
 )
+
+// GenerateToken runs argocd command to generate an argo-cd access token
+func GenerateToken(ctx context.Context, namespace string, account string, expires *time.Duration, insecure bool) (string, error) {
+	clientOpts := &apiclient.ClientOptions{
+		PortForward:          true,
+		PortForwardNamespace: namespace,
+		PlainText:            insecure,
+	}
+
+	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
+	if err != nil {
+		return "", fmt.Errorf("failed to load argocd config: %w", err)
+	}
+
+	clientOpts.ConfigPath = defaultLocalConfigPath
+
+	argoClient, err := apiclient.NewClient(clientOpts)
+	if err != nil {
+		return "", fmt.Errorf("failed to create argocd client: %w", err)
+	}
+
+	conn, accountIf, err := argoClient.NewAccountClient()
+	if err != nil {
+		return "", fmt.Errorf("failed to create argocd account client: %w", err)
+	}
+	defer conn.Close()
+
+	opts := &accountpkg.CreateTokenRequest{}
+	if expires != nil {
+		opts.ExpiresIn = int64(expires.Seconds())
+	}
+
+	if account != "" {
+		opts.Name = account
+	}
+
+	res, err := accountIf.CreateToken(ctx, opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate account token: %w", err)
+	}
+
+	return res.Token, nil
+}
 
 func CreateApp(opts *CreateAppOptions) *cdv1alpha1.Application {
 	if opts.DestServer == "" {

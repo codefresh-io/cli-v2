@@ -52,6 +52,7 @@ type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
 		RuntimeToken string
+		Insecure     bool
 		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
@@ -149,6 +150,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
 				Version:      version,
+				Insecure:     true,
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
@@ -180,7 +182,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName)
 	if err != nil {
-		return fmt.Errorf("failed to get a runtime creation response: %w", err)
+		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
@@ -190,6 +192,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Namespace:    opts.RuntimeName,
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
+		Insecure:     opts.Insecure,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
@@ -214,8 +217,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
-	if err = createComponentsReporter(ctx, opts.insCloneOpts, opts); err != nil {
-		return fmt.Errorf("failed to create components-reporter: %w", err)
+	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create events-reporter: %w", err)
+	}
+
+	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
 	if err = createDemoWorkflowTemplate(ctx, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
@@ -479,19 +486,24 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return err
 }
 
-func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	tokenSecret, err := getTokenSecret(opts.RuntimeName, opts.RuntimeToken)
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
 
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, tokenSecret); err != nil {
+	argoTokenSecret, err := getArgoCDTokenSecret(ctx, opts.RuntimeName, opts.Insecure)
+	if err != nil {
+		return fmt.Errorf("failed to create argocd token secret: %w", err)
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ComponentsReporterName, opts.RuntimeName, "resources")
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
-		Name: store.Get().ComponentsReporterName,
+		Name: store.Get().EventsReporterName,
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
@@ -508,20 +520,50 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
-	if err := createRBAC(repofs, resPath, opts.RuntimeName); err != nil {
+	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
 		return err
 	}
 
-	if err := createEventSource(repofs, resPath, opts.RuntimeName); err != nil {
-		return err
-	}
-
-	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName, store.Get().ComponentsReporterName); err != nil {
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events"); err != nil {
 		return err
 	}
 
 	_, err = r.Persist(ctx, &git.PushOptions{
-		CommitMsg: "Created Codefresh Resources",
+		CommitMsg: "Created Codefresh Event Reporter",
+	})
+	return err
+}
+
+func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().WorkflowReporterName, opts.RuntimeName, "resources")
+	appDef := &runtime.AppDef{
+		Name: store.Get().WorkflowReporterName,
+		Type: application.AppTypeDirectory,
+		URL:  cloneOpts.URL() + "/" + resPath,
+	}
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, nil); err != nil {
+		return err
+	}
+
+	r, repofs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := createWorkflowReporterRBAC(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
+	if err := createWorkflowReporterEventSource(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows"); err != nil {
+		return err
+	}
+
+	_, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Created Codefresh Workflow Reporter",
 	})
 	return err
 }
@@ -559,7 +601,7 @@ var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.Ap
 	return proj, appSet, nil
 }
 
-func getTokenSecret(namespace string, token string) ([]byte, error) {
+func getRuntimeTokenSecret(namespace string, token string) ([]byte, error) {
 	return yaml.Marshal(&v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -575,14 +617,35 @@ func getTokenSecret(namespace string, token string) ([]byte, error) {
 	})
 }
 
-func createRBAC(repofs fs.FS, path, runtimeName string) error {
+func getArgoCDTokenSecret(ctx context.Context, namespace string, insecure bool) ([]byte, error) {
+	token, err := cdutil.GenerateToken(ctx, namespace, "admin", nil, insecure)
+	if err != nil {
+		return nil, err
+	}
+
+	return yaml.Marshal(&v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ArgoCDTokenSecret,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			store.Get().ArgoCDTokenKey: []byte(token),
+		},
+	})
+}
+
+func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterSA,
+			Name:      store.Get().CodefreshSA,
 			Namespace: runtimeName,
 		},
 	}
@@ -593,7 +656,7 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterName,
+			Name:      store.Get().CodefreshSA,
 			Namespace: runtimeName,
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -611,74 +674,73 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterName,
+			Name:      store.Get().CodefreshSA,
 			Namespace: runtimeName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
 				Namespace: runtimeName,
-				Name:      store.Get().ComponentsReporterSA,
+				Name:      store.Get().CodefreshSA,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			Kind: "Role",
-			Name: store.Get().ComponentsReporterName,
+			Name: store.Get().CodefreshSA,
 		},
 	}
 
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createEventSource(repofs fs.FS, path, namespace string) error {
+func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
+	port := 443
+	if insecure {
+		port = 80
+	}
+	argoCDSvc := fmt.Sprintf("argocd-server.%s.svc:%d", namespace, port)
+
 	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:               store.Get().ComponentsReporterName,
-		Namespace:          namespace,
-		ServiceAccountName: store.Get().ComponentsReporterSA,
-		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			"components": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "applications",
-				Namespace: namespace,
-				Selectors: []eventsutil.CreateSelectorOptions{
-					{
-						Key:       store.Get().LabelKeyCFType,
-						Operation: "==",
-						Value:     store.Get().CFComponentType,
-					},
-				},
-			},
-			"runtime": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "appprojects",
-				Namespace: namespace,
-				Selectors: []eventsutil.CreateSelectorOptions{
-					{
-						Key:       store.Get().LabelKeyCFType,
-						Operation: "==",
-						Value:     store.Get().CFRuntimeType,
-					},
-				},
+		Name:         store.Get().EventsReporterName,
+		Namespace:    namespace,
+		EventBusName: store.Get().EventBusName,
+		Generic: map[string]eventsutil.CreateGenericEventSourceOptions{
+			"events": {
+				URL:             argoCDSvc,
+				TokenSecretName: store.Get().ArgoCDTokenSecret,
+				Insecure:        insecure,
 			},
 		},
 	})
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) error {
+func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {
+	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+		Name:               store.Get().WorkflowReporterName,
+		Namespace:          namespace,
+		ServiceAccountName: store.Get().CodefreshSA,
+		EventBusName:       store.Get().EventBusName,
+		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
+			"workflows": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "workflows",
+				Namespace: namespace,
+			},
+		},
+	})
+	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
+}
+
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-		Triggers: []string{
-			"components",
-			"runtime",
-		},
+		Triggers:        []string{trigger},
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
@@ -746,7 +808,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 		Name:               eventSourceName,
 		Namespace:          runtimeName,
-		ServiceAccountName: store.Get().ComponentsReporterSA,
+		ServiceAccountName: store.Get().CodefreshSA,
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			// "clusterWorkflowTemplate": {
