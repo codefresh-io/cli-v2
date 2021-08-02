@@ -56,7 +56,7 @@ type (
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
-		cfBaseURL    string
+		commonConfig *runtime.CommonConfig
 	}
 
 	RuntimeUninstallOptions struct {
@@ -67,10 +67,10 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName string
-		Version     *semver.Version
-		CloneOpts   *git.CloneOptions
-		cfBaseURL   string
+		RuntimeName  string
+		Version      *semver.Version
+		CloneOpts    *git.CloneOptions
+		commonConfig *runtime.CommonConfig
 	}
 )
 
@@ -154,7 +154,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
-				cfBaseURL:    cfConfig.GetCurrentContext().URL,
+				commonConfig: &runtime.CommonConfig{
+					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
+				},
 			})
 		},
 	}
@@ -213,10 +215,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	rtOpts := &runtime.RuntimeOptions{
-		BaseURL: opts.cfBaseURL,
-	}
-	if err = persistRuntime(ctx, opts.insCloneOpts, rt, rtOpts); err != nil {
+	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
@@ -228,7 +227,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
-	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName, opts.cfBaseURL); err != nil {
+	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName,
+		opts.commonConfig.CodefreshBaseURL); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
@@ -414,7 +414,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				RuntimeName: args[0],
 				Version:     version,
 				CloneOpts:   cloneOpts,
-				cfBaseURL:   cfConfig.GetCurrentContext().URL,
+				commonConfig: &runtime.CommonConfig{
+					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
+				},
 			})
 		},
 	}
@@ -451,10 +453,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
 	}
 
-	rtOpts := &runtime.RuntimeOptions{
-		BaseURL: opts.cfBaseURL,
-	}
-	newComponents, err := curRt.Upgrade(fs, newRt, rtOpts)
+	newComponents, err := curRt.Upgrade(fs, newRt, opts.commonConfig)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
@@ -473,13 +472,13 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	return nil
 }
 
-func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime, rtOpts *runtime.RuntimeOptions) error {
+func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime, rtConf *runtime.CommonConfig) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), rtOpts); err != nil {
+	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), rtConf); err != nil {
 		return err
 	}
 
@@ -526,7 +525,8 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName, store.Get().ComponentsReporterName, opts.cfBaseURL); err != nil {
+	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName,
+		store.Get().ComponentsReporterName, opts.commonConfig.CodefreshBaseURL); err != nil {
 		return err
 	}
 
