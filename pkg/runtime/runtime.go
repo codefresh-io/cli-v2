@@ -25,6 +25,7 @@ import (
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -210,7 +211,7 @@ func (r *RuntimeSpec) FullSpecifier() string {
 	return buildFullURL(r.BootstrapSpecifier, r.Version)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string, version *semver.Version) error {
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string, version *semver.Version) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -225,6 +226,9 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			AppSpecifier:  buildFullURL(a.URL, version),
 			AppType:       a.Type,
 			DestNamespace: projectName,
+			Labels: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
+			},
 		},
 		KubeFactory: f,
 		Timeout:     timeout,
