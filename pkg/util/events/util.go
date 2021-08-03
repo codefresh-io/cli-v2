@@ -70,12 +70,14 @@ type (
 		EventBusName    string
 		TriggerURL      string
 		Triggers        []string
+		TriggerDestKey  string
 	}
 
-	CreateTriggerOptions struct {
+	createTriggerOptions struct {
 		Conditions     string
 		URL            string
 		DependencyName string
+		DataDestKey    string
 	}
 )
 
@@ -187,10 +189,11 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 			EventSourceName: opts.EventSourceName,
 			EventName:       trigger,
 		})
-		triggers[i] = *CreateTrigger(&CreateTriggerOptions{
+		triggers[i] = *createTrigger(&createTriggerOptions{
 			Conditions:     trigger,
 			URL:            opts.TriggerURL,
 			DependencyName: trigger,
+			DataDestKey:    opts.TriggerDestKey,
 		})
 	}
 
@@ -214,7 +217,7 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 	}
 }
 
-func CreateTrigger(opts *CreateTriggerOptions) *sensorsv1alpha1.Trigger {
+func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Conditions: opts.Conditions,
@@ -244,7 +247,7 @@ func CreateTrigger(opts *CreateTriggerOptions) *sensorsv1alpha1.Trigger {
 							DependencyName: opts.DependencyName,
 							DataKey:        "body",
 						},
-						Dest: "data.object",
+						Dest: opts.DataDestKey,
 					},
 				},
 			},
