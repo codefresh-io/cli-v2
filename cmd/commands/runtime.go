@@ -534,7 +534,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events"); err != nil {
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data"); err != nil {
 		return err
 	}
 
@@ -568,7 +568,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows"); err != nil {
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object"); err != nil {
 		return err
 	}
 
@@ -735,7 +735,7 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
@@ -743,6 +743,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger 
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
 		Triggers:        []string{trigger},
+		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
