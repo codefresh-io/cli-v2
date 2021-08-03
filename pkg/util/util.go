@@ -28,6 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/briandowns/spinner"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -154,4 +155,15 @@ func (ar *AsyncRunner) Wait() error {
 
 func EscapeAppsetFieldName(field string) string {
 	return appsetFieldRegexp.ReplaceAllString(field, "_")
+}
+
+func CurrentServer() (string, error) {
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return "", err
+	}
+
+	server := conf.Clusters[conf.Contexts[conf.CurrentContext].Cluster].Server
+	return server, nil
 }
