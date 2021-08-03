@@ -45,10 +45,16 @@ type Version struct {
 type Store struct {
 	BinaryName             string
 	CFComponentType        string
+	CFGitSourceType        string
 	CFRuntimeDefType       string
 	CFRuntimeType          string
 	CFTokenSecret          string
 	CFTokenSecretKey       string
+	ArgoCDTokenSecret      string
+	ArgoCDTokenKey         string
+	EventsReporterName     string
+	WorkflowReporterName   string
+	CodefreshSA            string
 	ComponentsReporterName string
 	ComponentsReporterSA   string
 	ComponentsReporterURL  string
@@ -72,10 +78,16 @@ func Get() *Store {
 func init() {
 	s.BinaryName = binaryName
 	s.CFComponentType = "component"
+	s.CFGitSourceType = "git-source"
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
+	s.ArgoCDTokenSecret = "argocd-token"
+	s.ArgoCDTokenKey = "token"
+	s.EventsReporterName = "events-reporter"
+	s.WorkflowReporterName = "workflow-reporter"
+	s.CodefreshSA = "codefresh-sa"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"

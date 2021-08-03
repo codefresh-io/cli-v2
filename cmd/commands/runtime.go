@@ -52,10 +52,12 @@ type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
 		RuntimeToken string
+		Insecure     bool
 		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
+		commonConfig *runtime.CommonConfig
 	}
 
 	RuntimeUninstallOptions struct {
@@ -66,9 +68,10 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName string
-		Version     *semver.Version
-		CloneOpts   *git.CloneOptions
+		RuntimeName  string
+		Version      *semver.Version
+		CloneOpts    *git.CloneOptions
+		commonConfig *runtime.CommonConfig
 	}
 )
 
@@ -149,9 +152,13 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
 				Version:      version,
+				Insecure:     true,
 				gsCloneOpts:  gsCloneOpts,
 				insCloneOpts: insCloneOpts,
 				KubeFactory:  f,
+				commonConfig: &runtime.CommonConfig{
+					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
+				},
 			})
 		},
 	}
@@ -180,8 +187,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName)
 	if err != nil {
-		return fmt.Errorf("failed to get a runtime creation response: %w", err)
+		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
+
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
@@ -190,6 +198,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Namespace:    opts.RuntimeName,
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
+		Insecure:     opts.Insecure,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
@@ -198,6 +207,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
 		CloneOpts:   opts.insCloneOpts,
 		ProjectName: opts.RuntimeName,
+		Labels: map[string]string{
+			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create project: %w", err)
@@ -205,24 +217,29 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, rt.Spec.Version); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType, rt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
 
-	if err = persistRuntime(ctx, opts.insCloneOpts, rt); err != nil {
+	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
-	if err = createComponentsReporter(ctx, opts.insCloneOpts, opts); err != nil {
-		return fmt.Errorf("failed to create components-reporter: %w", err)
+	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create events-reporter: %w", err)
+	}
+
+	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
 	if err = createDemoWorkflowTemplate(ctx, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
-	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
+	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName,
+		opts.commonConfig.CodefreshBaseURL); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
@@ -408,6 +425,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				RuntimeName: args[0],
 				Version:     version,
 				CloneOpts:   cloneOpts,
+				commonConfig: &runtime.CommonConfig{
+					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
+				},
 			})
 		},
 	}
@@ -444,7 +464,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
 	}
 
-	newComponents, err := curRt.Upgrade(fs, newRt)
+	newComponents, err := curRt.Upgrade(fs, newRt, opts.commonConfig)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
@@ -455,7 +475,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, newRt.Spec.Version); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, newRt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -463,13 +483,13 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	return nil
 }
 
-func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
+func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime, rtConf *runtime.CommonConfig) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
+	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), rtConf); err != nil {
 		return err
 	}
 
@@ -479,23 +499,28 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return err
 }
 
-func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	tokenSecret, err := getTokenSecret(opts.RuntimeName, opts.RuntimeToken)
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
 
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, tokenSecret); err != nil {
+	argoTokenSecret, err := getArgoCDTokenSecret(ctx, opts.RuntimeName, opts.Insecure)
+	if err != nil {
+		return fmt.Errorf("failed to create argocd token secret: %w", err)
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ComponentsReporterName, opts.RuntimeName, "resources")
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
-		Name: store.Get().ComponentsReporterName,
+		Name: store.Get().EventsReporterName,
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, nil); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, nil); err != nil {
 		return err
 	}
 
@@ -508,20 +533,50 @@ func createComponentsReporter(ctx context.Context, cloneOpts *git.CloneOptions, 
 		return err
 	}
 
-	if err := createRBAC(repofs, resPath, opts.RuntimeName); err != nil {
+	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
 		return err
 	}
 
-	if err := createEventSource(repofs, resPath, opts.RuntimeName); err != nil {
-		return err
-	}
-
-	if err := createSensor(repofs, store.Get().ComponentsReporterName, resPath, opts.RuntimeName, store.Get().ComponentsReporterName); err != nil {
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events"); err != nil {
 		return err
 	}
 
 	_, err = r.Persist(ctx, &git.PushOptions{
-		CommitMsg: "Created Codefresh Resources",
+		CommitMsg: "Created Codefresh Event Reporter",
+	})
+	return err
+}
+
+func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().WorkflowReporterName, opts.RuntimeName, "resources")
+	appDef := &runtime.AppDef{
+		Name: store.Get().WorkflowReporterName,
+		Type: application.AppTypeDirectory,
+		URL:  cloneOpts.URL() + "/" + resPath,
+	}
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, opts.Version); err != nil {
+		return err
+	}
+
+	r, repofs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := createWorkflowReporterRBAC(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
+	if err := createWorkflowReporterEventSource(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows"); err != nil {
+		return err
+	}
+
+	_, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Created Codefresh Workflow Reporter",
 	})
 	return err
 }
@@ -533,18 +588,10 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		return err
 	}
 
-	if appset.Spec.Template.Labels == nil {
-		appset.Spec.Template.Labels = make(map[string]string)
-	}
-	if appset.Labels == nil {
-		appset.Labels = make(map[string]string)
-	}
-
 	if project.ObjectMeta.Labels == nil {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
-	appset.Spec.Template.Labels[store.Get().LabelKeyCFType] = store.Get().CFComponentType
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
 	return repofs.WriteYamls(projPath, project, appset)
 }
@@ -559,7 +606,7 @@ var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.Ap
 	return proj, appSet, nil
 }
 
-func getTokenSecret(namespace string, token string) ([]byte, error) {
+func getRuntimeTokenSecret(namespace string, token string) ([]byte, error) {
 	return yaml.Marshal(&v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -575,14 +622,35 @@ func getTokenSecret(namespace string, token string) ([]byte, error) {
 	})
 }
 
-func createRBAC(repofs fs.FS, path, runtimeName string) error {
+func getArgoCDTokenSecret(ctx context.Context, namespace string, insecure bool) ([]byte, error) {
+	token, err := cdutil.GenerateToken(ctx, namespace, "admin", nil, insecure)
+	if err != nil {
+		return nil, err
+	}
+
+	return yaml.Marshal(&v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ArgoCDTokenSecret,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			store.Get().ArgoCDTokenKey: []byte(token),
+		},
+	})
+}
+
+func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterSA,
+			Name:      store.Get().CodefreshSA,
 			Namespace: runtimeName,
 		},
 	}
@@ -593,7 +661,7 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterName,
+			Name:      store.Get().CodefreshSA,
 			Namespace: runtimeName,
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -611,74 +679,73 @@ func createRBAC(repofs fs.FS, path, runtimeName string) error {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ComponentsReporterName,
+			Name:      store.Get().CodefreshSA,
 			Namespace: runtimeName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
 				Namespace: runtimeName,
-				Name:      store.Get().ComponentsReporterSA,
+				Name:      store.Get().CodefreshSA,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			Kind: "Role",
-			Name: store.Get().ComponentsReporterName,
+			Name: store.Get().CodefreshSA,
 		},
 	}
 
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createEventSource(repofs fs.FS, path, namespace string) error {
+func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
+	port := 443
+	if insecure {
+		port = 80
+	}
+	argoCDSvc := fmt.Sprintf("argocd-server.%s.svc:%d", namespace, port)
+
 	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:               store.Get().ComponentsReporterName,
-		Namespace:          namespace,
-		ServiceAccountName: store.Get().ComponentsReporterSA,
-		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			"components": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "applications",
-				Namespace: namespace,
-				Selectors: []eventsutil.CreateSelectorOptions{
-					{
-						Key:       store.Get().LabelKeyCFType,
-						Operation: "==",
-						Value:     store.Get().CFComponentType,
-					},
-				},
-			},
-			"runtime": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "appprojects",
-				Namespace: namespace,
-				Selectors: []eventsutil.CreateSelectorOptions{
-					{
-						Key:       store.Get().LabelKeyCFType,
-						Operation: "==",
-						Value:     store.Get().CFRuntimeType,
-					},
-				},
+		Name:         store.Get().EventsReporterName,
+		Namespace:    namespace,
+		EventBusName: store.Get().EventBusName,
+		Generic: map[string]eventsutil.CreateGenericEventSourceOptions{
+			"events": {
+				URL:             argoCDSvc,
+				TokenSecretName: store.Get().ArgoCDTokenSecret,
+				Insecure:        insecure,
 			},
 		},
 	})
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string) error {
+func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {
+	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+		Name:               store.Get().WorkflowReporterName,
+		Namespace:          namespace,
+		ServiceAccountName: store.Get().CodefreshSA,
+		EventBusName:       store.Get().EventBusName,
+		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
+			"workflows": {
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Resource:  "workflows",
+				Namespace: namespace,
+			},
+		},
+	})
+	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
+}
+
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-		Triggers: []string{
-			"components",
-			"runtime",
-		},
+		Triggers:        []string{trigger},
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
@@ -725,7 +792,7 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 	return err
 }
 
-func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
+func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL string) error {
 	var err error
 
 	insRepo, insFs, err := insCloneOpts.GetRepo(ctx)
@@ -746,7 +813,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 		Name:               eventSourceName,
 		Namespace:          runtimeName,
-		ServiceAccountName: store.Get().ComponentsReporterSA,
+		ServiceAccountName: store.Get().CodefreshSA,
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			// "clusterWorkflowTemplate": {
@@ -830,7 +897,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		Namespace:       runtimeName,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
-		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
+		TriggerURL:      cfBaseURL + store.Get().EventReportingEndpoint,
 		Triggers: []string{
 			// "clusterWorkflowTemplate",
 			"workflowTemplate",
@@ -874,7 +941,7 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 		Type: application.AppTypeDirectory,
 		URL:  insCloneOpts.URL() + insFs.Join(insFs.Root(), resPath),
 	}
-	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, nil); err != nil {
+	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 

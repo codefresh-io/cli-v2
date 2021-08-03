@@ -25,6 +25,7 @@ import (
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -53,6 +54,10 @@ type (
 		Version            *semver.Version `json:"version"`
 		BootstrapSpecifier string          `json:"bootstrapSpecifier"`
 		Components         []AppDef        `json:"components"`
+	}
+
+	CommonConfig struct {
+		CodefreshBaseURL string `json:"baseUrl"`
 	}
 
 	AppDef struct {
@@ -114,8 +119,8 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 	return runtime, yaml.Unmarshal([]byte(data), runtime)
 }
 
-func (r *Runtime) Save(fs fs.FS, filename string) error {
-	data, err := yaml.Marshal(r)
+func (r *Runtime) Save(fs fs.FS, filename string, config *CommonConfig) error {
+	runtimeData, err := yaml.Marshal(r)
 	if err != nil {
 		return err
 	}
@@ -134,20 +139,21 @@ func (r *Runtime) Save(fs fs.FS, filename string) error {
 			},
 		},
 		Data: map[string]string{
-			"runtime": string(data),
+			"runtime":  string(runtimeData),
+			"base-url": config.CodefreshBaseURL,
 		},
 	}
 
 	return fs.WriteYamls(filename, cm)
 }
 
-func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime) ([]AppDef, error) {
+func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
 	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename)); err != nil {
+	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), config); err != nil {
 		return nil, fmt.Errorf("failed to save runtime definition: %w", err)
 	}
 
@@ -205,7 +211,7 @@ func (r *RuntimeSpec) FullSpecifier() string {
 	return buildFullURL(r.BootstrapSpecifier, r.Version)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName string, version *semver.Version) error {
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string, version *semver.Version) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -220,6 +226,9 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			AppSpecifier:  buildFullURL(a.URL, version),
 			AppType:       a.Type,
 			DestNamespace: projectName,
+			Labels: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
+			},
 		},
 		KubeFactory: f,
 		Timeout:     timeout,

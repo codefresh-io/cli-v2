@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -34,8 +35,9 @@ const (
 )
 
 var (
-	spinnerCharSet  = spinner.CharSets[26]
-	spinnerDuration = time.Millisecond * 500
+	spinnerCharSet    = spinner.CharSets[26]
+	spinnerDuration   = time.Millisecond * 500
+	appsetFieldRegexp = regexp.MustCompile(`[\./]`)
 )
 
 // ContextWithCancelOnSignals returns a context that is canceled when one of the specified signals
@@ -148,4 +150,8 @@ func (ar *AsyncRunner) Wait() error {
 	default:
 		return nil
 	}
+}
+
+func EscapeAppsetFieldName(field string) string {
+	return appsetFieldRegexp.ReplaceAllString(field, "_")
 }
