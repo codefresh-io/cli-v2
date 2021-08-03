@@ -185,7 +185,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName)
+	server, err := util.CurrentServer()
+	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName, server, rt.Spec.Version.String())
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
@@ -274,7 +275,7 @@ func RunRuntimeList() error {
 	for _, rt := range runtimes {
 		status := "N/A"
 		namespace := "N/A"
-		cluster := "N/A"
+		cluster := rt.Cluster
 		name := "N/A"
 		version := "N/A"
 
@@ -284,10 +285,6 @@ func RunRuntimeList() error {
 
 		if rt.Metadata.Namespace != "" {
 			namespace = rt.Metadata.Namespace
-		}
-
-		if rt.Cluster != "" {
-			cluster = rt.Cluster
 		}
 
 		if rt.Metadata.Name != "" {
