@@ -11,7 +11,7 @@ require (
 	github.com/argoproj/argo-workflows/v3 v3.1.0
 	github.com/argoproj/gitops-engine v0.3.3 // indirect
 	github.com/briandowns/spinner v1.13.0
-	github.com/codefresh-io/go-sdk v0.30.1
+	github.com/codefresh-io/go-sdk v0.30.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
