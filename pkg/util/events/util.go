@@ -124,9 +124,7 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 			},
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
-			Template: &eventsourcev1alpha1.Template{
-				ServiceAccountName: opts.ServiceAccountName,
-			},
+			Template:     tpl,
 			EventBusName: opts.EventBusName,
 			Resource:     resource,
 			Generic:      generic,
