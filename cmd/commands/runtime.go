@@ -190,7 +190,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName, server, rt.Spec.Version.String())
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
+	}
+	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName, server, runtimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}

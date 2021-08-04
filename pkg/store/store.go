@@ -55,6 +55,7 @@ type Store struct {
 	EventsReporterName     string
 	WorkflowReporterName   string
 	CodefreshSA            string
+	CodefreshCM            string
 	ComponentsReporterName string
 	ComponentsReporterSA   string
 	ComponentsReporterURL  string
@@ -82,6 +83,7 @@ func init() {
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
+	s.CodefreshCM = "codefresh-cm"
 	s.CFTokenSecretKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
 	s.ArgoCDTokenKey = "token"
