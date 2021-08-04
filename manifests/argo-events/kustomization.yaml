@@ -3,3 +3,38 @@ kind: Kustomization
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-events/v1.4.0/manifests/install.yaml
   - eventbus.yaml
+
+images:
+  - name: quay.io/argoproj/argo-events
+    newName: quay.io/codefresh/argo-events
+    newTag: cf-v0.0.2
+
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: sensor-controller
+      namespace: argo-events
+    spec:
+      template:
+        spec:
+          containers:
+          - name: sensor-controller
+            env:
+            - name: SENSOR_IMAGE
+              value: quay.io/codefresh/argo-events:cf-v0.0.2
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: eventsource-controller
+      namespace: argo-events
+    spec:
+      template:
+        spec:
+          containers:
+          - name: eventsource-controller
+            env:
+            - name: EVENTSOURCE_IMAGE
+              value: quay.io/codefresh/argo-events:cf-v0.0.2
