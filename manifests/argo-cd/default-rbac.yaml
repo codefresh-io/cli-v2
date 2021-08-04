@@ -1,22 +1,22 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: codefresh-cm-reader
+  name: codefresh-config-reader
 rules:
   - apiGroups: [""]
-    resources: ["configmaps"]
-    resourceNames: ["codefresh-cm"]
+    resources: [ "configmaps", "secrets" ]
+    resourceNames: [ "codefresh-cm", "codefresh-token" ]
     verbs: ["get"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: codefresh-cm-reader
+  name: codefresh-config-reader
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: codefresh-cm-reader
+  name: codefresh-config-reader
 subjects:
   - kind: ServiceAccount
     name: default
