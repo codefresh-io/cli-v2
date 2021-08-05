@@ -803,155 +803,15 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 }
 
 func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL string) error {
-	var err error
-
-	insRepo, insFs, err := insCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	resPath := insFs.Join(apstore.Default.AppsDir, gsName, runtimeName, "resources")
-	eventSourceName := gsName + "-event-source"
-	gsSyncName := gsName + "-synchronize"
-	selectors := []eventsutil.CreateSelectorOptions{
-		{
-			Key:       "app.kubernetes.io/instance",
-			Operation: "==",
-			Value:     gsSyncName,
-		},
-	}
-	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:               eventSourceName,
-		Namespace:          runtimeName,
-		ServiceAccountName: store.Get().CodefreshSA,
-		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			// "clusterWorkflowTemplate": {
-			// 	Group:     "argoproj.io",
-			// 	Version:   "v1alpha1",
-			// 	Resource:  "clusterworkflowtemplates",
-			// 	Namespace: runtimeName,
-			// 	Selectors: selectors,
-			// },
-			"cronWorkflow": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "cronworkflows",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"workflowTemplate": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "workflowtemplates",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"workflow": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "workflows",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"appProject": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "appprojects",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"application": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "applications",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"eventBus": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "eventbus",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"eventSource": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "eventsources",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"sensor": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "sensors",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-			"rollout": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "rollouts",
-				Namespace: runtimeName,
-				Selectors: selectors,
-			},
-		},
-	})
-	if err := insFs.WriteYamls(insFs.Join(resPath, "event-source.yaml"), eventSource); err != nil {
-		return err
-	}
-
-	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
-		Name:            gsName + "-sensor",
-		Namespace:       runtimeName,
-		EventSourceName: eventSourceName,
-		EventBusName:    store.Get().EventBusName,
-		TriggerURL:      cfBaseURL + store.Get().EventReportingEndpoint,
-		Triggers: []string{
-			// "clusterWorkflowTemplate",
-			"workflowTemplate",
-			"workflow",
-			"appProject",
-			"application",
-			"eventBus",
-			"eventSource",
-			"sensor",
-			"rollout",
-		},
-	})
-	if err = insFs.WriteYamls(insFs.Join(resPath, "sensor.yaml"), sensor); err != nil {
-		return err
-	}
-
 	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
 	fullGsPath := gsCloneOpts.FS.Join(gsCloneOpts.FS.Root(), gsPath)[1:]
-	syncApp := cdutil.CreateApp(&cdutil.CreateAppOptions{
-		Name:      gsSyncName,
-		Namespace: runtimeName,
-		Project:   runtimeName,
-		SyncWave:  10,
-		RepoURL:   gsCloneOpts.URL(),
-		Revision:  gsCloneOpts.Revision(),
-		SrcPath:   fullGsPath,
-	})
-	if err = insFs.WriteYamls(insFs.Join(resPath, gsName+"-synchronize.yaml"), syncApp); err != nil {
-		return err
-	}
-
-	_, err = insRepo.Persist(ctx, &git.PushOptions{
-		CommitMsg: fmt.Sprintf("Created %s Resources", gsName),
-	})
-	if err != nil {
-		return err
-	}
 
 	appDef := &runtime.AppDef{
 		Name: gsName,
 		Type: application.AppTypeDirectory,
-		URL:  insCloneOpts.URL() + insFs.Join(insFs.Root(), resPath),
+		URL:  gsCloneOpts.URL() + fullGsPath,
 	}
-	if err = appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
+	if err := appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
 
