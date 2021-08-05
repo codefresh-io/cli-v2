@@ -194,6 +194,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if rt.Spec.Version != nil { // in dev mode
 		runtimeVersion = rt.Spec.Version.String()
 	}
+	
 	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName, server, runtimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
