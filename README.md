@@ -11,6 +11,18 @@
 The new Codefresh CLI tool.
 
 ## Installation
+### Using brew:
+```bash
+# tap Codefresh homebrew repo
+brew tap codefresh-io/cli
+
+# install cf2 CLI
+brew install cf2
+
+# check the installation
+cf version
+```
+
 ### Mac
 
 ```bash
