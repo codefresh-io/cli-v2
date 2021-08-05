@@ -3,11 +3,11 @@ kind: Kustomization
 resources:
   - https://raw.githubusercontent.com/codefresh-io/argo-cd/release-2.1/manifests/install.yaml
   - https://raw.githubusercontent.com/argoproj-labs/applicationset/master/manifests/install.yaml?ref=2c62537a8e5a # TODO: switch to the next release when available
-
+  - default-rbac.yaml
 images:
   - name: quay.io/argoproj/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.1.0-rc1
+    newTag: v2.1.0-rc3
 
 # will be effective on argo-cd 2.1
 configMapGenerator:

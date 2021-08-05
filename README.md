@@ -15,7 +15,7 @@ The new Codefresh CLI tool.
 
 ```bash
 # get the latest version or change to a specific version
-VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | jq -r ".tag_name")
 
 # download and extract the binary
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/$VERSION/cf-darwin-amd64.tar.gz | tar zx
@@ -30,7 +30,7 @@ cf version
 ### Linux
 ```bash
 # get the latest version or change to a specific version
-VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+VERSION=$(curl --silent "https://api.github.com/repos/codefresh-io/cli-v2/releases/latest" | jq -r ".tag_name")
 
 # download and extract the binary
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/$VERSION/cf-linux-amd64.tar.gz | tar zx

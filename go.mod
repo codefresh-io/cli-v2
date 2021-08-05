@@ -11,7 +11,7 @@ require (
 	github.com/argoproj/argo-workflows/v3 v3.1.0
 	github.com/argoproj/gitops-engine v0.3.3 // indirect
 	github.com/briandowns/spinner v1.13.0
-	github.com/codefresh-io/go-sdk v0.30.1
+	github.com/codefresh-io/go-sdk v0.30.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -25,6 +25,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
+	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	sigs.k8s.io/kustomize/api v0.8.8
 )
 
