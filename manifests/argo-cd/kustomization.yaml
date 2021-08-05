@@ -14,7 +14,7 @@ configMapGenerator:
   - name: argocd-cm
     behavior: merge
     literals:
-      - "timeout.reconciliation=10s"
+      - "timeout.reconciliation=20s"
       - "accounts.admin=apiKey,login" # need to be able to generate apikey for generic eventsource
   - name: argocd-cmd-params-cm
     behavior: merge
