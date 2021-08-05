@@ -5,6 +5,18 @@
 * Argo Rollouts [v1.0.4](https://github.com/argoproj/argo-rollouts/releases/tag/v1.0.4)
 * Argo Workflows [v3.1.5](https://github.com/argoproj/argo-workflows/releases/tag/v3.1.5)
 
+### Using brew:
+```bash
+# tap Codefresh homebrew repo
+brew tap codefresh-io/cli
+
+# install cf2 CLI
+brew install cf2
+
+# check the installation
+cf version
+```
+
 ### Linux
 ```bash
 # download and extract the binary
