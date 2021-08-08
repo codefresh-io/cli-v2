@@ -801,19 +801,3 @@ func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptio
 	})
 	return err
 }
-
-func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL string) error {
-	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
-	fullGsPath := gsCloneOpts.FS.Join(gsCloneOpts.FS.Root(), gsPath)[1:]
-
-	appDef := &runtime.AppDef{
-		Name: gsName,
-		Type: application.AppTypeDirectory,
-		URL:  gsCloneOpts.URL() + fullGsPath,
-	}
-	if err := appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
-		return fmt.Errorf("failed to create git-source: %w", err)
-	}
-
-	return nil
-}
