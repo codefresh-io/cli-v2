@@ -53,7 +53,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Use:   "create runtime_name git-source_name git-src-repo_full_path",
 		Short: "add a new git-source to an existing runtime",
 		Example: util.Doc(`
-			<BIN> git-source create runtime_name git-source-name https://github.com/user/repo-name/my-workflow
+			<BIN> git-source create runtime_name git-source-name https://github.com/owner/repo-name/my-workflow
 		`),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
@@ -67,7 +67,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			}
 
 			if len(args) < 3 {
-				log.G(ctx).Fatal("must enter the full path of the new git-source repo. Example: https://github.com/user/repo-name/my-workflow")
+				log.G(ctx).Fatal("must enter the full path of the new git-source repo. Example: https://github.com/owner/repo-name/my-workflow")
 			}
 
 			if gsCloneOpts.Auth.Password == "" {
@@ -81,7 +81,11 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			
+
+			if err := createDemoWorkflowTemplate(ctx, gsCloneOpts, args[1], args[0]); err != nil {
+				return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+			}
+
 			return createGitSource(ctx, insCloneOpts, gsCloneOpts, args[1], args[0], cfConfig.GetCurrentContext().URL, gsCloneOpts.Path())
 		},
 	}
