@@ -75,10 +75,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			}
 
 			insCloneOpts.Parse()
-			if gsCloneOpts.Repo == "" {
-				gsCloneOpts.Repo = args[2]
-			}
-
+			
+			gsCloneOpts.Repo = args[2]
 			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
