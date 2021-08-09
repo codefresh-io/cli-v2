@@ -2,7 +2,7 @@ class CF2 < Formula
   desc "Codefresh CLI tool, V2"
   homepage "https://codefresh.io/"
   url "https://github.com/codefresh-io/cli-v2.git",
-    tag:      "v{{ version }}",
+    tag:      "{{ version }}",
     revision: "{{ revision }}"
   license "Apache-2.0"
 
