@@ -9,8 +9,7 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.1.0-rc1
 	github.com/argoproj/argo-events v1.3.1
 	github.com/argoproj/argo-workflows/v3 v3.1.0
-	github.com/argoproj/gitops-engine v0.3.3 // indirect
-	github.com/briandowns/spinner v1.13.0
+	github.com/briandowns/spinner v1.16.0
 	github.com/codefresh-io/go-sdk v0.30.2
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -23,7 +22,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
-	k8s.io/api v0.21.1
+	k8s.io/api v0.21.3
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	sigs.k8s.io/kustomize/api v0.8.8
@@ -31,6 +30,7 @@ require (
 
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
+	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
 	k8s.io/api => k8s.io/api v0.21.1

@@ -37,8 +37,6 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
-	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/juju/ansiterm"
@@ -127,7 +125,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			insCloneOpts.Parse()
 			if gsCloneOpts.Repo == "" {
 				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git_source" + suffix
+				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/workflows"
 			}
 
 			gsCloneOpts.Parse()
@@ -170,7 +168,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
-		Optional:         true,
+		OptionalToken:    true,
+		OptionalRepo:     true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
 	})
@@ -243,15 +242,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	if err = createDemoWorkflowTemplate(ctx, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName); err != nil {
-		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
-	}
-
 	gsPath := opts.gsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
 	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
-	
-	if err = createGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName,
-		opts.commonConfig.CodefreshBaseURL, fullGsPath); err != nil {
+
+	if err = RunCreateGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName, fullGsPath); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
@@ -761,46 +755,4 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
-}
-
-func createDemoWorkflowTemplate(ctx context.Context, gsCloneOpts *git.CloneOptions, gsName, runtimeName string) error {
-	gsRepo, gsFs, err := gsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
-	wfTemplate := &wfv1alpha1.WorkflowTemplate{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       wf.WorkflowTemplateKind,
-			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-workflow-template",
-			Namespace: runtimeName,
-		},
-		Spec: wfv1alpha1.WorkflowTemplateSpec{
-			WorkflowSpec: wfv1alpha1.WorkflowSpec{
-				Entrypoint: "whalesay",
-				Templates: []wfv1alpha1.Template{
-					{
-						Name: "whalesay",
-						Container: &v1.Container{
-							Image:   "docker/whalesay",
-							Command: []string{"cowsay"},
-							Args:    []string{"Hello World"},
-						},
-					},
-				},
-			},
-		},
-	}
-	if err = gsFs.WriteYamls(gsFs.Join(gsPath, "demo-wf-template.yaml"), wfTemplate); err != nil {
-		return err
-	}
-
-	_, err = gsRepo.Persist(ctx, &git.PushOptions{
-		CommitMsg: fmt.Sprintf("Created %s Directory", gsPath),
-	})
-	return err
 }

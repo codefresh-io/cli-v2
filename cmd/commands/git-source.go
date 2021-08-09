@@ -18,14 +18,21 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
+	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
+	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewGitSourceCommand() *cobra.Command {
@@ -66,27 +73,23 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			if len(args) < 3 {
-				log.G(ctx).Fatal("must enter the full path of the new git-source repo. Example: https://github.com/owner/repo-name/my-workflow")
-			}
-
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
 
 			insCloneOpts.Parse()
-			
-			gsCloneOpts.Repo = args[2]
 			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := createDemoWorkflowTemplate(ctx, gsCloneOpts, args[1], args[0]); err != nil {
-				return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+			// TODO: put in 'createGitSourceOptions' type
+			err := RunCreateGitSource(ctx, insCloneOpts, gsCloneOpts, args[1], args[0], gsCloneOpts.Path())
+			if err != nil {
+				return fmt.Errorf("failed to create git-source: %w", err)
 			}
 
-			return createGitSource(ctx, insCloneOpts, gsCloneOpts, args[1], args[0], cfConfig.GetCurrentContext().URL, gsCloneOpts.Path())
+			return nil
 		},
 	}
 
@@ -96,7 +99,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	})
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
-		Optional:         true,
+		OptionalToken:    true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
 	})
@@ -104,17 +107,78 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
-func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL, fullGsPath string) error {
+func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, fullGsPath string) error {
+	gsRepo, gsFs, err := gsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	fi, err := gsFs.ReadDir(".")
+
+	if err != nil {
+		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+	}
+
+	if len(fi) == 0 {
+		if err = createDemoWorkflowTemplate(gsFs, gsName, runtimeName); err != nil {
+			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+		}
+
+		_, err = gsRepo.Persist(ctx, &git.PushOptions{
+			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", gsCloneOpts.Path()),
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to push changes. Err: %w", err)
+		}
+	}
+
 	appDef := &runtime.AppDef{
 		Name: gsName,
 		Type: application.AppTypeDirectory,
-		URL:  gsCloneOpts.URL() + fullGsPath,
+		URL:  gsCloneOpts.Repo,
 	}
 	if err := appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
-		return fmt.Errorf("failed to create git-source: %w", err)
+		return err
 	}
 
-	log.G(ctx).Infof("done installing git-source '%s'", gsName)
+	log.G(ctx).Infof("done creating a new git-source: '%s'", gsName)
 
 	return nil
+}
+
+func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
+	var err error
+
+	gsPath := gsFs.Join(apstore.Default.AppsDir, gsName, runtimeName)
+	wfTemplate := &wfv1alpha1.WorkflowTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       wf.WorkflowTemplateKind,
+			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-workflow-template",
+			Namespace: runtimeName,
+		},
+		Spec: wfv1alpha1.WorkflowTemplateSpec{
+			WorkflowSpec: wfv1alpha1.WorkflowSpec{
+				Entrypoint: "whalesay",
+				Templates: []wfv1alpha1.Template{
+					{
+						Name: "whalesay",
+						Container: &v1.Container{
+							Image:   "docker/whalesay",
+							Command: []string{"cowsay"},
+							Args:    []string{"Hello World"},
+						},
+					},
+				},
+			},
+		},
+	}
+	if err = gsFs.WriteYamls(gsFs.Join(gsPath, "demo-wf-template.yaml"), wfTemplate); err != nil {
+		return err
+	}
+
+	return err
 }
