@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/cobra"
 )
@@ -54,43 +52,46 @@ func NewGitSourceCommand() *cobra.Command {
 
 func NewGitSourceCreateCommand() *cobra.Command {
 	var (
-		gitSourceName string
-		insCloneOpts  *git.CloneOptions
-		gsCloneOpts   *git.CloneOptions
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
-		Use: "create runtime_name git-source_name", 
+		Use:   "create runtime_name git-source_name src_full_path",
 		Short: "add a new git-source to an existing runtime",
 		Example: util.Doc(`
-			<BIN> git-source create runtime_name git-source-name
+			<BIN> git-source create runtime_name git-source-name https://github.com/user-codefresh/repo-name/my-workflow
 		`),
-		PreRun: func(_ *cobra.Command, _ []string) {
-			if gsCloneOpts.Auth.Password == "" { 
+		PreRun: func(cmd *cobra.Command, args []string) {
+			ctx := cmd.Context()
+
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if len(args) < 2 {
+				log.G(ctx).Fatal("must enter git-source name")
+			}
+
+			if len(args) < 3 {
+				log.G(ctx).Fatal("must enter path")
+			}
+
+			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
 
 			insCloneOpts.Parse()
 			if gsCloneOpts.Repo == "" {
-				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git_source" + suffix
+				gsCloneOpts.Repo = args[2]
 			}
 
-			gsCloneOpts.Parse()
+			gsCloneOpts.Parse() 
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name") 
-			}
-
-			if len(args) < 2 {
-				log.G(ctx).Fatal("must enter git-source name") 
-			}
-			gitSourceName = args[1]
-
-			return createGitSource(ctx, insCloneOpts, gsCloneOpts, gitSourceName, args[0], cfConfig.GetCurrentContext().URL)
+			return createGitSource(ctx, insCloneOpts, gsCloneOpts, args[1], args[0], cfConfig.GetCurrentContext().URL, gsCloneOpts.Path())
 		},
 	}
 
@@ -108,10 +109,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
-func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL string) error {
-	gsPath := gsCloneOpts.FS.Join(apstore.Default.AppsDir, gsName, runtimeName)
-	fullGsPath := gsCloneOpts.FS.Join(gsCloneOpts.FS.Root(), gsPath)[1:]
-
+func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, cfBaseURL, fullGsPath string) error {
 	appDef := &runtime.AppDef{
 		Name: gsName,
 		Type: application.AppTypeDirectory,
@@ -120,6 +118,8 @@ func createGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsClon
 	if err := appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
 	}
+
+	log.G(ctx).Infof("done installing git-source '%s'", gsName)
 
 	return nil
 }
