@@ -1,4 +1,4 @@
-VERSION=v0.0.54
+VERSION=v0.0.55
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
 
@@ -61,6 +61,7 @@ cli: $(OUT_DIR)/$(CLI_NAME)-linux-amd64.sha256 $(OUT_DIR)/$(CLI_NAME)-linux-arm6
 
 .PHONY: cli-local
 cli-local: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
+	@rm /usr/local/bin/$(CLI_NAME)-dev 2>/dev/null || true
 	@ln $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH) /usr/local/bin/$(CLI_NAME)-dev
 
 .PHONY: cli-package
