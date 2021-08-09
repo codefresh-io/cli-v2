@@ -17,6 +17,7 @@ package commands
 import (
 	"context"
 	"fmt"
+
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -25,14 +26,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/cobra"
-)
-
-type (
-	GitSourceCreateOptions struct {
-		GitSourceName string
-		SourcePath    string
-		RuntimeName   string
-	}
 )
 
 func NewGitSourceCommand() *cobra.Command {
@@ -86,7 +79,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				gsCloneOpts.Repo = args[2]
 			}
 
-			gsCloneOpts.Parse() 
+			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
