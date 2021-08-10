@@ -159,7 +159,7 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 		URL:  opts.gsCloneOpts.Repo,
 	}
 	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType, nil); err != nil {
-		return err
+		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
 	log.G(ctx).Infof("done creating a new git-source: '%s'", opts.gsName)
@@ -170,7 +170,7 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
 	var err error
 
-	gsPath := gsFs.Join(apstore.Default.AppsDir, gsName, runtimeName)
+	gsPath := gsFs.Join(apstore.Default.AppsDir, gsName, runtimeName, "demo-wf-template.yaml")
 	wfTemplate := &wfv1alpha1.WorkflowTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       wf.WorkflowTemplateKind,
@@ -196,7 +196,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
 			},
 		},
 	}
-	if err = gsFs.WriteYamls(gsFs.Join(gsPath, "demo-wf-template.yaml"), wfTemplate); err != nil {
+	if err = gsFs.WriteYamls(gsPath, wfTemplate); err != nil {
 		return err
 	}
 

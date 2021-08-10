@@ -260,7 +260,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 func NewRuntimeListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "list [runtime_name]",
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		RunE: func(_ *cobra.Command, _ []string) error {
