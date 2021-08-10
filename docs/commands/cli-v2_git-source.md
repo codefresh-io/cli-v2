@@ -1,21 +1,15 @@
-## cli-v2 runtime list
+## cli-v2 git-source
 
-List all Codefresh runtimes
-
-```
-cli-v2 runtime list [runtime_name] [flags]
-```
-
-### Examples
+Manage git-sources of Codefresh runtimes
 
 ```
-cli-v2 runtime list
+cli-v2 git-source [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for list
+  -h, --help   help for git-source
 ```
 
 ### Options inherited from parent commands
@@ -29,5 +23,6 @@ cli-v2 runtime list
 
 ### SEE ALSO
 
-* [cli-v2 runtime](cli-v2_runtime.md)	 - Manage Codefresh runtimes
+* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
+* [cli-v2 git-source create](cli-v2_git-source_create.md)	 - add a new git-source to an existing runtime
 
