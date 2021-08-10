@@ -84,7 +84,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			}
 
 			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("must enter a valid value to --git-src-repo")
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
 			if gsCloneOpts.Auth.Password == "" {
