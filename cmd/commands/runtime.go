@@ -245,7 +245,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gsPath := opts.gsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
 	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
 
-	if err = RunCreateGitSource(ctx, opts.insCloneOpts, opts.gsCloneOpts, store.Get().GitSourceName, opts.RuntimeName, fullGsPath); err != nil {
+	if err = RunCreateGitSource(ctx, &GitSourceCreateOptions{
+		insCloneOpts: opts.insCloneOpts, 
+		gsCloneOpts: opts.gsCloneOpts, 
+		gsName: store.Get().GitSourceName, 
+		runtimeName: opts.RuntimeName, 
+		fullGsPath: fullGsPath,
+		}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 

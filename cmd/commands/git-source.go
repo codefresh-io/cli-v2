@@ -35,6 +35,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type (
+	GitSourceCreateOptions struct {
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts *git.CloneOptions 
+		gsName string
+		runtimeName string
+		fullGsPath string
+	}
+)
+
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git-source",
@@ -83,8 +93,14 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			// TODO: put in 'createGitSourceOptions' type
-			err := RunCreateGitSource(ctx, insCloneOpts, gsCloneOpts, args[1], args[0], gsCloneOpts.Path())
+			err := RunCreateGitSource(ctx, &GitSourceCreateOptions{
+				insCloneOpts: insCloneOpts, 
+				gsCloneOpts: gsCloneOpts, 
+				gsName: args[1], 
+				runtimeName: args[0], 
+				fullGsPath: gsCloneOpts.Path(),
+			})
+
 			if err != nil {
 				return fmt.Errorf("failed to create git-source: %w", err)
 			}
@@ -107,8 +123,9 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
-func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, fullGsPath string) error {
-	gsRepo, gsFs, err := gsCloneOpts.GetRepo(ctx)
+// func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, fullGsPath string) error {
+	func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
+	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -120,12 +137,12 @@ func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsC
 	}
 
 	if len(fi) == 0 {
-		if err = createDemoWorkflowTemplate(gsFs, gsName, runtimeName); err != nil {
+		if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
 			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 		}
 
 		_, err = gsRepo.Persist(ctx, &git.PushOptions{
-			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", gsCloneOpts.Path()),
+			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
 		})
 
 		if err != nil {
@@ -134,15 +151,15 @@ func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsC
 	}
 
 	appDef := &runtime.AppDef{
-		Name: gsName,
+		Name: opts.gsName,
 		Type: application.AppTypeDirectory,
-		URL:  gsCloneOpts.Repo,
+		URL:  opts.gsCloneOpts.Repo,
 	}
-	if err := appDef.CreateApp(ctx, nil, insCloneOpts, runtimeName, store.Get().CFGitSourceType, nil); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType, nil); err != nil {
 		return err
 	}
 
-	log.G(ctx).Infof("done creating a new git-source: '%s'", gsName)
+	log.G(ctx).Infof("done creating a new git-source: '%s'", opts.gsName)
 
 	return nil
 }
