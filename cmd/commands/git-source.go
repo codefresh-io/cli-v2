@@ -97,19 +97,13 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := RunCreateGitSource(ctx, &GitSourceCreateOptions{
+			return RunCreateGitSource(ctx, &GitSourceCreateOptions{
 				insCloneOpts: insCloneOpts,
 				gsCloneOpts:  gsCloneOpts,
 				gsName:       args[1],
 				runtimeName:  args[0],
 				fullGsPath:   gsCloneOpts.Path(),
 			})
-
-			if err != nil {
-				return fmt.Errorf("failed to create git-source: %w", err)
-			}
-
-			return nil
 		},
 	}
 
