@@ -3,7 +3,7 @@
 add a new git-source to an existing runtime
 
 ```
-cli-v2 git-source create runtime_name git-source_name git-src-repo_full_path [flags]
+cli-v2 git-source create runtime_name git-source_name [flags]
 ```
 
 ### Examples

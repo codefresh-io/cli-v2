@@ -3,7 +3,7 @@
 List all Codefresh runtimes
 
 ```
-cli-v2 runtime list [flags]
+cli-v2 runtime list [runtime_name] [flags]
 ```
 
 ### Examples
