@@ -51,6 +51,7 @@ variables in advanced to simplify the use of those commands.
 	cmd.AddCommand(NewVersionCommand())
 	cmd.AddCommand(NewConfigCommand())
 	cmd.AddCommand(NewRuntimeCommand())
+	cmd.AddCommand(NewGitSourceCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 
