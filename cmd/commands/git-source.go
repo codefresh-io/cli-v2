@@ -26,7 +26,6 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -162,9 +161,6 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 }
 
 func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
-	var err error
-
-	gsPath := gsFs.Join(apstore.Default.AppsDir, gsName, runtimeName, "demo-wf-template.yaml")
 	wfTemplate := &wfv1alpha1.WorkflowTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       wf.WorkflowTemplateKind,
@@ -190,9 +186,6 @@ func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
 			},
 		},
 	}
-	if err = gsFs.WriteYamls(gsPath, wfTemplate); err != nil {
-		return err
-	}
-
-	return err
+	
+	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
 }
