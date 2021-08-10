@@ -67,7 +67,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create runtime_name git-source_name git-src-repo_full_path",
+		Use:   "create runtime_name git-source_name",
 		Short: "add a new git-source to an existing runtime",
 		Example: util.Doc(`
 			<BIN> git-source create runtime_name git-source-name https://github.com/owner/repo-name/my-workflow
