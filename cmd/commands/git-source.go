@@ -83,6 +83,10 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
+			if gsCloneOpts.Repo == "" {
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo")
+			}
+
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
@@ -123,7 +127,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
-// func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, fullGsPath string) error {
 func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {

@@ -168,8 +168,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
-		OptionalToken:    true,
-		OptionalRepo:     true,
+		Optional:         true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
 	})
@@ -246,12 +245,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunCreateGitSource(ctx, &GitSourceCreateOptions{
-		insCloneOpts: opts.insCloneOpts, 
-		gsCloneOpts: opts.gsCloneOpts, 
-		gsName: store.Get().GitSourceName, 
-		runtimeName: opts.RuntimeName, 
-		fullGsPath: fullGsPath,
-		}); err != nil {
+		insCloneOpts: opts.insCloneOpts,
+		gsCloneOpts:  opts.gsCloneOpts,
+		gsName:       store.Get().GitSourceName,
+		runtimeName:  opts.RuntimeName,
+		fullGsPath:   fullGsPath,
+	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
