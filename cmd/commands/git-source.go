@@ -38,10 +38,10 @@ import (
 type (
 	GitSourceCreateOptions struct {
 		insCloneOpts *git.CloneOptions
-		gsCloneOpts *git.CloneOptions 
-		gsName string
-		runtimeName string
-		fullGsPath string
+		gsCloneOpts  *git.CloneOptions
+		gsName       string
+		runtimeName  string
+		fullGsPath   string
 	}
 )
 
@@ -94,11 +94,11 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			err := RunCreateGitSource(ctx, &GitSourceCreateOptions{
-				insCloneOpts: insCloneOpts, 
-				gsCloneOpts: gsCloneOpts, 
-				gsName: args[1], 
-				runtimeName: args[0], 
-				fullGsPath: gsCloneOpts.Path(),
+				insCloneOpts: insCloneOpts,
+				gsCloneOpts:  gsCloneOpts,
+				gsName:       args[1],
+				runtimeName:  args[0],
+				fullGsPath:   gsCloneOpts.Path(),
 			})
 
 			if err != nil {
@@ -115,7 +115,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	})
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
-		OptionalToken:    true,
+		Optional:         true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
 	})
@@ -124,7 +124,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 // func RunCreateGitSource(ctx context.Context, insCloneOpts *git.CloneOptions, gsCloneOpts *git.CloneOptions, gsName, runtimeName, fullGsPath string) error {
-	func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
+func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
