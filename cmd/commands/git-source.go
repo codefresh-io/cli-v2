@@ -50,6 +50,7 @@ func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git-source",
 		Short: "Manage git-sources of Codefresh runtimes",
+		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 			exit(1)
@@ -143,7 +144,7 @@ func RunGitSourceList(runtimeName string) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tSTATUS\tVERSION")
+	_, err = fmt.Fprintln(tb, "NAME\tREPOURL\tPATH\tSTATUS\tLAST-UPDATED")
 	if err != nil {
 		return fmt.Errorf("failed to print git-source list table headers. Err: %w", err)
 	}
