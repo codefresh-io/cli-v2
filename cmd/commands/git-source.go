@@ -50,7 +50,7 @@ func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git-source",
 		Short: "Manage git-sources of Codefresh runtimes",
-		PersistentPreRunE: cfConfig.RequireAuthentication,
+		PersistentPreRunE: cfConfig.RequireAuthentication, // TODO: gets the right context
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 			exit(1)
