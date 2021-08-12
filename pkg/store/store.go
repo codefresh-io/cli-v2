@@ -100,7 +100,7 @@ func init() {
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
-	s.WaitTimeout = 5 * time.Minute
+	s.WaitTimeout = 7 * time.Minute
 	initVersion()
 }
 

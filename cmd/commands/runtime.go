@@ -162,6 +162,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
+	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
+
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
