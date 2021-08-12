@@ -360,12 +360,14 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 
 			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 				RuntimeName: args[0],
-				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				Timeout:     store.Get().WaitTimeout,
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
 			})
 		},
 	}
+
+	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
 
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		FS: memfs.New(),
