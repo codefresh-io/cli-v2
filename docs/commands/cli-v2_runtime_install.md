@@ -38,6 +38,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider string            The git provider, one of: gitea|github
       --repo string                Repository URL [GIT_REPO]
       --version string             The runtime version to install, defaults to latest
+      --wait-timeout duration      How long to wait for the runtime components to be ready (default 8m0s)
 ```
 
 ### Options inherited from parent commands
