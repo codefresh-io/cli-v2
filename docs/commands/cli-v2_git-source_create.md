@@ -10,7 +10,7 @@ cli-v2 git-source create runtime_name git-source_name [flags]
 
 ```
 
-            cli-v2 git-source create runtime_name git-source-name https://github.com/owner/repo-name/my-workflow
+            cli-v2 git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow
         
 ```
 

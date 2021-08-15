@@ -1,15 +1,25 @@
-## cli-v2 git-source
+## cli-v2 git-source delete
 
-Manage git-sources of Codefresh runtimes
+delete a git-source from a runtime
 
 ```
-cli-v2 git-source [flags]
+cli-v2 git-source delete runtime_name git-source_name [flags]
+```
+
+### Examples
+
+```
+
+            cli-v2 git-source delete runtime_name git-source_name 
+        
 ```
 
 ### Options
 
 ```
-  -h, --help   help for git-source
+  -t, --git-token string   Your git provider api token [GIT_TOKEN]
+  -h, --help               help for delete
+      --repo string        Repository URL [GIT_REPO]
 ```
 
 ### Options inherited from parent commands
@@ -23,7 +33,5 @@ cli-v2 git-source [flags]
 
 ### SEE ALSO
 
-* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
-* [cli-v2 git-source create](cli-v2_git-source_create.md)	 - add a new git-source to an existing runtime
-* [cli-v2 git-source delete](cli-v2_git-source_delete.md)	 - delete a git-source from a runtime
+* [cli-v2 git-source](cli-v2_git-source.md)	 - Manage git-sources of Codefresh runtimes
 
