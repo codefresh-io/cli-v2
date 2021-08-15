@@ -189,7 +189,7 @@ func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 	log.G(ctx).Debug("successfully deleted git-source: %s", opts.GsName)
 
-	return nil
+	return err
 }
 
 func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
