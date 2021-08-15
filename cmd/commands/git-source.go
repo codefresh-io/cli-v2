@@ -17,15 +17,18 @@ package commands
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -43,12 +46,20 @@ type (
 		fullGsPath   string
 		createDemoWorkflowTemplate bool
 	}
+
+	GitSourceDeleteOptions struct {
+		RuntimeName string
+		GsName      string
+		CloneOpts   *git.CloneOptions
+		Timeout     time.Duration
+	}
 )
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "git-source",
-		Short: "Manage git-sources of Codefresh runtimes",
+		Use:               "git-source",
+		Short:             "Manage git-sources of Codefresh runtimes",
+		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 			exit(1)
@@ -56,6 +67,7 @@ func NewGitSourceCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewGitSourceCreateCommand())
+	cmd.AddCommand(NewGitSourceDeleteCommand())
 
 	return cmd
 }
@@ -70,7 +82,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Use:   "create runtime_name git-source_name",
 		Short: "add a new git-source to an existing runtime",
 		Example: util.Doc(`
-			<BIN> git-source create runtime_name git-source-name https://github.com/owner/repo-name/my-workflow
+			<BIN> git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow
 		`),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
@@ -122,6 +134,49 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
+func NewGitSourceDeleteCommand() *cobra.Command {
+	var (
+		cloneOpts *git.CloneOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:   "delete runtime_name git-source_name",
+		Short: "delete a git-source from a runtime",
+		Example: util.Doc(`
+			<BIN> git-source delete runtime_name git-source_name 
+		`),
+		PreRun: func(cmd *cobra.Command, args []string) {
+			ctx := cmd.Context()
+
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if len(args) < 2 {
+				log.G(ctx).Fatal("must enter git-source name")
+			}
+
+			cloneOpts.Parse()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			return RunDeleteGitSource(ctx, &GitSourceDeleteOptions{
+				RuntimeName: args[0],
+				GsName:      args[1],
+				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				CloneOpts:   cloneOpts,
+			})
+		},
+	}
+
+	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		FS: memfs.New(),
+	})
+
+	return cmd
+}
+
 func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
 	if opts.createDemoWorkflowTemplate {
 
@@ -161,6 +216,23 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	log.G(ctx).Infof("done creating a new git-source: '%s'", opts.gsName)
+
+	return nil
+}
+
+func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error {
+	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
+		CloneOpts:   opts.CloneOpts,
+		ProjectName: opts.RuntimeName,
+		AppName:     opts.GsName,
+		Global:      false,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to delete git-source %s. Err: %w", opts.GsName, err)
+	}
+
+	log.G(ctx).Debug("successfully deleted git-source: %s", opts.GsName)
 
 	return nil
 }
