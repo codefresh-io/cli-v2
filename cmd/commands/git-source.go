@@ -157,17 +157,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 			}
 
 			cloneOpts.Parse()
-
-			// if gsCloneOpts.Repo == "" {
-			// 	log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
-			// }
-
-			// if gsCloneOpts.Auth.Password == "" {
-			// 	gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
-			// }
-
-			// insCloneOpts.Parse()
-			// gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
