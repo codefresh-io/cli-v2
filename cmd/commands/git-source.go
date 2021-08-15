@@ -175,23 +175,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	return cmd
 }
 
-func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error {
-	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
-		CloneOpts:   opts.CloneOpts,
-		ProjectName: opts.RuntimeName,
-		AppName:     opts.GsName,
-		Global:      false,
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to delete git-source %s. Err: %w", opts.GsName, err)
-	}
-
-	log.G(ctx).Debug("successfully deleted git-source: %s", opts.GsName)
-
-	return err
-}
-
 func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -230,6 +213,23 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 	log.G(ctx).Infof("done creating a new git-source: '%s'", opts.gsName)
 
 	return nil
+}
+
+func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error {
+	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
+		CloneOpts:   opts.CloneOpts,
+		ProjectName: opts.RuntimeName,
+		AppName:     opts.GsName,
+		Global:      false,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to delete git-source %s. Err: %w", opts.GsName, err)
+	}
+
+	log.G(ctx).Debug("successfully deleted git-source: %s", opts.GsName)
+
+	return err
 }
 
 func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
