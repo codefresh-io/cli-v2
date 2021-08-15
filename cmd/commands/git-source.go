@@ -28,7 +28,6 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -135,7 +134,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
-		f         kube.Factory
 		cloneOpts *git.CloneOptions
 	)
 
