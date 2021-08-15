@@ -69,6 +69,9 @@ type Store struct {
 	RuntimeFilename        string
 	Version                Version
 	WaitTimeout            time.Duration
+	MarketplaceGitSourceName string
+	MarketplaceRepo			string
+
 }
 
 // Get returns the global store
@@ -101,6 +104,8 @@ func init() {
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
 	s.WaitTimeout = 5 * time.Minute
+	s.MarketplaceGitSourceName = "marketplace-git-source"
+    s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git/"
 	initVersion()
 }
 

@@ -250,6 +250,20 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		gsName:       store.Get().GitSourceName,
 		runtimeName:  opts.RuntimeName,
 		fullGsPath:   fullGsPath,
+		createDemoWorkflowTemplate: true,
+	}); err != nil {
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+	}
+
+	if err = RunCreateGitSource(ctx, &GitSourceCreateOptions{
+		insCloneOpts: opts.insCloneOpts,
+		gsCloneOpts: &git.CloneOptions{
+			Repo: store.Get().MarketplaceRepo,
+		},
+		gsName:       store.Get().MarketplaceGitSourceName,
+		runtimeName:  opts.RuntimeName,
+		fullGsPath:   store.Get().MarketplaceRepo,
+		createDemoWorkflowTemplate: false,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}

@@ -41,6 +41,7 @@ type (
 		gsName       string
 		runtimeName  string
 		fullGsPath   string
+		createDemoWorkflowTemplate bool
 	}
 )
 
@@ -102,6 +103,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				gsName:       args[1],
 				runtimeName:  args[0],
 				fullGsPath:   gsCloneOpts.Path(),
+				createDemoWorkflowTemplate: false,
 			})
 		},
 	}
@@ -121,28 +123,31 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
-	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
+	if opts.createDemoWorkflowTemplate {
 
-	fi, err := gsFs.ReadDir(".")
-
-	if err != nil {
-		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
-	}
-
-	if len(fi) == 0 {
-		if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
-			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+		gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
+		if err != nil {
+			return err
 		}
 
-		_, err = gsRepo.Persist(ctx, &git.PushOptions{
-			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
-		})
+		fi, err := gsFs.ReadDir(".")
 
 		if err != nil {
-			return fmt.Errorf("failed to push changes. Err: %w", err)
+			return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+		}
+
+		if len(fi) == 0 {
+			if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
+				return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+			}
+
+			_, err = gsRepo.Persist(ctx, &git.PushOptions{
+				CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
+			})
+
+			if err != nil {
+				return fmt.Errorf("failed to push changes. Err: %w", err)
+			}
 		}
 	}
 
@@ -186,6 +191,6 @@ func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
 			},
 		},
 	}
-	
+
 	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
 }
