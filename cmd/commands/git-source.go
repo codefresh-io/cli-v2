@@ -155,25 +155,24 @@ func RunGitSourceList(runtimeName string) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tREPOURL\tPATH\tSTATUS\tLAST-UPDATED")
+	_, err = fmt.Fprintln(tb, "NAME\tREPOURL\tPATH\tHEALTH-STATUS\tSYNC-STATUS")
 	if err != nil {
 		return fmt.Errorf("failed to print git-source list table headers. Err: %w", err)
 	}
 
 	for _, gs := range gitSources {
-		// name := gs.
-		// repoURL := gs.repoURL
-		// path := gs.path
-		fmt.Println("%s", gs)
-
-		name := "test1"
-		repoURL := "testrep"
-		path := "testpath"
+		name := gs.Metadata.Name
+		repoURL := gs.Self.RepoURL
+		path := gs.Self.Path
+		healthStatus := gs.Self.Status.HealthStatus
+		syncStatus := gs.Self.Status.SyncStatus
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			name,
 			repoURL,
 			path,
+			healthStatus,
+			syncStatus,
 		)
 
 		if err != nil {
@@ -188,7 +187,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
 		cloneOpts *git.CloneOptions
 	)
-
 
 	cmd := &cobra.Command{
 		Use:   "delete runtime_name git-source_name",
