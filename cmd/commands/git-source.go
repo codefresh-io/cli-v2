@@ -141,7 +141,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		Use:   "delete runtime_name git-source_name",
 		Short: "delete a git-source from a runtime",
 		Example: util.Doc(`
-			<BIN> git-source delete runtime_name git-source-name 
+			<BIN> git-source delete runtime_name git-source_name 
 		`),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
