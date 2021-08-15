@@ -81,7 +81,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Use:   "create runtime_name git-source_name",
 		Short: "add a new git-source to an existing runtime",
 		Example: util.Doc(`
-			<BIN> git-source create runtime_name git-source-name https://github.com/owner/repo-name/my-workflow
+			<BIN> git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow
 		`),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
@@ -229,7 +229,7 @@ func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 	log.G(ctx).Debug("successfully deleted git-source: %s", opts.GsName)
 
-	return err
+	return nil
 }
 
 func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
