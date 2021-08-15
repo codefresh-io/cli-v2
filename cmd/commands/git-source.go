@@ -174,10 +174,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		FS: memfs.New(),
 	})
 
-	f = kube.AddFlags(cmd.Flags())
-
-	fmt.Println(f)
-
 	return cmd
 }
 
