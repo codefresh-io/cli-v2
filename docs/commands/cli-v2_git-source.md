@@ -25,4 +25,5 @@ cli-v2 git-source [flags]
 
 * [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
 * [cli-v2 git-source create](cli-v2_git-source_create.md)	 - add a new git-source to an existing runtime
+* [cli-v2 git-source delete](cli-v2_git-source_delete.md)	 - delete a git-source from a runtime
 
