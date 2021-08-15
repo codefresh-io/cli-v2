@@ -17,12 +17,14 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/juju/ansiterm"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -66,6 +68,7 @@ func NewGitSourceCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewGitSourceCreateCommand())
+	cmd.AddCommand(NewGitSourceListCommand())
 	cmd.AddCommand(NewGitSourceDeleteCommand())
 
 	return cmd
@@ -132,11 +135,60 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
+func NewGitSourceListCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list runtime_name",
+		Short:   "List all Codefresh git-sources of a given runtime",
+		Example: util.Doc(`<BIN> git-source list my-runtime`),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return RunGitSourceList(args[0])
+		},
+	}
+	return cmd
+}
+
+func RunGitSourceList(runtimeName string) error {
+	gitSources, err := cfConfig.NewClient().GitSource().List(runtimeName)
+
+	if err != nil { // TODO: might be a redundant check
+		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
+	}
+
+	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	_, err = fmt.Fprintln(tb, "NAME\tREPOURL\tPATH\tSTATUS\tLAST-UPDATED")
+	if err != nil {
+		return fmt.Errorf("failed to print git-source list table headers. Err: %w", err)
+	}
+
+	for _, gs := range gitSources {
+		// name := gs.
+		// repoURL := gs.repoURL
+		// path := gs.path
+		fmt.Println("%s", gs)
+
+		name := "test1"
+		repoURL := "testrep"
+		path := "testpath"
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+			name,
+			repoURL,
+			path,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return tb.Flush()
+}
+
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
 		cloneOpts *git.CloneOptions
 	)
-	
+
 
 	cmd := &cobra.Command{
 		Use:   "delete runtime_name git-source_name",
