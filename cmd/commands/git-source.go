@@ -54,6 +54,13 @@ type (
 		CloneOpts   *git.CloneOptions
 		Timeout     time.Duration
 	}
+
+	GitSourceEditOptions struct {
+		RuntimeName string
+		GsName      string
+		CloneOpts   *git.CloneOptions
+		Timeout     time.Duration
+	}
 )
 
 func NewGitSourceCommand() *cobra.Command {
@@ -70,6 +77,7 @@ func NewGitSourceCommand() *cobra.Command {
 	cmd.AddCommand(NewGitSourceCreateCommand())
 	cmd.AddCommand(NewGitSourceListCommand())
 	cmd.AddCommand(NewGitSourceDeleteCommand())
+	cmd.AddCommand(NewGitSourceEditCommand())
 
 	return cmd
 }
@@ -189,7 +197,7 @@ func RunGitSourceList(runtimeName string) error {
 
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
-		cloneOpts *git.CloneOptions
+		cloneOpts *git.CloneOptions // insCloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -228,6 +236,71 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	})
 
 	return cmd
+}
+
+func NewGitSourceEditCommand() *cobra.Command {
+	var (
+		cloneOpts *git.CloneOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:   "edit runtime_name git-source_name",
+		Short: "edit a git-source of a runtime",
+		Example: util.Doc(`
+			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name/my-workflow
+		`),
+		PreRun: func(cmd *cobra.Command, args []string) {
+			ctx := cmd.Context()
+
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if len(args) < 2 {
+				log.G(ctx).Fatal("must enter git-source name")
+			}
+
+			if cloneOpts.Repo == "" {
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+			}
+
+			cloneOpts.Parse()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			return RunEditGitSource(ctx, &GitSourceEditOptions{
+				RuntimeName: args[0],
+				GsName:      args[1],
+				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				CloneOpts:   cloneOpts,
+			})
+		},
+	}
+
+	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		FS: memfs.New(),
+	})
+
+	return cmd
+}
+
+func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
+	gsRepo, gsFs, err := opts.CloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	fi, err := gsFs.ReadDir(".")
+
+	if err != nil {
+		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+	}
+
+	fmt.Println((gsRepo))
+	fmt.Println((fi))
+
+	return nil
 }
 
 func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
