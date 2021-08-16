@@ -158,7 +158,7 @@ func NewConfigUseContextCommand() *cobra.Command {
 	return cmd
 }
 
-func RunConfigUseContext(ctx context.Context, context string) error {
+func RunConfigUseContext(ctx context.Context, context string) error { // TODO: here
 	if err := cfConfig.UseContext(ctx, context); err != nil {
 		return err
 	}
