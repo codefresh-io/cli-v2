@@ -224,15 +224,17 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 
+	// persists codefresh-cm, this must be created before events-reporter eventsource
+	// otherwise it will not start and no events will get to the platform.
+	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
+		return fmt.Errorf("failed to create codefresh-cm: %w", err)
+	}
+
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
 		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType, rt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
-	}
-
-	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
-		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
 	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
