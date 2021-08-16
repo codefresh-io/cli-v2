@@ -26,10 +26,13 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/juju/ansiterm"
 
+	// "io/ioutil"
+
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -61,6 +64,12 @@ type (
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
 		Timeout      time.Duration
+	}
+
+	GitSourceFields struct {
+		srcPath           string
+		srcRepoURL        string
+		srcTargetRevision string
 	}
 )
 
@@ -262,7 +271,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			if  gsCloneOpts.Repo == "" {
+			if gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
@@ -273,42 +282,52 @@ func NewGitSourceEditCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunEditGitSource(ctx, &GitSourceEditOptions{
-				RuntimeName: args[0],
-				GsName:      args[1],
-				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
-				InsCloneOpts:   insCloneOpts,
-				GsCloneOpts: gsCloneOpts,
+				RuntimeName:  args[0],
+				GsName:       args[1],
+				Timeout:      aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				InsCloneOpts: insCloneOpts,
+				GsCloneOpts:  gsCloneOpts,
 			})
 		},
 	}
 
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
+		CreateIfNotExist: true,
+		FS:               memfs.New(),
 	})
 
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
+		Prefix:           "git-src",
+		Optional:         true,
+		CreateIfNotExist: true,
+		FS:               memfs.New(),
 	})
 
 	return cmd
 }
 
 func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
-	// gsRepo, gsFs, err := opts.CloneOpts.GetRepo(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fi, err := gsFs.ReadDir(".")
-
-	// if err != nil {
-	// 	return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
-	// }
-
-
+	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+	}
 
 	fmt.Println(('a'))
 	fmt.Println(('b'))
+
+	c := &application.Config{}
+
+	fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+
+	c.SrcPath = opts.GsCloneOpts.Path()
+	c.SrcRepoURL = opts.GsCloneOpts.Repo
+	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
+
+	fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+		
+	_, err = repo.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Persisted updated git-source",
+	})
 
 	return nil
 }
