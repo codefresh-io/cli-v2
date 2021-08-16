@@ -136,6 +136,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
 		cloneOpts *git.CloneOptions
 	)
+	
 
 	cmd := &cobra.Command{
 		Use:   "delete runtime_name git-source_name",
