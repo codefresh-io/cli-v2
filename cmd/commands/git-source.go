@@ -162,7 +162,7 @@ func RunGitSourceList(runtimeName string) error {
 
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
-		repoURL := gs.Self.RepoURL
+		repoURL := gs.Self.Source.GitSource.Self.Re
 		path := gs.Self.Path
 		healthStatus := gs.Self.Status.HealthStatus
 		syncStatus := gs.Self.Status.SyncStatus
