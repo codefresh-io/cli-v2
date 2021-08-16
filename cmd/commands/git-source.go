@@ -320,14 +320,18 @@ func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
 	fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
 
 	c.SrcPath = opts.GsCloneOpts.Path()
-	c.SrcRepoURL = opts.GsCloneOpts.Repo
+	c.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
 	fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
-		
+
 	_, err = repo.Persist(ctx, &git.PushOptions{
 		CommitMsg: "Persisted updated git-source",
 	})
+
+	if err != nil {
+		return fmt.Errorf("failed to persist the updated git-source. Err: %w", err)
+	}
 
 	return nil
 }
