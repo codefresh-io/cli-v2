@@ -237,7 +237,6 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	fi, err := gsFs.ReadDir(".")
-
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
