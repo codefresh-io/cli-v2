@@ -99,15 +99,15 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("Must enter runtime name")
+				log.G(ctx).Fatal("must enter runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("Must enter git-source name")
+				log.G(ctx).Fatal("must enter git-source name")
 			}
 
 			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("Must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
 			if gsCloneOpts.Auth.Password == "" {
@@ -211,11 +211,11 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("Must enter runtime name")
+				log.G(ctx).Fatal("must enter runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("Must enter git-source name")
+				log.G(ctx).Fatal("must enter git-source name")
 			}
 
 			insCloneOpts.Parse()
@@ -255,15 +255,15 @@ func NewGitSourceEditCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("Must enter a runtime name")
+				log.G(ctx).Fatal("must enter a runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("Must enter a git-source name")
+				log.G(ctx).Fatal("must enter a git-source name")
 			}
 
 			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("Must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
 			insCloneOpts.Parse()
