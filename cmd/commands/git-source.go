@@ -303,7 +303,6 @@ func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	c := &application.Config{}
-
 	err = fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
 	if err != nil {
 		return fmt.Errorf("failed to read the config.json of git-source: %s. Err: %w", opts.GsName, err)
@@ -313,7 +312,7 @@ func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
 	c.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
-	fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	err = fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
 	if err != nil {
 		return fmt.Errorf("failed to write the updated config.json of git-source: %s. Err: %w", opts.GsName, err)
 	}
