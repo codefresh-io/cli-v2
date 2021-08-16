@@ -291,7 +291,7 @@ func RunRuntimeList() error {
 		name := "N/A"
 		version := "N/A"
 
-		//TODO: make sure the go-sdk is returning the "self" reference
+		// make sure the go-sdk is returning the "self" reference
 		if rt.Self != nil && rt.Self.HealthMessage != nil {
 			status = *rt.Self.HealthMessage
 		}
