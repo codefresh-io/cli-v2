@@ -56,10 +56,11 @@ type (
 	}
 
 	GitSourceEditOptions struct {
-		RuntimeName string
-		GsName      string
-		CloneOpts   *git.CloneOptions
-		Timeout     time.Duration
+		RuntimeName  string
+		GsName       string
+		InsCloneOpts *git.CloneOptions
+		GsCloneOpts  *git.CloneOptions
+		Timeout      time.Duration
 	}
 )
 
@@ -240,7 +241,8 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 
 func NewGitSourceEditCommand() *cobra.Command {
 	var (
-		cloneOpts *git.CloneOptions
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -260,11 +262,12 @@ func NewGitSourceEditCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			if cloneOpts.Repo == "" {
+			if  gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			cloneOpts.Parse()
+			insCloneOpts.Parse()
+			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -273,12 +276,17 @@ func NewGitSourceEditCommand() *cobra.Command {
 				RuntimeName: args[0],
 				GsName:      args[1],
 				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
-				CloneOpts:   cloneOpts,
+				InsCloneOpts:   insCloneOpts,
+				GsCloneOpts: gsCloneOpts,
 			})
 		},
 	}
 
-	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		FS: memfs.New(),
+	})
+
+	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		FS: memfs.New(),
 	})
 
@@ -286,19 +294,21 @@ func NewGitSourceEditCommand() *cobra.Command {
 }
 
 func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
-	gsRepo, gsFs, err := opts.CloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
+	// gsRepo, gsFs, err := opts.CloneOpts.GetRepo(ctx)
+	// if err != nil {
+	// 	return err
+	// }
 
-	fi, err := gsFs.ReadDir(".")
+	// fi, err := gsFs.ReadDir(".")
 
-	if err != nil {
-		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
-	}
+	// if err != nil {
+	// 	return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+	// }
 
-	fmt.Println((gsRepo))
-	fmt.Println((fi))
+
+
+	fmt.Println(('a'))
+	fmt.Println(('b'))
 
 	return nil
 }
