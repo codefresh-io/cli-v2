@@ -50,10 +50,10 @@ type (
 	}
 
 	GitSourceDeleteOptions struct {
-		RuntimeName string
-		GsName      string
-		InsCloneOpts   *git.CloneOptions
-		Timeout     time.Duration
+		RuntimeName  string
+		GsName       string
+		InsCloneOpts *git.CloneOptions
+		Timeout      time.Duration
 	}
 
 	GitSourceEditOptions struct {
@@ -198,7 +198,7 @@ func RunGitSourceList(runtimeName string) error {
 
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
-		insCloneOpts *git.CloneOptions // insCloneOptions
+		insCloneOpts *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -224,10 +224,10 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunDeleteGitSource(ctx, &GitSourceDeleteOptions{
-				RuntimeName: args[0],
-				GsName:      args[1],
-				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
-				InsCloneOpts:   insCloneOpts,
+				RuntimeName:  args[0],
+				GsName:       args[1],
+				Timeout:      aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				InsCloneOpts: insCloneOpts,
 			})
 		},
 	}
@@ -299,25 +299,31 @@ func NewGitSourceEditCommand() *cobra.Command {
 func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
 	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to clone the installation repo. Err: %w", err)
+		return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
 	}
 
 	c := &application.Config{}
 
-	fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	err = fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	if err != nil {
+		return fmt.Errorf("failed to read the config.json of git-source: %s. Err: %w", opts.GsName, err)
+	}
 
 	c.SrcPath = opts.GsCloneOpts.Path()
 	c.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
 	fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	if err != nil {
+		return fmt.Errorf("failed to write the updated config.json of git-source: %s. Err: %w", opts.GsName, err)
+	}
 
 	_, err = repo.Persist(ctx, &git.PushOptions{
 		CommitMsg: "Persisted an updated git-source",
 	})
 
 	if err != nil {
-		return fmt.Errorf("Failed to persist the updated git-source. Err: %w", err)
+		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 	}
 
 	return nil
@@ -331,12 +337,12 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
-		return fmt.Errorf("Failed to read files in git-source repo. Err: %w", err)
+		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
 
 	if len(fi) == 0 {
 		if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
-			return fmt.Errorf("Failed to create demo workflowTemplate: %w", err)
+			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 		}
 
 		_, err = gsRepo.Persist(ctx, &git.PushOptions{
@@ -344,7 +350,7 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 		})
 
 		if err != nil {
-			return fmt.Errorf("Failed to push changes. Err: %w", err)
+			return fmt.Errorf("failed to push changes. Err: %w", err)
 		}
 	}
 
@@ -354,7 +360,7 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 		URL:  opts.gsCloneOpts.Repo,
 	}
 	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType, nil); err != nil {
-		return fmt.Errorf("Failed to create git-source application. Err: %w", err)
+		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
 	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.gsName)
@@ -371,7 +377,7 @@ func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error
 	})
 
 	if err != nil {
-		return fmt.Errorf("Failed to delete the git-source %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
 	}
 
 	log.G(ctx).Debug("Successfully deleted the git-source: %s", opts.GsName)
