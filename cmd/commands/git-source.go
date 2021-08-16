@@ -65,12 +65,6 @@ type (
 		GsCloneOpts  *git.CloneOptions
 		Timeout      time.Duration
 	}
-
-	GitSourceFields struct {
-		srcPath           string
-		srcRepoURL        string
-		srcTargetRevision string
-	}
 )
 
 func NewGitSourceCommand() *cobra.Command {
