@@ -161,29 +161,15 @@ func RunGitSourceList(runtimeName string) error {
 	}
 
 	for _, gs := range gitSources {
-		name := "N/A"
-		repoURL := "N/A"
-		path := "N/A"
-		healthStatus := "N/A"
-		syncStatus := "N/A"
-
-		if gs.Metadata.Name != "" {
-			name = gs.Metadata.Name
-		}
-
-		if gs.Self == nil {
-			return fmt.Errorf("failed to get the properties of the git-source. Err: %w", err)
-		}
-
-		repoURL = gs.Self.RepoURL
+		name := gs.Metadata.Name
+		repoURL := gs.Self.RepoURL
 		path := gs.Self.Path
+		healthStatus := "N/A"
+		syncStatus := gs.Self.Status.SyncStatus.String()
 
-		if gs.Self.Status == nil {
-			return nil
+		if gs.Self.Status.HealthStatus != nil {
+			healthStatus = gs.Self.Status.HealthStatus.String()
 		}
-
-		repoURL = gs.Self.Status.HealthStatus
-		repoURL = gs.Self.Status.SyncStatus
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			name,

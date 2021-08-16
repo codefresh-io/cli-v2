@@ -297,8 +297,8 @@ func RunRuntimeList() error {
 			status = *rt.Self.HealthMessage
 		}
 
-		if rt.Metadata.Namespace != "" {
-			namespace = rt.Metadata.Namespace
+		if rt.Metadata.Namespace != nil {
+			namespace = *rt.Metadata.Namespace
 		}
 
 		if rt.Cluster != nil {
