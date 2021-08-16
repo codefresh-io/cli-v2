@@ -291,24 +291,25 @@ func RunRuntimeList() error {
 		name := "N/A"
 		version := "N/A"
 
-		if rt.HealthMessage != nil {
-			status = *rt.HealthMessage
+		// make sure the go-sdk is returning the "self" reference
+		if rt.Self != nil && rt.Self.HealthMessage != nil {
+			status = *rt.Self.HealthMessage
 		}
 
 		if rt.Metadata.Namespace != "" {
 			namespace = rt.Metadata.Namespace
 		}
 
-		if rt.Cluster != "" {
-			cluster = rt.Cluster
+		if rt.Cluster != nil {
+			cluster = *rt.Cluster
 		}
 
 		if rt.Metadata.Name != "" {
 			name = rt.Metadata.Name
 		}
 
-		if rt.RuntimeVersion != "" {
-			version = rt.RuntimeVersion
+		if rt.RuntimeVersion != nil {
+			version = *rt.RuntimeVersion
 		}
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
