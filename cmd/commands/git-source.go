@@ -26,8 +26,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/juju/ansiterm"
 
-	// "io/ioutil"
-
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -54,7 +52,7 @@ type (
 	GitSourceDeleteOptions struct {
 		RuntimeName string
 		GsName      string
-		CloneOpts   *git.CloneOptions
+		InsCloneOpts   *git.CloneOptions
 		Timeout     time.Duration
 	}
 
@@ -63,7 +61,6 @@ type (
 		GsName       string
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
-		Timeout      time.Duration
 	}
 )
 
@@ -102,15 +99,15 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+				log.G(ctx).Fatal("Must enter runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("must enter git-source name")
+				log.G(ctx).Fatal("Must enter git-source name")
 			}
 
 			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+				log.G(ctx).Fatal("Must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
 			if gsCloneOpts.Auth.Password == "" {
@@ -201,7 +198,7 @@ func RunGitSourceList(runtimeName string) error {
 
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
-		cloneOpts *git.CloneOptions // insCloneOptions
+		insCloneOpts *git.CloneOptions // insCloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -214,14 +211,14 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+				log.G(ctx).Fatal("Must enter runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("must enter git-source name")
+				log.G(ctx).Fatal("Must enter git-source name")
 			}
 
-			cloneOpts.Parse()
+			insCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -230,12 +227,12 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 				RuntimeName: args[0],
 				GsName:      args[1],
 				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
-				CloneOpts:   cloneOpts,
+				InsCloneOpts:   insCloneOpts,
 			})
 		},
 	}
 
-	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		FS: memfs.New(),
 	})
 
@@ -258,15 +255,15 @@ func NewGitSourceEditCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+				log.G(ctx).Fatal("Must enter a runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("must enter git-source name")
+				log.G(ctx).Fatal("Must enter a git-source name")
 			}
 
 			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+				log.G(ctx).Fatal("Must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
 			insCloneOpts.Parse()
@@ -278,7 +275,6 @@ func NewGitSourceEditCommand() *cobra.Command {
 			return RunEditGitSource(ctx, &GitSourceEditOptions{
 				RuntimeName:  args[0],
 				GsName:       args[1],
-				Timeout:      aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 				InsCloneOpts: insCloneOpts,
 				GsCloneOpts:  gsCloneOpts,
 			})
@@ -303,11 +299,8 @@ func NewGitSourceEditCommand() *cobra.Command {
 func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
 	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+		return fmt.Errorf("Failed to clone the installation repo. Err: %w", err)
 	}
-
-	fmt.Println(('a'))
-	fmt.Println(('b'))
 
 	c := &application.Config{}
 
@@ -320,11 +313,11 @@ func RunEditGitSource(ctx context.Context, opts *GitSourceEditOptions) error {
 	fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
 
 	_, err = repo.Persist(ctx, &git.PushOptions{
-		CommitMsg: "Persisted updated git-source",
+		CommitMsg: "Persisted an updated git-source",
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to persist the updated git-source. Err: %w", err)
+		return fmt.Errorf("Failed to persist the updated git-source. Err: %w", err)
 	}
 
 	return nil
@@ -338,12 +331,12 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
-		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+		return fmt.Errorf("Failed to read files in git-source repo. Err: %w", err)
 	}
 
 	if len(fi) == 0 {
 		if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
-			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+			return fmt.Errorf("Failed to create demo workflowTemplate: %w", err)
 		}
 
 		_, err = gsRepo.Persist(ctx, &git.PushOptions{
@@ -351,7 +344,7 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 		})
 
 		if err != nil {
-			return fmt.Errorf("failed to push changes. Err: %w", err)
+			return fmt.Errorf("Failed to push changes. Err: %w", err)
 		}
 	}
 
@@ -361,27 +354,27 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 		URL:  opts.gsCloneOpts.Repo,
 	}
 	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType, nil); err != nil {
-		return fmt.Errorf("failed to create git-source application. Err: %w", err)
+		return fmt.Errorf("Failed to create git-source application. Err: %w", err)
 	}
 
-	log.G(ctx).Infof("done creating a new git-source: '%s'", opts.gsName)
+	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.gsName)
 
 	return nil
 }
 
 func RunDeleteGitSource(ctx context.Context, opts *GitSourceDeleteOptions) error {
 	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
-		CloneOpts:   opts.CloneOpts,
+		CloneOpts:   opts.InsCloneOpts,
 		ProjectName: opts.RuntimeName,
 		AppName:     opts.GsName,
 		Global:      false,
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to delete git-source %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("Failed to delete the git-source %s. Err: %w", opts.GsName, err)
 	}
 
-	log.G(ctx).Debug("successfully deleted git-source: %s", opts.GsName)
+	log.G(ctx).Debug("Successfully deleted the git-source: %s", opts.GsName)
 
 	return nil
 }
