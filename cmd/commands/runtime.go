@@ -125,7 +125,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			insCloneOpts.Parse()
 			if gsCloneOpts.Repo == "" {
 				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/workflows"
+				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources"
 			}
 
 			gsCloneOpts.Parse()
@@ -293,13 +293,12 @@ func RunRuntimeList() error {
 		name := "N/A"
 		version := "N/A"
 
-		// make sure the go-sdk is returning the "self" reference
 		if rt.Self != nil && rt.Self.HealthMessage != nil {
 			status = *rt.Self.HealthMessage
 		}
 
-		if rt.Metadata.Namespace != "" {
-			namespace = rt.Metadata.Namespace
+		if rt.Metadata.Namespace != nil {
+			namespace = *rt.Metadata.Namespace
 		}
 
 		if rt.Cluster != nil {

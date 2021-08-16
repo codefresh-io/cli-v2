@@ -17,12 +17,14 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/juju/ansiterm"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -66,6 +68,7 @@ func NewGitSourceCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewGitSourceCreateCommand())
+	cmd.AddCommand(NewGitSourceListCommand())
 	cmd.AddCommand(NewGitSourceDeleteCommand())
 
 	return cmd
@@ -132,6 +135,58 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	return cmd
 }
 
+func NewGitSourceListCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list runtime_name",
+		Short:   "List all Codefresh git-sources of a given runtime",
+		Example: util.Doc(`<BIN> git-source list my-runtime`),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return RunGitSourceList(args[0])
+		},
+	}
+	return cmd
+}
+
+func RunGitSourceList(runtimeName string) error {
+	gitSources, err := cfConfig.NewClient().GitSource().List(runtimeName)
+
+	if err != nil {
+		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
+	}
+
+	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	_, err = fmt.Fprintln(tb, "NAME\tREPOURL\tPATH\tHEALTH-STATUS\tSYNC-STATUS")
+	if err != nil {
+		return fmt.Errorf("failed to print git-source list table headers. Err: %w", err)
+	}
+
+	for _, gs := range gitSources {
+		name := gs.Metadata.Name
+		repoURL := gs.Self.RepoURL
+		path := gs.Self.Path
+		healthStatus := "N/A"
+		syncStatus := gs.Self.Status.SyncStatus.String()
+
+		if gs.Self.Status.HealthStatus != nil {
+			healthStatus = gs.Self.Status.HealthStatus.String()
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+			name,
+			repoURL,
+			path,
+			healthStatus,
+			syncStatus,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return tb.Flush()
+}
+
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
 		cloneOpts *git.CloneOptions
@@ -182,7 +237,6 @@ func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	fi, err := gsFs.ReadDir(".")
-
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
