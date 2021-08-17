@@ -293,7 +293,7 @@ func RunRuntimeList() error {
 		name := "N/A"
 		version := "N/A"
 
-		if rt.Self != nil && rt.Self.HealthMessage != nil {
+		if rt.Self.HealthMessage != nil {
 			status = *rt.Self.HealthMessage
 		}
 
