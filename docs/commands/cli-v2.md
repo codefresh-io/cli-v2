@@ -31,6 +31,7 @@ cli-v2 [flags]
 
 ### SEE ALSO
 
+* [cli-v2 component](cli-v2_component.md)	 - Manage components of Codefresh runtimes
 * [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 * [cli-v2 git-source](cli-v2_git-source.md)	 - Manage git-sources of Codefresh runtimes
 * [cli-v2 runtime](cli-v2_runtime.md)	 - Manage Codefresh runtimes
