@@ -201,7 +201,7 @@ func NewGitSourceListCommand() *cobra.Command {
 }
 
 func RunGitSourceList(ctx context.Context, runtimeName string) error {
-	gitSources, err := cfConfig.NewClient().GitSource().List(ctx, runtimeName)
+	gitSources, err := cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
 	}

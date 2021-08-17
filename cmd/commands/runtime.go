@@ -194,7 +194,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if rt.Spec.Version != nil { // in dev mode
 		runtimeVersion = rt.Spec.Version.String()
 	}
-	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(ctx, opts.RuntimeName, server, runtimeVersion)
+
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
@@ -275,7 +276,7 @@ func NewRuntimeListCommand() *cobra.Command {
 }
 
 func RunRuntimeList(ctx context.Context) error {
-	runtimes, err := cfConfig.NewClient().ArgoRuntime().List(ctx)
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return err
 	}

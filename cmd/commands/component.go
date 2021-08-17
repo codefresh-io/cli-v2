@@ -67,7 +67,7 @@ func NewComponentListCommand() *cobra.Command {
 }
 
 func RunComponentList(ctx context.Context, runtimeName string) error {
-	components, err := cfConfig.NewClient().Component().List(ctx, runtimeName)
+	components, err := cfConfig.NewClient().V2().Component().List(ctx, runtimeName)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func RunComponentList(ctx context.Context, runtimeName string) error {
 		name := c.Metadata.Name
 		healthStatus := "N/A"
 		syncStatus := c.Self.Status.SyncStatus.String()
-		version := "1.2.3"
+		version := c.Version
 
 		if c.Self.Status.HealthStatus != nil {
 			healthStatus = c.Self.Status.HealthStatus.String()
