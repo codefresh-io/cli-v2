@@ -52,10 +52,8 @@ func NewComponentListCommand() *cobra.Command {
 			<BIN> component list runtime_name
 		`),
 		PreRun: func(cmd *cobra.Command, args []string) {
-			ctx := cmd.Context()
-
 			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+				log.G(cmd.Context()).Fatal("must enter runtime name")
 			}
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -75,7 +73,7 @@ func RunComponentList(ctx context.Context, runtimeName string) error {
 	}
 
 	if len(components) == 0 {
-		log.G(ctx).Warn("no components were found in runtime")
+		log.G(ctx).WithField("runtime", runtimeName).Warn("no components were found in runtime")
 		return nil
 	}
 
