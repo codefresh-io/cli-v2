@@ -140,6 +140,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
+			if !IsLower(args[0]) {
+				log.G(ctx).Fatal("git-source name cannot have any uppercase letters")
+			}
+
 			if versionStr != "" {
 				version, err = semver.NewVersion(versionStr)
 				if err != nil {

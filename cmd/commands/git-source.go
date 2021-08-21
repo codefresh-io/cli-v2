@@ -427,12 +427,3 @@ func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
 
 	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
 }
-
-func IsLower(s string) bool {
-	for _, r := range s {
-		if !unicode.IsLower(r) && unicode.IsLetter(r) {
-			return false
-		}
-	}
-	return true
-}

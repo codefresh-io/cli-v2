@@ -16,6 +16,7 @@ package commands
 
 import (
 	"os"
+	"unicode"
 
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -48,4 +49,13 @@ func presetRequiredFlags(cmd *cobra.Command) {
 		}
 	})
 	cmd.Flags().SortFlags = false
+}
+
+func IsLower(s string) bool { //
+	for _, r := range s {
+		if !unicode.IsLower(r) && unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
 }
