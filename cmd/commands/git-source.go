@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"unicode"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
@@ -108,6 +109,10 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			if gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+			}
+
+			if !IsLower(args[1]) {
+				log.G(ctx).Fatal("git-source name cannot have any uppercase letters")
 			}
 
 			if gsCloneOpts.Auth.Password == "" {
@@ -421,4 +426,13 @@ func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
 	}
 
 	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
+}
+
+func IsLower(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLower(r) && unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
 }
