@@ -140,7 +140,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			isValid, err := IsValid(args[1])
+			isValid, err := IsValid(args[0])
 			if err != nil {
 				log.G(ctx).Fatal("failed to check the validity of the runtime name")
 			}
