@@ -110,6 +110,15 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
+			isValid, err := IsValid(args[1])
+			if err != nil {
+				log.G(ctx).Fatal("failed to check the validity of the git-source name")
+			}
+
+			if !isValid {
+				log.G(ctx).Fatal("git-source name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+			}
+
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}

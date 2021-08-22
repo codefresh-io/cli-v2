@@ -16,6 +16,7 @@ package commands
 
 import (
 	"os"
+	"regexp"
 
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -48,4 +49,8 @@ func presetRequiredFlags(cmd *cobra.Command) {
 		}
 	})
 	cmd.Flags().SortFlags = false
+}
+
+func IsValid(s string) (bool, error) {
+	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }

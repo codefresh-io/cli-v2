@@ -140,6 +140,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
+			isValid, err := IsValid(args[1])
+			if err != nil {
+				log.G(ctx).Fatal("failed to check the validity of the runtime name")
+			}
+
+			if !isValid {
+				log.G(ctx).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+			}
+
 			if versionStr != "" {
 				version, err = semver.NewVersion(versionStr)
 				if err != nil {
