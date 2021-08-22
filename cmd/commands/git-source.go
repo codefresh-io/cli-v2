@@ -120,20 +120,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			insCloneOpts.Parse()
 			gsCloneOpts.Parse()
-
-			// _, insFs, err := insCloneOpts.GetRepo(ctx) // TODO: move to Run
-			// if err != nil {
-			// 	log.G(ctx).Fatal("") // TODO:
-			// }
-
-			// fi, err := insFs.ReadDir(".")
-			// if err != nil {
-			// 	log.G(ctx).Fatal("") // TODO:
-			// }
-
-			// if len(fi) == 0 {
-			// 	log.G(ctx).Fatal("") // TODO:
-			// }
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
