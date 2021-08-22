@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"unicode"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
@@ -111,8 +110,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			if !IsLower(args[1]) {
-				log.G(ctx).Fatal("git-source name cannot have any uppercase letters")
+			if !IsValid(args[1]) { //
+				log.G(ctx).Fatal("git-source name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
 			}
 
 			if gsCloneOpts.Auth.Password == "" {
@@ -121,6 +120,20 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			insCloneOpts.Parse()
 			gsCloneOpts.Parse()
+
+			// _, insFs, err := insCloneOpts.GetRepo(ctx) // TODO: move to Run
+			// if err != nil {
+			// 	log.G(ctx).Fatal("") // TODO:
+			// }
+
+			// fi, err := insFs.ReadDir(".")
+			// if err != nil {
+			// 	log.G(ctx).Fatal("") // TODO:
+			// }
+
+			// if len(fi) == 0 {
+			// 	log.G(ctx).Fatal("") // TODO:
+			// }
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

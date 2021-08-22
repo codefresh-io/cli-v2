@@ -16,7 +16,7 @@ package commands
 
 import (
 	"os"
-	"unicode"
+	"regexp"
 
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -51,11 +51,7 @@ func presetRequiredFlags(cmd *cobra.Command) {
 	cmd.Flags().SortFlags = false
 }
 
-func IsLower(s string) bool { //
-	for _, r := range s {
-		if !unicode.IsLower(r) && unicode.IsLetter(r) {
-			return false
-		}
-	}
-	return true
+func IsValid(s string) bool { 
+	matched, _ := regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, "seafood")
+	return matched
 }
