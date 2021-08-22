@@ -140,8 +140,13 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			if !IsValid(args[0]) {
-				log.G(ctx).Fatal("git-source name cannot have any uppercase letters")
+			isValid, err := IsValid(args[1])
+			if err != nil {
+				log.G(ctx).Fatal("failed to check the validity of the runtime name")
+			}
+
+			if !isValid {
+				log.G(ctx).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
 			}
 
 			if versionStr != "" {
