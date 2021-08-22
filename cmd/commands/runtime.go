@@ -260,7 +260,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
-	if err = RunCreateGitSource(ctx, &GitSourceCreateOptions{
+	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		insCloneOpts: opts.insCloneOpts,
 		gsCloneOpts: &git.CloneOptions{
 			Repo: store.Get().MarketplaceRepo,

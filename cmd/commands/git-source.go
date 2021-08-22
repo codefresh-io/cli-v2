@@ -292,33 +292,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	return cmd
 }
 
-func RunCreateGitSource(ctx context.Context, opts *GitSourceCreateOptions) error {
-	if opts.createDemoWorkflowTemplate {
 
-		gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
-		if err != nil {
-			return err
-		}
-
-		fi, err := gsFs.ReadDir(".")
-
-		if err != nil {
-			return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
-		}
-
-		if len(fi) == 0 {
-			if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
-				return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
-			}
-
-			_, err = gsRepo.Persist(ctx, &git.PushOptions{
-				CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
-			})
-
-			if err != nil {
-				return fmt.Errorf("failed to push changes. Err: %w", err)
-			}
-		}
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
 	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
 		CloneOpts:   opts.InsCloneOpts,
