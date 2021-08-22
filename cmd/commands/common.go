@@ -51,7 +51,7 @@ func presetRequiredFlags(cmd *cobra.Command) {
 	cmd.Flags().SortFlags = false
 }
 
-func IsValid(s string) bool { 
-	matched, _ := regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, "seafood")
+func IsValid(s string) bool {
+	matched, _ := regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 	return matched
 }
