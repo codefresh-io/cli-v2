@@ -97,7 +97,7 @@ func init() {
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
 	s.EventBusName = "codefresh-eventbus"
-	s.EventReportingEndpoint = "/argo/api/events"
+	s.EventReportingEndpoint = "/2.0/api/events"
 	s.GitSourceName = "default-git-source"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)

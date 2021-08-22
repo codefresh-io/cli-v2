@@ -125,7 +125,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			insCloneOpts.Parse()
 			if gsCloneOpts.Repo == "" {
 				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/workflows"
+				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources"
 			}
 
 			gsCloneOpts.Parse()
@@ -194,7 +194,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if rt.Spec.Version != nil { // in dev mode
 		runtimeVersion = rt.Spec.Version.String()
 	}
-	runtimeCreationResponse, err := cfConfig.NewClient().ArgoRuntime().Create(opts.RuntimeName, server, runtimeVersion)
+
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
@@ -224,15 +225,17 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 
+	// persists codefresh-cm, this must be created before events-reporter eventsource
+	// otherwise it will not start and no events will get to the platform.
+	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
+		return fmt.Errorf("failed to create codefresh-cm: %w", err)
+	}
+
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
 		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType, rt.Spec.Version); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
-	}
-
-	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
-		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
 	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
@@ -246,7 +249,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gsPath := opts.gsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
 	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
 
-	if err = RunCreateGitSource(ctx, &GitSourceCreateOptions{
+	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		insCloneOpts: opts.insCloneOpts,
 		gsCloneOpts:  opts.gsCloneOpts,
 		gsName:       store.Get().GitSourceName,
@@ -279,17 +282,22 @@ func NewRuntimeListCommand() *cobra.Command {
 		Use:     "list [runtime_name]",
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return RunRuntimeList()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return RunRuntimeList(cmd.Context())
 		},
 	}
 	return cmd
 }
 
-func RunRuntimeList() error {
-	runtimes, err := cfConfig.NewClient().ArgoRuntime().List()
+func RunRuntimeList(ctx context.Context) error {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return err
+	}
+
+	if len(runtimes) == 0 {
+		log.G(ctx).Info("no runtimes were found")
+		return nil
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
@@ -305,24 +313,24 @@ func RunRuntimeList() error {
 		name := "N/A"
 		version := "N/A"
 
-		if rt.HealthMessage != nil {
-			status = *rt.HealthMessage
+		if rt.Self.HealthMessage != nil {
+			status = *rt.Self.HealthMessage
 		}
 
-		if rt.Metadata.Namespace != "" {
-			namespace = rt.Metadata.Namespace
+		if rt.Metadata.Namespace != nil {
+			namespace = *rt.Metadata.Namespace
 		}
 
-		if rt.Cluster != "" {
-			cluster = rt.Cluster
+		if rt.Cluster != nil {
+			cluster = *rt.Cluster
 		}
 
 		if rt.Metadata.Name != "" {
 			name = rt.Metadata.Name
 		}
 
-		if rt.RuntimeVersion != "" {
-			version = rt.RuntimeVersion
+		if rt.RuntimeVersion != nil {
+			version = *rt.RuntimeVersion
 		}
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",

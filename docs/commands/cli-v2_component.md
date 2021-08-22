@@ -1,15 +1,15 @@
-## cli-v2 git-source
+## cli-v2 component
 
-Manage git-sources of Codefresh runtimes
+Manage components of Codefresh runtimes
 
 ```
-cli-v2 git-source [flags]
+cli-v2 component [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for git-source
+  -h, --help   help for component
 ```
 
 ### Options inherited from parent commands
@@ -24,8 +24,5 @@ cli-v2 git-source [flags]
 ### SEE ALSO
 
 * [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
-* [cli-v2 git-source create](cli-v2_git-source_create.md)	 - add a new git-source to an existing runtime
-* [cli-v2 git-source delete](cli-v2_git-source_delete.md)	 - delete a git-source from a runtime
-* [cli-v2 git-source edit](cli-v2_git-source_edit.md)	 - edit a git-source of a runtime
-* [cli-v2 git-source list](cli-v2_git-source_list.md)	 - List all Codefresh git-sources of a given runtime
+* [cli-v2 component list](cli-v2_component_list.md)	 - List all the components under a specific runtime
 
