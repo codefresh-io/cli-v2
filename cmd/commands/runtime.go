@@ -406,13 +406,8 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	// 	return fmt.Errorf("failed uninstalling runtime: %w", err)
 	// }
 
-	server, err := util.CurrentServer()
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
-
 	// TODO:
-	err = cfConfig.NewClient().V2().Runtime().Uninstall(ctx, opts.RuntimeName, server)
+	err := cfConfig.NewClient().V2().Runtime().Uninstall(ctx, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to uninstall runtime: %w", err)
 	}
