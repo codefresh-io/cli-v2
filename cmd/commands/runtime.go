@@ -395,15 +395,26 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	log.G(ctx).Infof("uninstalling runtime '%s'", opts.RuntimeName)
-	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-		Namespace:    opts.RuntimeName,
-		Timeout:      opts.Timeout,
-		CloneOptions: opts.CloneOpts,
-		KubeFactory:  opts.KubeFactory,
-	})
+	// log.G(ctx).Infof("uninstalling runtime '%s'", opts.RuntimeName)
+	// err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+	// 	Namespace:    opts.RuntimeName,
+	// 	Timeout:      opts.Timeout,
+	// 	CloneOptions: opts.CloneOpts,
+	// 	KubeFactory:  opts.KubeFactory,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("failed uninstalling runtime: %w", err)
+	// }
+
+	server, err := util.CurrentServer()
 	if err != nil {
-		return fmt.Errorf("failed uninstalling runtime: %w", err)
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+
+	// TODO:
+	err = cfConfig.NewClient().V2().Runtime().Uninstall(ctx, opts.RuntimeName, server)
+	if err != nil {
+		return fmt.Errorf("failed to uninstall runtime: %w", err)
 	}
 
 	log.G(ctx).Infof("done uninstalling runtime '%s'", opts.RuntimeName)
