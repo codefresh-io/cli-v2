@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -26,6 +27,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
@@ -188,7 +190,61 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
+// func waitingForInstallCompletion(ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
+// 	defer wg.Done()
+
+// 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	var wg sync.WaitGroup
+
+// 	interval := time.Duration(100000) * time.Millisecond
+// 	ticker := time.NewTicker(interval)
+// 	clear := make(chan bool)
+
+// }
+
+func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, async bool, ctx context.Context, runtimeName string, wg *sync.WaitGroup) chan bool {
+	interval := time.Duration(milliseconds) * time.Millisecond
+
+	ticker := time.NewTicker(interval)
+	clear := make(chan bool)
+
+	for {
+		select {
+		case <-ticker.C:
+
+			runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+			if err != nil {
+				fmt.Errorf("failed to list runtimes")
+			}
+
+			for _, rt := range runtimes {
+				if rt.Metadata.Name == runtimeName {
+					wg.Done()
+				}
+			}
+
+		case <-clear:
+			ticker.Stop()
+			return nil
+		}
+	}
+}
+
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, rt := range runtimes {
+		if rt.Metadata.Name == opts.RuntimeName {
+			return fmt.Errorf("failed to create runtime: %s. A runtime by this name already exists", opts.RuntimeName)
+		}
+	}
+
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -257,6 +313,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
+
+	// TODO: wait until visible
+	// after every 9 seconds, 8, 7...
+
+	var wg sync.WaitGroup
+	
+	wg.Add(1)
+	intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 10000, false, ctx, opts.RuntimeName, &wg)
+	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
 	return nil
