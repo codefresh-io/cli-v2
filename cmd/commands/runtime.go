@@ -208,9 +208,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, async bool, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
-	retries := 10
+	var err error
 
-	for {
+	for retries := 10; retries > 0; retries-- {
 		select {
 		case <-ticker.C:
 			fmt.Println("waiting for the runtime installation to complete...")
@@ -225,12 +225,10 @@ func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model
 					ticker.Stop()
 				}
 			}
-
-			if retries == 0 {
-				panic(fmt.Errorf("failed to complete the runtime installation. Error: %w", err))
-			}
 		}
 	}
+
+	panic(fmt.Errorf("failed to complete the runtime installation. Error: %w", err))
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
