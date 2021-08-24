@@ -69,6 +69,8 @@ type Store struct {
 	RuntimeFilename        string
 	Version                Version
 	WaitTimeout            time.Duration
+	Cluster                string
+	RuntimeVersion         string
 }
 
 // Get returns the global store
@@ -101,6 +103,8 @@ func init() {
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
 	s.WaitTimeout = 8 * time.Minute
+	s.Cluster = "cluster"
+	s.RuntimeVersion = "runtimeVersion"
 	initVersion()
 }
 

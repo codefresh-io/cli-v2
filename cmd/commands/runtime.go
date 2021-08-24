@@ -194,23 +194,22 @@ func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
 
-	for retries := 10; retries > 0; retries-- {
-		select {
-		case <-ticker.C:
-			fmt.Println("waiting for the runtime installation to complete...")
-			runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-			if retries == 1 && err != nil {
-				panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
-			}
+	for retries := 10; retries > 0; <-ticker.C {
+		fmt.Println("waiting for the runtime installation to complete...")
+		runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+		if retries == 1 && err != nil {
+			panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
+		}
 
-			for _, rt := range runtimes {
-				if rt.Metadata.Name == runtimeName {
-					wg.Done()
-					ticker.Stop()
-					return
-				}
+		for _, rt := range runtimes {
+			if rt.Metadata.Name == runtimeName {
+				wg.Done()
+				ticker.Stop()
+				return
 			}
 		}
+
+		retries--
 	}
 
 	panic(fmt.Errorf("failed to complete the runtime installation"))
@@ -252,11 +251,23 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
 
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
+	}
+
+	server, err := util.CurrentServer()
+	if err != nil {
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
 		CloneOpts:   opts.insCloneOpts,
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
+			store.Get().Cluster:        server,
+			store.Get().RuntimeVersion: runtimeVersion,
 		},
 	})
 	if err != nil {

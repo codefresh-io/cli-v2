@@ -17,7 +17,6 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
-	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
@@ -31,6 +30,7 @@ require (
 
 replace (
 	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
+	github.com/argoproj-labs/argocd-autopilot => /Users/elad-codefresh/work/argocd-autopilot
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
 	github.com/codefresh-io/go-sdk => /Users/elad-codefresh/work/go-sdk
