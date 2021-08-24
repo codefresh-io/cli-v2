@@ -205,16 +205,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 // }
 
-func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, async bool, ctx context.Context, runtimeName string, wg *sync.WaitGroup) chan bool {
+func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, async bool, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
 	interval := time.Duration(milliseconds) * time.Millisecond
-
 	ticker := time.NewTicker(interval)
-	clear := make(chan bool)
 
 	for {
 		select {
 		case <-ticker.C:
-
+			fmt.Println("waiting for runtime to reach the db...")
 			runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 			if err != nil {
 				fmt.Errorf("failed to list runtimes")
@@ -223,12 +221,9 @@ func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model
 			for _, rt := range runtimes {
 				if rt.Metadata.Name == runtimeName {
 					wg.Done()
+					ticker.Stop()
 				}
 			}
-
-		case <-clear:
-			ticker.Stop()
-			return nil
 		}
 	}
 }
@@ -318,9 +313,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	// after every 9 seconds, 8, 7...
 
 	var wg sync.WaitGroup
-	
+
 	wg.Add(1)
-	intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 10000, false, ctx, opts.RuntimeName, &wg)
+	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 10000, false, ctx, opts.RuntimeName, &wg)
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
