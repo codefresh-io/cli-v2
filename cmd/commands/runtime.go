@@ -208,27 +208,27 @@ func NewRuntimeInstallCommand() *cobra.Command {
 func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, async bool, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
-	var err error
 
 	for retries := 10; retries > 0; retries-- {
 		select {
 		case <-ticker.C:
 			fmt.Println("waiting for the runtime installation to complete...")
 			runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-			if err != nil {
-				retries--
+			if retries == 1 && err != nil {
+				panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
 			}
 
 			for _, rt := range runtimes {
 				if rt.Metadata.Name == runtimeName {
 					wg.Done()
 					ticker.Stop()
+					return
 				}
 			}
 		}
 	}
 
-	panic(fmt.Errorf("failed to complete the runtime installation. Error: %w", err))
+	panic(fmt.Errorf("failed to complete the runtime installation"))
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
