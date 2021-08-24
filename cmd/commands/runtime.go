@@ -190,22 +190,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
-// func waitingForInstallCompletion(ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
-// 	defer wg.Done()
-
-// 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	var wg sync.WaitGroup
-
-// 	interval := time.Duration(100000) * time.Millisecond
-// 	ticker := time.NewTicker(interval)
-// 	clear := make(chan bool)
-
-// }
-
-func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, async bool, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
+func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
 
@@ -315,7 +300,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 10000, false, ctx, opts.RuntimeName, &wg)
+	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 10000, ctx, opts.RuntimeName, &wg)
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
