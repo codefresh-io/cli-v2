@@ -309,9 +309,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
-	// TODO: wait until visible
-	// after every 9 seconds, 8, 7...
-
 	var wg sync.WaitGroup
 
 	wg.Add(1)
