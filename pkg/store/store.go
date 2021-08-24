@@ -69,8 +69,8 @@ type Store struct {
 	RuntimeFilename        string
 	Version                Version
 	WaitTimeout            time.Duration
-	Cluster                string
-	RuntimeVersion         string
+	LabelKeyCluster                string
+	LabelKeyRuntimeVersion         string
 }
 
 // Get returns the global store
@@ -99,12 +99,12 @@ func init() {
 	s.EventReportingEndpoint = "/2.0/api/events"
 	s.GitSourceName = "default-git-source"
 	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelKeyCluster = "codefresh.io/cluster"
+	s.LabelKeyRuntimeVersion = "codefresh.io/runtimeVersion"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
 	s.WaitTimeout = 8 * time.Minute
-	s.Cluster = "cluster"
-	s.RuntimeVersion = "runtimeVersion"
 	initVersion()
 }
 

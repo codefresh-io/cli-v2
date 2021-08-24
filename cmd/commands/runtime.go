@@ -251,23 +251,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
 
-	runtimeVersion := "v99.99.99"
-	if rt.Spec.Version != nil { // in dev mode
-		runtimeVersion = rt.Spec.Version.String()
-	}
-
-	server, err := util.CurrentServer()
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
-
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
 		CloneOpts:   opts.insCloneOpts,
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
-			store.Get().Cluster:        server,
-			store.Get().RuntimeVersion: runtimeVersion,
 		},
 	})
 	if err != nil {
@@ -287,7 +275,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
+	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
@@ -311,7 +299,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 10000, ctx, opts.RuntimeName, &wg)
+	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 20000, ctx, opts.RuntimeName, &wg)
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
@@ -577,7 +565,7 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return err
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -607,7 +595,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := updateProject(repofs, opts.RuntimeName); err != nil {
+	if err := updateProject(repofs, opts.RuntimeName, rt); err != nil {
 		return err
 	}
 
@@ -659,7 +647,10 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 	return err
 }
 
-func updateProject(repofs fs.FS, runtimeName string) error {
+func updateProject(repofs fs.FS, runtimeName string, rt *runtime.Runtime) error {
+
+	// TODO: might not need a runtimeName separately if have rt
+
 	projPath := repofs.Join(apstore.Default.ProjectsDir, runtimeName+".yaml")
 	project, appset, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
@@ -670,7 +661,20 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
+	}
+
+	server, err := util.CurrentServer()
+	if err != nil {
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
+	project.ObjectMeta.Labels[store.Get().LabelKeyCluster] = server
+	project.ObjectMeta.Labels[store.Get().LabelKeyRuntimeVersion] = runtimeVersion
+
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
