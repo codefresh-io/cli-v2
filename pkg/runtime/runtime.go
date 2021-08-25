@@ -54,6 +54,7 @@ type (
 		Version            *semver.Version `json:"version"`
 		BootstrapSpecifier string          `json:"bootstrapSpecifier"`
 		Components         []AppDef        `json:"components"`
+		Cluster            string          `json:"cluster"`
 	}
 
 	CommonConfig struct {

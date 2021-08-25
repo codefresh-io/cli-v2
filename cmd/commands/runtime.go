@@ -239,6 +239,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 
+	server, err := util.CurrentServer()
+	if err != nil {
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+	rt.Spec.Cluster = server
+
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: rt.Spec.FullSpecifier(),
@@ -299,6 +305,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
+	// why are some functinos with uppercase and some not
 	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 20000, ctx, opts.RuntimeName, &wg)
 	wg.Wait()
 
@@ -666,13 +673,7 @@ func updateProject(repofs fs.FS, runtimeName string, rt *runtime.Runtime) error 
 		runtimeVersion = rt.Spec.Version.String()
 	}
 
-	server, err := util.CurrentServer()
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
-
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
-	project.ObjectMeta.Labels[store.Get().LabelKeyCluster] = server
 	project.ObjectMeta.Labels[store.Get().LabelKeyRuntimeVersion] = runtimeVersion
 
 	return repofs.WriteYamls(projPath, project, appset)
