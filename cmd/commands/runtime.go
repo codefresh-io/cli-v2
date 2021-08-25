@@ -45,6 +45,7 @@ import (
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -191,15 +192,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, rt := range runtimes {
-		if rt.Metadata.Name == opts.RuntimeName {
-			return fmt.Errorf("failed to create runtime: %s. A runtime by this name already exists", opts.RuntimeName)
-		}
+	if err := preInstallationChecks(ctx, opts); err != nil {
+		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
@@ -287,6 +281,75 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
+	return nil
+}
+
+func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Debug("running pre-installation checks...")
+
+	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
+		return fmt.Errorf("runtime collision check failed: %w", err)
+	}
+
+	if err := checkExistingRuntimes(ctx, opts.RuntimeName); err != nil {
+		return fmt.Errorf("existing runtime check failed: %w", err)
+	}
+
+	return nil
+}
+
+func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Factory) error {
+	log.G(ctx).Debug("checking for argocd collisions in cluster")
+
+	cs, err := kube.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("failed to build kubernetes clientset: %w", err)
+	}
+
+	crb, err := cs.RbacV1().ClusterRoleBindings().Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil // no collision
+		}
+
+		return fmt.Errorf("failed to get cluster-role-binding '%s': %w", store.Get().ArgoCDServerName, err)
+	}
+
+	log.G(ctx).Debug("argocd cluster-role-binding found")
+
+	if len(crb.Subjects) == 0 {
+		return nil // no collision
+	}
+
+	subjNamespace := crb.Subjects[0].Namespace
+
+	// check if some argocd is actually using this crb
+	_, err = cs.AppsV1().Deployments(subjNamespace).Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			log.G(ctx).Debug("argocd cluster-role-binding subject does not exist, no collision")
+
+			return nil // no collision
+		}
+
+		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
+	}
+
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you need to uninstall it first", subjNamespace)
+}
+
+func checkExistingRuntimes(ctx context.Context, runtime string) error {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list runtimes: %w", err)
+	}
+
+	for _, rt := range runtimes {
+		if rt.Metadata.Name == runtime {
+			return fmt.Errorf("runtime '%s' already exists", runtime)
+		}
+	}
+
 	return nil
 }
 
