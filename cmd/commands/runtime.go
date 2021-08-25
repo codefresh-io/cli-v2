@@ -252,6 +252,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
 		Insecure:     opts.Insecure,
+		ArgoCDLabels: map[string]string{
+			store.Get().LabelKeyCFType: store.Get().CFComponentType,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
