@@ -15,6 +15,7 @@
 package commands
 
 import (
+	_ "embed"
 	"os"
 	"regexp"
 
@@ -29,6 +30,9 @@ import (
 var (
 	die  = util.Die
 	exit = os.Exit
+
+	//go:embed assets/ingress-patch.json
+	ingressPatch []byte
 
 	cfConfig *config.Config
 )
