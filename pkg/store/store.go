@@ -69,6 +69,7 @@ type Store struct {
 	RuntimeFilename        string
 	Version                Version
 	WaitTimeout            time.Duration
+	LabelKeyRuntimeVersion string
 }
 
 // Get returns the global store
@@ -97,6 +98,7 @@ func init() {
 	s.EventReportingEndpoint = "/2.0/api/events"
 	s.GitSourceName = "default-git-source"
 	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelKeyRuntimeVersion = "codefresh.io/runtimeVersion"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -26,6 +27,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
@@ -189,27 +191,34 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, rt := range runtimes {
+		if rt.Metadata.Name == opts.RuntimeName {
+			return fmt.Errorf("failed to create runtime: %s. A runtime by this name already exists", opts.RuntimeName)
+		}
+	}
+
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	server, err := util.CurrentServer()
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
-
-	runtimeVersion := "v99.99.99"
-	if rt.Spec.Version != nil { // in dev mode
-		runtimeVersion = rt.Spec.Version.String()
-	}
-
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion)
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
+
+	server, err := util.CurrentServer()
+	if err != nil {
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+	rt.Spec.Cluster = server
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
@@ -250,7 +259,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
+	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
@@ -271,8 +280,41 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
+	wg.Wait()
+
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
 	return nil
+}
+
+func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
+	interval := time.Duration(milliseconds) * time.Millisecond
+	ticker := time.NewTicker(interval)
+	var err error
+
+	for retries := 20; retries > 0; <-ticker.C {
+		fmt.Println("waiting for the runtime installation to complete...")
+		var runtimes []model.Runtime
+		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+		if err != nil {
+			continue
+		}
+
+		for _, rt := range runtimes {
+			if rt.Metadata.Name == runtimeName {
+				wg.Done()
+				ticker.Stop()
+				return
+			}
+		}
+
+		retries--
+	}
+
+	panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
 }
 
 func NewRuntimeListCommand() *cobra.Command {
@@ -534,7 +576,7 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return err
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -564,7 +606,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := updateProject(repofs, opts.RuntimeName); err != nil {
+	if err := updateProject(repofs, opts.RuntimeName, rt); err != nil {
 		return err
 	}
 
@@ -616,7 +658,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 	return err
 }
 
-func updateProject(repofs fs.FS, runtimeName string) error {
+func updateProject(repofs fs.FS, runtimeName string, rt *runtime.Runtime) error {
 	projPath := repofs.Join(apstore.Default.ProjectsDir, runtimeName+".yaml")
 	project, appset, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
@@ -627,7 +669,14 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
+	}
+
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
+	project.ObjectMeta.Labels[store.Get().LabelKeyRuntimeVersion] = runtimeVersion
+
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
