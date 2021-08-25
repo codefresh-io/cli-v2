@@ -283,7 +283,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	// why are some functinos with uppercase and some not
 	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 15000, ctx, opts.RuntimeName, &wg)
 	wg.Wait()
 
@@ -658,9 +657,6 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 }
 
 func updateProject(repofs fs.FS, runtimeName string, rt *runtime.Runtime) error {
-
-	// TODO: might not need a runtimeName separately if have rt
-
 	projPath := repofs.Join(apstore.Default.ProjectsDir, runtimeName+".yaml")
 	project, appset, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
