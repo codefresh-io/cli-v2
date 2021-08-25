@@ -52,6 +52,7 @@ type Store struct {
 	CFTokenSecretKey       string
 	ArgoCDTokenSecret      string
 	ArgoCDTokenKey         string
+	ArgoCDServerName       string
 	EventsReporterName     string
 	WorkflowReporterName   string
 	CodefreshSA            string
@@ -87,6 +88,7 @@ func init() {
 	s.CodefreshCM = "codefresh-cm"
 	s.CFTokenSecretKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
+	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.EventsReporterName = "events-reporter"
 	s.WorkflowReporterName = "workflow-reporter"
