@@ -190,31 +190,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
-func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
-	interval := time.Duration(milliseconds) * time.Millisecond
-	ticker := time.NewTicker(interval)
-
-	for retries := 10; retries > 0; <-ticker.C {
-		fmt.Println("waiting for the runtime installation to complete...")
-		runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-		if retries == 1 && err != nil {
-			panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
-		}
-
-		for _, rt := range runtimes {
-			if rt.Metadata.Name == runtimeName {
-				wg.Done()
-				ticker.Stop()
-				return
-			}
-		}
-
-		retries--
-	}
-
-	panic(fmt.Errorf("failed to complete the runtime installation"))
-}
-
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
@@ -309,11 +284,36 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	wg.Add(1)
 	// why are some functinos with uppercase and some not
-	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 20000, ctx, opts.RuntimeName, &wg)
+	go intervalCheckIsRuntimePersisted(cfConfig.NewClient().V2().Runtime().List, 15000, ctx, opts.RuntimeName, &wg)
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
 	return nil
+}
+
+func intervalCheckIsRuntimePersisted(someFunc func(ctx context.Context) ([]model.Runtime, error), milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
+	interval := time.Duration(milliseconds) * time.Millisecond
+	ticker := time.NewTicker(interval)
+
+	for retries := 20; retries > 0; <-ticker.C {
+		fmt.Println("waiting for the runtime installation to complete...")
+		runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+		if retries == 1 && err != nil {
+			panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
+		}
+
+		for _, rt := range runtimes {
+			if rt.Metadata.Name == runtimeName {
+				wg.Done()
+				ticker.Stop()
+				return
+			}
+		}
+
+		retries--
+	}
+
+	panic(fmt.Errorf("failed to complete the runtime installation"))
 }
 
 func NewRuntimeListCommand() *cobra.Command {
