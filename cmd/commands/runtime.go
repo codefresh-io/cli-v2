@@ -27,6 +27,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
@@ -292,12 +293,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
+	var err error
 
 	for retries := 20; retries > 0; <-ticker.C {
 		fmt.Println("waiting for the runtime installation to complete...")
-		runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-		if retries == 1 && err != nil {
-			panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
+		var runtimes []model.Runtime
+		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+		if err != nil {
+			continue
 		}
 
 		for _, rt := range runtimes {
@@ -311,7 +314,7 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 		retries--
 	}
 
-	panic(fmt.Errorf("failed to complete the runtime installation"))
+	panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
 }
 
 func NewRuntimeListCommand() *cobra.Command {
