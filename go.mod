@@ -22,7 +22,7 @@ require (
 	github.com/bombsimon/logrusr v1.1.0 // indirect
 	github.com/briandowns/spinner v1.16.0
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/codefresh-io/go-sdk v0.32.3
+	github.com/codefresh-io/go-sdk v0.32.4
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/color v1.12.0
