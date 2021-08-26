@@ -53,6 +53,8 @@ variables in advanced to simplify the use of those commands.
 	cmd.AddCommand(NewRuntimeCommand())
 	cmd.AddCommand(NewGitSourceCommand())
 	cmd.AddCommand(NewComponentCommand())
+	cmd.AddCommand(NewWorkflowCommand())
+	cmd.AddCommand(NewPipelineCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 
