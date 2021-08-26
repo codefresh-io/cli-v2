@@ -15,7 +15,9 @@
 package commands
 
 import (
+	_ "embed"
 	"os"
+	"regexp"
 
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -28,6 +30,9 @@ import (
 var (
 	die  = util.Die
 	exit = os.Exit
+
+	//go:embed assets/ingress-patch.json
+	ingressPatch []byte
 
 	cfConfig *config.Config
 )
@@ -48,4 +53,8 @@ func presetRequiredFlags(cmd *cobra.Command) {
 		}
 	})
 	cmd.Flags().SortFlags = false
+}
+
+func IsValid(s string) (bool, error) {
+	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
