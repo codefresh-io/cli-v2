@@ -399,7 +399,7 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 		retries--
 	}
 
-	return fmt.Errorf("failed to complete the runtime installation dut to timeout. Error: %w", err)
+	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
 }
 
 func NewRuntimeListCommand() *cobra.Command {
