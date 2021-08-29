@@ -270,6 +270,8 @@ github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa/go.mod h1:z
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/codefresh-io/go-sdk v0.32.4 h1:4e05vkc8v275gR+eji32K/QfJd21zljHMjCBKeIvzVM=
 github.com/codefresh-io/go-sdk v0.32.4/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
+github.com/codefresh-io/go-sdk v0.33.0 h1:ZsiF41PKg/TdWIyXx/x+T4I9cpON3970Vyne4Mg//As=
+github.com/codefresh-io/go-sdk v0.33.0/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
 github.com/colinmarc/hdfs v1.1.4-0.20180802165501-48eb8d6c34a9/go.mod h1:0DumPviB681UcSuJErAbDIOx6SIaJWj463TymfZG02I=
 github.com/colinmarc/hdfs v1.1.4-0.20180805212432-9746310a4d31/go.mod h1:vSBumefK4HA5uiRSwNP+3ofgrEoScpCS2MMWcWXEuQ4=
 github.com/container-storage-interface/spec v1.3.0/go.mod h1:6URME8mwIBbpVyZV93Ce5St17xBiQJQY67NDsuohiy4=
