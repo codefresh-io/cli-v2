@@ -381,6 +381,7 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 	var err error
 
 	for retries := 20; retries > 0; <-ticker.C {
+		retries--
 		fmt.Println("waiting for the runtime installation to complete...")
 		var runtimes []model.Runtime
 		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
@@ -396,7 +397,6 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 			}
 		}
 
-		retries--
 	}
 
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
