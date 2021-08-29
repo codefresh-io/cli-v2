@@ -296,7 +296,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
+	err = intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
+	if err != nil {
+		return fmt.Errorf("failed to complete installation. Error: %w", err)
+	}
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
@@ -372,12 +375,13 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return nil
 }
 
-func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
+func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
 	var err error
 
 	for retries := 20; retries > 0; <-ticker.C {
+		retries--
 		fmt.Println("waiting for the runtime installation to complete...")
 		var runtimes []model.Runtime
 		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
@@ -389,14 +393,13 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 			if rt.Metadata.Name == runtimeName {
 				wg.Done()
 				ticker.Stop()
-				return
+				return nil
 			}
 		}
 
-		retries--
 	}
 
-	panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
+	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
 }
 
 func NewRuntimeListCommand() *cobra.Command {
@@ -432,7 +435,7 @@ func RunRuntimeList(ctx context.Context) error {
 		status := "N/A"
 		namespace := "N/A"
 		cluster := "N/A"
-		name := "N/A"
+		name := rt.Metadata.Name
 		version := "N/A"
 
 		if rt.Self.HealthMessage != nil {
@@ -445,10 +448,6 @@ func RunRuntimeList(ctx context.Context) error {
 
 		if rt.Cluster != nil {
 			cluster = *rt.Cluster
-		}
-
-		if rt.Metadata.Name != "" {
-			name = rt.Metadata.Name
 		}
 
 		if rt.RuntimeVersion != nil {
