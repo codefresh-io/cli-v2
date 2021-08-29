@@ -435,7 +435,7 @@ func RunRuntimeList(ctx context.Context) error {
 		status := "N/A"
 		namespace := "N/A"
 		cluster := "N/A"
-		name := "N/A"
+		name := rt.Metadata.Name
 		version := "N/A"
 
 		if rt.Self.HealthMessage != nil {
@@ -450,11 +450,7 @@ func RunRuntimeList(ctx context.Context) error {
 			cluster = *rt.Cluster
 		}
 
-		if rt.Metadata.Name != "" {
-			name = rt.Metadata.Name
-		}
-
-		if rt.Self.Version != nil {
+		if rt.RuntimeVersion != nil {
 			version = *rt.RuntimeVersion
 		}
 
