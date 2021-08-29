@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -26,8 +27,10 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
+	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
-	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -37,19 +40,28 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argowf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
+
+	"github.com/Masterminds/semver/v3"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kustid "sigs.k8s.io/kustomize/api/resid"
+	kusttypes "sigs.k8s.io/kustomize/api/types"
 )
 
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName  string
 		RuntimeToken string
+		IngressHost  string
 		Insecure     bool
 		Version      *semver.Version
 		gsCloneOpts  *git.CloneOptions
@@ -94,6 +106,7 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		ingressHost  string
 		versionStr   string
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
@@ -140,6 +153,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
+			isValid, err := IsValid(args[0])
+			if err != nil {
+				log.G(ctx).Fatal("failed to check the validity of the runtime name")
+			}
+
+			if !isValid {
+				log.G(ctx).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+			}
+
 			if versionStr != "" {
 				version, err = semver.NewVersion(versionStr)
 				if err != nil {
@@ -149,6 +171,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
 				RuntimeName:  args[0],
+				IngressHost:  ingressHost,
 				Version:      version,
 				Insecure:     true,
 				gsCloneOpts:  gsCloneOpts,
@@ -161,6 +184,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&ingressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 
@@ -180,27 +204,28 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	if err := preInstallationChecks(ctx, opts); err != nil {
+		return fmt.Errorf("pre installation checks failed: %w", err)
+	}
+
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	server, err := util.CurrentServer()
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
-
-	runtimeVersion := "v99.99.99"
-	if rt.Spec.Version != nil { // in dev mode
-		runtimeVersion = rt.Spec.Version.String()
-	}
-
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion)
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
+	server, err := util.CurrentServer()
+	if err != nil {
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+
+	rt.Spec.Cluster = server
+	rt.Spec.IngressHost = opts.IngressHost
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
@@ -209,6 +234,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		KubeFactory:  opts.KubeFactory,
 		CloneOptions: opts.insCloneOpts,
 		Insecure:     opts.Insecure,
+		ArgoCDLabels: map[string]string{
+			store.Get().LabelKeyCFType: store.Get().CFComponentType,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
@@ -233,12 +261,18 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType, rt.Spec.Version); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
 
-	if err = createEventsReporter(ctx, opts.insCloneOpts, opts); err != nil {
+	if opts.IngressHost != "" {
+		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
+			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
+		}
+	}
+
+	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
@@ -273,8 +307,110 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
+	wg.Wait()
+
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
 	return nil
+}
+
+func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Debug("running pre-installation checks...")
+
+	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
+		return fmt.Errorf("runtime collision check failed: %w", err)
+	}
+
+	if err := checkExistingRuntimes(ctx, opts.RuntimeName); err != nil {
+		return fmt.Errorf("existing runtime check failed: %w", err)
+	}
+
+	return nil
+}
+
+func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Factory) error {
+	log.G(ctx).Debug("checking for argocd collisions in cluster")
+
+	cs, err := kube.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("failed to build kubernetes clientset: %w", err)
+	}
+
+	crb, err := cs.RbacV1().ClusterRoleBindings().Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil // no collision
+		}
+
+		return fmt.Errorf("failed to get cluster-role-binding '%s': %w", store.Get().ArgoCDServerName, err)
+	}
+
+	log.G(ctx).Debug("argocd cluster-role-binding found")
+
+	if len(crb.Subjects) == 0 {
+		return nil // no collision
+	}
+
+	subjNamespace := crb.Subjects[0].Namespace
+
+	// check if some argocd is actually using this crb
+	_, err = cs.AppsV1().Deployments(subjNamespace).Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			log.G(ctx).Debug("argocd cluster-role-binding subject does not exist, no collision")
+
+			return nil // no collision
+		}
+
+		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
+	}
+
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you need to uninstall it first", subjNamespace)
+}
+
+func checkExistingRuntimes(ctx context.Context, runtime string) error {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list runtimes: %w", err)
+	}
+
+	for _, rt := range runtimes {
+		if rt.Metadata.Name == runtime {
+			return fmt.Errorf("runtime '%s' already exists", runtime)
+		}
+	}
+
+	return nil
+}
+
+func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
+	interval := time.Duration(milliseconds) * time.Millisecond
+	ticker := time.NewTicker(interval)
+	var err error
+
+	for retries := 20; retries > 0; <-ticker.C {
+		fmt.Println("waiting for the runtime installation to complete...")
+		var runtimes []model.Runtime
+		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+		if err != nil {
+			continue
+		}
+
+		for _, rt := range runtimes {
+			if rt.Metadata.Name == runtimeName {
+				wg.Done()
+				ticker.Stop()
+				return
+			}
+		}
+
+		retries--
+	}
+
+	panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
 }
 
 func NewRuntimeListCommand() *cobra.Command {
@@ -512,7 +648,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, newRt.Spec.Version); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -526,7 +662,11 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 		return err
 	}
 
-	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), rtConf); err != nil {
+	if err = rt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, rt.Name+".yaml"), rtConf); err != nil {
+		return err
+	}
+
+	if err := updateProject(fs, rt); err != nil {
 		return err
 	}
 
@@ -536,7 +676,58 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return err
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
+	r, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
+	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+		Name:        rt.Name + store.Get().IngressName,
+		Namespace:   rt.Namespace,
+		Path:        store.Get().IngressPath,
+		ServiceName: store.Get().ArgoWFServiceName,
+		ServicePort: store.Get().ArgoWFServicePort,
+	})
+	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
+		return err
+	}
+
+	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), ingressPatch, 0666); err != nil {
+		return err
+	}
+
+	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
+	if err != nil {
+		return err
+	}
+
+	kust.Resources = append(kust.Resources, "ingress.yaml")
+	kust.Patches = append(kust.Patches, kusttypes.Patch{
+		Target: &kusttypes.Selector{
+			KrmId: kusttypes.KrmId{
+				Gvk: kustid.Gvk{
+					Group:   appsv1.SchemeGroupVersion.Group,
+					Version: appsv1.SchemeGroupVersion.Version,
+					Kind:    "Deployment",
+				},
+				Name: store.Get().ArgoWFServiceName,
+			},
+		},
+		Path: "ingress-patch.json",
+	})
+	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+		return err
+	}
+
+	_, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Created Workflows Ingress",
+	})
+	return err
+}
+
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -557,16 +748,12 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, nil); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 		return err
 	}
 
 	r, repofs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
-		return err
-	}
-
-	if err := updateProject(repofs, opts.RuntimeName); err != nil {
 		return err
 	}
 
@@ -591,7 +778,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, opts.Version); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 		return err
 	}
 
@@ -618,8 +805,8 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 	return err
 }
 
-func updateProject(repofs fs.FS, runtimeName string) error {
-	projPath := repofs.Join(apstore.Default.ProjectsDir, runtimeName+".yaml")
+func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
+	projPath := repofs.Join(apstore.Default.ProjectsDir, rt.Name+".yaml")
 	project, appset, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
 		return err
@@ -629,7 +816,17 @@ func updateProject(repofs fs.FS, runtimeName string) error {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
+	}
+
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
+	project.ObjectMeta.Labels[store.Get().LabelKeyRuntimeVersion] = runtimeVersion
+	if rt.Spec.IngressHost != "" {
+		project.ObjectMeta.Labels[store.Get().LabelKeyIngressHost] = rt.Spec.IngressHost
+	}
+
 	return repofs.WriteYamls(projPath, project, appset)
 }
 
@@ -765,9 +962,9 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			"workflows": {
-				Group:     "argoproj.io",
-				Version:   "v1alpha1",
-				Resource:  "workflows",
+				Group:     argowf.Group,
+				Version:   argowf.Version,
+				Resource:  argowf.WorkflowPlural,
 				Namespace: namespace,
 			},
 		},

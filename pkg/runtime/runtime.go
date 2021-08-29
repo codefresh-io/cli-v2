@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -38,7 +39,6 @@ import (
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kusttypes "sigs.k8s.io/kustomize/api/types"
 )
 
 type (
@@ -54,6 +54,10 @@ type (
 		Version            *semver.Version `json:"version"`
 		BootstrapSpecifier string          `json:"bootstrapSpecifier"`
 		Components         []AppDef        `json:"components"`
+		Cluster            string          `json:"cluster"`
+		IngressHost        string          `json:"ingressHost"`
+
+		devMode bool
 	}
 
 	CommonConfig struct {
@@ -74,6 +78,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		err  error
 	)
 
+	devMode := false
 	if strings.HasPrefix(store.RuntimeDefURL, "http") {
 		urlString := store.RuntimeDefURL
 		if version != nil {
@@ -95,6 +100,8 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
+
+		devMode = true
 	}
 
 	runtime := &Runtime{}
@@ -105,6 +112,10 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 	runtime.Name = name
 	runtime.Namespace = name
+	runtime.Spec.devMode = devMode
+	for _, component := range runtime.Spec.Components {
+		component.URL = runtime.Spec.fullURL(component.URL)
+	}
 	return runtime, nil
 }
 
@@ -116,7 +127,15 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 
 	data := cm.Data["runtime"]
 	runtime := &Runtime{}
-	return runtime, yaml.Unmarshal([]byte(data), runtime)
+	if err := yaml.Unmarshal([]byte(data), runtime); err != nil {
+		return nil, err
+	}
+
+	for _, component := range runtime.Spec.Components {
+		component.URL = runtime.Spec.fullURL(component.URL)
+	}
+
+	return runtime, nil
 }
 
 func (r *Runtime) Save(fs fs.FS, filename string, config *CommonConfig) error {
@@ -162,8 +181,8 @@ func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime, config *CommonConfig) ([]App
 
 func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	log.G().Infof("Upgrading bootstrap specifier")
-	argocdFilename := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName, "kustomization.yaml")
-	if err := updateKustomization(fs, argocdFilename, r.FullSpecifier(), newRt.FullSpecifier()); err != nil {
+	argocdDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName)
+	if err := updateKustomization(fs, argocdDir, r.FullSpecifier(), newRt.FullSpecifier()); err != nil {
 		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
 	}
 
@@ -172,10 +191,8 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 		curComponent := r.component(newComponent.Name)
 		if curComponent != nil {
 			log.G().Infof("Upgrading '%s'", newComponent.Name)
-			curURL := buildFullURL(curComponent.URL, r.Version)
-			newURL := buildFullURL(newComponent.URL, newRt.Version)
-			baseFilename := fs.Join(apstore.Default.AppsDir, curComponent.Name, apstore.Default.BaseDir, "kustomization.yaml")
-			if err := updateKustomization(fs, baseFilename, curURL, newURL); err != nil {
+			baseDir := fs.Join(apstore.Default.AppsDir, curComponent.Name, apstore.Default.BaseDir)
+			if err := updateKustomization(fs, baseDir, curComponent.URL, newComponent.URL); err != nil {
 				return nil, fmt.Errorf("failed to upgrade app '%s': %w", curComponent.Name, err)
 			}
 		} else {
@@ -208,10 +225,14 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 }
 
 func (r *RuntimeSpec) FullSpecifier() string {
-	return buildFullURL(r.BootstrapSpecifier, r.Version)
+	return buildFullURL(r.BootstrapSpecifier, r.Version, r.devMode)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string, version *semver.Version) error {
+func (r *RuntimeSpec) fullURL(url string) string {
+	return buildFullURL(url, r.Version, r.devMode)
+}
+
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -223,7 +244,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		ProjectName:   projectName,
 		AppOpts: &application.CreateOptions{
 			AppName:       a.Name,
-			AppSpecifier:  buildFullURL(a.URL, version),
+			AppSpecifier:  a.URL,
 			AppType:       a.Type,
 			DestNamespace: projectName,
 			Labels: map[string]string{
@@ -239,33 +260,21 @@ func (a *AppDef) delete(fs fs.FS) error {
 	return billyUtils.RemoveAll(fs, fs.Join(apstore.Default.AppsDir, a.Name))
 }
 
-func updateKustomization(fs fs.FS, filename, fromURL, toURL string) error {
-	kust := &kusttypes.Kustomization{}
-	if err := fs.ReadYamls(filename, kust); err != nil {
-		return fmt.Errorf("failed reading kustomization from '%s': %w", filename, err)
+func updateKustomization(fs fs.FS, directory, fromURL, toURL string) error {
+	kust, err := kustutil.ReadKustomization(fs, directory)
+	if err != nil {
+		return err
 	}
 
-	found := false
-	for i, res := range kust.Resources {
-		if res == fromURL {
-			kust.Resources[i] = toURL
-			break
-		}
+	if err = kustutil.ReplaceResource(kust, fromURL, toURL); err != nil {
+		return err
 	}
 
-	if !found {
-		if len(kust.Resources) == 1 {
-			kust.Resources[0] = toURL
-		} else {
-			return fmt.Errorf("base kustomization does not contain expected resource '%s'", fromURL)
-		}
-	}
-
-	return fs.WriteYamls(filename, kust)
+	return kustutil.WriteKustomization(fs, kust, directory)
 }
 
-func buildFullURL(urlString string, version *semver.Version) string {
-	if version == nil {
+func buildFullURL(urlString string, version *semver.Version, devMode bool) string {
+	if devMode || version == nil {
 		return urlString
 	}
 

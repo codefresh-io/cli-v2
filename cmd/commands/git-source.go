@@ -111,6 +111,15 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
+			isValid, err := IsValid(args[1])
+			if err != nil {
+				log.G(ctx).Fatal("failed to check the validity of the git-source name")
+			}
+
+			if !isValid {
+				log.G(ctx).Fatal("git-source name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+			}
+
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
@@ -160,7 +169,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	if len(fi) == 0 {
-		if err = createDemoWorkflowTemplate(gsFs, opts.gsName, opts.runtimeName); err != nil {
+		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
 			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 		}
 
@@ -179,7 +188,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		Type: application.AppTypeDirectory,
 		URL:  opts.gsCloneOpts.Repo,
 	}
-	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType, nil); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
@@ -399,7 +408,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	return nil
 }
 
-func createDemoWorkflowTemplate(gsFs fs.FS, gsName, runtimeName string) error {
+func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 	wfTemplate := &wfv1alpha1.WorkflowTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       wf.WorkflowTemplateKind,

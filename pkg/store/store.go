@@ -43,6 +43,11 @@ type Version struct {
 }
 
 type Store struct {
+	ArgoCDServerName       string
+	ArgoCDTokenKey         string
+	ArgoCDTokenSecret      string
+	ArgoWFServiceName      string
+	ArgoWFServicePort      int32
 	BinaryName             string
 	CFComponentType        string
 	CFGitSourceType        string
@@ -50,20 +55,21 @@ type Store struct {
 	CFRuntimeType          string
 	CFTokenSecret          string
 	CFTokenSecretKey       string
-	ArgoCDTokenSecret      string
-	ArgoCDTokenKey         string
-	EventsReporterName     string
-	WorkflowReporterName   string
-	CodefreshSA            string
 	CodefreshCM            string
+	CodefreshSA            string
 	ComponentsReporterName string
 	ComponentsReporterSA   string
 	ComponentsReporterURL  string
 	DefaultAPI             string
 	EventBusName           string
 	EventReportingEndpoint string
+	EventsReporterName     string
 	GitSourceName          string
+	IngressName            string
+	IngressPath            string
 	LabelKeyCFType         string
+	LabelKeyIngressHost    string
+	LabelKeyRuntimeVersion string
 	MaxDefVersion          *semver.Version
 	RuntimeDefURL          string
 	RuntimeFilename        string
@@ -72,6 +78,8 @@ type Store struct {
 	MarketplaceGitSourceName string
 	MarketplaceRepo			string
 
+	WorkflowName           string
+	WorkflowReporterName   string
 }
 
 // Get returns the global store
@@ -80,32 +88,40 @@ func Get() *Store {
 }
 
 func init() {
+	s.ArgoCDServerName = "argocd-server"
+	s.ArgoCDTokenKey = "token"
+	s.ArgoCDTokenSecret = "argocd-token"
+	s.ArgoWFServiceName = "argo-server"
+	s.ArgoWFServicePort = 2746
 	s.BinaryName = binaryName
 	s.CFComponentType = "component"
 	s.CFGitSourceType = "git-source"
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
-	s.CodefreshCM = "codefresh-cm"
 	s.CFTokenSecretKey = "token"
-	s.ArgoCDTokenSecret = "argocd-token"
-	s.ArgoCDTokenKey = "token"
-	s.EventsReporterName = "events-reporter"
-	s.WorkflowReporterName = "workflow-reporter"
+	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/2.0/api/events"
+	s.EventsReporterName = "events-reporter"
 	s.GitSourceName = "default-git-source"
+	s.IngressName = "-workflows-ingress"
+	s.IngressPath = "workflows"
 	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelKeyIngressHost = "codefresh.io/ingress-host"
+	s.LabelKeyRuntimeVersion = "codefresh.io/runtimeVersion"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
 	s.MarketplaceGitSourceName = "marketplace-git-source"
     s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git/"
 	s.WaitTimeout = 8 * time.Minute
+	s.WorkflowName = "workflow"
+	s.WorkflowReporterName = "workflow-reporter"
 	initVersion()
 }
 
