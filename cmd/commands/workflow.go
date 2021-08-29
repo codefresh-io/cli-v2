@@ -46,20 +46,20 @@ func NewWorkflowCommand() *cobra.Command {
 
 func NewWorkflowGetCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get [runtime_name]",
-		Short: "Get a workflow under a specific runtime",
+		Use:   "get [uid]",
+		Short: "Get a workflow under a specific uid",
 		Example: util.Doc(`
-			<BIN> workflow get runtime_name
+			<BIN> workflow get 0732b138-b74c-4a5e-b065-e23e6da0803d
 		`),
 		PreRun: func(cmd *cobra.Command, args []string) {
-			if len(args) < 3 {
-				log.G(cmd.Context()).Fatal("must enter runtime name")
+			if len(args) < 1 {
+				log.G(cmd.Context()).Fatal("must enter uid")
 			}
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			return RunWorkflowGet(ctx, args[0], args[1], args[2])
+			return RunWorkflowGet(ctx, args[0])
 		},
 	}
 
@@ -67,54 +67,64 @@ func NewWorkflowGetCommand() *cobra.Command {
 }
 
 func NewWorkflowListCommand() *cobra.Command {
+	var (
+		namespace string
+		runtime string
+		project string
+	)
+
 	cmd := &cobra.Command{
 		Use:   "list",
-		//Use:   "list [runtime_name]",
-		Short: "List all the workflows under a specific runtime",
+		Short: "List all the workflows",
 		Example: util.Doc(`
-			<BIN> workflows list runtime_name
+			<BIN> workflows list
+
+			<BIN> workflows list --runtime <runtime>
+
+			<BIN> workflows list -r <runtime>
 		`),
-		//PreRun: func(cmd *cobra.Command, args []string) {
-		//	if len(args) < 1 {
-		//		log.G(cmd.Context()).Fatal("must enter runtime name")
-		//	}
-		//},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			return RunWorkflowList(ctx)
+			filterArgs := model.WorkflowsFilterArgs{
+				Namespace: &namespace,
+				Runtime: &runtime,
+				Project: &project,
+			}
+			return RunWorkflowList(ctx, filterArgs)
 		},
 	}
+
+	cmd.Flags().StringVarP(&namespace, "namespace", "N", "", "Filter by workflow namespace")
+	cmd.Flags().StringVarP(&runtime, "runtime", "r", "", "Filter by workflow runtime")
+	cmd.Flags().StringVarP(&project, "project", "p", "", "Filter by workflow project")
 
 	return cmd
 }
 
-func RunWorkflowGet(ctx context.Context, name, namespace, runtime string) error {
-	workflow, err := cfConfig.NewClient().V2().Workflow().Get(ctx, name, namespace, runtime)
+func RunWorkflowGet(ctx context.Context, uid string) error {
+	workflow, err := cfConfig.NewClient().V2().Workflow().Get(ctx, uid)
 	if err != nil {
 		return err
 	}
 
 	if workflow == nil {
-		log.G(ctx).WithField("runtime", runtime).Warn("workflow was not found in runtime")
+		log.G(ctx).WithField("uid", uid).Warn("workflow was not found")
 		return nil
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	//_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tRUNTIME\tPHASE\tSTARTED AT\tFINISHED AT")
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tRUNTIME\tPHASE")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tRUNTIME\tPHASE\tUID")
 	if err != nil {
 		return err
 	}
 
-	//uid := w.Metadata.UID
-	_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\n",
+	_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 		workflow.Metadata.Name,
 		*workflow.Metadata.Namespace,
 		workflow.Metadata.Runtime,
-		workflow.Status.Phase.String(),
-		//*w.Status.StartedAt,
-		//*w.Status.FinishedAt,
+		workflow.Status.Phase,
+		*workflow.Metadata.UID,
 	)
 	if err != nil {
 		return err
@@ -123,34 +133,30 @@ func RunWorkflowGet(ctx context.Context, name, namespace, runtime string) error 
 	return tb.Flush()
 }
 
-func RunWorkflowList(ctx context.Context) error {
-	workflows, err := cfConfig.NewClient().V2().Workflow().List(ctx, model.WorkflowsFilterArgs{})
+func RunWorkflowList(ctx context.Context, filterArgs model.WorkflowsFilterArgs) error {
+	workflows, err := cfConfig.NewClient().V2().Workflow().List(ctx, filterArgs)
 	if err != nil {
 		return err
 	}
 
 	if len(workflows) == 0 {
 		log.G(ctx).Warn("no workflows were found")
-		//log.G(ctx).WithField("runtime", runtime).Warn("no workflows were found in runtime")
 		return nil
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	//_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tRUNTIME\tPHASE\tSTARTED AT\tFINISHED AT")
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tRUNTIME\tPHASE")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tRUNTIME\tPHASE\tUID")
 	if err != nil {
 		return err
 	}
 
 	for _, w := range workflows {
-		//uid := w.Metadata.UID
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			w.Metadata.Name,
 			*w.Metadata.Namespace,
 			w.Metadata.Runtime,
-			w.Status.Phase.String(),
-			//*w.Status.StartedAt,
-			//*w.Status.FinishedAt,
+			w.Status.Phase,
+			*w.Metadata.UID,
 		)
 		if err != nil {
 			return err
