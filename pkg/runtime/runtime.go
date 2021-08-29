@@ -153,7 +153,7 @@ func (r *Runtime) Save(fs fs.FS, filename string, config *CommonConfig) error {
 			Name:      store.Get().CodefreshCM,
 			Namespace: r.Namespace,
 			Labels: map[string]string{
-				apstore.Default.LabelKeyAppManagedBy: store.Get().BinaryName,
+				apstore.Default.LabelKeyAppManagedBy: store.Get().Codefresh,
 				store.Get().LabelKeyCFType:           store.Get().CFRuntimeDefType,
 			},
 		},

@@ -49,6 +49,7 @@ type Store struct {
 	ArgoWFServiceName      string
 	ArgoWFServicePort      int32
 	BinaryName             string
+	Codefresh              string
 	CFComponentType        string
 	CFGitSourceType        string
 	CFRuntimeDefType       string
@@ -91,6 +92,7 @@ func init() {
 	s.ArgoWFServiceName = "argo-server"
 	s.ArgoWFServicePort = 2746
 	s.BinaryName = binaryName
+	s.Codefresh = "codefresh"
 	s.CFComponentType = "component"
 	s.CFGitSourceType = "git-source"
 	s.CFRuntimeDefType = "runtimeDef"

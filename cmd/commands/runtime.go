@@ -296,7 +296,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
+	err = intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
+	if err != nil {
+		return fmt.Errorf("failed to complete installation. Error: %w", err)
+	}
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
@@ -372,7 +375,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return nil
 }
 
-func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) {
+func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
 	interval := time.Duration(milliseconds) * time.Millisecond
 	ticker := time.NewTicker(interval)
 	var err error
@@ -389,14 +392,14 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 			if rt.Metadata.Name == runtimeName {
 				wg.Done()
 				ticker.Stop()
-				return
+				return nil
 			}
 		}
 
 		retries--
 	}
 
-	panic(fmt.Errorf("failed to complete the runtime installation due to error: %w", err))
+	return fmt.Errorf("failed to complete the runtime installation dut to timeout. Error: %w", err)
 }
 
 func NewRuntimeListCommand() *cobra.Command {
@@ -451,7 +454,7 @@ func RunRuntimeList(ctx context.Context) error {
 			name = rt.Metadata.Name
 		}
 
-		if rt.RuntimeVersion != nil {
+		if rt.Self.Version != nil {
 			version = *rt.RuntimeVersion
 		}
 
