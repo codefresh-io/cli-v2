@@ -69,8 +69,8 @@ func NewWorkflowGetCommand() *cobra.Command {
 func NewWorkflowListCommand() *cobra.Command {
 	var (
 		namespace string
-		runtime string
-		project string
+		runtime   string
+		project   string
 	)
 
 	cmd := &cobra.Command{
@@ -88,8 +88,8 @@ func NewWorkflowListCommand() *cobra.Command {
 
 			filterArgs := model.WorkflowsFilterArgs{
 				Namespace: &namespace,
-				Runtime: &runtime,
-				Project: &project,
+				Runtime:   &runtime,
+				Project:   &project,
 			}
 			return RunWorkflowList(ctx, filterArgs)
 		},

@@ -46,9 +46,9 @@ func NewPipelineCommand() *cobra.Command {
 
 func NewPipelineGetCommand() *cobra.Command {
 	var (
-		name string
+		name      string
 		namespace string
-		runtime string
+		runtime   string
 	)
 
 	cmd := &cobra.Command{
@@ -78,10 +78,10 @@ func NewPipelineGetCommand() *cobra.Command {
 
 func NewPipelineListCommand() *cobra.Command {
 	var (
-		name string
+		name      string
 		namespace string
-		runtime string
-		project string
+		runtime   string
+		project   string
 	)
 
 	cmd := &cobra.Command{
@@ -98,10 +98,10 @@ func NewPipelineListCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			filterArgs := model.PipelinesFilterArgs{
-				Name: &name,
+				Name:      &name,
 				Namespace: &namespace,
-				Runtime: &runtime,
-				Project: &project,
+				Runtime:   &runtime,
+				Project:   &project,
 			}
 			return RunPipelineList(ctx, filterArgs)
 		},
@@ -123,9 +123,9 @@ func RunPipelineGet(ctx context.Context, name, namespace, runtime string) error 
 
 	if pipeline == nil {
 		fields := log.Fields{
-			"name": name,
+			"name":      name,
 			"namespace": namespace,
-			"runtime": runtime,
+			"runtime":   runtime,
 		}
 		log.G(ctx).WithFields(fields).Warn("pipeline was not found")
 		return nil
