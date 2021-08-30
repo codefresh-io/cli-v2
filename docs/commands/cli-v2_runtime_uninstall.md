@@ -33,6 +33,7 @@ cli-v2 runtime uninstall [runtime_name] [flags]
       --kubeconfig string       Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string        If present, the namespace scope for this CLI request
       --repo string             Repository URL [GIT_REPO]
+      --skip-checks             If true, will not verify that runtime exists before uninstalling
       --wait-timeout duration   How long to wait for the runtime components to be deleted (default 8m0s)
 ```
 

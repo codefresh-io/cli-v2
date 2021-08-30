@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,6 +76,7 @@ type (
 		Timeout     time.Duration
 		CloneOpts   *git.CloneOptions
 		KubeFactory kube.Factory
+		SkipChecks  bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -98,7 +100,7 @@ func NewRuntimeCommand() *cobra.Command {
 
 	cmd.AddCommand(NewRuntimeInstallCommand())
 	cmd.AddCommand(NewRuntimeListCommand())
-	cmd.AddCommand(NewRuntimeUninsatllCommand())
+	cmd.AddCommand(NewRuntimeUninstallCommand())
 	cmd.AddCommand(NewRuntimeUpgradeCommand())
 
 	return cmd
@@ -361,18 +363,16 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
-	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
 	if err != nil {
-		return fmt.Errorf("failed to list runtimes: %w", err)
-	}
-
-	for _, rt := range runtimes {
-		if rt.Metadata.Name == runtime {
-			return fmt.Errorf("runtime '%s' already exists", runtime)
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil // runtime does exist
 		}
+
+		return fmt.Errorf("failed to get runtime: %w", err)
 	}
 
-	return nil
+	return fmt.Errorf("runtime '%s' already exists", runtime)
 }
 
 func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
@@ -469,10 +469,11 @@ func RunRuntimeList(ctx context.Context) error {
 	return tb.Flush()
 }
 
-func NewRuntimeUninsatllCommand() *cobra.Command {
+func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
-		f         kube.Factory
-		cloneOpts *git.CloneOptions
+		skipChecks bool
+		f          kube.Factory
+		cloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -506,10 +507,12 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 				Timeout:     store.Get().WaitTimeout,
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
+				SkipChecks:  skipChecks,
 			})
 		},
 	}
 
+	cmd.Flags().BoolVar(&skipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
 
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
@@ -521,15 +524,29 @@ func NewRuntimeUninsatllCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	// check whether the runtime exists
+	if !opts.SkipChecks {
+		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+		if err != nil {
+			return err
+		}
+	}
+
 	log.G(ctx).Infof("uninstalling runtime '%s'", opts.RuntimeName)
-	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+
+	if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed uninstalling runtime: %w", err)
+	}
+
+	log.G(ctx).Infof("deleting runtime '%s' from the platform", opts.RuntimeName)
+
+	if _, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName); err != nil {
+		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
 
 	log.G(ctx).Infof("done uninstalling runtime '%s'", opts.RuntimeName)
