@@ -801,16 +801,8 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
 
-	runtimeVersion := "v99.99.99"
-	if rt.Spec.Version != nil { // in dev mode
-		runtimeVersion = rt.Spec.Version.String()
-	}
 
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
-	project.ObjectMeta.Labels[store.Get().LabelKeyRuntimeVersion] = runtimeVersion
-	if rt.Spec.IngressHost != "" {
-		project.ObjectMeta.Labels[store.Get().LabelKeyIngressHost] = rt.Spec.IngressHost
-	}
 
 	return repofs.WriteYamls(projPath, project, appset)
 }
