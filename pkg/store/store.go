@@ -69,8 +69,6 @@ type Store struct {
 	IngressName            string
 	IngressPath            string
 	LabelKeyCFType         string
-	LabelKeyIngressHost    string
-	LabelKeyRuntimeVersion string
 	MaxDefVersion          *semver.Version
 	RuntimeDefURL          string
 	RuntimeFilename        string
@@ -111,8 +109,6 @@ func init() {
 	s.IngressName = "-workflows-ingress"
 	s.IngressPath = "workflows"
 	s.LabelKeyCFType = "codefresh.io/entity"
-	s.LabelKeyIngressHost = "codefresh.io/ingress-host"
-	s.LabelKeyRuntimeVersion = "codefresh.io/runtimeVersion"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
