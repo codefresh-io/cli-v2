@@ -49,6 +49,7 @@ type Store struct {
 	ArgoWFServiceName      string
 	ArgoWFServicePort      int32
 	BinaryName             string
+	Codefresh              string
 	CFComponentType        string
 	CFGitSourceType        string
 	CFRuntimeDefType       string
@@ -68,8 +69,6 @@ type Store struct {
 	IngressName            string
 	IngressPath            string
 	LabelKeyCFType         string
-	LabelKeyIngressHost    string
-	LabelKeyRuntimeVersion string
 	MaxDefVersion          *semver.Version
 	RuntimeDefURL          string
 	RuntimeFilename        string
@@ -94,6 +93,7 @@ func init() {
 	s.ArgoWFServiceName = "argo-server"
 	s.ArgoWFServicePort = 2746
 	s.BinaryName = binaryName
+	s.Codefresh = "codefresh"
 	s.CFComponentType = "component"
 	s.CFGitSourceType = "git-source"
 	s.CFRuntimeDefType = "runtimeDef"
@@ -112,8 +112,6 @@ func init() {
 	s.IngressName = "-workflows-ingress"
 	s.IngressPath = "workflows"
 	s.LabelKeyCFType = "codefresh.io/entity"
-	s.LabelKeyIngressHost = "codefresh.io/ingress-host"
-	s.LabelKeyRuntimeVersion = "codefresh.io/runtimeVersion"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
