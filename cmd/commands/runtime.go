@@ -366,7 +366,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			return nil // runtime does exist
+			return nil // runtime does not exist
 		}
 
 		return fmt.Errorf("failed to get runtime: %w", err)
