@@ -210,8 +210,8 @@ func NewGitSourceListCommand() *cobra.Command {
 }
 
 func RunGitSourceList(ctx context.Context, runtimeName string) error {
-	err := checkExistingRuntimes(ctx, runtimeName)
-	if err == nil {
+	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
+	if isRuntimeExists == nil {
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
 	}
 
