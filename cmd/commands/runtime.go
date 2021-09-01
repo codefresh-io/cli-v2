@@ -532,6 +532,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
 		if err != nil {
+			log.G(ctx).Warn("Failed validating runtime in platform. You can attempt uninstall again with the \"--skip-checks\" flag.")
 			return err
 		}
 	}
