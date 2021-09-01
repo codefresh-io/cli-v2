@@ -532,6 +532,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
 		if err != nil {
+			log.G(ctx).Warn("you can attempt to uninstall again with the \"--skip-checks\" flag")
 			return err
 		}
 	}
