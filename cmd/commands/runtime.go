@@ -215,16 +215,22 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName)
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
+	}
+
+	server, err := util.CurrentServer()
+	if err != nil {
+		return fmt.Errorf("failed to get current server address: %w", err)
+	}
+
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
 	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
-	server, err := util.CurrentServer()
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
 
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
