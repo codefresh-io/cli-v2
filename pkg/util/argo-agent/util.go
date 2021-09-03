@@ -24,7 +24,7 @@ func buildMap(options *CreateAgentOptions) map[string]interface{} {
 }
 
 func CreateAgentResource(options *CreateAgentOptions) ([]byte, error) {
-	path, err := filepath.Abs("./pkg/util/argo-dashboard/agent.yaml")
+	path, err := filepath.Abs("./manifests/argo-agent/agent.yaml")
 	if err != nil {
 		return nil, err
 	}

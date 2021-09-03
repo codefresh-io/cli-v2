@@ -26,7 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	argodashboardutil "github.com/codefresh-io/cli-v2/pkg/util/argo-dashboard"
+	argodashboardutil "github.com/codefresh-io/cli-v2/pkg/util/argo-agent"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
@@ -286,8 +286,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
-
-
 
 	gsPath := opts.gsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
 	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
@@ -820,7 +818,6 @@ func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneO
 	return err
 }
 
-
 func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().WorkflowReporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
@@ -865,7 +862,6 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 	if project.ObjectMeta.Labels == nil {
 		project.ObjectMeta.Labels = make(map[string]string)
 	}
-
 
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
 
@@ -1046,14 +1042,12 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
 	_, fs, err := cloneOpts.GetRepo(ctx)
 	resource, err := argodashboardutil.CreateAgentResource(&argodashboardutil.CreateAgentOptions{
-		Name: rt.Name,
+		Name:      rt.Name,
 		Namespace: rt.Namespace,
-		CFHost: store.Get().DefaultAPI,
+		CFHost:    store.Get().DefaultAPI,
 	})
 	if err != nil {
 		return err
 	}
 	return billyUtils.WriteFile(fs, fs.Join(path, "argocd-agent.yaml"), resource, 0666)
 }
-
-
