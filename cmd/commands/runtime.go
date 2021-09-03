@@ -1046,6 +1046,9 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 
 func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
 	_, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
 	resource, err := argodashboardutil.CreateAgentResource(&argodashboardutil.CreateAgentOptions{
 		Name:      rt.Name,
 		Namespace: rt.Namespace,
