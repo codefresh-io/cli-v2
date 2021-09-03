@@ -371,7 +371,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			return nil // runtime does exist
+			return nil // runtime does not exist
 		}
 
 		return fmt.Errorf("failed to get runtime: %w", err)
@@ -431,21 +431,19 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tSTATUS\tVERSION")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE")
 	if err != nil {
 		return err
 	}
 
 	for _, rt := range runtimes {
-		status := "N/A"
+		name := rt.Metadata.Name
 		namespace := "N/A"
 		cluster := "N/A"
-		name := rt.Metadata.Name
 		version := "N/A"
-
-		if rt.Self.HealthMessage != nil {
-			status = *rt.Self.HealthMessage
-		}
+		syncStatus := rt.SyncStatus
+		healthStatus := rt.HealthStatus
+		healthMessage := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -459,12 +457,18 @@ func RunRuntimeList(ctx context.Context) error {
 			version = *rt.RuntimeVersion
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+		if rt.HealthMessage != nil {
+			healthMessage = *rt.HealthMessage
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
-			status,
 			version,
+			syncStatus,
+			healthStatus,
+			healthMessage,
 		)
 		if err != nil {
 			return err
@@ -533,6 +537,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
 		if err != nil {
+			log.G(ctx).Warn("you can attempt to uninstall again with the \"--skip-checks\" flag")
 			return err
 		}
 	}
