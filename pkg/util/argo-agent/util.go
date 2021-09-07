@@ -15,29 +15,25 @@
 package util
 
 import (
-	"bytes"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"text/template"
+
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	kustid "sigs.k8s.io/kustomize/api/resid"
+	kusttypes "sigs.k8s.io/kustomize/api/types"
 )
 
 type (
 	CreateAgentOptions struct {
 		Name      string
 		Namespace string
-		CFHost    string
 	}
 )
 
-func buildMap(options *CreateAgentOptions) map[string]interface{} {
-	opts := make(map[string]interface{})
-	opts["namespace"] = options.Namespace
-	opts["name"] = options.Name
-	opts["cfhost"] = options.CFHost
-	return opts
-}
-
-func CreateAgentResource(options *CreateAgentOptions) ([]byte, error) {
+func CreateAgentResource() ([]byte, error) {
 	path, err := filepath.Abs("./manifests/argo-agent/agent.yaml")
 	if err != nil {
 		return nil, err
@@ -46,23 +42,68 @@ func CreateAgentResource(options *CreateAgentOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmpl, err := renderTemplate(string(yamlFile), buildMap(options))
-	if err != nil {
-		return nil, err
-	}
-	return []byte(tmpl), err
+	return []byte(yamlFile), err
 }
 
-func renderTemplate(dashboardYaml string, values map[string]interface{}) (string, error) {
-	tmpl := template.New("dashboard")
-	tmpl.Delims("[[", "]]")
-	out := new(bytes.Buffer)
-	tmpl, err := tmpl.Parse(dashboardYaml)
-	if err != nil {
-		return "", err
+func addPatch(patches []kusttypes.Patch, gvk kustid.Gvk, patch string) []kusttypes.Patch {
+	return append(patches, kusttypes.Patch{
+		Target: &kusttypes.Selector{
+			KrmId: kusttypes.KrmId{
+				Gvk: gvk,
+			},
+		},
+		Patch: patch,
+	})
+}
+
+func CreateAgentResourceKustomize(options *CreateAgentOptions) kusttypes.Kustomization {
+	kust := kusttypes.Kustomization{
+		TypeMeta: kusttypes.TypeMeta{
+			APIVersion: kusttypes.KustomizationVersion,
+			Kind:       kusttypes.KustomizationKind,
+		},
 	}
-	if err = tmpl.Execute(out, values); err != nil {
-		return "", err
-	}
-	return out.String(), nil
+
+	namespaceReplacement := fmt.Sprintf(`- op: replace
+  path: /metadata/namespace
+  value: %s`, options.Namespace)
+
+	hostReplacement := fmt.Sprintf(`- op: replace
+  path: /data/host
+  value: "http://argocd-server.%s.svc.cluster.local"`, options.Namespace)
+
+	integrationReplacement := fmt.Sprintf(`- op: replace
+  path: /data/integration
+  value: argocd-%s`, options.Name)
+
+	kust.Resources = append(kust.Resources, "./argocd-agent.yaml")
+
+	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
+		Group:   appsv1.SchemeGroupVersion.Group,
+		Version: appsv1.SchemeGroupVersion.Version,
+		Kind:    "Deployment",
+	}, namespaceReplacement)
+
+	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
+		Version: v1.SchemeGroupVersion.Version,
+		Kind:    "ServiceAccount",
+	}, namespaceReplacement)
+
+	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
+		Group:   rbacv1.SchemeGroupVersion.Group,
+		Version: v1.SchemeGroupVersion.Version,
+		Kind:    "ClusterRoleBinding",
+	}, namespaceReplacement)
+
+	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
+		Version: v1.SchemeGroupVersion.Version,
+		Kind:    "ConfigMap",
+	}, hostReplacement)
+
+	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
+		Version: v1.SchemeGroupVersion.Version,
+		Kind:    "ConfigMap",
+	}, integrationReplacement)
+
+	return kust
 }

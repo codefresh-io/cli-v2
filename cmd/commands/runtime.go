@@ -927,11 +927,11 @@ func getArgoCDAgentTokenSecret(ctx context.Context, token string, namespace stri
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ArgocdAgentCFTokenSecret,
+			Name:      store.Get().ArgoCDAgentCFTokenSecret,
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			store.Get().ArgocdAgentCFTokenKey: []byte(token),
+			store.Get().ArgoCDAgentCFTokenKey: []byte(token),
 		},
 	})
 }
@@ -1049,13 +1049,16 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	if err != nil {
 		return err
 	}
-	resource, err := argodashboardutil.CreateAgentResource(&argodashboardutil.CreateAgentOptions{
-		Name:      rt.Name,
-		Namespace: rt.Namespace,
-		CFHost:    store.Get().DefaultAPI,
-	})
+	resource, err := argodashboardutil.CreateAgentResource()
 	if err != nil {
 		return err
 	}
+
+	kust := argodashboardutil.CreateAgentResourceKustomize(&argodashboardutil.CreateAgentOptions{Namespace: rt.Namespace, Name: rt.Name})
+
+	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
+		return err
+	}
+
 	return billyUtils.WriteFile(fs, fs.Join(path, "argocd-agent.yaml"), resource, 0666)
 }

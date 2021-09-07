@@ -46,8 +46,9 @@ type Store struct {
 	ArgoCDServerName         string
 	ArgoCDTokenKey           string
 	ArgoCDTokenSecret        string
-	ArgocdAgentCFTokenKey    string
-	ArgocdAgentCFTokenSecret string
+	ArgoCDAgentCFTokenKey    string
+	ArgoCDAgentCFTokenSecret string
+	ArgoCDAgentSA            string
 	ArgoWFServiceName        string
 	ArgoWFServicePort        int32
 	BinaryName               string
@@ -99,8 +100,10 @@ func init() {
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
-	s.ArgocdAgentCFTokenKey = "token"
-	s.ArgocdAgentCFTokenSecret = "cf-argocd-agent"
+	s.ArgoCDAgentCFTokenKey = "token"
+	s.ArgoCDAgentCFTokenSecret = "cf-argocd-agent"
+	s.ArgoCDAgentReporterName = "argocd-agent"
+	s.ArgoCDAgentSA = "argocd-agent"
 	s.CFTokenSecretKey = "token"
 	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
@@ -120,7 +123,7 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
-	s.ArgoCDAgentReporterName = "argocd-agent"
+
 	initVersion()
 }
 

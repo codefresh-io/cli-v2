@@ -4,7 +4,6 @@ metadata:
   labels:
     app: cf-argocd-agent
   name: cf-argocd-agent
-  namespace: [[ .namespace ]]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -36,7 +35,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: cf-argocd-agent
-    namespace: [[ .namespace ]]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-agent-cm
+data:
+  host: https://argocd-server
+  integration: argocd
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -44,7 +50,6 @@ metadata:
   labels:
     app: cf-argocd-agent
   name: cf-argocd-agent
-  namespace: [[ .namespace ]]
 spec:
   selector:
     matchLabels:
@@ -67,7 +72,10 @@ spec:
             - name: AGENT_VERSION
               value: "1.72.3"
             - name: ARGO_HOST
-              value: http://argocd-server.[[ .namespace ]].svc.cluster.local
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-agent-cm
+                  key: host
             - name: ARGO_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -76,7 +84,7 @@ spec:
             - name: ENV_NAME
               value: kubernetes
             - name: CODEFRESH_HOST
-              value: [[ .cfhost ]]
+              value: https://g.codefresh.io
             - name: CODEFRESH_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -93,7 +101,10 @@ spec:
             - name: APPLICATIONS_FOR_SYNC
               value: ""
             - name: CODEFRESH_INTEGRATION
-              value: argocd-[[ .name ]]
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-agent-cm
+                  key: integration
             - name: CODEFRESH_GIT_INTEGRATION
               value: github
           image: codefresh/argocd-agent:stable
