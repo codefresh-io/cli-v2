@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	argodashboardutil "github.com/codefresh-io/cli-v2/pkg/util/argo-agent"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
@@ -272,6 +273,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
+	}
+
+	if err = createCodefreshArgoAgentReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
 	}
 
 	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
@@ -745,7 +750,12 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
 
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
+	argoAgentCFTokenSecret, err := getArgoCDAgentTokenSecret(ctx, cfConfig.GetCurrentContext().Token, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create argocd token secret: %w", err)
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret, argoAgentCFTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
@@ -774,6 +784,41 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 
 	_, err = r.Persist(ctx, &git.PushOptions{
 		CommitMsg: "Created Codefresh Event Reporter",
+	})
+	return err
+}
+
+func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	argoAgentCFTokenSecret, err := getArgoCDAgentTokenSecret(ctx, cfConfig.GetCurrentContext().Token, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create argocd token secret: %w", err)
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(argoAgentCFTokenSecret)); err != nil {
+		return fmt.Errorf("failed to create codefresh token: %w", err)
+	}
+
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, opts.RuntimeName, "resources")
+	appDef := &runtime.AppDef{
+		Name: store.Get().ArgoCDAgentReporterName,
+		Type: application.AppTypeDirectory,
+		URL:  cloneOpts.URL() + "/" + resPath,
+	}
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+		return err
+	}
+
+	r, _, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := createCodefreshArgoDashboardAgent(ctx, resPath, cloneOpts, rt); err != nil {
+		return err
+	}
+
+	_, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Created ArgoCD Agent Reporter",
 	})
 	return err
 }
@@ -871,6 +916,22 @@ func getArgoCDTokenSecret(ctx context.Context, namespace string, insecure bool) 
 		},
 		Data: map[string][]byte{
 			store.Get().ArgoCDTokenKey: []byte(token),
+		},
+	})
+}
+
+func getArgoCDAgentTokenSecret(ctx context.Context, token string, namespace string) ([]byte, error) {
+	return yaml.Marshal(&v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ArgoCDAgentCFTokenSecret,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			store.Get().ArgoCDAgentCFTokenKey: []byte(token),
 		},
 	})
 }
@@ -981,4 +1042,23 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
+}
+
+func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
+	_, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+	resource, err := argodashboardutil.CreateAgentResource()
+	if err != nil {
+		return err
+	}
+
+	kust := argodashboardutil.CreateAgentResourceKustomize(&argodashboardutil.CreateAgentOptions{Namespace: rt.Namespace, Name: rt.Name})
+
+	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
+		return err
+	}
+
+	return billyUtils.WriteFile(fs, fs.Join(path, "argocd-agent.yaml"), resource, 0666)
 }
