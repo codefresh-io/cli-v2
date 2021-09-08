@@ -16,9 +16,8 @@ package util
 
 import (
 	"fmt"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"io/ioutil"
-	"path/filepath"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -34,11 +33,7 @@ type (
 )
 
 func CreateAgentResource() ([]byte, error) {
-	path, err := filepath.Abs("./manifests/argo-agent/agent.yaml")
-	if err != nil {
-		return nil, err
-	}
-	yamlFile, err := ioutil.ReadFile(path)
+	yamlFile, err := ioutil.ReadFile(store.ArgoAgentURL)
 	if err != nil {
 		return nil, err
 	}

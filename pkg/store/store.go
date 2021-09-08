@@ -31,6 +31,7 @@ var (
 	gitCommit     = ""
 	maxDefVersion = "1.0.0"
 	RuntimeDefURL = "manifests/runtime.yaml"
+	ArgoAgentURL  = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
