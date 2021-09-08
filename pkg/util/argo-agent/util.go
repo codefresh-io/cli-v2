@@ -16,8 +16,6 @@ package util
 
 import (
 	"fmt"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"io/ioutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -31,14 +29,6 @@ type (
 		Namespace string
 	}
 )
-
-func CreateAgentResource() ([]byte, error) {
-	yamlFile, err := ioutil.ReadFile(store.ArgoAgentURL)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(yamlFile), err
-}
 
 func addPatch(patches []kusttypes.Patch, gvk kustid.Gvk, patch string) []kusttypes.Patch {
 	return append(patches, kusttypes.Patch{
@@ -63,6 +53,10 @@ func CreateAgentResourceKustomize(options *CreateAgentOptions) kusttypes.Kustomi
   path: /metadata/namespace
   value: %s`, options.Namespace)
 
+	crbNamespaceReplacement := fmt.Sprintf(`- op: replace
+  path: /subjects/0/namespace
+  value: %s`, options.Namespace)
+
 	hostReplacement := fmt.Sprintf(`- op: replace
   path: /data/host
   value: "http://argocd-server.%s.svc.cluster.local"`, options.Namespace)
@@ -71,7 +65,7 @@ func CreateAgentResourceKustomize(options *CreateAgentOptions) kusttypes.Kustomi
   path: /data/integration
   value: argocd-%s`, options.Name)
 
-	kust.Resources = append(kust.Resources, "./argocd-agent.yaml")
+	kust.Resources = append(kust.Resources, "https://raw.githubusercontent.com/codefresh-io/cli-v2/main/manifests/argo-agent/agent.yaml")
 
 	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
 		Group:   appsv1.SchemeGroupVersion.Group,
@@ -88,7 +82,7 @@ func CreateAgentResourceKustomize(options *CreateAgentOptions) kusttypes.Kustomi
 		Group:   rbacv1.SchemeGroupVersion.Group,
 		Version: v1.SchemeGroupVersion.Version,
 		Kind:    "ClusterRoleBinding",
-	}, namespaceReplacement)
+	}, crbNamespaceReplacement)
 
 	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
 		Version: v1.SchemeGroupVersion.Version,
