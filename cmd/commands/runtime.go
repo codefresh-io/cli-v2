@@ -798,15 +798,7 @@ func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneO
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, opts.RuntimeName, "resources")
-	appDef := &runtime.AppDef{
-		Name: store.Get().ArgoCDAgentReporterName,
-		Type: application.AppTypeDirectory,
-		URL:  cloneOpts.URL() + "/" + resPath,
-	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
-		return err
-	}
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, opts.RuntimeName)
 
 	r, _, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -1049,10 +1041,6 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	if err != nil {
 		return err
 	}
-	resource, err := argodashboardutil.CreateAgentResource()
-	if err != nil {
-		return err
-	}
 
 	kust := argodashboardutil.CreateAgentResourceKustomize(&argodashboardutil.CreateAgentOptions{Namespace: rt.Namespace, Name: rt.Name})
 
@@ -1060,5 +1048,5 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 		return err
 	}
 
-	return billyUtils.WriteFile(fs, fs.Join(path, "argocd-agent.yaml"), resource, 0666)
+	return nil
 }
