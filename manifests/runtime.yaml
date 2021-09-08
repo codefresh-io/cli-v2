@@ -5,18 +5,19 @@ metadata:
   namespace: "{{ namespace }}"
 spec:
   defVersion: 1.0.0
-  version: 0.0.93
+  version: 0.0.97
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
-#    - name: events
-#      type: kustomize
-#      url: github.com/codefresh-io/cli-v2/manifests/argo-events
-#      wait: true
-#    - name: rollouts
-#      type: kustomize
-#      url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts
-#    - name: workflows
-#      type: kustomize
-#      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
+    - name: events
+      type: kustomize
+      url: github.com/codefresh-io/cli-v2/manifests/argo-events
+      wait: true
+    - name: rollouts
+      type: kustomize
+      url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts
+    - name: workflows
+      type: kustomize
+      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
     - name: argocd-agent
+      type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-agent

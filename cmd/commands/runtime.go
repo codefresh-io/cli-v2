@@ -798,7 +798,7 @@ func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneO
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, opts.RuntimeName)
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, "base")
 
 	r, _, err := cloneOpts.GetRepo(ctx)
 	if err != nil {

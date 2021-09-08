@@ -65,7 +65,7 @@ func CreateAgentResourceKustomize(options *CreateAgentOptions) kusttypes.Kustomi
   path: /data/integration
   value: argocd-%s`, options.Name)
 
-	kust.Resources = append(kust.Resources, "./argocd-agent.yaml")
+	kust.Resources = append(kust.Resources, "https://raw.githubusercontent.com/codefresh-io/cli-v2/main/manifests/argo-agent/agent.yaml")
 
 	kust.Patches = addPatch(kust.Patches, kustid.Gvk{
 		Group:   appsv1.SchemeGroupVersion.Group,
