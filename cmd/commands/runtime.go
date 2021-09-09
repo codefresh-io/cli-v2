@@ -397,6 +397,7 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 
 		for _, rt := range runtimes {
 			if rt.Metadata.Name == runtimeName {
+				rt.InstallationStatus = "Completed"
 				wg.Done()
 				ticker.Stop()
 				return nil
@@ -445,6 +446,7 @@ func RunRuntimeList(ctx context.Context) error {
 		syncStatus := rt.SyncStatus
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
+		installationStatus := rt.InstallationStatus
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -462,7 +464,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage = *rt.HealthMessage
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -470,6 +472,7 @@ func RunRuntimeList(ctx context.Context) error {
 			syncStatus,
 			healthStatus,
 			healthMessage,
+			installationStatus,
 		)
 		if err != nil {
 			return err
