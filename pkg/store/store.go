@@ -31,6 +31,7 @@ var (
 	gitCommit     = ""
 	maxDefVersion = "1.0.0"
 	RuntimeDefURL = "manifests/runtime.yaml"
+	ArgoAgentURL  = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
@@ -43,39 +44,43 @@ type Version struct {
 }
 
 type Store struct {
-	ArgoCDServerName       string
-	ArgoCDTokenKey         string
-	ArgoCDTokenSecret      string
-	ArgoWFServiceName      string
-	ArgoWFServicePort      int32
-	BinaryName             string
-	Codefresh              string
-	CFComponentType        string
-	CFGitSourceType        string
-	CFRuntimeDefType       string
-	CFRuntimeType          string
-	CFTokenSecret          string
-	CFTokenSecretKey       string
-	CodefreshCM            string
-	CodefreshSA            string
-	ComponentsReporterName string
-	ComponentsReporterSA   string
-	ComponentsReporterURL  string
-	DefaultAPI             string
-	EventBusName           string
-	EventReportingEndpoint string
-	EventsReporterName     string
-	GitSourceName          string
-	IngressName            string
-	IngressPath            string
-	LabelKeyCFType         string
-	MaxDefVersion          *semver.Version
-	RuntimeDefURL          string
-	RuntimeFilename        string
-	Version                Version
-	WaitTimeout            time.Duration
-	WorkflowName           string
-	WorkflowReporterName   string
+	ArgoCDServerName         string
+	ArgoCDTokenKey           string
+	ArgoCDTokenSecret        string
+	ArgoCDAgentCFTokenKey    string
+	ArgoCDAgentCFTokenSecret string
+	ArgoCDAgentSA            string
+	ArgoWFServiceName        string
+	ArgoWFServicePort        int32
+	BinaryName               string
+	Codefresh                string
+	CFComponentType          string
+	CFGitSourceType          string
+	CFRuntimeDefType         string
+	CFRuntimeType            string
+	CFTokenSecret            string
+	CFTokenSecretKey         string
+	CodefreshCM              string
+	CodefreshSA              string
+	ComponentsReporterName   string
+	ComponentsReporterSA     string
+	ComponentsReporterURL    string
+	DefaultAPI               string
+	EventBusName             string
+	EventReportingEndpoint   string
+	EventsReporterName       string
+	ArgoCDAgentReporterName  string
+	GitSourceName            string
+	IngressName              string
+	IngressPath              string
+	LabelKeyCFType           string
+	MaxDefVersion            *semver.Version
+	RuntimeDefURL            string
+	RuntimeFilename          string
+	Version                  Version
+	WaitTimeout              time.Duration
+	WorkflowName             string
+	WorkflowReporterName     string
 }
 
 // Get returns the global store
@@ -96,6 +101,10 @@ func init() {
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
+	s.ArgoCDAgentCFTokenKey = "token"
+	s.ArgoCDAgentCFTokenSecret = "cf-argocd-agent"
+	s.ArgoCDAgentReporterName = "argocd-agent"
+	s.ArgoCDAgentSA = "argocd-agent"
 	s.CFTokenSecretKey = "token"
 	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
@@ -115,6 +124,7 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
+
 	initVersion()
 }
 
