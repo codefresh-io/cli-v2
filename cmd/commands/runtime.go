@@ -31,7 +31,6 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -388,20 +387,15 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 	for retries := 20; retries > 0; <-ticker.C {
 		retries--
 		fmt.Println("waiting for the runtime installation to complete...")
-		var runtimes []model.Runtime
-		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+
+		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
 			continue
 		}
 
-		for _, rt := range runtimes {
-			if rt.Metadata.Name == runtimeName {
-				wg.Done()
-				ticker.Stop()
-				return nil
-			}
-		}
-
+		wg.Done()
+		ticker.Stop()
+		return nil
 	}
 
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
