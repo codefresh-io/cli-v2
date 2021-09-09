@@ -397,7 +397,6 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 
 		for _, rt := range runtimes {
 			if rt.Metadata.Name == runtimeName {
-				rt.InstallationStatus = "Completed"
 				wg.Done()
 				ticker.Stop()
 				return nil
