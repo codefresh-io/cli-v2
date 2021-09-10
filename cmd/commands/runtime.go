@@ -227,12 +227,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	var componentNames []string
 	for _, component := range rt.Spec.Components {
-		componentNames = append(componentNames, opts.insCloneOpts.FS.Join(opts.RuntimeName, component.Name))
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
 	}
+
 	// TODO: should find a better way to get these additional components
+	additionalComponents := []string{"events-reporter", "workflow-reporter"}
+	for _, additionalComponentName := range additionalComponents {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
+	}
 	componentNames = append(componentNames, "argo-cd")
-	componentNames = append(componentNames, opts.insCloneOpts.FS.Join(opts.RuntimeName, "events-reporter"))
-	componentNames = append(componentNames, opts.insCloneOpts.FS.Join(opts.RuntimeName, "workflow-reporter"))
 
 	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
 	if err != nil {
