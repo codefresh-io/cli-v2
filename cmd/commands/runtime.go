@@ -31,7 +31,6 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -228,8 +227,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	var componentNames []string
 	for _, component := range rt.Spec.Components {
-		componentNames = append(componentNames, component.Name)
+		componentNames = append(componentNames, opts.insCloneOpts.FS.Join(opts.RuntimeName, component.Name))
 	}
+	// TODO: should find a better way to get these additional components
+	componentNames = append(componentNames, "argo-cd")
+	componentNames = append(componentNames, opts.insCloneOpts.FS.Join(opts.RuntimeName, "events-reporter"))
+	componentNames = append(componentNames, opts.insCloneOpts.FS.Join(opts.RuntimeName, "workflow-reporter"))
 
 	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
 	if err != nil {
@@ -399,20 +402,14 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 	for retries := 20; retries > 0; <-ticker.C {
 		retries--
 		fmt.Println("waiting for the runtime installation to complete...")
-		var runtimes []model.Runtime
-		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+		_, err = cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
 			continue
 		}
 
-		for _, rt := range runtimes {
-			if rt.Metadata.Name == runtimeName {
-				wg.Done()
-				ticker.Stop()
-				return nil
-			}
-		}
-
+		wg.Done()
+		ticker.Stop()
+		return nil
 	}
 
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
