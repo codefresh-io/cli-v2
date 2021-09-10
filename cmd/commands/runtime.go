@@ -226,7 +226,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost)
+	var componentNames []string
+	for _, component := range rt.Spec.Components {
+		componentNames = append(componentNames, component.Name)
+	}
+
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
