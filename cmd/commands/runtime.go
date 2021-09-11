@@ -334,13 +334,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Debug("running pre-installation checks...")
 
-	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
-		return fmt.Errorf("runtime collision check failed: %w", err)
-	}
+	// if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
+	// 	return fmt.Errorf("runtime collision check failed: %w", err)
+	// }
 
-	if err := checkExistingRuntimes(ctx, opts.RuntimeName); err != nil {
-		return fmt.Errorf("existing runtime check failed: %w", err)
-	}
+	// if err := checkExistingRuntimes(ctx, opts.RuntimeName); err != nil {
+	// 	return fmt.Errorf("existing runtime check failed: %w", err)
+	// }
 
 	return nil
 }
