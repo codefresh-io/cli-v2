@@ -239,6 +239,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	componentNames = append(componentNames, "argo-cd")
 
 	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
+	if runtimeCreationResponse.ErrorMessage != nil {
+		return fmt.Errorf("failed to create a new runtime: %s", *runtimeCreationResponse.ErrorMessage)
+	}
+	
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
