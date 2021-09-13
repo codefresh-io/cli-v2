@@ -123,15 +123,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
 
-		export INSTALL_GIT_TOKEN=<token>
+		export GIT_TOKEN=<token>
 
 # or with the flag:
 
-		--install-git-token <token>
+		--git-token <token>
 
 # Adds a new runtime
 
-	<BIN> runtime install runtime-name --install-repo gitops_repo
+	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			if gsCloneOpts.Auth.Password == "" {
