@@ -123,15 +123,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
 
-		export INSTALL_GIT_TOKEN=<token>
+		export GIT_TOKEN=<token>
 
 # or with the flag:
 
-		--install-git-token <token>
+		--git-token <token>
 
 # Adds a new runtime
 
-	<BIN> runtime install runtime-name --install-repo gitops_repo
+	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			if gsCloneOpts.Auth.Password == "" {
@@ -206,6 +206,32 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
+func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
+	var componentNames []string
+	for _, component := range rt.Spec.Components {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
+	}
+
+	//  should find a more dynamic way to get these additional components
+	additionalComponents := []string{"events-reporter", "workflow-reporter"}
+	for _, additionalComponentName := range additionalComponents {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
+	}
+	componentNames = append(componentNames, "argo-cd")
+
+	return componentNames
+}
+
+func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeVersion, server, runtimeVersion, ingressHost, componentNames)
+
+	if runtimeCreationResponse.ErrorMessage != nil {
+		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+	}
+
+	return runtimeCreationResponse.NewAccessToken, nil
+}
+
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
@@ -216,16 +242,25 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName)
-	if err != nil {
-		return fmt.Errorf("failed to create a new runtime: %w", err)
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
 	}
 
-	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 	server, err := util.CurrentServer()
 	if err != nil {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
+
+	componentNames := getComponents(rt, opts)
+
+	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
+
+	if err != nil {
+		return fmt.Errorf("failed to create a new runtime: %w", err)
+	}
+
+	opts.RuntimeToken = token
 
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
@@ -388,20 +423,18 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 	for retries := 20; retries > 0; <-ticker.C {
 		retries--
 		fmt.Println("waiting for the runtime installation to complete...")
-		var runtimes []model.Runtime
-		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
+			return fmt.Errorf("failed to complete the runtime installation. Error: %w", err)
+		}
+
+		if runtime.InstallationStatus != model.InstallationStatusCompleted {
 			continue
 		}
 
-		for _, rt := range runtimes {
-			if rt.Metadata.Name == runtimeName {
-				wg.Done()
-				ticker.Stop()
-				return nil
-			}
-		}
-
+		wg.Done()
+		ticker.Stop()
+		return nil
 	}
 
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
@@ -431,7 +464,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS")
 	if err != nil {
 		return err
 	}
@@ -444,6 +477,7 @@ func RunRuntimeList(ctx context.Context) error {
 		syncStatus := rt.SyncStatus
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
+		installationStatus := rt.InstallationStatus
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -461,7 +495,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage = *rt.HealthMessage
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -469,6 +503,7 @@ func RunRuntimeList(ctx context.Context) error {
 			syncStatus,
 			healthStatus,
 			healthMessage,
+			installationStatus,
 		)
 		if err != nil {
 			return err

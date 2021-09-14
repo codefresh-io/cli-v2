@@ -10,7 +10,7 @@ require (
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
 	github.com/briandowns/spinner v1.16.0
-	github.com/codefresh-io/go-sdk v0.34.2
+	github.com/codefresh-io/go-sdk v0.34.4
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
