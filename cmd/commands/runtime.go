@@ -206,6 +206,32 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
+func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
+	var componentNames []string
+	for _, component := range rt.Spec.Components {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
+	}
+
+	//  should find a more dynamic way to get these additional components
+	additionalComponents := []string{"events-reporter", "workflow-reporter"}
+	for _, additionalComponentName := range additionalComponents {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
+	}
+	componentNames = append(componentNames, "argo-cd")
+
+	return componentNames
+}
+
+func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeVersion, server, runtimeVersion, ingressHost, componentNames)
+
+	if runtimeCreationResponse.ErrorMessage != nil {
+		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+	}
+
+	return runtimeCreationResponse.NewAccessToken, nil
+}
+
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
@@ -226,28 +252,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
 
-	var componentNames []string
-	for _, component := range rt.Spec.Components {
-		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
-	}
+	componentNames := getComponents(rt, opts)
 
-	//  should find a more dynamic way to get these additional components
-	additionalComponents := []string{"events-reporter", "workflow-reporter"}
-	for _, additionalComponentName := range additionalComponents {
-		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
-	}
-	componentNames = append(componentNames, "argo-cd")
-
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
-	if runtimeCreationResponse.ErrorMessage != nil {
-		return fmt.Errorf("failed to create a new runtime: %s", *runtimeCreationResponse.ErrorMessage)
-	}
+	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
 
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
-	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
+	opts.RuntimeToken = token
 
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
