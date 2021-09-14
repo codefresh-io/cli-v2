@@ -242,7 +242,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if runtimeCreationResponse.ErrorMessage != nil {
 		return fmt.Errorf("failed to create a new runtime: %s", *runtimeCreationResponse.ErrorMessage)
 	}
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
@@ -424,7 +424,6 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 		return nil
 	}
 
-	// TODO: add a mutation to update the runtime's Installation_Status to "Failed"
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
 }
 
