@@ -231,7 +231,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
 	}
 
-	// should find a more dynamic way to get these additional components
+	//  should find a more dynamic way to get these additional components
 	additionalComponents := []string{"events-reporter", "workflow-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
