@@ -14,7 +14,6 @@ run:
 
 linters:
   enable:
-    - gocyclo
     - errcheck
     - godox
 # all available settings of specific linters
