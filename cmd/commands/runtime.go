@@ -223,7 +223,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 }
 
 func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeVersion, server, runtimeVersion, ingressHost, componentNames)
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeName, server, runtimeVersion, ingressHost, componentNames)
 
 	if runtimeCreationResponse.ErrorMessage != nil {
 		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
