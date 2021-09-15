@@ -174,12 +174,9 @@ github.com/ardielle/ardielle-go v1.5.2/go.mod h1:I4hy1n795cUhaVt/ojz83SNVCYIGsAF
 github.com/ardielle/ardielle-tools v1.5.4/go.mod h1:oZN+JRMnqGiIhrzkRN9l26Cej9dEx4jeNG6A+AdkShk=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a h1:8Nm2KtOu/G7NtoAgucj4TkX8rghzwgFJGXNrAmuz7gc=
 github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a/go.mod h1:5rxggh8ymYXedQDIYylNzIHe6jdshDNasIBCVJuR1iU=
-github.com/argoproj-labs/argocd-autopilot v0.2.15 h1:tCOZNsDSyeQoxITOKm1g2rAnLY8+BWmukPVBs8UdQiI=
-github.com/argoproj-labs/argocd-autopilot v0.2.15/go.mod h1:/pQqSCFof08sDD8tI8LEfnpYCB9/nhEyWxvhRdo4UMc=
 github.com/argoproj/argo-cd v1.8.1/go.mod h1:Vfl7OGgBC83dVWgq58wU6UR3kG864h0dtHEIQ8xqw4s=
 github.com/argoproj/argo-cd v1.8.7 h1:CkIu8p/gcTY/fOZWM2tHuSCIAV2HggXjJftrT1IIT3k=
 github.com/argoproj/argo-cd v1.8.7/go.mod h1:tqFZW5Lr9KBCDsvOaE5Fh8M1eJ1ThvR58pyyLv8Zqvs=
-github.com/argoproj/argo-cd/v2 v2.1.0-rc1/go.mod h1:a21F1IEszRrCLvXXYc1sML3mjlMN3pp6rpDxy+7E0os=
 github.com/argoproj/argo-cd/v2 v2.1.0-rc3 h1:Wi45uRBYTkcs7KD+XmWp2tYGWj446Wa7z8yYOBc0Fsc=
 github.com/argoproj/argo-cd/v2 v2.1.0-rc3/go.mod h1:/e8fSyHanaAHLR5YsIIWfCGujTN452K6L7DaYep5KRU=
 github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d h1:pHQHwk2PO3BShSCUwTgqBxIciPPzBkWAv/TuVYeWML0=
@@ -1776,8 +1773,8 @@ google.golang.org/grpc v1.33.1/go.mod h1:fr5YgcSWrqhRRxogOsw7RzIpsmvOZ6IcH4kBYTp
 google.golang.org/grpc v1.36.0 h1:o1bcQ6imQMIOpdrO3SWf2z5RV72WbDwdXuK0MDlc8As=
 google.golang.org/grpc v1.36.0/go.mod h1:qjiiYl8FncCW8feJPdyg3v6XW24KsRHe+dy9BAGRRjU=
 google.golang.org/grpc/examples v0.0.0-20201226181154-53788aa5dcb4/go.mod h1:Ly7ZA/ARzg8fnPU9TyZIxoz33sEUuWX7txiqs8lPTgE=
-google.golang.org/grpc/examples v0.0.0-20210730002332-ea9b7a0a7651 h1:9uWL6vbMT26THGHBI9h8MwPYlFqF3y3VLUP7w6//D24=
-google.golang.org/grpc/examples v0.0.0-20210730002332-ea9b7a0a7651/go.mod h1:bF8wuZSAZTcbF7ZPKrDI/qY52toTP/yxLpRRY4Eu9Js=
+google.golang.org/grpc/examples v0.0.0-20210909173541-2608e38e6386 h1:AGzxJInWoEEv4gASoPeSRySkyvhbSyZEg3p6UiZHPeY=
+google.golang.org/grpc/examples v0.0.0-20210909173541-2608e38e6386/go.mod h1:gID3PKrg7pWKntu9Ss6zTLJ0ttC0X9IHgREOCZwbCVU=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
 google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
