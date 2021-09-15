@@ -76,6 +76,7 @@ type Store struct {
 	WaitTimeout            time.Duration
 	MarketplaceGitSourceName string
 	MarketplaceRepo			string
+	MarketplacePluginsPath  string
 
 	WorkflowName           string
 	WorkflowReporterName   string
@@ -117,6 +118,7 @@ func init() {
 	s.RuntimeFilename = "runtime.yaml"
 	s.MarketplaceGitSourceName = "marketplace-git-source"
     s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git/"
+	s.MarketplacePluginsPath = "plugins"
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"

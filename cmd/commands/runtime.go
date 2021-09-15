@@ -303,7 +303,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		},
 		gsName:       store.Get().MarketplaceGitSourceName,
 		runtimeName:  opts.RuntimeName,
-		fullGsPath:   store.Get().MarketplaceRepo,
+		fullGsPath:   opts.gsCloneOpts.FS.Join(store.Get().MarketplaceRepo, store.Get().MarketplacePluginsPath),
 		createDemoWorkflowTemplate: false,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
