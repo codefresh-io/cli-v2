@@ -16,6 +16,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -35,6 +36,7 @@ import (
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,11 +171,21 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 		}
 
-		_, err = gsRepo.Persist(ctx, &git.PushOptions{
+		pOpts := &git.PushOptions{
 			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
-		})
-
+		}
+		_, err = gsRepo.Persist(ctx, pOpts)
 		if err != nil {
+			if errors.Is(err, transport.ErrRepositoryNotFound) {
+				log.G(ctx).Warn("got repository not found error, trying to persist again in 3 seconds...")
+				time.Sleep(time.Second * 3)
+
+				_, err = gsRepo.Persist(ctx, pOpts)
+				if err != nil {
+					return fmt.Errorf("failed to push changes. Err: %w", err)
+				}
+			}
+
 			return fmt.Errorf("failed to push changes. Err: %w", err)
 		}
 	}
