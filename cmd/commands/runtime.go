@@ -198,7 +198,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
-		CreateIfNotExist: true,
+		CreateIfNotExist: false,
 		FS:               memfs.New(),
 	})
 	f = kube.AddFlags(cmd.Flags())
