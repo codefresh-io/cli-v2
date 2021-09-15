@@ -78,6 +78,7 @@ type Store struct {
 	RuntimeDefURL            string
 	RuntimeFilename          string
 	Version                  Version
+	WaitInterval             time.Duration
 	WaitTimeout              time.Duration
 	WorkflowName             string
 	WorkflowReporterName     string
@@ -121,6 +122,7 @@ func init() {
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.RuntimeFilename = "runtime.yaml"
+	s.WaitInterval = 15 * time.Second
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"

@@ -17,11 +17,13 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -38,7 +40,6 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -194,12 +195,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
+		Progress:         io.Discard,
 	})
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
+		Progress:         io.Discard,
 	})
 	f = kube.AddFlags(cmd.Flags())
 
@@ -335,14 +338,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	err = intervalCheckIsRuntimePersisted(15000, ctx, opts.RuntimeName, &wg)
-	if err != nil {
-		return fmt.Errorf("failed to complete installation. Error: %w", err)
+	stop := aputil.WithSpinner(ctx, "waiting for the runtime installation to complete")
+	if err = intervalCheckIsRuntimePersisted(ctx, store.Get().WaitInterval, store.Get().WaitTimeout, opts.RuntimeName); err != nil {
+		stop()
+		return fmt.Errorf("failed to complete installation: %w", err)
 	}
-	wg.Wait()
+
+	stop()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
 	return nil
@@ -415,28 +417,27 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return fmt.Errorf("runtime '%s' already exists", runtime)
 }
 
-func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
-	interval := time.Duration(milliseconds) * time.Millisecond
-	ticker := time.NewTicker(interval)
-	var err error
+func intervalCheckIsRuntimePersisted(ctx context.Context, interval time.Duration, timeout time.Duration, runtimeName string) error {
+	var (
+		err error
+		wg  sync.WaitGroup
+	)
+	wg.Add(1)
+	ticker := time.NewTicker(store.Get().WaitInterval)
+	attempts := int(timeout / interval)
 
-	for retries := 20; retries > 0; <-ticker.C {
-		retries--
-		fmt.Println("waiting for the runtime installation to complete...")
-		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
-		if err != nil {
-			return fmt.Errorf("failed to complete the runtime installation. Error: %w", err)
+	for retries := 0; retries < attempts; <-ticker.C {
+		var runtime *model.Runtime
+		retries++
+		runtime, err = cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		if runtime != nil {
+			ticker.Stop()
+			wg.Done()
+			return nil
 		}
-
-		if runtime.InstallationStatus != model.InstallationStatusCompleted {
-			continue
-		}
-
-		wg.Done()
-		ticker.Stop()
-		return nil
 	}
 
+	wg.Wait()
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
 }
 
@@ -560,7 +561,8 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
 
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
+		FS:       memfs.New(),
+		Progress: io.Discard,
 	})
 	f = kube.AddFlags(cmd.Flags())
 
@@ -654,7 +656,8 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
+		FS:       memfs.New(),
+		Progress: io.Discard,
 	})
 
 	return cmd

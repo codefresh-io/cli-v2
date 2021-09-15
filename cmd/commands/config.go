@@ -19,10 +19,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-
-	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
 
 	"github.com/spf13/cobra"
 )

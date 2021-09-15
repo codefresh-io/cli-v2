@@ -17,14 +17,15 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	
-	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
+
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -34,8 +35,8 @@ import (
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 
-	"github.com/juju/ansiterm"
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,12 +144,14 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
+		Progress:         io.Discard,
 	})
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
+		Progress:         io.Discard,
 	})
 
 	return cmd
@@ -296,7 +299,8 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	}
 
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
+		FS:       memfs.New(),
+		Progress: io.Discard,
 	})
 
 	return cmd
@@ -364,6 +368,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
+		Progress:         io.Discard,
 	})
 
 	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
@@ -371,6 +376,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 		Optional:         true,
 		CreateIfNotExist: true,
 		FS:               memfs.New(),
+		Progress:         io.Discard,
 	})
 
 	return cmd

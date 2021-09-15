@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
@@ -32,7 +33,6 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 
 	"github.com/Masterminds/semver/v3"
