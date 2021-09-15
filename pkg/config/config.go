@@ -27,16 +27,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
+
 	"github.com/fatih/color"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 )
 
 const configFileName = ".cfconfig"

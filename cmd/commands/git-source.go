@@ -20,12 +20,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/juju/ansiterm"
-
+	
+	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -34,6 +33,8 @@ import (
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+
+	"github.com/juju/ansiterm"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"

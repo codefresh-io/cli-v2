@@ -24,8 +24,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
 
 	"github.com/briandowns/spinner"
 	"k8s.io/client-go/tools/clientcmd"

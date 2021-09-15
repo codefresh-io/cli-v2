@@ -19,8 +19,9 @@ import (
 	"syscall"
 
 	"github.com/codefresh-io/cli-v2/cmd/commands"
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/log"
 
 	"github.com/sirupsen/logrus"
 )
