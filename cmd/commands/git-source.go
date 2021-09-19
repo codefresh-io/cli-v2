@@ -140,7 +140,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				gsName:       args[1],
 				runtimeName:  args[0],
 				fullGsPath:   gsCloneOpts.Path(),
-				eventSourceFileName: "cron-example.yaml",
 			})
 		},
 	}
@@ -160,6 +159,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
+	log.G(ctx).Infof("USING CF-DEV 1")
+
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -170,6 +171,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
 
+
 	if len(fi) == 0 {
 		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
 			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
@@ -179,11 +181,11 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
 		}
 
-		eventSourceFilePath := gsFs.Join("eventsource", opts.eventSourceFileName)
-		sensorFolderPath := gsFs.Join("sensor")
+		eventSourceFilePath := gsFs.Join("resources", "eventsource", opts.eventSourceFileName)
+		sensorFolderPath := gsFs.Join("resources", "sensor")
 
 		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-			Name:         store.Get().EventsReporterName,
+			Name:         "cron-example",
 			Namespace:    opts.runtimeName,
 			EventBusName: store.Get().EventBusName,
 			Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
@@ -198,7 +200,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create eventsource: %w", err)
 		}
 
-		err = createSensor(opts.gsCloneOpts.FS, "cron-example", sensorFolderPath, opts.runtimeName, "calender", "calendar-workflow-trigger", "data", "cron-example.yaml")
+		err = createSensor(opts.gsCloneOpts.FS, "cron-example", sensorFolderPath, opts.runtimeName, "calender", "calendar-workflow-trigger", "data", opts.sensorFileName)
 		if err != nil {
 			return fmt.Errorf("failed to create sensor: %w", err)
 		}
