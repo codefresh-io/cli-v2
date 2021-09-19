@@ -76,6 +76,7 @@ type (
 		RuntimeName string
 		Timeout     time.Duration
 		CloneOpts   *git.CloneOptions
+		GsCloneOpts *git.CloneOptions
 		KubeFactory kube.Factory
 		SkipChecks  bool
 	}
@@ -515,9 +516,10 @@ func RunRuntimeList(ctx context.Context) error {
 
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
-		skipChecks bool
-		f          kube.Factory
-		cloneOpts  *git.CloneOptions
+		skipChecks  bool
+		f           kube.Factory
+		cloneOpts   *git.CloneOptions
+		gsCloneOpts *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -539,6 +541,17 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			cloneOpts.Parse()
+
+			if gsCloneOpts.Auth.Password == "" {
+				gsCloneOpts.Auth.Password = cloneOpts.Auth.Password
+			}
+
+			if gsCloneOpts.Repo == "" {
+				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(cloneOpts.Repo)
+				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources"
+			}
+
+			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -552,6 +565,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
 				SkipChecks:  skipChecks,
+				GsCloneOpts: gsCloneOpts,
 			})
 		},
 	}
@@ -562,6 +576,14 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
 		FS: memfs.New(),
 	})
+
+	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+		Prefix:           "git-src",
+		Optional:         true,
+		CreateIfNotExist: true,
+		FS:               memfs.New(),
+	})
+
 	f = kube.AddFlags(cmd.Flags())
 
 	return cmd
@@ -583,6 +605,15 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
+		KubeFactory:  opts.KubeFactory,
+	}); err != nil {
+		return fmt.Errorf("failed uninstalling runtime: %w", err)
+	}
+
+	if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+		Namespace:    opts.RuntimeName,
+		Timeout:      opts.Timeout,
+		CloneOptions: opts.GsCloneOpts,
 		KubeFactory:  opts.KubeFactory,
 	}); err != nil {
 		return fmt.Errorf("failed uninstalling runtime: %w", err)
