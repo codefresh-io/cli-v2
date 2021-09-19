@@ -51,6 +51,7 @@ type (
 		runtimeName    string
 		fullGsPath     string
 		sensorFileName string
+		eventSourceFileName string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -139,6 +140,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				gsName:       args[1],
 				runtimeName:  args[0],
 				fullGsPath:   gsCloneOpts.Path(),
+				eventSourceFileName: "cron-example.yaml",
 			})
 		},
 	}
@@ -177,6 +179,9 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
 		}
 
+		eventSourceFilePath := gsFs.Join("eventsource", opts.eventSourceFileName)
+		sensorFolderPath := gsFs.Join("sensor")
+
 		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 			Name:         store.Get().EventsReporterName,
 			Namespace:    opts.runtimeName,
@@ -187,13 +192,13 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 				},
 			},
 		})
-		err = opts.gsCloneOpts.FS.WriteYamls(opts.gsCloneOpts.FS.Join("resources", "eventsource", "cron-example.yaml"), eventSource)
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 
 		if err != nil {
 			return fmt.Errorf("failed to create eventsource: %w", err)
 		}
 
-		err = createSensor(opts.gsCloneOpts.FS, "cron-example", "resources/sensor", opts.runtimeName, "calender", "calendar-workflow-trigger", "data", "cron-example.yaml")
+		err = createSensor(opts.gsCloneOpts.FS, "cron-example", sensorFolderPath, opts.runtimeName, "calender", "calendar-workflow-trigger", "data", "cron-example.yaml")
 		if err != nil {
 			return fmt.Errorf("failed to create sensor: %w", err)
 		}
