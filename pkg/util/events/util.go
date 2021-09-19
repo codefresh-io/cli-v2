@@ -41,6 +41,7 @@ type (
 		EventBusName       string
 		Resource           map[string]CreateResourceEventSourceOptions
 		Generic            map[string]CreateGenericEventSourceOptions
+		Calender           map[string]CreateCalenderEventSourceOptions
 	}
 
 	CreateResourceEventSourceOptions struct {
@@ -55,6 +56,10 @@ type (
 		URL             string
 		Insecure        bool
 		TokenSecretName string
+	}
+
+	CreateCalenderEventSourceOptions struct {
+		Interval string
 	}
 
 	CreateSelectorOptions struct {
@@ -92,6 +97,8 @@ func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.
 func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.EventSource {
 	var resource map[string]eventsourcev1alpha1.ResourceEventSource
 	var generic map[string]eventsourcev1alpha1.GenericEventSource
+	var calender map[string]eventsourcev1alpha1.CalendarEventSource
+
 	if len(opts.Resource) != 0 {
 		resource = make(map[string]eventsourcev1alpha1.ResourceEventSource)
 		for key, res := range opts.Resource {
@@ -103,6 +110,13 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 		generic = make(map[string]eventsourcev1alpha1.GenericEventSource)
 		for key, res := range opts.Generic {
 			generic[key] = *CreateGenericEventSource(&res)
+		}
+	}
+
+	if len(opts.Calender) != 0 {
+		calender = make(map[string]eventsourcev1alpha1.CalendarEventSource)
+		for key, res := range opts.Calender {
+			calender[key] = *CreateCalenderEventSource(&res)
 		}
 	}
 
@@ -128,6 +142,7 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 			EventBusName: opts.EventBusName,
 			Resource:     resource,
 			Generic:      generic,
+			Calendar:     calender,
 		},
 	}
 }
@@ -167,6 +182,12 @@ func CreateResourceEventSource(opts *CreateResourceEventSourceOptions) *eventsou
 		Filter: &eventsourcev1alpha1.ResourceFilter{
 			Labels: selectors,
 		},
+	}
+}
+
+func CreateCalenderEventSource(opts *CreateCalenderEventSourceOptions) *eventsourcev1alpha1.CalendarEventSource {
+	return &eventsourcev1alpha1.CalendarEventSource{
+		Interval: opts.Interval,
 	}
 }
 

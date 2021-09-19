@@ -70,6 +70,8 @@ type (
 		insCloneOpts *git.CloneOptions
 		KubeFactory  kube.Factory
 		commonConfig *runtime.CommonConfig
+		sensorFileName string
+		eventSourceFileName string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -183,6 +185,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				commonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
+				sensorFileName: "sensor.yaml",
+				eventSourceFileName: "event-source.yaml",
 			})
 		},
 	}
@@ -813,11 +817,11 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
+	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.eventSourceFileName, opts.Insecure); err != nil {
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data"); err != nil {
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data", opts.sensorFileName); err != nil {
 		return err
 	}
 
@@ -878,7 +882,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object"); err != nil {
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object", opts.sensorFileName); err != nil {
 		return err
 	}
 
@@ -1022,9 +1026,9 @@ func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
+func createEventsReporterEventSource(repofs fs.FS, path, namespace, eventSourceFileName string, insecure bool) error {
 	port := 443
-	if insecure {
+	if insecure { 
 		port = 80
 	}
 	argoCDSvc := fmt.Sprintf("argocd-server.%s.svc:%d", namespace, port)
@@ -1041,7 +1045,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 			},
 		},
 	})
-	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
+	return repofs.WriteYamls(repofs.Join(path, eventSourceFileName), eventSource) 
 }
 
 func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {
@@ -1062,7 +1066,7 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey, sensorFileName string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
@@ -1072,7 +1076,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 		Triggers:        []string{trigger},
 		TriggerDestKey:  dataKey,
 	})
-	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
+	return repofs.WriteYamls(repofs.Join(path, sensorFileName), sensor)
 }
 
 func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {

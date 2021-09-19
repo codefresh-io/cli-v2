@@ -25,6 +25,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	"github.com/juju/ansiterm"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -44,11 +45,12 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		insCloneOpts *git.CloneOptions
-		gsCloneOpts  *git.CloneOptions
-		gsName       string
-		runtimeName  string
-		fullGsPath   string
+		insCloneOpts   *git.CloneOptions
+		gsCloneOpts    *git.CloneOptions
+		gsName         string
+		runtimeName    string
+		fullGsPath     string
+		sensorFileName string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -156,6 +158,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
+	log.G(ctx).Infof("Running from cf-dev-3")
+
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -173,6 +177,27 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 		pOpts := &git.PushOptions{
 			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
+		}
+
+		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+			Name:         store.Get().EventsReporterName,
+			Namespace:    opts.runtimeName,
+			EventBusName: store.Get().EventBusName,
+			Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
+				"example-with-interval": {
+					Interval: "5m",
+				},
+			},
+		})
+		err = opts.gsCloneOpts.FS.WriteYamls(opts.gsCloneOpts.FS.Join("resources", "eventsource", "cron-example.yaml"), eventSource)
+
+		if err != nil {
+			return fmt.Errorf("failed to create eventsource: %w", err)
+		}
+
+		err = createSensor(opts.gsCloneOpts.FS, "cron-example", "resources/sensor", opts.runtimeName, "calender", "calendar-workflow-trigger", "data", "cron-example.yaml")
+		if err != nil {
+			return fmt.Errorf("failed to create sensor: %w", err)
 		}
 
 		_, err = gsRepo.Persist(ctx, pOpts)
