@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	argodashboardutil "github.com/codefresh-io/cli-v2/pkg/util/argo-agent"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
@@ -122,15 +123,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
 
-		export INSTALL_GIT_TOKEN=<token>
+		export GIT_TOKEN=<token>
 
 # or with the flag:
 
-		--install-git-token <token>
+		--git-token <token>
 
 # Adds a new runtime
 
-	<BIN> runtime install runtime-name --install-repo gitops_repo
+	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRun: func(_ *cobra.Command, _ []string) {
 			if gsCloneOpts.Auth.Password == "" {
@@ -205,6 +206,32 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
+func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
+	var componentNames []string
+	for _, component := range rt.Spec.Components {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
+	}
+
+	//  should find a more dynamic way to get these additional components
+	additionalComponents := []string{"events-reporter", "workflow-reporter"}
+	for _, additionalComponentName := range additionalComponents {
+		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
+	}
+	componentNames = append(componentNames, "argo-cd")
+
+	return componentNames
+}
+
+func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeName, server, runtimeVersion, ingressHost, componentNames)
+
+	if runtimeCreationResponse.ErrorMessage != nil {
+		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+	}
+
+	return runtimeCreationResponse.NewAccessToken, nil
+}
+
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
@@ -215,16 +242,25 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.RuntimeName)
-	if err != nil {
-		return fmt.Errorf("failed to create a new runtime: %w", err)
+	runtimeVersion := "v99.99.99"
+	if rt.Spec.Version != nil { // in dev mode
+		runtimeVersion = rt.Spec.Version.String()
 	}
 
-	opts.RuntimeToken = runtimeCreationResponse.NewAccessToken
 	server, err := util.CurrentServer()
 	if err != nil {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
+
+	componentNames := getComponents(rt, opts)
+
+	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
+
+	if err != nil {
+		return fmt.Errorf("failed to create a new runtime: %w", err)
+	}
+
+	opts.RuntimeToken = token
 
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
@@ -272,6 +308,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
+	}
+
+	if err = createCodefreshArgoAgentReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
 	}
 
 	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
@@ -380,7 +420,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			return nil // runtime does exist
+			return nil // runtime does not exist
 		}
 
 		return fmt.Errorf("failed to get runtime: %w", err)
@@ -397,20 +437,18 @@ func intervalCheckIsRuntimePersisted(milliseconds int, ctx context.Context, runt
 	for retries := 20; retries > 0; <-ticker.C {
 		retries--
 		fmt.Println("waiting for the runtime installation to complete...")
-		var runtimes []model.Runtime
-		runtimes, err = cfConfig.NewClient().V2().Runtime().List(ctx)
+		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
+			return fmt.Errorf("failed to complete the runtime installation. Error: %w", err)
+		}
+
+		if runtime.InstallationStatus != model.InstallationStatusCompleted {
 			continue
 		}
 
-		for _, rt := range runtimes {
-			if rt.Metadata.Name == runtimeName {
-				wg.Done()
-				ticker.Stop()
-				return nil
-			}
-		}
-
+		wg.Done()
+		ticker.Stop()
+		return nil
 	}
 
 	return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
@@ -440,7 +478,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS")
 	if err != nil {
 		return err
 	}
@@ -453,6 +491,7 @@ func RunRuntimeList(ctx context.Context) error {
 		syncStatus := rt.SyncStatus
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
+		installationStatus := rt.InstallationStatus
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -470,7 +509,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage = *rt.HealthMessage
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -478,6 +517,7 @@ func RunRuntimeList(ctx context.Context) error {
 			syncStatus,
 			healthStatus,
 			healthMessage,
+			installationStatus,
 		)
 		if err != nil {
 			return err
@@ -546,6 +586,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
 		if err != nil {
+			log.G(ctx).Warn("you can attempt to uninstall again with the \"--skip-checks\" flag")
 			return err
 		}
 	}
@@ -758,7 +799,12 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
 
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
+	argoAgentCFTokenSecret, err := getArgoCDAgentTokenSecret(ctx, cfConfig.GetCurrentContext().Token, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create argocd token secret: %w", err)
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret, argoAgentCFTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
@@ -787,6 +833,33 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 
 	_, err = r.Persist(ctx, &git.PushOptions{
 		CommitMsg: "Created Codefresh Event Reporter",
+	})
+	return err
+}
+
+func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	argoAgentCFTokenSecret, err := getArgoCDAgentTokenSecret(ctx, cfConfig.GetCurrentContext().Token, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create argocd token secret: %w", err)
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(argoAgentCFTokenSecret)); err != nil {
+		return fmt.Errorf("failed to create codefresh token: %w", err)
+	}
+
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, "base")
+
+	r, _, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := createCodefreshArgoDashboardAgent(ctx, resPath, cloneOpts, rt); err != nil {
+		return err
+	}
+
+	_, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: "Created ArgoCD Agent Reporter",
 	})
 	return err
 }
@@ -884,6 +957,22 @@ func getArgoCDTokenSecret(ctx context.Context, namespace string, insecure bool) 
 		},
 		Data: map[string][]byte{
 			store.Get().ArgoCDTokenKey: []byte(token),
+		},
+	})
+}
+
+func getArgoCDAgentTokenSecret(ctx context.Context, token string, namespace string) ([]byte, error) {
+	return yaml.Marshal(&v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ArgoCDAgentCFTokenSecret,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			store.Get().ArgoCDAgentCFTokenKey: []byte(token),
 		},
 	})
 }
@@ -994,4 +1083,19 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
+}
+
+func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
+	_, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	kust := argodashboardutil.CreateAgentResourceKustomize(&argodashboardutil.CreateAgentOptions{Namespace: rt.Namespace, Name: rt.Name})
+
+	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
+		return err
+	}
+
+	return nil
 }
