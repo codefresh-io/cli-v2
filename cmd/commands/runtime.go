@@ -304,22 +304,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	if opts.IngressHost != "" {
-		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
-			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
-		}
-	}
-
-	if err = createCodefreshArgoAgentReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
-		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
-	}
-
-	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
-		return fmt.Errorf("failed to create events-reporter: %w", err)
-	}
-
-	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
-		return fmt.Errorf("failed to create workflows-reporter: %w", err)
+	err = installComponents(ctx, opts, rt)	
+	if err != nil {
+		return err
 	}
 
 	gsPath := opts.gsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
@@ -361,6 +348,28 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	wg.Wait()
 
 	log.G(ctx).Infof("done installing runtime '%s'", opts.RuntimeName)
+	return nil
+}
+
+func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	var err error
+	if opts.IngressHost != "" {
+		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
+			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
+		}
+	}
+
+	if err = createCodefreshArgoAgentReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
+	}
+
+	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+		return fmt.Errorf("failed to create events-reporter: %w", err)
+	}
+
+	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create workflows-reporter: %w", err)
+	}
 	return nil
 }
 
