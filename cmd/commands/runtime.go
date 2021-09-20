@@ -61,16 +61,16 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName  string
-		RuntimeToken string
-		IngressHost  string
-		Insecure     bool
-		Version      *semver.Version
-		gsCloneOpts  *git.CloneOptions
-		insCloneOpts *git.CloneOptions
-		KubeFactory  kube.Factory
-		commonConfig *runtime.CommonConfig
-		sensorFileName string
+		RuntimeName         string
+		RuntimeToken        string
+		IngressHost         string
+		Insecure            bool
+		Version             *semver.Version
+		gsCloneOpts         *git.CloneOptions
+		insCloneOpts        *git.CloneOptions
+		KubeFactory         kube.Factory
+		commonConfig        *runtime.CommonConfig
+		sensorFileName      string
 		eventSourceFileName string
 	}
 
@@ -185,7 +185,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				commonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
-				sensorFileName: store.Get().DemoPipelineSensor,
+				sensorFileName:      store.Get().DemoPipelineSensor,
 				eventSourceFileName: store.Get().DemoPipelineEventSource,
 			})
 		},
@@ -330,12 +330,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		insCloneOpts: opts.insCloneOpts,
-		gsCloneOpts:  opts.gsCloneOpts,
-		gsName:       store.Get().GitSourceName,
-		runtimeName:  opts.RuntimeName,
-		fullGsPath:   fullGsPath,
-		sensorFileName: store.Get().DemoPipelineSensor,
+		insCloneOpts:        opts.insCloneOpts,
+		gsCloneOpts:         opts.gsCloneOpts,
+		gsName:              store.Get().GitSourceName,
+		runtimeName:         opts.RuntimeName,
+		fullGsPath:          fullGsPath,
+		sensorFileName:      store.Get().DemoPipelineSensor,
 		eventSourceFileName: store.Get().DemoPipelineEventSource,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
@@ -1030,7 +1030,7 @@ func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 
 func createEventsReporterEventSource(repofs fs.FS, path, namespace, eventSourceFileName string, insecure bool) error {
 	port := 443
-	if insecure { 
+	if insecure {
 		port = 80
 	}
 	argoCDSvc := fmt.Sprintf("argocd-server.%s.svc:%d", namespace, port)
@@ -1047,7 +1047,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace, eventSourceF
 			},
 		},
 	})
-	return repofs.WriteYamls(repofs.Join(path, eventSourceFileName), eventSource) 
+	return repofs.WriteYamls(repofs.Join(path, eventSourceFileName), eventSource)
 }
 
 func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {
@@ -1070,9 +1070,10 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 
 func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey, sensorFileName string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
-		Name:            name,
+		Name:            "calender-dep",
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
+		EventName:       "example-with-interval",
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
 		Triggers:        []string{trigger},

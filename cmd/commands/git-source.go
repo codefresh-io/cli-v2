@@ -159,7 +159,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 1")
+	log.G(ctx).Infof("USING CF-DEV 2")
 
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -184,7 +184,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		sensorFolderPath := gsFs.Join("resources")
 
 		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-			Name:         "cron-example",
+			Name:         store.Get().CronExampleEventSourceName,
 			Namespace:    opts.runtimeName,
 			EventBusName: store.Get().EventBusName,
 			Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
@@ -199,7 +199,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create eventsource: %w", err)
 		}
 
-		err = createSensor(opts.gsCloneOpts.FS, "cron-example", sensorFolderPath, opts.runtimeName, "calender", "calendar-workflow-trigger", "data", opts.sensorFileName)
+		err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, "example-with-interval", "data", opts.sensorFileName)
 		if err != nil {
 			return fmt.Errorf("failed to create sensor: %w", err)
 		}
@@ -485,15 +485,6 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 			},
 		},
 	}
-	// TODO: get it from the store
-	return gsFs.WriteYamls("demo-pipeline.workflow-template.yaml", wfTemplate)
-}
 
-// LabelSelector: metav1.LabelSelector{
-// 	MatchLabels: map[string]string{},
-// 	MatchExpressions: []metav1.LabelSelectorRequirement{
-// 		Key:      "",
-// 		Operator: metav1.LabelSelectorOperator{""},
-// 		Values:   []string{},
-// 	},
-// },
+	return gsFs.WriteYamls(store.Get().DemoPipelineWfTemplate, wfTemplate)
+}

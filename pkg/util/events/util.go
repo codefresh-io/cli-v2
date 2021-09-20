@@ -72,6 +72,7 @@ type (
 		Name            string
 		Namespace       string
 		EventSourceName string
+		EventName       string
 		EventBusName    string
 		TriggerURL      string
 		Triggers        []string

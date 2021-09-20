@@ -44,46 +44,47 @@ type Version struct {
 }
 
 type Store struct {
-	ArgoCDServerName         string
-	ArgoCDTokenKey           string
-	ArgoCDTokenSecret        string
-	ArgoCDAgentCFTokenKey    string
-	ArgoCDAgentCFTokenSecret string
-	ArgoCDAgentSA            string
-	ArgoWFServiceName        string
-	ArgoWFServicePort        int32
-	BinaryName               string
-	Codefresh                string
-	CFComponentType          string
-	CFGitSourceType          string
-	CFRuntimeDefType         string
-	CFRuntimeType            string
-	CFTokenSecret            string
-	CFTokenSecretKey         string
-	CodefreshCM              string
-	CodefreshSA              string
-	ComponentsReporterName   string
-	ComponentsReporterSA     string
-	ComponentsReporterURL    string
-	DefaultAPI               string
-	EventBusName             string
-	EventReportingEndpoint   string
-	EventsReporterName       string
-	ArgoCDAgentReporterName  string
-	GitSourceName            string
-	IngressName              string
-	IngressPath              string
-	LabelKeyCFType           string
-	MaxDefVersion            *semver.Version
-	RuntimeDefURL            string
-	RuntimeFilename          string
-	Version                  Version
-	WaitTimeout              time.Duration
-	WorkflowName             string
-	WorkflowReporterName     string
-	DemoPipelineSensor       string
-	DemoPipelineEventSource  string
-	DemoPipelineWfTemplate   string
+	ArgoCDServerName           string
+	ArgoCDTokenKey             string
+	ArgoCDTokenSecret          string
+	ArgoCDAgentCFTokenKey      string
+	ArgoCDAgentCFTokenSecret   string
+	ArgoCDAgentSA              string
+	ArgoWFServiceName          string
+	ArgoWFServicePort          int32
+	BinaryName                 string
+	Codefresh                  string
+	CFComponentType            string
+	CFGitSourceType            string
+	CFRuntimeDefType           string
+	CFRuntimeType              string
+	CFTokenSecret              string
+	CFTokenSecretKey           string
+	CodefreshCM                string
+	CodefreshSA                string
+	ComponentsReporterName     string
+	ComponentsReporterSA       string
+	ComponentsReporterURL      string
+	DefaultAPI                 string
+	EventBusName               string
+	EventReportingEndpoint     string
+	EventsReporterName         string
+	ArgoCDAgentReporterName    string
+	GitSourceName              string
+	IngressName                string
+	IngressPath                string
+	LabelKeyCFType             string
+	MaxDefVersion              *semver.Version
+	RuntimeDefURL              string
+	RuntimeFilename            string
+	Version                    Version
+	WaitTimeout                time.Duration
+	WorkflowName               string
+	WorkflowReporterName       string
+	DemoPipelineSensor         string
+	DemoPipelineEventSource    string
+	DemoPipelineWfTemplate     string
+	CronExampleEventSourceName string
 }
 
 // Get returns the global store
@@ -127,9 +128,10 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
-	s.DemoPipelineWfTemplate = "demo-pipeline.sensor.yaml"
-	s.DemoPipelineEventSource = "demo-pipeline.sensor.yaml"
-	s.DemoPipelineSensor = "demo-pipeline.sensor.yaml"
+	s.DemoPipelineWfTemplate = "workflow-template.hello-world.yaml"
+	s.DemoPipelineEventSource = "event-source.calender.yaml"
+	s.DemoPipelineSensor = "sensor.cron.yaml"
+	s.CronExampleEventSourceName = "calender"
 	initVersion()
 }
 
