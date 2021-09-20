@@ -21,6 +21,7 @@ import (
 	"github.com/codefresh-io/cli-v2/cmd/commands"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 
 	"github.com/sirupsen/logrus"
 )
@@ -32,6 +33,9 @@ func main() {
 	lgr := log.FromLogrus(logrus.NewEntry(logrus.New()), &log.LogrusConfig{Level: "info"})
 	ctx = log.WithLogger(ctx, lgr)
 	ctx = util.ContextWithCancelOnSignals(ctx, syscall.SIGINT, syscall.SIGTERM)
+
+	// configure autopilot logger
+	apu.ConfigureLoggerOrDie()
 
 	c := commands.NewRoot()
 	lgr.AddPFlags(c)

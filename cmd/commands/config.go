@@ -88,7 +88,7 @@ func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) er
 	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
 		return err
 	}
-	log.G().Infof("create new context: %s", context)
+	log.G().Infof("Create new context: %s", context)
 	return RunConfigUseContext(ctx, context)
 }
 
@@ -162,7 +162,7 @@ func RunConfigUseContext(ctx context.Context, context string) error {
 	if err := cfConfig.UseContext(ctx, context); err != nil {
 		return err
 	}
-	log.G().Infof("switched to context: %s", context)
+	log.G().Infof("Switched to context: %s", context)
 	return nil
 }
 
@@ -190,6 +190,6 @@ func RunConfigDeleteContext(ctx context.Context, context string) error {
 		return err
 	}
 
-	log.G(ctx).Infof("delete context: %s", context)
+	log.G(ctx).Infof("Delete context: %s", context)
 	return nil
 }
