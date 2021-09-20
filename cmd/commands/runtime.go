@@ -241,8 +241,6 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeCreateOnPlatformO
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	log.G(ctx).Infof("DEV-2") // TODO: delete before mege
-
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
