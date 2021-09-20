@@ -419,7 +419,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 	waitMsg := "Waiting for the runtime installation to complete"
 	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
 	stop := util.WithSpinner(ctx, waitMsg)
-	ticker := time.NewTicker(time.Millisecond * 500)
+	ticker := time.NewTicker(time.Second * 10)
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
