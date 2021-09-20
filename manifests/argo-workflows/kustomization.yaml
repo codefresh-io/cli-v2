@@ -25,7 +25,7 @@ patches:
         value: --auth-mode=server
 
 configMapGenerator:
-- name: argo-workflow-configmap
+- name: workflow-controller-configmap
   behavior: merge
   literals:
    - containerRuntimeExecutor=k8sapi
