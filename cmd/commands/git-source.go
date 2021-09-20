@@ -45,12 +45,12 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		insCloneOpts   *git.CloneOptions
-		gsCloneOpts    *git.CloneOptions
-		gsName         string
-		runtimeName    string
-		fullGsPath     string
-		sensorFileName string
+		insCloneOpts        *git.CloneOptions
+		gsCloneOpts         *git.CloneOptions
+		gsName              string
+		runtimeName         string
+		fullGsPath          string
+		sensorFileName      string
 		eventSourceFileName string
 	}
 
@@ -170,7 +170,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
-
 
 	if len(fi) == 0 {
 		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
@@ -457,19 +456,25 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-workflow-template",
-			Namespace: runtimeName,
+			Name: "hello-world",
 		},
 		Spec: wfv1alpha1.WorkflowTemplateSpec{
 			WorkflowSpec: wfv1alpha1.WorkflowSpec{
+				Arguments: wfv1alpha1.Arguments{
+					Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
+				},
 				Entrypoint: "whalesay",
 				Templates: []wfv1alpha1.Template{
 					{
 						Name: "whalesay",
+						Inputs: wfv1alpha1.Inputs{
+							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello-world")}},
+							Artifacts:  wfv1alpha1.Artifacts{},
+						},
 						Container: &v1.Container{
 							Image:   "docker/whalesay",
 							Command: []string{"cowsay"},
-							Args:    []string{"Hello World"},
+							Args:    []string{"{{inputs.parameters.message}}"},
 						},
 					},
 				},
@@ -477,5 +482,5 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 		},
 	}
 
-	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
+	return gsFs.WriteYamls("resources/demo-pipeline.workflow-template.yaml", wfTemplate)
 }
