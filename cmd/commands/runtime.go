@@ -72,6 +72,14 @@ type (
 		commonConfig *runtime.CommonConfig
 	}
 
+	RuntimeCreateOnPlatformOptions struct {
+		runtimeName    string
+		server         string
+		runtimeVersion string
+		ingressHost    string
+		componentNames []string
+	}
+
 	RuntimeUninstallOptions struct {
 		RuntimeName string
 		Timeout     time.Duration
@@ -222,8 +230,8 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	return componentNames
 }
 
-func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeName, server, runtimeVersion, ingressHost, componentNames)
+func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeCreateOnPlatformOptions) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.runtimeName, opts.server, opts.runtimeVersion, opts.ingressHost, opts.componentNames)
 
 	if runtimeCreationResponse.ErrorMessage != nil {
 		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
@@ -233,6 +241,8 @@ func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server str
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Infof("DEV-2") // TODO: delete before mege
+
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
@@ -254,7 +264,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
+	token, err := createRuntimeOnPlatform(ctx, &RuntimeCreateOnPlatformOptions{
+		runtimeName:    opts.RuntimeName,
+		server:         server,
+		runtimeVersion: runtimeVersion,
+		ingressHost:    opts.IngressHost,
+		componentNames: componentNames,
+	})
 
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
