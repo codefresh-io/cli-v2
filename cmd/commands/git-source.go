@@ -180,8 +180,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
 		}
 
-		eventSourceFilePath := gsFs.Join("resources", "eventsource", opts.eventSourceFileName)
-		sensorFolderPath := gsFs.Join("resources", "sensor")
+		eventSourceFilePath := gsFs.Join("resources", opts.eventSourceFileName)
+		sensorFolderPath := gsFs.Join("resources")
 
 		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 			Name:         "cron-example",
@@ -463,7 +463,11 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 				Arguments: wfv1alpha1.Arguments{
 					Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
 				},
-				Entrypoint: "whalesay",
+				Entrypoint:         "whalesay",
+				ServiceAccountName: store.Get().CodefreshSA,
+				PodGC: &wfv1alpha1.PodGC{
+					Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
+				},
 				Templates: []wfv1alpha1.Template{
 					{
 						Name: "whalesay",
@@ -481,6 +485,15 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 			},
 		},
 	}
-
-	return gsFs.WriteYamls("resources/demo-pipeline.workflow-template.yaml", wfTemplate)
+	// TODO: get it from the store
+	return gsFs.WriteYamls("demo-pipeline.workflow-template.yaml", wfTemplate)
 }
+
+// LabelSelector: metav1.LabelSelector{
+// 	MatchLabels: map[string]string{},
+// 	MatchExpressions: []metav1.LabelSelectorRequirement{
+// 		Key:      "",
+// 		Operator: metav1.LabelSelectorOperator{""},
+// 		Values:   []string{},
+// 	},
+// },

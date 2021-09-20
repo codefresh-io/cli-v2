@@ -81,7 +81,9 @@ type Store struct {
 	WaitTimeout              time.Duration
 	WorkflowName             string
 	WorkflowReporterName     string
-	CronExampleYaml          string
+	DemoPipelineSensor       string
+	DemoPipelineEventSource  string
+	DemoPipelineWfTemplate   string
 }
 
 // Get returns the global store
@@ -125,8 +127,9 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
-	s.CronExampleYaml = "cron-example.yaml"
-
+	s.DemoPipelineWfTemplate = "demo-pipeline.sensor.yaml"
+	s.DemoPipelineEventSource = "demo-pipeline.sensor.yaml"
+	s.DemoPipelineSensor = "demo-pipeline.sensor.yaml"
 	initVersion()
 }
 

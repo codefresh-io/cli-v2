@@ -185,8 +185,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				commonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
-				sensorFileName: store.Get().CronExampleYaml,
-				eventSourceFileName: store.Get().CronExampleYaml,
+				sensorFileName: store.Get().DemoPipelineSensor,
+				eventSourceFileName: store.Get().DemoPipelineEventSource,
 			})
 		},
 	}
@@ -335,8 +335,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		gsName:       store.Get().GitSourceName,
 		runtimeName:  opts.RuntimeName,
 		fullGsPath:   fullGsPath,
-		sensorFileName: store.Get().CronExampleYaml,
-		eventSourceFileName: store.Get().CronExampleYaml,
+		sensorFileName: store.Get().DemoPipelineSensor,
+		eventSourceFileName: store.Get().DemoPipelineEventSource,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
