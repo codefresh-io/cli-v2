@@ -23,3 +23,9 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/args/-
         value: --auth-mode=server
+
+configMapGenerator:
+- name: workflow-controller-configmap
+  behavior: merge
+  literals:
+   - containerRuntimeExecutor=k8sapi
