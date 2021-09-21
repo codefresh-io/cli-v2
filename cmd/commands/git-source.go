@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -188,6 +189,12 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			} else {
 				return fmt.Errorf("failed to push changes. Err: %w", err)
 			}
+		}
+	} else {
+		if strings.Contains(opts.gsCloneOpts.Repo, "_git-source/resources") {
+			fmt.Println("yello")
+			opts.gsCloneOpts.Repo = opts.gsCloneOpts.Repo + "-" + opts.runtimeName
+			RunGitSourceCreate(ctx, opts)
 		}
 	}
 
