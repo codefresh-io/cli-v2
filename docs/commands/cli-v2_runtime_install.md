@@ -29,9 +29,11 @@ cli-v2 runtime install [runtime_name] [flags]
 
 ```
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
+      --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
       --git-src-provider string    The git provider, one of: gitea|github
       --git-src-repo string        Repository URL [GIT_SRC_GIT_REPO]
   -t, --git-token string           Your git provider api token [GIT_TOKEN]
+  -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                       help for install
       --ingress-host string        The ingress host
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
