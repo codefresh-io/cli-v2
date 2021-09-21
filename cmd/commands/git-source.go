@@ -192,7 +192,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		}
 	} else {
 		if strings.Contains(opts.gsCloneOpts.Repo, "_git-source/resources") {
-			fmt.Println("yello")
 			opts.gsCloneOpts.Repo = opts.gsCloneOpts.Repo + "-" + opts.runtimeName
 			RunGitSourceCreate(ctx, opts)
 		}
