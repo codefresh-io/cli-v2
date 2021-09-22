@@ -38,5 +38,3 @@ func CreateWorkflow(opts *CreateWorkflowOptions) *wfv1alpha1.Workflow {
 		},
 	}
 }
-
-// TODO: add workflow template here as well

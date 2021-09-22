@@ -172,7 +172,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 6")
+	log.G(ctx).Infof("USING CF-DEV 7")
 
 	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -298,7 +298,7 @@ func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName str
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cron",
-			Namespace: runtimeName, // TODO:
+			Namespace: runtimeName,
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: "codefresh-eventbus",

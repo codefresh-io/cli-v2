@@ -66,12 +66,12 @@ type (
 		IngressHost         string
 		Insecure            bool
 		Version             *semver.Version
-		gsCloneOpts         *git.CloneOptions
-		insCloneOpts        *git.CloneOptions
+		GsCloneOpts         *git.CloneOptions
+		InsCloneOpts        *git.CloneOptions
 		KubeFactory         kube.Factory
-		commonConfig        *runtime.CommonConfig
-		sensorFileName      string
-		eventSourceFileName string
+		CommonConfig        *runtime.CommonConfig
+		SensorFileName      string
+		EventSourceFileName string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -86,7 +86,7 @@ type (
 		RuntimeName  string
 		Version      *semver.Version
 		CloneOpts    *git.CloneOptions
-		commonConfig *runtime.CommonConfig
+		CommonConfig *runtime.CommonConfig
 	}
 )
 
@@ -179,14 +179,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				IngressHost:  ingressHost,
 				Version:      version,
 				Insecure:     true,
-				gsCloneOpts:  gsCloneOpts,
-				insCloneOpts: insCloneOpts,
+				GsCloneOpts:  gsCloneOpts,
+				InsCloneOpts: insCloneOpts,
 				KubeFactory:  f,
-				commonConfig: &runtime.CommonConfig{
+				CommonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
-				sensorFileName:      store.Get().DemoPipelineSensor,
-				eventSourceFileName: store.Get().DemoPipelineEventSource,
+				SensorFileName:      store.Get().DemoPipelineSensor,
+				EventSourceFileName: store.Get().DemoPipelineEventSource,
 			})
 		},
 	}
@@ -274,7 +274,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		AppSpecifier: rt.Spec.FullSpecifier(),
 		Namespace:    opts.RuntimeName,
 		KubeFactory:  opts.KubeFactory,
-		CloneOptions: opts.insCloneOpts,
+		CloneOptions: opts.InsCloneOpts,
 		Insecure:     opts.Insecure,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
@@ -285,7 +285,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
-		CloneOpts:   opts.insCloneOpts,
+		CloneOpts:   opts.InsCloneOpts,
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
@@ -297,46 +297,46 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
-	if err = persistRuntime(ctx, opts.insCloneOpts, rt, opts.commonConfig); err != nil {
+	if err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig); err != nil {
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.insCloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
 
 	if opts.IngressHost != "" {
-		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
+		if err = createWorkflowsIngress(ctx, opts.InsCloneOpts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
 	}
 
-	if err = createCodefreshArgoAgentReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+	if err = createCodefreshArgoAgentReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
 	}
 
-	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
-	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
+	if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	gsPath := opts.gsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
-	fullGsPath := opts.gsCloneOpts.FS.Join(opts.gsCloneOpts.FS.Root(), gsPath)[1:]
+	gsPath := opts.GsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
+	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		insCloneOpts:        opts.insCloneOpts,
-		gsCloneOpts:         opts.gsCloneOpts,
-		gsName:              store.Get().GitSourceName,
-		runtimeName:         opts.RuntimeName,
-		fullGsPath:          fullGsPath,
-		sensorFileName:      store.Get().DemoPipelineSensor,
-		eventSourceFileName: store.Get().DemoPipelineEventSource,
+		InsCloneOpts:        opts.InsCloneOpts,
+		GsCloneOpts:         opts.GsCloneOpts,
+		GsName:              store.Get().GitSourceName,
+		RuntimeName:         opts.RuntimeName,
+		FullGsPath:          fullGsPath,
+		SensorFileName:      store.Get().DemoPipelineSensor,
+		EventSourceFileName: store.Get().DemoPipelineEventSource,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -655,7 +655,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				RuntimeName: args[0],
 				Version:     version,
 				CloneOpts:   cloneOpts,
-				commonConfig: &runtime.CommonConfig{
+				CommonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
 			})
@@ -694,7 +694,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
 	}
 
-	newComponents, err := curRt.Upgrade(fs, newRt, opts.commonConfig)
+	newComponents, err := curRt.Upgrade(fs, newRt, opts.CommonConfig)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
