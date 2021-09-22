@@ -172,8 +172,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 7")
-
 	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -260,16 +258,16 @@ func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
 
 	err = opts.GsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 	if err != nil {
-		return fmt.Errorf("failed to write yaml of eventsource: %w", err)
+		return fmt.Errorf("failed to write yaml of eventsource. Error: %w", err)
 	}
 
-	err, trigger := CreateCronExampleTrigger()
+	trigger, err := CreateCronExampleTrigger()
 	triggers := []sensorsv1alpha1.Trigger{*trigger}
 	if err != nil {
 		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
 	}
 
-	err, sensor := CreateCronExampleSensor(triggers, opts.RuntimeName)
+	sensor, err := CreateCronExampleSensor(triggers, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
 	}
@@ -282,7 +280,7 @@ func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
 	return nil
 }
 
-func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (error, *sensorsv1alpha1.Sensor) {
+func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (*sensorsv1alpha1.Sensor, error) {
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
 			Name:            "calender-dep",
@@ -291,7 +289,7 @@ func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName str
 		},
 	}
 
-	return nil, &sensorsv1alpha1.Sensor{
+	return &sensorsv1alpha1.Sensor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       sensorreg.Kind,
 			APIVersion: sensorreg.Group + "/v1alpha1",
@@ -308,10 +306,10 @@ func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName str
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
-	}
+	}, nil
 }
 
-func CreateCronExampleTrigger() (error, *sensorsv1alpha1.Trigger) {
+func CreateCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
 		GenerateName:          "cron-",
 		SpecWfTemplateRefName: "hello-world",
@@ -322,7 +320,7 @@ func CreateCronExampleTrigger() (error, *sensorsv1alpha1.Trigger) {
 
 	workflowResource := apicommon.NewResource(workflow)
 
-	return nil, &sensorsv1alpha1.Trigger{
+	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: "hello-world",
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
@@ -346,7 +344,7 @@ func CreateCronExampleTrigger() (error, *sensorsv1alpha1.Trigger) {
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 func NewGitSourceListCommand() *cobra.Command {

@@ -237,6 +237,8 @@ func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server str
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Infof("USING CF-DEV 7")
+
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
