@@ -185,8 +185,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				CommonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
-				SensorFileName:      store.Get().DemoPipelineSensor,
-				EventSourceFileName: store.Get().DemoPipelineEventSource,
+				SensorFileName:      store.Get().CronExampleSensorFileName,
+				EventSourceFileName: store.Get().CronExampleEventSourceFileName,
 			})
 		},
 	}
@@ -237,8 +237,6 @@ func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server str
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 7")
-
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
@@ -337,8 +335,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		FullGsPath:          fullGsPath,
-		SensorFileName:      store.Get().DemoPipelineSensor,
-		EventSourceFileName: store.Get().DemoPipelineEventSource,
+		SensorFileName:      store.Get().CronExampleSensorFileName,
+		EventSourceFileName: store.Get().CronExampleEventSourceFileName,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -1075,7 +1073,6 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
-		EventName:       store.Get().ExampleWithInterval,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
 		Triggers:        []string{trigger},

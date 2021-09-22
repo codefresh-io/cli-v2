@@ -44,48 +44,48 @@ type Version struct {
 }
 
 type Store struct {
-	ArgoCDServerName           string
-	ArgoCDTokenKey             string
-	ArgoCDTokenSecret          string
-	ArgoCDAgentCFTokenKey      string
-	ArgoCDAgentCFTokenSecret   string
-	ArgoCDAgentSA              string
-	ArgoWFServiceName          string
-	ArgoWFServicePort          int32
-	BinaryName                 string
-	Codefresh                  string
-	CFComponentType            string
-	CFGitSourceType            string
-	CFRuntimeDefType           string
-	CFRuntimeType              string
-	CFTokenSecret              string
-	CFTokenSecretKey           string
-	CodefreshCM                string
-	CodefreshSA                string
-	ComponentsReporterName     string
-	ComponentsReporterSA       string
-	ComponentsReporterURL      string
-	DefaultAPI                 string
-	EventBusName               string
-	EventReportingEndpoint     string
-	EventsReporterName         string
-	ArgoCDAgentReporterName    string
-	GitSourceName              string
-	IngressName                string
-	IngressPath                string
-	LabelKeyCFType             string
-	MaxDefVersion              *semver.Version
-	RuntimeDefURL              string
-	RuntimeFilename            string
-	Version                    Version
-	WaitTimeout                time.Duration
-	WorkflowName               string
-	WorkflowReporterName       string
-	DemoPipelineSensor         string
-	DemoPipelineEventSource    string
-	DemoPipelineWfTemplate     string
-	CronExampleEventSourceName string
-	ExampleWithInterval        string
+	ArgoCDServerName               string
+	ArgoCDTokenKey                 string
+	ArgoCDTokenSecret              string
+	ArgoCDAgentCFTokenKey          string
+	ArgoCDAgentCFTokenSecret       string
+	ArgoCDAgentSA                  string
+	ArgoWFServiceName              string
+	ArgoWFServicePort              int32
+	BinaryName                     string
+	Codefresh                      string
+	CFComponentType                string
+	CFGitSourceType                string
+	CFRuntimeDefType               string
+	CFRuntimeType                  string
+	CFTokenSecret                  string
+	CFTokenSecretKey               string
+	CodefreshCM                    string
+	CodefreshSA                    string
+	ComponentsReporterName         string
+	ComponentsReporterSA           string
+	ComponentsReporterURL          string
+	DefaultAPI                     string
+	EventBusName                   string
+	EventReportingEndpoint         string
+	EventsReporterName             string
+	ArgoCDAgentReporterName        string
+	GitSourceName                  string
+	IngressName                    string
+	IngressPath                    string
+	LabelKeyCFType                 string
+	MaxDefVersion                  *semver.Version
+	RuntimeDefURL                  string
+	RuntimeFilename                string
+	Version                        Version
+	WaitTimeout                    time.Duration
+	WorkflowName                   string
+	WorkflowReporterName           string
+	CronExampleSensorFileName      string
+	CronExampleEventSourceFileName string
+	CronExampleWfTemplateFileName  string
+	CronExampleEventSourceName     string
+	CronExampleEventName           string
 }
 
 // Get returns the global store
@@ -129,11 +129,11 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
-	s.DemoPipelineWfTemplate = "workflow-template.hello-world.yaml"
-	s.DemoPipelineEventSource = "event-source.calender.yaml"
-	s.DemoPipelineSensor = "sensor.cron.yaml"
+	s.CronExampleEventSourceFileName = "event-source.calender.yaml"
+	s.CronExampleSensorFileName = "sensor.cron.yaml"
+	s.CronExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
 	s.CronExampleEventSourceName = "calender"
-	s.ExampleWithInterval = "example-with-interval" // TODO: change to: cronExampleTriggerName
+	s.CronExampleEventName = "example-with-interval"
 	initVersion()
 }
 

@@ -249,7 +249,7 @@ func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			EventBusName: store.Get().EventBusName,
 			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
-				store.Get().ExampleWithInterval: {
+				store.Get().CronExampleEventName: {
 					Interval: "5m",
 				},
 			},
@@ -285,7 +285,7 @@ func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName str
 		{
 			Name:            "calender-dep",
 			EventSourceName: "calender",
-			EventName:       "example-with-interval",
+			EventName:       store.Get().CronExampleEventName,
 		},
 	}
 
@@ -599,5 +599,5 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 		},
 	}
 
-	return gsFs.WriteYamls(store.Get().DemoPipelineWfTemplate, wfTemplate)
+	return gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
 }
