@@ -28,7 +28,6 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	"github.com/juju/ansiterm"
 
-	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -200,7 +199,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create eventsource: %w", err)
 		}
 
-		err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, store.Get().ExampleWithInterval, "data", opts.sensorFileName)
+		err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, store.Get().ExampleWithInterval, "eventTime", opts.sensorFileName)
 		if err != nil {
 			return fmt.Errorf("failed to create sensor: %w", err)
 		}

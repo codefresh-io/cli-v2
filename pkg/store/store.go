@@ -133,7 +133,7 @@ func init() {
 	s.DemoPipelineEventSource = "event-source.calender.yaml"
 	s.DemoPipelineSensor = "sensor.cron.yaml"
 	s.CronExampleEventSourceName = "calender"
-	s.ExampleWithInterval = "example-with-interval"
+	s.ExampleWithInterval = "example-with-interval" // TODO: change to: cronExampleTriggerName
 	initVersion()
 }
 

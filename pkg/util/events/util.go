@@ -16,6 +16,7 @@ package util
 
 import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	wfutil "github.com/codefresh-io/cli-v2/pkg/workflow/util"
 
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
@@ -94,7 +95,6 @@ func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.
 		EventName:       opts.EventName,
 	}
 }
-
 
 func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.EventSource {
 	var resource map[string]eventsourcev1alpha1.ResourceEventSource
@@ -213,7 +213,7 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 		triggers[i] = *createTrigger(&createTriggerOptions{
 			Conditions:     trigger,
 			URL:            opts.TriggerURL,
-			DependencyName: trigger,
+			DependencyName: trigger, // TODO: for demo it should be hello-world
 			DataDestKey:    opts.TriggerDestKey,
 		})
 	}
@@ -232,20 +232,40 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: opts.EventBusName,
-			Dependencies: dependencies,
-			Triggers:     triggers,
 			Template: &sensorsv1alpha1.Template{
 				ServiceAccountName: "argo-server",
 			},
+			Dependencies: dependencies,
+			Triggers:     triggers,
 		},
 	}
 }
 
 func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
+	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
+		GenerateName:          "cron-",
+		SpecWfTemplateRefName: "hello-world",
+		Parameters: []string{
+			"message",
+		},
+	})
+
 	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
+			Name: opts.DependencyName, // TODO: this should be hello-world
+			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    "argoproj.io",
+					Version:  "v1alpha1",
+					Resource: "workflows",
+				},
+				Operation: sensorsv1alpha1.Submit,
+				Source: &sensorsv1alpha1.ArtifactLocation{
+					Resource: workflow,
+				},
+			},
+
 			Conditions: opts.Conditions,
-			Name:       opts.DependencyName,
 			HTTP: &sensorsv1alpha1.HTTPTrigger{
 				URL:    opts.URL,
 				Method: "POST",
@@ -280,6 +300,15 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 			Steps: 3,
 			Duration: &apicommon.Int64OrString{
 				StrVal: "3s",
+			},
+		},
+		Parameters: []sensorsv1alpha1.TriggerParameter{
+			{
+				Src: &sensorsv1alpha1.TriggerParameterSource{
+					DependencyName: "example-with-interval", // TODO: var
+					DataKey:        "eventTime",             // TODO:
+				},
+				Dest: "spec.arguments.parameters.0.value", // TODO: var
 			},
 		},
 	}
