@@ -16,7 +16,6 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -35,8 +34,7 @@ import (
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/go-git/go-billy/v5/memfs"
-	"github.com/go-git/go-git/v5/plumbing/transport"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -141,15 +139,13 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		},
 	}
 
-	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
-	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
 
 	return cmd
@@ -171,23 +167,11 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 		}
 
-		pOpts := &git.PushOptions{
-			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
-		}
+		commitMsg := fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path())
 
-		_, err = gsRepo.Persist(ctx, pOpts)
-		if err != nil {
-			if errors.Is(err, transport.ErrRepositoryNotFound) {
-				log.G(ctx).Warn("failed to persist git-source repo, trying again in 3 seconds...")
-				time.Sleep(time.Second * 3)
-
-				_, err = gsRepo.Persist(ctx, pOpts)
-				if err != nil {
-					return fmt.Errorf("failed to push changes. Err: %w", err)
-				}
-			} else {
-				return fmt.Errorf("failed to push changes. Err: %w", err)
-			}
+		log.G(ctx).Info("Pushing a demo workflow-template to the new git-source repo")
+		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+			return fmt.Errorf("failed to push demo workflow-template to git-source repo: %w", err)
 		}
 	}
 
@@ -307,9 +291,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		},
 	}
 
-	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
-	})
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 
 	return cmd
 }
@@ -373,16 +355,14 @@ func NewGitSourceEditCommand() *cobra.Command {
 		},
 	}
 
-	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
 
-	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
 
 	return cmd
@@ -409,11 +389,8 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return fmt.Errorf("failed to write the updated config.json of git-source: %s. Err: %w", opts.GsName, err)
 	}
 
-	_, err = repo.Persist(ctx, &git.PushOptions{
-		CommitMsg: "Persisted an updated git-source",
-	})
-
-	if err != nil {
+	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
+	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source '%s'", opts.GsName)); err != nil {
 		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 	}
 
