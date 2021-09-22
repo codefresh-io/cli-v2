@@ -310,7 +310,7 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 		Parameters: []sensorsv1alpha1.TriggerParameter{
 			{
 				Src: &sensorsv1alpha1.TriggerParameterSource{
-					DependencyName: "example-with-interval", // TODO: var
+					DependencyName: "hello-world", // TODO: var
 					DataKey:        "eventTime",             // TODO:
 				},
 				Dest: "spec.arguments.parameters.0.value", // TODO: var
