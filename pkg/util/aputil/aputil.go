@@ -85,8 +85,21 @@ func PushWithMessage(ctx context.Context, r git.Repository, msg string, progress
 	return err
 }
 
-func ConfigureLoggerOrDie() {
-	logger := aplog.FromLogrus(logrus.NewEntry(logrus.New()), &aplog.LogrusConfig{Level: "warn"})
+func ConfigureLoggerOrDie(cmd *cobra.Command) {
+	lvl := "warn"
+
+	cobra.OnInitialize(func() {
+		lvlFlag := cmd.Flags().Lookup("log-level")
+		if lvlFlag != nil && lvlFlag.Value.String() == "debug" {
+			lvl = "debug"
+		}
+
+		logger := aplog.FromLogrus(logrus.NewEntry(logrus.New()), &aplog.LogrusConfig{Level: lvl})
+		util.Die(logger.Configure(), "failed to configure autopilot logger")
+		aplog.L = logger
+	})
+
+	logger := aplog.FromLogrus(logrus.NewEntry(logrus.New()), &aplog.LogrusConfig{Level: lvl})
 	util.Die(logger.Configure())
 	aplog.L = logger
 }

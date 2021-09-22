@@ -34,11 +34,12 @@ func main() {
 	ctx = log.WithLogger(ctx, lgr)
 	ctx = util.ContextWithCancelOnSignals(ctx, syscall.SIGINT, syscall.SIGTERM)
 
-	// configure autopilot logger
-	apu.ConfigureLoggerOrDie()
-
 	c := commands.NewRoot()
+
 	lgr.AddPFlags(c)
+
+	// configure autopilot logger
+	apu.ConfigureLoggerOrDie(c)
 
 	if err := c.ExecuteContext(ctx); err != nil {
 		log.G(ctx).Fatal(err)
