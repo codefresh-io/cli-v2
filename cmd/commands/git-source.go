@@ -27,7 +27,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	"github.com/juju/ansiterm"
 
@@ -37,6 +36,8 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
+	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -185,20 +186,15 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	if len(fi) == 0 {
 		err = CreateCronExamplePipeline(&GitSourceCronExampleOptions{
-			RuntimeName: opts.runtimeName,
-			GsCloneOpts: opts.gsCloneOpts,
-			GsFs: gsFs,
+			RuntimeName:         opts.runtimeName,
+			GsCloneOpts:         opts.gsCloneOpts,
+			GsFs:                gsFs,
 			EventSourceFileName: opts.eventSourceFileName,
-			SensorFileName: opts.sensorFileName,
+			SensorFileName:      opts.sensorFileName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
 		}
-
-		// err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, store.Get().ExampleWithInterval, "eventTime", opts.sensorFileName)
-		// if err != nil {
-		// 	return fmt.Errorf("failed to create sensor: %w", err)
-		// }
 
 		pOpts := &git.PushOptions{
 			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
@@ -243,16 +239,24 @@ func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
 	eventSourceFilePath := opts.GsFs.Join("resources", opts.EventSourceFileName)
 	sensorFilePath := opts.GsFs.Join("resources", opts.SensorFileName)
 
-	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:         store.Get().CronExampleEventSourceName,
-		Namespace:    opts.RuntimeName,
-		EventBusName: store.Get().EventBusName,
-		Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
-			store.Get().ExampleWithInterval: {
-				Interval: "5m",
+	eventSource := &eventsourcev1alpha1.EventSource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       eventsourcereg.Kind,
+			APIVersion: eventsourcereg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      opts.RuntimeName,
+			Namespace: opts.RuntimeName,
+		},
+		Spec: eventsourcev1alpha1.EventSourceSpec{
+			EventBusName: store.Get().EventBusName,
+			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
+				store.Get().ExampleWithInterval: {
+					Interval: "5m",
+				},
 			},
 		},
-	})
+	}
 
 	err = opts.GsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 	if err != nil {
@@ -584,11 +588,11 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 					{
 						Name: "whalesay",
 						Inputs: wfv1alpha1.Inputs{
-							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello-world")}},
+							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
 							Artifacts:  wfv1alpha1.Artifacts{},
 						},
 						Container: &v1.Container{
-							Image:   "docker/whalesay",
+							Image:   "docker/whalesay:latest",
 							Command: []string{"cowsay"},
 							Args:    []string{"{{inputs.parameters.message}}"},
 						},
