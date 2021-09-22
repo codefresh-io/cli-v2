@@ -71,6 +71,14 @@ type (
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
 	}
+
+	GitSourceCronExampleOptions struct {
+		RuntimeName         string
+		GsCloneOpts         *git.CloneOptions
+		GsFs                fs.FS
+		EventSourceFileName string
+		SensorFileName      string
+	}
 )
 
 func NewGitSourceCommand() *cobra.Command {
@@ -163,7 +171,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 4")
+	log.G(ctx).Infof("USING CF-DEV 5")
 
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -176,59 +184,25 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	if len(fi) == 0 {
-		err = CreateCronExamplePipeline()
+		err = CreateCronExamplePipeline(&GitSourceCronExampleOptions{
+			RuntimeName: opts.runtimeName,
+			GsCloneOpts: opts.gsCloneOpts,
+			GsFs: gsFs,
+			EventSourceFileName: opts.eventSourceFileName,
+			SensorFileName: opts.sensorFileName,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
-		}
-
-		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
-			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
-		}
-
-		pOpts := &git.PushOptions{
-			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
-		}
-
-		eventSourceFilePath := gsFs.Join("resources", opts.eventSourceFileName)
-		sensorFilePath := gsFs.Join("resources", opts.sensorFileName)
-
-		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-			Name:         store.Get().CronExampleEventSourceName,
-			Namespace:    opts.runtimeName,
-			EventBusName: store.Get().EventBusName,
-			Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
-				store.Get().ExampleWithInterval: {
-					Interval: "5m",
-				},
-			},
-		})
-
-		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
-		if err != nil {
-			return fmt.Errorf("failed to write yaml of eventsource: %w", err)
-		}
-
-		err, trigger := CreateCronExampleTrigger()
-		triggers := []sensorsv1alpha1.Trigger{*trigger}
-		if err != nil {
-			return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
-		}
-		// []string{trigger}
-
-		err, sensor := CreateCronExampleSensor(triggers)
-		if err != nil {
-			return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
-		}
-
-		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
-		if err != nil {
-			return fmt.Errorf("failed to write yaml of cron example sensor. Error: %w", err)
 		}
 
 		// err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, store.Get().ExampleWithInterval, "eventTime", opts.sensorFileName)
 		// if err != nil {
 		// 	return fmt.Errorf("failed to create sensor: %w", err)
 		// }
+
+		pOpts := &git.PushOptions{
+			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
+		}
 
 		_, err = gsRepo.Persist(ctx, pOpts)
 		if err != nil {
@@ -260,12 +234,52 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	return nil
 }
 
-func CreateCronExamplePipeline() error {
+func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
+	err := createDemoWorkflowTemplate(opts.GsFs, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+	}
+
+	eventSourceFilePath := opts.GsFs.Join("resources", opts.EventSourceFileName)
+	sensorFilePath := opts.GsFs.Join("resources", opts.SensorFileName)
+
+	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+		Name:         store.Get().CronExampleEventSourceName,
+		Namespace:    opts.RuntimeName,
+		EventBusName: store.Get().EventBusName,
+		Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
+			store.Get().ExampleWithInterval: {
+				Interval: "5m",
+			},
+		},
+	})
+
+	err = opts.GsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of eventsource: %w", err)
+	}
+
+	err, trigger := CreateCronExampleTrigger()
+	triggers := []sensorsv1alpha1.Trigger{*trigger}
+	if err != nil {
+		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
+	}
+	// []string{trigger}
+
+	err, sensor := CreateCronExampleSensor(triggers, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
+	}
+
+	err = opts.GsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of cron example sensor. Error: %w", err)
+	}
 
 	return nil
 }
 
-func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (error, *sensorsv1alpha1.Sensor) {
+func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (error, *sensorsv1alpha1.Sensor) {
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
 			Name:            "calender-dep",
@@ -281,7 +295,7 @@ func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (error, *sensor
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cron",
-			Namespace: "runtime-name", // TODO:
+			Namespace: runtimeName, // TODO:
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: "codefresh-eventbus",
@@ -321,7 +335,7 @@ func CreateCronExampleTrigger() (error, *sensorsv1alpha1.Trigger) {
 				Parameters: []sensorsv1alpha1.TriggerParameter{
 					{
 						Src: &sensorsv1alpha1.TriggerParameterSource{
-							DependencyName: "example-with-interval",
+							DependencyName: "calender-dep",
 							DataKey:        "eventTime",
 						},
 						Dest: "spec.arguments.parameters.0.value",
