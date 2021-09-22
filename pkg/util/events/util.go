@@ -85,10 +85,6 @@ type (
 		DependencyName string
 		DataDestKey    string
 	}
-
-	CreateSpecTemplateOptions struct {
-		ServiceAccountName    string
-	}
 )
 
 func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.EventDependency {
@@ -99,11 +95,6 @@ func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.
 	}
 }
 
-func CreateSpecTemplate(opts *CreateSpecTemplateOptions) *eventsourcev1alpha1.Template {
-	return &eventsourcev1alpha1.Template{
-		ServiceAccountName: opts.ServiceAccountName,
-	}
-}
 
 func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.EventSource {
 	var resource map[string]eventsourcev1alpha1.ResourceEventSource
@@ -243,9 +234,9 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 			EventBusName: opts.EventBusName,
 			Dependencies: dependencies,
 			Triggers:     triggers,
-			Template: *CreateSpecTemplate(&CreateSpecTemplateOptions{
+			Template: &sensorsv1alpha1.Template{
 				ServiceAccountName: "argo-server",
-			})
+			},
 		},
 	}
 }
