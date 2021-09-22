@@ -159,7 +159,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 2")
+	log.G(ctx).Infof("USING CF-DEV 3")
 
 	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
 	if err != nil {

@@ -15,6 +15,8 @@
 package util
 
 import (
+	"fmt"
+
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
@@ -242,6 +244,7 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 }
 
 func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
+	fmt.Println()
 	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
 		GenerateName:          "cron-",
 		SpecWfTemplateRefName: "hello-world",

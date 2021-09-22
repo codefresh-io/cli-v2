@@ -1069,6 +1069,7 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 }
 
 func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey, sensorFileName string) error {
+	
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
