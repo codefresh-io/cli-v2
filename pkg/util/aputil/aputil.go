@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aplog "github.com/argoproj-labs/argocd-autopilot/pkg/log"
@@ -79,7 +80,9 @@ func PushWithMessage(ctx context.Context, r git.Repository, msg string, progress
 		log.G(ctx).WithFields(log.Fields{
 			"retry": try,
 			"err":   err.Error(),
-		}).Debug("failed to push to repository")
+		}).Warn("Failed to push to repository, trying again in 3 seconds...")
+
+		time.Sleep(time.Second * 3)
 	}
 
 	return err
