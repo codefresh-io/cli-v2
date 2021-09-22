@@ -22,11 +22,11 @@ import (
 	"time"
 
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
+	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	"github.com/juju/ansiterm"
@@ -180,7 +180,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		if err != nil {
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
 		}
-		
+
 		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
 			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 		}
@@ -191,7 +191,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 		eventSourceFilePath := gsFs.Join("resources", opts.eventSourceFileName)
 		sensorFilePath := gsFs.Join("resources", opts.sensorFileName)
-
 
 		eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
 			Name:         store.Get().CronExampleEventSourceName,
@@ -269,9 +268,9 @@ func CreateCronExamplePipeline() error {
 func CreateCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (error, *sensorsv1alpha1.Sensor) {
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
-			Name: "calender-dep",
+			Name:            "calender-dep",
 			EventSourceName: "calender",
-			EventName: "example-with-interval",	
+			EventName:       "example-with-interval",
 		},
 	}
 

@@ -819,7 +819,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.eventSourceFileName, opts.Insecure); err != nil {
+	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
 		return err
 	}
 
@@ -884,7 +884,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object", opts.sensorFileName); err != nil {
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object"); err != nil {
 		return err
 	}
 
@@ -1028,7 +1028,7 @@ func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createEventsReporterEventSource(repofs fs.FS, path, namespace, eventSourceFileName string, insecure bool) error {
+func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
 	port := 443
 	if insecure {
 		port = 80
@@ -1047,7 +1047,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace, eventSourceF
 			},
 		},
 	})
-	return repofs.WriteYamls(repofs.Join(path, eventSourceFileName), eventSource)
+	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
 func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {

@@ -212,7 +212,7 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 		triggers[i] = *createTrigger(&createTriggerOptions{
 			Conditions:     trigger,
 			URL:            opts.TriggerURL,
-			DependencyName: trigger, 
+			DependencyName: trigger,
 			DataDestKey:    opts.TriggerDestKey,
 		})
 	}
@@ -231,9 +231,6 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: opts.EventBusName,
-			Template: &sensorsv1alpha1.Template{
-				ServiceAccountName: "argo-server",
-			},
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
@@ -243,8 +240,8 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
-			Name:       opts.DependencyName,
 			Conditions: opts.Conditions,
+			Name:       opts.DependencyName,
 			HTTP: &sensorsv1alpha1.HTTPTrigger{
 				URL:    opts.URL,
 				Method: "POST",
