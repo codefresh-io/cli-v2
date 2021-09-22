@@ -823,7 +823,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data", opts.sensorFileName); err != nil {
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data"); err != nil {
 		return err
 	}
 
@@ -1068,7 +1068,7 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey, sensorFileName string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
@@ -1079,7 +1079,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger,
 		Triggers:        []string{trigger},
 		TriggerDestKey:  dataKey,
 	})
-	return repofs.WriteYamls(repofs.Join(path, sensorFileName), sensor)
+	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
 
 func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
