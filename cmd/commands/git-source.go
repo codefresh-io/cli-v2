@@ -191,7 +191,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			}
 		}
 	} else {
-		if strings.Contains(opts.gsCloneOpts.Repo, "_git-source/resources") {
+		// TODO: add to the if that before it is the <install repo>, see how to join strings etc
+		if strings.Contains(opts.gsCloneOpts.Repo, "_git-source.git/resources") { // TODO: and the namespace of the demo-wf-template is different than the runtime_name
 			opts.gsCloneOpts.Repo = opts.gsCloneOpts.Repo + "-" + opts.runtimeName
 			RunGitSourceCreate(ctx, opts)
 		}
