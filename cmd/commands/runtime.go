@@ -77,7 +77,7 @@ type (
 		server         string
 		runtimeVersion string
 		ingressHost    string
-		componentNames []string
+		componentNames []*string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -212,24 +212,34 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
-func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
-	var componentNames []string
+func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []*string {
+	var componentNames []*string
 	for _, component := range rt.Spec.Components {
-		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
+		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name)
+		componentNames = append(componentNames, &componentFullName)
 	}
 
 	//  should find a more dynamic way to get these additional components
 	additionalComponents := []string{"events-reporter", "workflow-reporter"}
 	for _, additionalComponentName := range additionalComponents {
-		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
+		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
+		componentNames = append(componentNames, &componentFullName)
 	}
-	componentNames = append(componentNames, "argo-cd")
+	argoCDFullName := "argo-cd"
+	componentNames = append(componentNames, &argoCDFullName)
 
 	return componentNames
 }
 
 func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeCreateOnPlatformOptions) (string, error) {
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.runtimeName, opts.server, opts.runtimeVersion, opts.ingressHost, opts.componentNames)
+	// runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.runtimeName, opts.server, opts.runtimeVersion, opts.ingressHost, opts.componentNames)
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, &model.InstallationArgs{
+		RuntimeName:    opts.runtimeName,
+		Cluster:        opts.server,
+		RuntimeVersion: opts.runtimeVersion,
+		ComponentNames: opts.componentNames,
+		IngressHost:    &opts.ingressHost,
+	})
 
 	if runtimeCreationResponse.ErrorMessage != nil {
 		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
