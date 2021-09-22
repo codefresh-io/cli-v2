@@ -85,6 +85,7 @@ type Store struct {
 	DemoPipelineEventSource    string
 	DemoPipelineWfTemplate     string
 	CronExampleEventSourceName string
+	ExampleWithInterval        string
 }
 
 // Get returns the global store
@@ -132,6 +133,7 @@ func init() {
 	s.DemoPipelineEventSource = "event-source.calender.yaml"
 	s.DemoPipelineSensor = "sensor.cron.yaml"
 	s.CronExampleEventSourceName = "calender"
+	s.ExampleWithInterval = "example-with-interval"
 	initVersion()
 }
 

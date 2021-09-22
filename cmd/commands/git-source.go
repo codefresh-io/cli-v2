@@ -28,6 +28,7 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	"github.com/juju/ansiterm"
 
+	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -188,18 +189,18 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			Namespace:    opts.runtimeName,
 			EventBusName: store.Get().EventBusName,
 			Calender: map[string]eventsutil.CreateCalenderEventSourceOptions{
-				"example-with-interval": {
+				store.Get().ExampleWithInterval: {
 					Interval: "5m",
 				},
 			},
 		})
-		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 		if err != nil {
 			return fmt.Errorf("failed to create eventsource: %w", err)
 		}
 
-		err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, "example-with-interval", "data", opts.sensorFileName)
+		err = createSensor(opts.gsCloneOpts.FS, "cron", sensorFolderPath, opts.runtimeName, store.Get().CronExampleEventSourceName, store.Get().ExampleWithInterval, "data", opts.sensorFileName)
 		if err != nil {
 			return fmt.Errorf("failed to create sensor: %w", err)
 		}
@@ -233,6 +234,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	return nil
 }
+
 
 func NewGitSourceListCommand() *cobra.Command {
 	cmd := &cobra.Command{

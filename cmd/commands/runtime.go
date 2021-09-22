@@ -1070,10 +1070,10 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 
 func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey, sensorFileName string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
-		Name:            "calender-dep",
+		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
-		EventName:       "example-with-interval",
+		EventName:       store.Get().ExampleWithInterval,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
 		Triggers:        []string{trigger},
