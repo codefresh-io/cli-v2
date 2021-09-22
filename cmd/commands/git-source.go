@@ -268,7 +268,6 @@ func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
 	}
-	// []string{trigger}
 
 	err, sensor := CreateCronExampleSensor(triggers, opts.RuntimeName)
 	if err != nil {
