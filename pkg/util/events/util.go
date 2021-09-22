@@ -16,7 +16,7 @@ package util
 
 import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
-	wfutil "github.com/codefresh-io/cli-v2/pkg/workflow/util"
+	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
@@ -250,6 +250,8 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 		},
 	})
 
+	workflowResource := apicommon.NewResource(workflow)
+
 	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: opts.DependencyName, // TODO: this should be hello-world
@@ -261,7 +263,7 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
-					Resource: workflow,
+					Resource: &workflowResource,
 				},
 			},
 
