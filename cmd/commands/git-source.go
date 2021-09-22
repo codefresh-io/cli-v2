@@ -50,13 +50,13 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		insCloneOpts        *git.CloneOptions
-		gsCloneOpts         *git.CloneOptions
-		gsName              string
-		runtimeName         string
-		fullGsPath          string
-		sensorFileName      string
-		eventSourceFileName string
+		InsCloneOpts        *git.CloneOptions
+		GsCloneOpts         *git.CloneOptions
+		GsName              string
+		RuntimeName         string
+		FullGsPath          string
+		SensorFileName      string
+		EventSourceFileName string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -148,11 +148,11 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-				insCloneOpts: insCloneOpts,
-				gsCloneOpts:  gsCloneOpts,
-				gsName:       args[1],
-				runtimeName:  args[0],
-				fullGsPath:   gsCloneOpts.Path(),
+				InsCloneOpts: insCloneOpts,
+				GsCloneOpts:  gsCloneOpts,
+				GsName:       args[1],
+				RuntimeName:  args[0],
+				FullGsPath:   gsCloneOpts.Path(),
 			})
 		},
 	}
@@ -172,9 +172,9 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	log.G(ctx).Infof("USING CF-DEV 5")
+	log.G(ctx).Infof("USING CF-DEV 6")
 
-	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
+	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -186,18 +186,18 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	if len(fi) == 0 {
 		err = CreateCronExamplePipeline(&GitSourceCronExampleOptions{
-			RuntimeName:         opts.runtimeName,
-			GsCloneOpts:         opts.gsCloneOpts,
+			RuntimeName:         opts.RuntimeName,
+			GsCloneOpts:         opts.GsCloneOpts,
 			GsFs:                gsFs,
-			EventSourceFileName: opts.eventSourceFileName,
-			SensorFileName:      opts.sensorFileName,
+			EventSourceFileName: opts.EventSourceFileName,
+			SensorFileName:      opts.SensorFileName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
 		}
 
 		pOpts := &git.PushOptions{
-			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
+			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.GsCloneOpts.Path()),
 		}
 
 		_, err = gsRepo.Persist(ctx, pOpts)
@@ -217,15 +217,15 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	appDef := &runtime.AppDef{
-		Name: opts.gsName,
+		Name: opts.GsName,
 		Type: application.AppTypeDirectory,
-		URL:  opts.gsCloneOpts.Repo,
+		URL:  opts.GsCloneOpts.Repo,
 	}
-	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
-	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.gsName)
+	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.GsName)
 
 	return nil
 }
@@ -245,7 +245,7 @@ func CreateCronExamplePipeline(opts *GitSourceCronExampleOptions) error {
 			APIVersion: eventsourcereg.Group + "/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      opts.RuntimeName,
+			Name:      "calender",
 			Namespace: opts.RuntimeName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
