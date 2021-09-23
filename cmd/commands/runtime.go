@@ -70,8 +70,6 @@ type (
 		InsCloneOpts        *git.CloneOptions
 		KubeFactory         kube.Factory
 		CommonConfig        *runtime.CommonConfig
-		SensorFileName      string
-		EventSourceFileName string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -185,8 +183,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				CommonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
-				SensorFileName:      store.Get().CronExampleSensorFileName,
-				EventSourceFileName: store.Get().CronExampleEventSourceFileName,
 			})
 		},
 	}
@@ -333,8 +329,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		FullGsPath:          fullGsPath,
-		SensorFileName:      store.Get().CronExampleSensorFileName,
-		EventSourceFileName: store.Get().CronExampleEventSourceFileName,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}

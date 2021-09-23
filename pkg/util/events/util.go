@@ -57,10 +57,6 @@ type (
 		TokenSecretName string
 	}
 
-	CreatecalendarEventSourceOptions struct {
-		Interval string
-	}
-
 	CreateSelectorOptions struct {
 		Key       string
 		Operation string

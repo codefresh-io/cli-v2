@@ -53,8 +53,6 @@ type (
 		GsName              string
 		RuntimeName         string
 		FullGsPath          string
-		SensorFileName      string
-		EventSourceFileName string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -75,8 +73,6 @@ type (
 		runtimeName         string
 		gsCloneOpts         *git.CloneOptions
 		gsFs                fs.FS
-		eventSourceFileName string
-		sensorFileName      string
 	}
 )
 
@@ -183,8 +179,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			runtimeName:         opts.RuntimeName,
 			gsCloneOpts:         opts.GsCloneOpts,
 			gsFs:                gsFs,
-			eventSourceFileName: opts.EventSourceFileName,
-			sensorFileName:      opts.SensorFileName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
@@ -217,8 +211,8 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
-	eventSourceFilePath := opts.gsFs.Join("resources", opts.eventSourceFileName)
-	sensorFilePath := opts.gsFs.Join("resources", opts.sensorFileName)
+	eventSourceFilePath := opts.gsFs.Join("resources", store.Get().CronExampleEventSourceFileName)
+	sensorFilePath := opts.gsFs.Join("resources",store.Get().CronExampleSensorFileName)
 
 	eventSource := &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
