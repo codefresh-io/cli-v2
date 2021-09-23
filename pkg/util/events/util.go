@@ -67,6 +67,7 @@ type (
 		Name            string
 		Namespace       string
 		EventSourceName string
+		EventName       string
 		EventBusName    string
 		TriggerURL      string
 		Triggers        []string
@@ -92,6 +93,7 @@ func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.
 func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.EventSource {
 	var resource map[string]eventsourcev1alpha1.ResourceEventSource
 	var generic map[string]eventsourcev1alpha1.GenericEventSource
+
 	if len(opts.Resource) != 0 {
 		resource = make(map[string]eventsourcev1alpha1.ResourceEventSource)
 		for key, res := range opts.Resource {
@@ -169,6 +171,7 @@ func CreateResourceEventSource(opts *CreateResourceEventSourceOptions) *eventsou
 		},
 	}
 }
+
 
 func CreateSelector(opts *CreateSelectorOptions) *eventsourcev1alpha1.Selector {
 	return &eventsourcev1alpha1.Selector{

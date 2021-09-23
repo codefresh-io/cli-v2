@@ -20,10 +20,14 @@ import (
 	"os"
 	"time"
 
+	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
+	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	"github.com/juju/ansiterm"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -32,9 +36,11 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
+	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,11 +48,11 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		insCloneOpts *git.CloneOptions
-		gsCloneOpts  *git.CloneOptions
-		gsName       string
-		runtimeName  string
-		fullGsPath   string
+		InsCloneOpts        *git.CloneOptions
+		GsCloneOpts         *git.CloneOptions
+		GsName              string
+		RuntimeName         string
+		FullGsPath          string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -61,6 +67,12 @@ type (
 		GsName       string
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
+	}
+
+	gitSourceCronExampleOptions struct {
+		runtimeName         string
+		gsCloneOpts         *git.CloneOptions
+		gsFs                fs.FS
 	}
 )
 
@@ -130,11 +142,11 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-				insCloneOpts: insCloneOpts,
-				gsCloneOpts:  gsCloneOpts,
-				gsName:       args[1],
-				runtimeName:  args[0],
-				fullGsPath:   gsCloneOpts.Path(),
+				InsCloneOpts: insCloneOpts,
+				GsCloneOpts:  gsCloneOpts,
+				GsName:       args[1],
+				RuntimeName:  args[0],
+				FullGsPath:   gsCloneOpts.Path(),
 			})
 		},
 	}
@@ -152,7 +164,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
+	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -163,11 +175,16 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	if len(fi) == 0 {
-		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
-			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+		err = createCronExamplePipeline(&gitSourceCronExampleOptions{
+			runtimeName:         opts.RuntimeName,
+			gsCloneOpts:         opts.GsCloneOpts,
+			gsFs:                gsFs,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
 		}
 
-		commitMsg := fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path())
+		commitMsg := fmt.Sprintf("Created demo workflow template in %s Directory", opts.GsCloneOpts.Path())
 
 		log.G(ctx).Info("Pushing a demo workflow-template to the new git-source repo")
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
@@ -176,17 +193,135 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	appDef := &runtime.AppDef{
-		Name: opts.gsName,
+		Name: opts.GsName,
 		Type: application.AppTypeDirectory,
-		URL:  opts.gsCloneOpts.Repo,
+		URL:  opts.GsCloneOpts.Repo,
 	}
-	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
-
-	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.gsName)
+	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.GsName)
 
 	return nil
+}
+
+func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
+	err := createDemoWorkflowTemplate(opts.gsFs, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+	}
+
+	eventSourceFilePath := opts.gsFs.Join("resources", store.Get().CronExampleEventSourceFileName)
+	sensorFilePath := opts.gsFs.Join("resources",store.Get().CronExampleSensorFileName)
+
+	eventSource := &eventsourcev1alpha1.EventSource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       eventsourcereg.Kind,
+			APIVersion: eventsourcereg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().CronExampleEventSourceName,
+			Namespace: opts.runtimeName,
+		},
+		Spec: eventsourcev1alpha1.EventSourceSpec{
+			EventBusName: store.Get().EventBusName,
+			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
+				store.Get().CronExampleEventName: {
+					Interval: "5m",
+				},
+			},
+		},
+	}
+
+	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of eventsource. Error: %w", err)
+	}
+
+	trigger, err := createCronExampleTrigger()
+	triggers := []sensorsv1alpha1.Trigger{*trigger}
+	if err != nil {
+		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
+	}
+
+	sensor, err := createCronExampleSensor(triggers, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
+	}
+
+	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of cron example sensor. Error: %w", err)
+	}
+
+	return nil
+}
+
+func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (*sensorsv1alpha1.Sensor, error) {
+	dependencies := []sensorsv1alpha1.EventDependency{
+		{
+			Name:            store.Get().CronExampleDependencyName,
+			EventSourceName: store.Get().CronExampleEventSourceName,
+			EventName:       store.Get().CronExampleEventName,
+		},
+	}
+
+	return &sensorsv1alpha1.Sensor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       sensorreg.Kind,
+			APIVersion: sensorreg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cron",
+			Namespace: runtimeName,
+		},
+		Spec: sensorsv1alpha1.SensorSpec{
+			EventBusName: "codefresh-eventbus",
+			Template: &sensorsv1alpha1.Template{
+				ServiceAccountName: "argo-server",
+			},
+			Dependencies: dependencies,
+			Triggers:     triggers,
+		},
+	}, nil
+}
+
+func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
+	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
+		GenerateName:          "cron-",
+		SpecWfTemplateRefName: store.Get().CronExampleTriggerTemplateName,
+		Parameters: []string{
+			"message",
+		},
+	})
+
+	workflowResource := apicommon.NewResource(workflow)
+
+	return &sensorsv1alpha1.Trigger{
+		Template: &sensorsv1alpha1.TriggerTemplate{
+			Name: store.Get().CronExampleTriggerTemplateName,
+			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    "argoproj.io",
+					Version:  "v1alpha1",
+					Resource: "workflows",
+				},
+				Operation: sensorsv1alpha1.Submit,
+				Source: &sensorsv1alpha1.ArtifactLocation{
+					Resource: &workflowResource,
+				},
+				Parameters: []sensorsv1alpha1.TriggerParameter{
+					{
+						Src: &sensorsv1alpha1.TriggerParameterSource{
+							DependencyName: store.Get().CronExampleDependencyName,
+							DataKey:        "eventTime",
+						},
+						Dest: "spec.arguments.parameters.0.value",
+					},
+				},
+			},
+		},
+	}, nil
 }
 
 func NewGitSourceListCommand() *cobra.Command {
@@ -404,19 +539,29 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-workflow-template",
-			Namespace: runtimeName,
+			Name: store.Get().CronExampleTriggerTemplateName,
 		},
 		Spec: wfv1alpha1.WorkflowTemplateSpec{
 			WorkflowSpec: wfv1alpha1.WorkflowSpec{
-				Entrypoint: "whalesay",
+				Arguments: wfv1alpha1.Arguments{
+					Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
+				},
+				Entrypoint:         "whalesay",
+				ServiceAccountName: store.Get().CodefreshSA,
+				PodGC: &wfv1alpha1.PodGC{
+					Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
+				},
 				Templates: []wfv1alpha1.Template{
 					{
 						Name: "whalesay",
+						Inputs: wfv1alpha1.Inputs{
+							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
+							Artifacts:  wfv1alpha1.Artifacts{},
+						},
 						Container: &v1.Container{
-							Image:   "docker/whalesay",
+							Image:   "docker/whalesay:latest",
 							Command: []string{"cowsay"},
-							Args:    []string{"Hello World"},
+							Args:    []string{"{{inputs.parameters.message}}"},
 						},
 					},
 				},
@@ -424,5 +569,5 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 		},
 	}
 
-	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
+	return gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
 }
