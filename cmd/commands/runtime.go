@@ -300,7 +300,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	for _, component := range rt.Spec.Components {
-		log.G(ctx).Infof("creating component '%s'", component.Name)
+		log.G(ctx).Infof("Creating component '%s'", component.Name)
 		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
@@ -447,8 +447,9 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 		}
 	}
 
-	return fmt.Errorf("timed out while waiting for runtime installation to complete")
+	stop()
 
+	return fmt.Errorf("timed out while waiting for runtime installation to complete")
 }
 
 func NewRuntimeListCommand() *cobra.Command {

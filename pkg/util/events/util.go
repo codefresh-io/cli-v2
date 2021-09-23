@@ -98,7 +98,6 @@ func CreateEventDependency(opts *CreateEventDependencyOptions) *sensorsv1alpha1.
 func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.EventSource {
 	var resource map[string]eventsourcev1alpha1.ResourceEventSource
 	var generic map[string]eventsourcev1alpha1.GenericEventSource
-	var calender map[string]eventsourcev1alpha1.CalendarEventSource
 
 	if len(opts.Resource) != 0 {
 		resource = make(map[string]eventsourcev1alpha1.ResourceEventSource)
@@ -111,13 +110,6 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 		generic = make(map[string]eventsourcev1alpha1.GenericEventSource)
 		for key, res := range opts.Generic {
 			generic[key] = *CreateGenericEventSource(&res)
-		}
-	}
-
-	if len(opts.Calender) != 0 {
-		calender = make(map[string]eventsourcev1alpha1.CalendarEventSource)
-		for key, res := range opts.Calender {
-			calender[key] = *CreateCalenderEventSource(&res)
 		}
 	}
 
@@ -143,7 +135,6 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 			EventBusName: opts.EventBusName,
 			Resource:     resource,
 			Generic:      generic,
-			Calendar:     calender,
 		},
 	}
 }
