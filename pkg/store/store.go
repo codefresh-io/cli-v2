@@ -86,6 +86,8 @@ type Store struct {
 	CronExampleWfTemplateFileName  string
 	CronExampleEventSourceName     string
 	CronExampleEventName           string
+	CronExampleTriggerTemplateName string
+	CronExampleDependencyName      string
 }
 
 // Get returns the global store
@@ -129,11 +131,13 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
-	s.CronExampleEventSourceFileName = "event-source.calender.yaml"
+	s.CronExampleEventSourceFileName = "event-source.calendar.yaml"
 	s.CronExampleSensorFileName = "sensor.cron.yaml"
 	s.CronExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
-	s.CronExampleEventSourceName = "calender"
+	s.CronExampleEventSourceName = "calendar"
 	s.CronExampleEventName = "example-with-interval"
+	s.CronExampleTriggerTemplateName = "hello-world"
+	s.CronExampleDependencyName = "calendar-dep"
 	initVersion()
 }
 

@@ -227,7 +227,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 			APIVersion: eventsourcereg.Group + "/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "calender",
+			Name:      store.Get().CronExampleEventSourceName,
 			Namespace: opts.runtimeName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
@@ -267,8 +267,8 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (*sensorsv1alpha1.Sensor, error) {
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
-			Name:            "calender-dep",
-			EventSourceName: "calender",
+			Name:            store.Get().CronExampleDependencyName,
+			EventSourceName: store.Get().CronExampleEventSourceName,
 			EventName:       store.Get().CronExampleEventName,
 		},
 	}
@@ -296,7 +296,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName str
 func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
 		GenerateName:          "cron-",
-		SpecWfTemplateRefName: "hello-world",
+		SpecWfTemplateRefName: store.Get().CronExampleTriggerTemplateName,
 		Parameters: []string{
 			"message",
 		},
@@ -306,7 +306,7 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 
 	return &sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
-			Name: "hello-world",
+			Name: store.Get().CronExampleTriggerTemplateName,
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
 				GroupVersionResource: metav1.GroupVersionResource{
 					Group:    "argoproj.io",
@@ -320,7 +320,7 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 				Parameters: []sensorsv1alpha1.TriggerParameter{
 					{
 						Src: &sensorsv1alpha1.TriggerParameterSource{
-							DependencyName: "calender-dep",
+							DependencyName: store.Get().CronExampleDependencyName,
 							DataKey:        "eventTime",
 						},
 						Dest: "spec.arguments.parameters.0.value",
@@ -546,7 +546,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "hello-world",
+			Name: store.Get().CronExampleTriggerTemplateName,
 		},
 		Spec: wfv1alpha1.WorkflowTemplateSpec{
 			WorkflowSpec: wfv1alpha1.WorkflowSpec{

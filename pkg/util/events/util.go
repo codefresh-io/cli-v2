@@ -41,7 +41,7 @@ type (
 		EventBusName       string
 		Resource           map[string]CreateResourceEventSourceOptions
 		Generic            map[string]CreateGenericEventSourceOptions
-		Calender           map[string]CreateCalenderEventSourceOptions
+		calendar           map[string]CreatecalendarEventSourceOptions
 	}
 
 	CreateResourceEventSourceOptions struct {
@@ -58,7 +58,7 @@ type (
 		TokenSecretName string
 	}
 
-	CreateCalenderEventSourceOptions struct {
+	CreatecalendarEventSourceOptions struct {
 		Interval string
 	}
 
@@ -177,11 +177,6 @@ func CreateResourceEventSource(opts *CreateResourceEventSourceOptions) *eventsou
 	}
 }
 
-func CreateCalenderEventSource(opts *CreateCalenderEventSourceOptions) *eventsourcev1alpha1.CalendarEventSource {
-	return &eventsourcev1alpha1.CalendarEventSource{
-		Interval: opts.Interval,
-	}
-}
 
 func CreateSelector(opts *CreateSelectorOptions) *eventsourcev1alpha1.Selector {
 	return &eventsourcev1alpha1.Selector{
