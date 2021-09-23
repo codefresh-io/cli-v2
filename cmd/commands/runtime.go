@@ -71,15 +71,6 @@ type (
 		KubeFactory         kube.Factory
 		CommonConfig        *runtime.CommonConfig
 	}
-
-	RuntimeCreateOnPlatformOptions struct {
-		runtimeName    string
-		server         string
-		runtimeVersion string
-		ingressHost    string
-		componentNames []*string
-	}
-
 	RuntimeUninstallOptions struct {
 		RuntimeName string
 		Timeout     time.Duration
@@ -231,14 +222,14 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []*string {
 	return componentNames
 }
 
-func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeCreateOnPlatformOptions) (string, error) {
+func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, error) {
 	// runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.runtimeName, opts.server, opts.runtimeVersion, opts.ingressHost, opts.componentNames)
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, &model.InstallationArgs{
-		RuntimeName:    opts.runtimeName,
-		Cluster:        opts.server,
-		RuntimeVersion: opts.runtimeVersion,
-		ComponentNames: opts.componentNames,
-		IngressHost:    &opts.ingressHost,
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, &model.RuntimeInstallationArgs{
+		RuntimeName:    opts.RuntimeName,
+		Cluster:        opts.Cluster,
+		RuntimeVersion: opts.RuntimeVersion,
+		ComponentNames: opts.ComponentNames,
+		IngressHost:    opts.IngressHost,
 	})
 
 	if runtimeCreationResponse.ErrorMessage != nil {
@@ -270,12 +261,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	token, err := createRuntimeOnPlatform(ctx, &RuntimeCreateOnPlatformOptions{
-		runtimeName:    opts.RuntimeName,
-		server:         server,
-		runtimeVersion: runtimeVersion,
-		ingressHost:    opts.IngressHost,
-		componentNames: componentNames,
+	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
+		RuntimeName:    opts.RuntimeName,
+		Cluster:         server,
+		RuntimeVersion: runtimeVersion,
+		IngressHost:    &opts.IngressHost,
+		ComponentNames: componentNames,
 	})
 
 	if err != nil {
