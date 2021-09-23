@@ -203,21 +203,21 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
-func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []*string {
-	var componentNames []*string
+func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
+	var componentNames []string
 	for _, component := range rt.Spec.Components {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name)
-		componentNames = append(componentNames, &componentFullName)
+		componentNames = append(componentNames, componentFullName)
 	}
 
 	//  should find a more dynamic way to get these additional components
 	additionalComponents := []string{"events-reporter", "workflow-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
-		componentNames = append(componentNames, &componentFullName)
+		componentNames = append(componentNames, componentFullName)
 	}
-	argoCDFullName := "argo-cd"
-	componentNames = append(componentNames, &argoCDFullName)
+	argoCDFullName := store.Get().ArgoCD
+	componentNames = append(componentNames, argoCDFullName)
 
 	return componentNames
 }
