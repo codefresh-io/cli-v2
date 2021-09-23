@@ -61,15 +61,15 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName         string
-		RuntimeToken        string
-		IngressHost         string
-		Insecure            bool
-		Version             *semver.Version
-		GsCloneOpts         *git.CloneOptions
-		InsCloneOpts        *git.CloneOptions
-		KubeFactory         kube.Factory
-		CommonConfig        *runtime.CommonConfig
+		RuntimeName  string
+		RuntimeToken string
+		IngressHost  string
+		Insecure     bool
+		Version      *semver.Version
+		GsCloneOpts  *git.CloneOptions
+		InsCloneOpts *git.CloneOptions
+		KubeFactory  kube.Factory
+		CommonConfig *runtime.CommonConfig
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -233,11 +233,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create a new runtime: %s, due to a failed graphql request. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
-	}
-
-	if runtimeCreationResponse.ErrorMessage != nil {
-		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
 	}
 
 	return runtimeCreationResponse.NewAccessToken, nil
@@ -267,7 +263,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
-		Cluster:         server,
+		Cluster:        server,
 		RuntimeVersion: runtimeVersion,
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
@@ -343,11 +339,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         opts.GsCloneOpts,
-		GsName:              store.Get().GitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		FullGsPath:          fullGsPath,
+		InsCloneOpts: opts.InsCloneOpts,
+		GsCloneOpts:  opts.GsCloneOpts,
+		GsName:       store.Get().GitSourceName,
+		RuntimeName:  opts.RuntimeName,
+		FullGsPath:   fullGsPath,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
