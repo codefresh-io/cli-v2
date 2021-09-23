@@ -426,7 +426,6 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
-	var err error
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
@@ -448,11 +447,8 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 		}
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to complete the runtime installation due to timeout. Error: %w", err)
-	}
+	return fmt.Errorf("timed out while waiting for runtime installation to complete")
 
-	return fmt.Errorf("failed to complete the runtime installation due to timeout")
 }
 
 func NewRuntimeListCommand() *cobra.Command {
