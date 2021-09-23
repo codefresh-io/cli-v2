@@ -233,7 +233,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
 
 	return runtimeCreationResponse.NewAccessToken, nil
