@@ -192,11 +192,16 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to push demo workflow-template to git-source repo: %w", err)
 		}
 	} else {
-		// TODO: add to the if that before it is the <install repo>, see how to join strings etc
-		if strings.Contains(opts.gsCloneOpts.Repo, "_git-source.git/resources") && !opts.wasDefaultGitSourceRepoCreated {
-			opts.wasDefaultGitSourceRepoCreated = true
-			opts.gsCloneOpts.Repo = opts.gsCloneOpts + "-" + opts.runtimeName
-			RunGitSourceCreate(ctx, opts)
+		if strings.Contains(opts.GsCloneOpts.Repo, "_git-source.git/resources") {
+			opts.GsCloneOpts.Repo = opts.GsCloneOpts.Repo + "-" + opts.RuntimeName
+			opts.GsCloneOpts.SetPath(opts.GsCloneOpts.Path() + "-" + opts.RuntimeName)
+			RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+				InsCloneOpts: opts.InsCloneOpts,
+				GsCloneOpts:  opts.GsCloneOpts,
+				GsName:       opts.GsName + "-" + opts.RuntimeName,
+				RuntimeName:  opts.RuntimeName,
+				FullGsPath:   opts.GsCloneOpts.Path(),
+			})
 		}
 	}
 
