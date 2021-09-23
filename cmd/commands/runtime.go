@@ -223,7 +223,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []*string {
 }
 
 func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, error) {
-	// runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts.runtimeName, opts.server, opts.runtimeVersion, opts.ingressHost, opts.componentNames)
+
 	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
 		Cluster:        opts.Cluster,
@@ -231,6 +231,10 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 		ComponentNames: opts.ComponentNames,
 		IngressHost:    opts.IngressHost,
 	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to create a new runtime: %s, due to a failed graphql request. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+	}
 
 	if runtimeCreationResponse.ErrorMessage != nil {
 		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
