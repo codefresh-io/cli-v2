@@ -206,7 +206,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
-
 	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.GsName)
 
 	return nil

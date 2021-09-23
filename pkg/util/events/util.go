@@ -41,7 +41,6 @@ type (
 		EventBusName       string
 		Resource           map[string]CreateResourceEventSourceOptions
 		Generic            map[string]CreateGenericEventSourceOptions
-		calendar           map[string]CreatecalendarEventSourceOptions
 	}
 
 	CreateResourceEventSourceOptions struct {
