@@ -193,12 +193,13 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		}
 	} else {
 		if strings.Contains(opts.GsCloneOpts.Repo, "_git-source.git/resources") {
-			opts.GsCloneOpts.Repo = opts.GsCloneOpts.Repo + "-" + opts.RuntimeName
-			opts.GsCloneOpts.SetPath(opts.GsCloneOpts.Path() + "-" + opts.RuntimeName)
-			RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+			runtimeSuffix := "-" + opts.RuntimeName
+			opts.GsCloneOpts.Repo = opts.GsCloneOpts.Repo + runtimeSuffix
+			opts.GsCloneOpts.SetPath(opts.GsCloneOpts.Path() + runtimeSuffix)
+			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{ 
 				InsCloneOpts: opts.InsCloneOpts,
 				GsCloneOpts:  opts.GsCloneOpts,
-				GsName:       opts.GsName + "-" + opts.RuntimeName,
+				GsName:       opts.GsName,
 				RuntimeName:  opts.RuntimeName,
 				FullGsPath:   opts.GsCloneOpts.Path(),
 			})
@@ -210,6 +211,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		Type: application.AppTypeDirectory,
 		URL:  opts.GsCloneOpts.Repo,
 	}
+	
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
@@ -224,8 +226,8 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
-	eventSourceFilePath := opts.gsFs.Join("resources", store.Get().CronExampleEventSourceFileName)
-	sensorFilePath := opts.gsFs.Join("resources",store.Get().CronExampleSensorFileName)
+	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleEventSourceFileName) 
+	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(),store.Get().CronExampleSensorFileName)
 
 	eventSource := &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
