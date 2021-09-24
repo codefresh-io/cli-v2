@@ -192,7 +192,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to push demo workflow-template to git-source repo: %w", err)
 		}
 	} else {
-		if strings.Contains(opts.GsCloneOpts.Repo, "_git-source.git/resources") {
+		if strings.Contains(opts.GsCloneOpts.Repo, store.Get().DefaultGitSourceRepoSuffix) {
 			runtimeSuffix := "-" + opts.RuntimeName
 			opts.GsCloneOpts.Repo = opts.GsCloneOpts.Repo + runtimeSuffix
 			opts.GsCloneOpts.SetPath(opts.GsCloneOpts.Path() + runtimeSuffix)

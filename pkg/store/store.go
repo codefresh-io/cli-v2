@@ -88,6 +88,7 @@ type Store struct {
 	CronExampleEventName           string
 	CronExampleTriggerTemplateName string
 	CronExampleDependencyName      string
+	DefaultGitSourceRepoSuffix string
 }
 
 // Get returns the global store
@@ -138,6 +139,7 @@ func init() {
 	s.CronExampleEventName = "example-with-interval"
 	s.CronExampleTriggerTemplateName = "hello-world"
 	s.CronExampleDependencyName = "calendar-dep"
+	s.DefaultGitSourceRepoSuffix = "_git-source.git/resources"
 	initVersion()
 }
 
