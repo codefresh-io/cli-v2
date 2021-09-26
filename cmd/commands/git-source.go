@@ -195,7 +195,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		if strings.HasSuffix(opts.GsCloneOpts.Repo, store.Get().DefaultGitSourceRepoSuffix) {
 			runtimeSuffix := "-" + opts.RuntimeName
 			opts.GsCloneOpts.Repo = opts.GsCloneOpts.Repo + runtimeSuffix
-			opts.GsCloneOpts.SetPath(opts.GsCloneOpts.Path() + runtimeSuffix)
+			opts.GsCloneOpts.Parse()
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{ 
 				InsCloneOpts: opts.InsCloneOpts,
 				GsCloneOpts:  opts.GsCloneOpts,
