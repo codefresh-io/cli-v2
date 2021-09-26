@@ -221,7 +221,6 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      store.Get().CronExampleEventSourceName,
-			Namespace: opts.runtimeName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			EventBusName: store.Get().EventBusName,
