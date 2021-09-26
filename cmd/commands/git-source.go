@@ -48,11 +48,11 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		InsCloneOpts        *git.CloneOptions
-		GsCloneOpts         *git.CloneOptions
-		GsName              string
-		RuntimeName         string
-		FullGsPath          string
+		InsCloneOpts *git.CloneOptions
+		GsCloneOpts  *git.CloneOptions
+		GsName       string
+		RuntimeName  string
+		FullGsPath   string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -70,9 +70,9 @@ type (
 	}
 
 	gitSourceCronExampleOptions struct {
-		runtimeName         string
-		gsCloneOpts         *git.CloneOptions
-		gsFs                fs.FS
+		runtimeName string
+		gsCloneOpts *git.CloneOptions
+		gsFs        fs.FS
 	}
 )
 
@@ -176,9 +176,9 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	if len(fi) == 0 {
 		err = createCronExamplePipeline(&gitSourceCronExampleOptions{
-			runtimeName:         opts.RuntimeName,
-			gsCloneOpts:         opts.GsCloneOpts,
-			gsFs:                gsFs,
+			runtimeName: opts.RuntimeName,
+			gsCloneOpts: opts.GsCloneOpts,
+			gsFs:        gsFs,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
@@ -197,6 +197,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		Type: application.AppTypeDirectory,
 		URL:  opts.GsCloneOpts.Repo,
 	}
+
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
@@ -211,8 +212,8 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
 
-	eventSourceFilePath := opts.gsFs.Join("resources", store.Get().CronExampleEventSourceFileName)
-	sensorFilePath := opts.gsFs.Join("resources",store.Get().CronExampleSensorFileName)
+	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleEventSourceFileName)
+	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleSensorFileName)
 
 	eventSource := &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
@@ -220,8 +221,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 			APIVersion: eventsourcereg.Group + "/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().CronExampleEventSourceName,
-			Namespace: opts.runtimeName,
+			Name: store.Get().CronExampleEventSourceName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			EventBusName: store.Get().EventBusName,
@@ -272,8 +272,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName str
 			APIVersion: sensorreg.Group + "/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cron",
-			Namespace: runtimeName,
+			Name: "cron",
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: "codefresh-eventbus",
