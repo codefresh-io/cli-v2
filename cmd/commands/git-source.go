@@ -191,20 +191,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
 			return fmt.Errorf("failed to push demo workflow-template to git-source repo: %w", err)
 		}
-	} else {
-		if strings.HasSuffix(opts.GsCloneOpts.Repo, store.Get().DefaultGitSourceRepoSuffix) {
-			runtimeSuffix := "-" + opts.RuntimeName
-			opts.GsCloneOpts.Repo = opts.GsCloneOpts.Repo + runtimeSuffix
-			opts.GsCloneOpts.Parse()
-			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{ 
-				InsCloneOpts: opts.InsCloneOpts,
-				GsCloneOpts:  opts.GsCloneOpts,
-				GsName:       opts.GsName,
-				RuntimeName:  opts.RuntimeName,
-				FullGsPath:   opts.GsCloneOpts.Path(),
-			})
-		}
-	}
+	} 
 
 	appDef := &runtime.AppDef{
 		Name: opts.GsName,

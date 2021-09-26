@@ -139,18 +139,13 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			insCloneOpts.Parse()
-			if gsCloneOpts.Repo == "" {
-				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources"
-			}
-
-			gsCloneOpts.Parse()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
 				version *semver.Version
 				err     error
 			)
+
 			ctx := cmd.Context()
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
@@ -172,8 +167,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				}
 			}
 
+			runtimeName := args[0]
+			if gsCloneOpts.Repo == "" {
+				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
+				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + runtimeName
+			}
+			gsCloneOpts.Parse()
+
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
-				RuntimeName:  args[0],
+				RuntimeName:  runtimeName,
 				IngressHost:  ingressHost,
 				Version:      version,
 				Insecure:     true,
