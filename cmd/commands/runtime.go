@@ -170,7 +170,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			runtimeName := args[0]
 			if gsCloneOpts.Repo == "" {
 				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + runtimeName
+				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + runtimeName
 			}
 			gsCloneOpts.Parse()
 
