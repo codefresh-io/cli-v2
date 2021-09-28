@@ -61,17 +61,16 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName         string
-		RuntimeToken        string
-		IngressHost         string
-		Insecure            bool
-		Version             *semver.Version
-		GsCloneOpts         *git.CloneOptions
-		InsCloneOpts        *git.CloneOptions
-		KubeFactory         kube.Factory
-		CommonConfig        *runtime.CommonConfig
+		RuntimeName  string
+		RuntimeToken string
+		IngressHost  string
+		Insecure     bool
+		Version      *semver.Version
+		GsCloneOpts  *git.CloneOptions
+		InsCloneOpts *git.CloneOptions
+		KubeFactory  kube.Factory
+		CommonConfig *runtime.CommonConfig
 	}
-
 	RuntimeUninstallOptions struct {
 		RuntimeName string
 		Timeout     time.Duration
@@ -209,24 +208,27 @@ func NewRuntimeInstallCommand() *cobra.Command {
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	var componentNames []string
 	for _, component := range rt.Spec.Components {
-		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name))
+		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name)
+		componentNames = append(componentNames, componentFullName)
 	}
 
 	//  should find a more dynamic way to get these additional components
 	additionalComponents := []string{"events-reporter", "workflow-reporter"}
 	for _, additionalComponentName := range additionalComponents {
-		componentNames = append(componentNames, fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName))
+		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
+		componentNames = append(componentNames, componentFullName)
 	}
-	componentNames = append(componentNames, "argo-cd")
+	argoCDFullName := store.Get().ArgoCD
+	componentNames = append(componentNames, argoCDFullName)
 
 	return componentNames
 }
 
-func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeName, server, runtimeVersion, ingressHost, componentNames)
+func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts)
 
-	if runtimeCreationResponse.ErrorMessage != nil {
-		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Error: %w", *runtimeCreationResponse.ErrorMessage, err)
+	if err != nil {
+		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
 
 	return runtimeCreationResponse.NewAccessToken, nil
@@ -254,7 +256,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
+	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
+		RuntimeName:    opts.RuntimeName,
+		Cluster:        server,
+		RuntimeVersion: runtimeVersion,
+		IngressHost:    &opts.IngressHost,
+		ComponentNames: componentNames,
+	})
 
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
@@ -326,11 +334,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         opts.GsCloneOpts,
-		GsName:              store.Get().GitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		FullGsPath:          fullGsPath,
+		InsCloneOpts: opts.InsCloneOpts,
+		GsCloneOpts:  opts.GsCloneOpts,
+		GsName:       store.Get().GitSourceName,
+		RuntimeName:  opts.RuntimeName,
+		FullGsPath:   fullGsPath,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
