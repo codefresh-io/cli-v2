@@ -224,11 +224,11 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	return componentNames
 }
 
-func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, error) {
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts)
+func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeName, server, runtimeVersion, ingressHost, componentNames)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
+		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", runtimeName, err)
 	}
 
 	return runtimeCreationResponse.NewAccessToken, nil
@@ -256,13 +256,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:    opts.RuntimeName,
-		Cluster:        server,
-		RuntimeVersion: runtimeVersion,
-		IngressHost:    &opts.IngressHost,
-		ComponentNames: componentNames,
-	})
+	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
 
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
