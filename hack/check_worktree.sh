@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "checking worktree..."
 res=$(git status -s)
