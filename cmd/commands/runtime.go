@@ -257,10 +257,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	componentNames := getComponents(rt, opts)
 
 	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:    opts.RuntimeName,
-		Cluster:        server,
+		RuntimeName: opts.RuntimeName,
+		Cluster: server,
 		RuntimeVersion: runtimeVersion,
-		IngressHost:    &opts.IngressHost,
+		IngressHost: &opts.IngressHost,
 		ComponentNames: componentNames,
 	})
 

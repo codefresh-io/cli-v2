@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 if [[ -z "$GIT_REPO" ]]; then
     echo "error: git repo not defined"
     exit 1
