@@ -231,6 +231,11 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
 
+	// json.unmarshal (returned by graphqlAPI()) might return a blank struct in case it fails to read the sturct fields
+	if runtimeCreationResponse.NewAccessToken == "" {
+		return runtimeCreationResponse.NewAccessToken, fmt.Errorf("failed to create a new runtime: %s. Invalid unmarshal of the runtime creation response", opts.RuntimeName)
+	}
+
 	return runtimeCreationResponse.NewAccessToken, nil
 }
 
