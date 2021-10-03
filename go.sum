@@ -266,6 +266,8 @@ github.com/clusterhq/flocker-go v0.0.0-20160920122132-2b8b7259d313/go.mod h1:P1w
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa/go.mod h1:zn76sxSg3SzpJ0PPJaLDCu+Bu0Lg3sKTORVIj19EIF8=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
+github.com/codefresh-io/go-sdk v0.34.9 h1:HwcnRHgchReRshZE711l2E346Fipvfzm8RADcT1HquQ=
+github.com/codefresh-io/go-sdk v0.34.9/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
 github.com/colinmarc/hdfs v1.1.4-0.20180802165501-48eb8d6c34a9/go.mod h1:0DumPviB681UcSuJErAbDIOx6SIaJWj463TymfZG02I=
 github.com/colinmarc/hdfs v1.1.4-0.20180805212432-9746310a4d31/go.mod h1:vSBumefK4HA5uiRSwNP+3ofgrEoScpCS2MMWcWXEuQ4=
 github.com/container-storage-interface/spec v1.3.0/go.mod h1:6URME8mwIBbpVyZV93Ce5St17xBiQJQY67NDsuohiy4=
