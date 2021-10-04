@@ -257,13 +257,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	componentNames := getComponents(rt, opts)
 
 	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
-
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
 	opts.RuntimeToken = token
-
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 
@@ -322,6 +320,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
+	}
+
+	if err = createGithubAccessTokenSecret(ctx, opts); err != nil {
+		return fmt.Errorf("failed to create github secret: %w", err)
 	}
 
 	gsPath := opts.GsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
@@ -739,9 +741,13 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:        rt.Name + store.Get().IngressName,
 		Namespace:   rt.Namespace,
-		Path:        store.Get().IngressPath,
-		ServiceName: store.Get().ArgoWFServiceName,
-		ServicePort: store.Get().ArgoWFServicePort,
+		Paths: []ingressutil.IngressPath{
+			{
+				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().IngressPath),
+				ServiceName: store.Get().ArgoWFServiceName,
+				ServicePort: store.Get().ArgoWFServicePort,
+			},
+		},
 	})
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
@@ -1083,6 +1089,34 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 
 	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func createGithubAccessTokenSecret(ctx context.Context, opts *RuntimeInstallOptions) error {
+	namespace := opts.RuntimeName
+	token := opts.GsCloneOpts.Auth.Password
+	//base64Token := base64.StdEncoding.EncodeToString([]byte(token))
+	secretYaml, err := yaml.Marshal(&v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: store.Get().GithubAccessTokenSecretObjectName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			store.Get().GithubAccessTokenSecretKey: []byte(token),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if err = opts.KubeFactory.Apply(ctx, namespace, aputil.JoinManifests(secretYaml)); err != nil {
+		return fmt.Errorf("failed to create github access token secret: %w", err)
 	}
 
 	return nil

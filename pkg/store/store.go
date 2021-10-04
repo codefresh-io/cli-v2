@@ -44,51 +44,68 @@ type Version struct {
 }
 
 type Store struct {
-	ArgoCDServerName               string
-	ArgoCDTokenKey                 string
-	ArgoCDTokenSecret              string
-	ArgoCDAgentCFTokenKey          string
-	ArgoCDAgentCFTokenSecret       string
-	ArgoCDAgentSA                  string
-	ArgoWFServiceName              string
-	ArgoWFServicePort              int32
-	BinaryName                     string
-	Codefresh                      string
-	CFComponentType                string
-	CFGitSourceType                string
-	CFRuntimeDefType               string
-	CFRuntimeType                  string
-	CFTokenSecret                  string
-	CFTokenSecretKey               string
-	CodefreshCM                    string
-	CodefreshSA                    string
-	ComponentsReporterName         string
-	ComponentsReporterSA           string
-	ComponentsReporterURL          string
-	DefaultAPI                     string
-	EventBusName                   string
-	EventReportingEndpoint         string
-	EventsReporterName             string
-	ArgoCDAgentReporterName        string
-	GitSourceName                  string
-	IngressName                    string
-	IngressPath                    string
-	LabelKeyCFType                 string
-	MaxDefVersion                  *semver.Version
-	RuntimeDefURL                  string
-	RuntimeFilename                string
-	Version                        Version
-	WaitTimeout                    time.Duration
-	WorkflowName                   string
-	WorkflowReporterName           string
-	CronExampleSensorFileName      string
-	CronExampleEventSourceFileName string
-	CronExampleWfTemplateFileName  string
-	CronExampleEventSourceName     string
-	CronExampleEventName           string
-	CronExampleTriggerTemplateName string
-	CronExampleDependencyName      string
-	ArgoCD                         string
+	ArgoCDServerName                     string
+	ArgoCDTokenKey                       string
+	ArgoCDTokenSecret                    string
+	ArgoCDAgentCFTokenKey                string
+	ArgoCDAgentCFTokenSecret             string
+	ArgoCDAgentSA                        string
+	ArgoWFServiceName                    string
+	ArgoWFServicePort                    int32
+	BinaryName                           string
+	Codefresh                            string
+	CFComponentType                      string
+	CFGitSourceType                      string
+	CFRuntimeDefType                     string
+	CFRuntimeType                        string
+	CFTokenSecret                        string
+	CFTokenSecretKey                     string
+	CodefreshCM                          string
+	CodefreshSA                          string
+	ComponentsReporterName               string
+	ComponentsReporterSA                 string
+	ComponentsReporterURL                string
+	DefaultAPI                           string
+	EventBusName                         string
+	EventReportingEndpoint               string
+	EventsReporterName                   string
+	ArgoCDAgentReporterName              string
+	GitSourceName                        string
+	IngressName                          string
+	IngressPath                          string
+	LabelKeyCFType                       string
+	MaxDefVersion                        *semver.Version
+	RuntimeDefURL                        string
+	RuntimeFilename                      string
+	Version                              Version
+	WaitTimeout                          time.Duration
+	WorkflowName                         string
+	WorkflowReporterName                 string
+	CronExampleSensorFileName            string
+	CronExampleEventSourceFileName       string
+	CronExampleWfTemplateFileName        string
+	CronExampleEventSourceName           string
+	CronExampleEventName                 string
+	CronExampleTriggerTemplateName       string
+	CronExampleDependencyName            string
+	GithubExampleEventSourceFileName     string
+	GithubExampleEventSourceObjectName   string
+	GithubExampleEventSourceEndpointPath string
+	GithubExampleEventSourceTargetPort   string
+	GithubExampleEventSourceServicePort  int32
+	GithubExampleIngressFileName         string
+	GithubExampleIngressObjectName       string
+	GithubExampleIngressHost             string
+	GithubExampleSensorFileName          string
+	GithubExampleSensorObjectName        string
+	GithubExampleWfTemplateFileName      string
+	GithubExampleEventName               string
+	GithubExampleTriggerTemplateName     string
+	GithubExampleDependencyName          string
+	GithubAccessTokenSecretFileName      string
+	GithubAccessTokenSecretObjectName    string
+	GithubAccessTokenSecretKey           string
+	ArgoCD                               string
 }
 
 // Get returns the global store
@@ -139,6 +156,23 @@ func init() {
 	s.CronExampleEventName = "example-with-interval"
 	s.CronExampleTriggerTemplateName = "hello-world"
 	s.CronExampleDependencyName = "calendar-dep"
+	s.GithubExampleEventSourceFileName = "event-source.github.yaml"
+	s.GithubExampleEventSourceObjectName = "github"
+	s.GithubExampleEventSourceEndpointPath = "/example/"
+	s.GithubExampleEventSourceTargetPort = "13000"
+	s.GithubExampleEventSourceServicePort = 13000
+	s.GithubExampleIngressFileName = "ingress.github.yaml"
+	s.GithubExampleIngressObjectName = "github"
+	s.GithubExampleIngressHost = "replace-this-with-real-host"
+	s.GithubExampleSensorFileName = "sensor.github.yaml"
+	s.GithubExampleSensorObjectName = "github"
+	s.GithubExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
+	s.GithubExampleEventName = "push"
+	s.GithubExampleTriggerTemplateName = "hello-world"
+	s.GithubExampleDependencyName = "github-dep"
+	s.GithubAccessTokenSecretFileName = "github-access.yaml"
+	s.GithubAccessTokenSecretObjectName = "github-access"
+	s.GithubAccessTokenSecretKey = "token"
 	s.ArgoCD = "argo-cd"
 	initVersion()
 }
