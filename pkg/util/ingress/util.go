@@ -15,63 +15,74 @@
 package util
 
 import (
-	"fmt"
-
-	v1 "k8s.io/api/networking/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
-	CreateIngressOptions struct {
-		Name        string
-		Namespace   string
-		Host        string
+	IngressPath struct {
 		Path        string
+		PathType    netv1.PathType
 		ServiceName string
 		ServicePort int32
 	}
+
+	CreateIngressOptions struct {
+		Name        string
+		Namespace   string
+		Annotations map[string]string
+		Host        string
+		Paths       []IngressPath
+	}
 )
 
-func CreateIngress(opts *CreateIngressOptions) *v1.Ingress {
-	pathType := v1.PathTypePrefix
-	return &v1.Ingress{
+func createHTTPIngressPaths(paths []IngressPath) []netv1.HTTPIngressPath {
+	httpIngressPaths := make([]netv1.HTTPIngressPath, 0, len(paths))
+	for _, p := range paths {
+		httpIngressPaths = append(httpIngressPaths, netv1.HTTPIngressPath{
+			Path:     p.Path,
+			PathType: &p.PathType,
+			Backend: netv1.IngressBackend{
+				Service: &netv1.IngressServiceBackend{
+					Name: p.ServiceName,
+					Port: netv1.ServiceBackendPort{
+						Number: p.ServicePort,
+					},
+				},
+			},
+		})
+	}
+
+	return httpIngressPaths
+}
+
+func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
+	ingress := &netv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1.SchemeGroupVersion.String(),
+			APIVersion: netv1.SchemeGroupVersion.String(),
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.Namespace,
 			Name:      opts.Name,
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":                  "nginx",
-				"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-				"nginx.ingress.kubernetes.io/backend-protocol": "https",
-			},
 		},
-		Spec: v1.IngressSpec{
-			Rules: []v1.IngressRule{
+		Spec: netv1.IngressSpec{
+			Rules: []netv1.IngressRule{
 				{
 					Host: opts.Host,
-					IngressRuleValue: v1.IngressRuleValue{
-						HTTP: &v1.HTTPIngressRuleValue{
-							Paths: []v1.HTTPIngressPath{
-								{
-									Path:     fmt.Sprintf("/%s(/|$)(.*)", opts.Path),
-									PathType: &pathType,
-									Backend: v1.IngressBackend{
-										Service: &v1.IngressServiceBackend{
-											Name: opts.ServiceName,
-											Port: v1.ServiceBackendPort{
-												Number: opts.ServicePort,
-											},
-										},
-									},
-								},
-							},
+					IngressRuleValue: netv1.IngressRuleValue{
+						HTTP: &netv1.HTTPIngressRuleValue{
+							Paths: createHTTPIngressPaths(opts.Paths),
 						},
 					},
 				},
 			},
 		},
 	}
+
+	if opts.Annotations != nil {
+		ingress.ObjectMeta.Annotations = opts.Annotations
+	}
+
+	return ingress
 }

@@ -52,6 +52,7 @@ import (
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -257,19 +258,17 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	componentNames := getComponents(rt, opts)
 
 	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName: opts.RuntimeName,
-		Cluster: server,
+		RuntimeName:    opts.RuntimeName,
+		Cluster:        server,
 		RuntimeVersion: runtimeVersion,
-		IngressHost: &opts.IngressHost,
+		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
 	opts.RuntimeToken = token
-
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 
@@ -743,11 +742,21 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:        rt.Name + store.Get().IngressName,
-		Namespace:   rt.Namespace,
-		Path:        store.Get().IngressPath,
-		ServiceName: store.Get().ArgoWFServiceName,
-		ServicePort: store.Get().ArgoWFServicePort,
+		Name:      rt.Name + store.Get().IngressName,
+		Namespace: rt.Namespace,
+		Annotations: map[string]string{
+			"kubernetes.io/ingress.class":                  "nginx",
+			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+			"nginx.ingress.kubernetes.io/backend-protocol": "https",
+		},
+		Paths: []ingressutil.IngressPath{
+			{
+				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().IngressPath),
+				PathType:    netv1.PathTypePrefix,
+				ServiceName: store.Get().ArgoWFServiceName,
+				ServicePort: store.Get().ArgoWFServicePort,
+			},
+		},
 	})
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
