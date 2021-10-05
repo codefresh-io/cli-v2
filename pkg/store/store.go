@@ -96,7 +96,6 @@ type Store struct {
 	GithubExampleEventSourceServicePort  int32
 	GithubExampleIngressFileName         string
 	GithubExampleIngressObjectName       string
-	GithubExampleIngressHost             string
 	GithubExampleSensorFileName          string
 	GithubExampleSensorObjectName        string
 	GithubExampleWfTemplateFileName      string
@@ -165,7 +164,6 @@ func init() {
 	s.GithubExampleEventSourceServicePort = 13000
 	s.GithubExampleIngressFileName = "ingress.github.yaml"
 	s.GithubExampleIngressObjectName = "github"
-	s.GithubExampleIngressHost = "replace-this-with-real-host"
 	s.GithubExampleSensorFileName = "sensor.github.yaml"
 	s.GithubExampleSensorObjectName = "github"
 	s.GithubExampleWfTemplateFileName = "workflow-template.hello-world.yaml"

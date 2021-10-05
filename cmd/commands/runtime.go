@@ -329,11 +329,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	// required for demo pipeline
-	if err = createGithubAccessTokenSecret(ctx, opts); err != nil {
-		return fmt.Errorf("failed to create github secret: %w", err)
-	}
-
 	gsPath := opts.GsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
 	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
@@ -343,6 +338,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:       store.Get().GitSourceName,
 		RuntimeName:  opts.RuntimeName,
 		FullGsPath:   fullGsPath,
+		KubeFactory:  opts.KubeFactory,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -1103,33 +1099,6 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 
 	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func createGithubAccessTokenSecret(ctx context.Context, opts *RuntimeInstallOptions) error {
-	namespace := opts.RuntimeName
-	token := opts.GsCloneOpts.Auth.Password
-	secretYaml, err := yaml.Marshal(&v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().GithubAccessTokenSecretObjectName,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			store.Get().GithubAccessTokenSecretKey: []byte(token),
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	if err = opts.KubeFactory.Apply(ctx, namespace, aputil.JoinManifests(secretYaml)); err != nil {
-		return fmt.Errorf("failed to create github access token secret: %w", err)
 	}
 
 	return nil

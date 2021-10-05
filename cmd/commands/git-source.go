@@ -21,8 +21,6 @@ import (
 	"strings"
 	"time"
 
-	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
-	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -30,19 +28,23 @@ import (
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
-	"github.com/juju/ansiterm"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
 	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
 	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/ghodss/yaml"
+	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -57,6 +59,7 @@ type (
 		GsName       string
 		RuntimeName  string
 		FullGsPath   string
+		KubeFactory  kube.Factory
 	}
 
 	GitSourceDeleteOptions struct {
@@ -83,6 +86,7 @@ type (
 		runtimeName string
 		gsCloneOpts *git.CloneOptions
 		gsFs        fs.FS
+		kubeFactory kube.Factory
 	}
 )
 
@@ -198,6 +202,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			runtimeName: opts.RuntimeName,
 			gsCloneOpts: opts.GsCloneOpts,
 			gsFs:        gsFs,
+			kubeFactory: opts.KubeFactory,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -594,10 +599,18 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 }
 
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
-	// Create an ingress that will manage external access to the github eventsource service.
+	// Create a github access token secret - NOT IN GITOPS WAY (won't be pushed to git)
+	namespace := opts.runtimeName
+	token := opts.gsCloneOpts.Auth.Password
+	err := createGithubAccessTokenSecret(token, namespace, opts.kubeFactory)
+	if err != nil {
+		return fmt.Errorf("failed to create github access token secret. Error: %w", err)
+	}
+
+	// Create an ingress that will manage external access to the github eventsource service
 	ingress := createGithubExampleIngress()
 	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
-	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+	err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
 	}
@@ -669,7 +682,7 @@ func createGithubExampleEventSource(repoURL string) *eventsourcev1alpha1.EventSo
 				store.Get().GithubExampleEventName: {
 					Webhook: &eventsourcev1alpha1.WebhookContext{
 						Endpoint: store.Get().GithubExampleEventSourceEndpointPath,
-						URL:      "http://" + store.Get().GithubExampleIngressHost,
+						URL:      "http://replace-with-real-public-url",
 						Port:     store.Get().GithubExampleEventSourceTargetPort,
 						Method:   "POST",
 					},
@@ -767,4 +780,29 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 			Triggers:     triggers,
 		},
 	}
+}
+
+func createGithubAccessTokenSecret(token, namespace string, kubeFactory kube.Factory) error {
+	secretYaml, err := yaml.Marshal(&corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().GithubAccessTokenSecretObjectName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			store.Get().GithubAccessTokenSecretKey: []byte(token),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if err = kubeFactory.Apply(context.TODO(), namespace, aputil.JoinManifests(secretYaml)); err != nil {
+		return err
+	}
+
+	return nil
 }
