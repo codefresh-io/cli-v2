@@ -30,7 +30,7 @@ FROM golang:1.16.3-alpine3.13 as codefresh-build
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
-RUN apk -U add --no-cache git make
+RUN apk -U add --no-cache git make bash
 
 COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=base /go/pkg/mod /go/pkg/mod

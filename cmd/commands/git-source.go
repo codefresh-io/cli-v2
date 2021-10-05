@@ -16,16 +16,18 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/juju/ansiterm"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
+	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -33,23 +35,30 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
+	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
+	eventsourcev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
+	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/go-git/go-billy/v5/memfs"
-	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type (
 	GitSourceCreateOptions struct {
-		insCloneOpts *git.CloneOptions
-		gsCloneOpts  *git.CloneOptions
-		gsName       string
-		runtimeName  string
-		fullGsPath   string
-		createDemoWorkflowTemplate bool
+		InsCloneOpts *git.CloneOptions
+		GsCloneOpts  *git.CloneOptions
+		GsName       string
+		RuntimeName  string
+		FullGsPath   string
+    CreateDemoWorkflowTemplate bool
+
 	}
 
 	GitSourceDeleteOptions struct {
@@ -64,6 +73,18 @@ type (
 		GsName       string
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
+	}
+
+	gitSourceCronExampleOptions struct {
+		runtimeName string
+		gsCloneOpts *git.CloneOptions
+		gsFs        fs.FS
+	}
+
+	gitSourceGithubExampleOptions struct {
+		runtimeName string
+		gsCloneOpts *git.CloneOptions
+		gsFs        fs.FS
 	}
 )
 
@@ -133,25 +154,23 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-				insCloneOpts: insCloneOpts,
-				gsCloneOpts:  gsCloneOpts,
-				gsName:       args[1],
-				runtimeName:  args[0],
-				fullGsPath:   gsCloneOpts.Path(),
-				createDemoWorkflowTemplate: false,
+				InsCloneOpts: insCloneOpts,
+				GsCloneOpts:  gsCloneOpts,
+				GsName:       args[1],
+				RuntimeName:  args[0],
+				FullGsPath:   gsCloneOpts.Path(),
+        CreateDemoWorkflowTemplate: false
 			})
 		},
 	}
 
-	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
-	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
 
 	return cmd
@@ -171,43 +190,165 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	if len(fi) == 0 {
-		if err = createDemoWorkflowTemplate(gsFs, opts.runtimeName); err != nil {
-			return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
-		}
-
-		pOpts := &git.PushOptions{
-			CommitMsg: fmt.Sprintf("Created demo workflow template in %s Directory", opts.gsCloneOpts.Path()),
-		}
-
-		_, err = gsRepo.Persist(ctx, pOpts)
+		err = createCronExamplePipeline(&gitSourceCronExampleOptions{
+			runtimeName: opts.RuntimeName,
+			gsCloneOpts: opts.GsCloneOpts,
+			gsFs:        gsFs,
+		})
 		if err != nil {
-			if errors.Is(err, transport.ErrRepositoryNotFound) {
-				log.G(ctx).Warn("failed to persist git-source repo, trying again in 3 seconds...")
-				time.Sleep(time.Second * 3)
+			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
+		}
 
-				_, err = gsRepo.Persist(ctx, pOpts)
-				if err != nil {
-					return fmt.Errorf("failed to push changes. Err: %w", err)
-				}
-			} else {
-				return fmt.Errorf("failed to push changes. Err: %w", err)
-			}
+		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
+			runtimeName: opts.RuntimeName,
+			gsCloneOpts: opts.GsCloneOpts,
+			gsFs:        gsFs,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+		}
+
+		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
+
+		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
+		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
 		}
 	}
 }
 
 	appDef := &runtime.AppDef{
-		Name: opts.gsName,
+		Name: opts.GsName,
 		Type: application.AppTypeDirectory,
-		URL:  opts.gsCloneOpts.Repo,
+		URL:  opts.GsCloneOpts.Repo,
 	}
-	if err := appDef.CreateApp(ctx, nil, opts.insCloneOpts, opts.runtimeName, store.Get().CFGitSourceType); err != nil {
+
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
-
-	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.gsName)
+	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.GsName)
 
 	return nil
+}
+
+func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
+	err := createDemoWorkflowTemplate(opts.gsFs, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
+	}
+
+	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleEventSourceFileName)
+	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleSensorFileName)
+
+	eventSource := createCronExampleEventSource()
+	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of eventsource. Error: %w", err)
+	}
+
+	trigger, err := createCronExampleTrigger()
+	triggers := []sensorsv1alpha1.Trigger{*trigger}
+	if err != nil {
+		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
+	}
+
+	sensor, err := createCronExampleSensor(triggers, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
+	}
+
+	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of cron example sensor. Error: %w", err)
+	}
+
+	return nil
+}
+
+func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
+	return &eventsourcev1alpha1.EventSource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       eventsourcereg.Kind,
+			APIVersion: eventsourcereg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: store.Get().CronExampleEventSourceName,
+		},
+		Spec: eventsourcev1alpha1.EventSourceSpec{
+			EventBusName: store.Get().EventBusName,
+			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
+				store.Get().CronExampleEventName: {
+					Interval: "5m",
+				},
+			},
+		},
+	}
+}
+
+func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (*sensorsv1alpha1.Sensor, error) {
+	dependencies := []sensorsv1alpha1.EventDependency{
+		{
+			Name:            store.Get().CronExampleDependencyName,
+			EventSourceName: store.Get().CronExampleEventSourceName,
+			EventName:       store.Get().CronExampleEventName,
+		},
+	}
+
+	return &sensorsv1alpha1.Sensor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       sensorreg.Kind,
+			APIVersion: sensorreg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cron",
+		},
+		Spec: sensorsv1alpha1.SensorSpec{
+			EventBusName: "codefresh-eventbus",
+			Template: &sensorsv1alpha1.Template{
+				ServiceAccountName: "argo-server",
+			},
+			Dependencies: dependencies,
+			Triggers:     triggers,
+		},
+	}, nil
+}
+
+func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
+	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
+		GenerateName:          "cron-",
+		SpecWfTemplateRefName: store.Get().CronExampleTriggerTemplateName,
+		Parameters: []string{
+			"message",
+		},
+	})
+
+	workflowResource := apicommon.NewResource(workflow)
+
+	return &sensorsv1alpha1.Trigger{
+		Template: &sensorsv1alpha1.TriggerTemplate{
+			Name: store.Get().CronExampleTriggerTemplateName,
+			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    "argoproj.io",
+					Version:  "v1alpha1",
+					Resource: "workflows",
+				},
+				Operation: sensorsv1alpha1.Submit,
+				Source: &sensorsv1alpha1.ArtifactLocation{
+					Resource: &workflowResource,
+				},
+				Parameters: []sensorsv1alpha1.TriggerParameter{
+					{
+						Src: &sensorsv1alpha1.TriggerParameterSource{
+							DependencyName: store.Get().CronExampleDependencyName,
+							DataKey:        "eventTime",
+						},
+						Dest: "spec.arguments.parameters.0.value",
+					},
+				},
+			},
+		},
+	}, nil
 }
 
 func NewGitSourceListCommand() *cobra.Command {
@@ -312,9 +453,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		},
 	}
 
-	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
-		FS: memfs.New(),
-	})
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 
 	return cmd
 }
@@ -379,16 +518,14 @@ func NewGitSourceEditCommand() *cobra.Command {
 		},
 	}
 
-	insCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
 
-	gsCloneOpts = git.AddFlags(cmd, &git.AddFlagsOptions{
+	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
-		FS:               memfs.New(),
 	})
 
 	return cmd
@@ -415,11 +552,8 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return fmt.Errorf("failed to write the updated config.json of git-source: %s. Err: %w", opts.GsName, err)
 	}
 
-	_, err = repo.Persist(ctx, &git.PushOptions{
-		CommitMsg: "Persisted an updated git-source",
-	})
-
-	if err != nil {
+	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
+	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source '%s'", opts.GsName)); err != nil {
 		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 	}
 
@@ -433,19 +567,29 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 			APIVersion: wfv1alpha1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-workflow-template",
-			Namespace: runtimeName,
+			Name: store.Get().CronExampleTriggerTemplateName,
 		},
 		Spec: wfv1alpha1.WorkflowTemplateSpec{
 			WorkflowSpec: wfv1alpha1.WorkflowSpec{
-				Entrypoint: "whalesay",
+				Arguments: wfv1alpha1.Arguments{
+					Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
+				},
+				Entrypoint:         "whalesay",
+				ServiceAccountName: store.Get().CodefreshSA,
+				PodGC: &wfv1alpha1.PodGC{
+					Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
+				},
 				Templates: []wfv1alpha1.Template{
 					{
 						Name: "whalesay",
-						Container: &v1.Container{
-							Image:   "docker/whalesay",
+						Inputs: wfv1alpha1.Inputs{
+							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
+							Artifacts:  wfv1alpha1.Artifacts{},
+						},
+						Container: &corev1.Container{
+							Image:   "docker/whalesay:latest",
 							Command: []string{"cowsay"},
-							Args:    []string{"Hello World"},
+							Args:    []string{"{{inputs.parameters.message}}"},
 						},
 					},
 				},
@@ -453,5 +597,181 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 		},
 	}
 
-	return gsFs.WriteYamls("demo-wf-template.yaml", wfTemplate)
+	return gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
+}
+
+func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
+	// Create an ingress that will manage external access to the github eventsource service
+	ingress := createGithubExampleIngress()
+	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
+	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
+	}
+
+	// Create a github eventsource that will listen to push events in the git source repo
+	gsRepoURL := opts.gsCloneOpts.URL()
+	eventSource := createGithubExampleEventSource(gsRepoURL)
+	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
+	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of secret. Error: %w", err)
+	}
+
+	// Create a sensor that will listen to the events published by the github eventsource, and trigger workflows
+	sensor := createGithubExampleSensor()
+	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleSensorFileName)
+	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of github example sensor. Error: %w", err)
+	}
+
+	return nil
+}
+
+func createGithubExampleIngress() *netv1.Ingress {
+	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+		Name: store.Get().GithubExampleIngressObjectName,
+		Paths: []ingressutil.IngressPath{
+			{
+				Path:        store.Get().GithubExampleEventSourceEndpointPath,
+				PathType:    netv1.PathTypeImplementationSpecific,
+				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
+				ServicePort: store.Get().GithubExampleEventSourceServicePort,
+			},
+		},
+	})
+}
+
+func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {
+	_, repoRef, _, _, _, _, _ := aputil.ParseGitUrl(repoURL)
+	splitRepoRef := strings.Split(repoRef, "/")
+	owner = splitRepoRef[0]
+	name = splitRepoRef[1]
+	return owner, name
+}
+
+func createGithubExampleEventSource(repoURL string) *eventsourcev1alpha1.EventSource {
+	repoOwner, repoName := getRepoOwnerAndNameFromRepoURL(repoURL)
+
+	return &eventsourcev1alpha1.EventSource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       eventsourcereg.Kind,
+			APIVersion: eventsourcereg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: store.Get().GithubExampleEventSourceObjectName,
+		},
+		Spec: eventsourcev1alpha1.EventSourceSpec{
+			EventBusName: store.Get().EventBusName,
+			Service: &eventsourcev1alpha1.Service{
+				Ports: []corev1.ServicePort{
+					{
+						Port:       store.Get().GithubExampleEventSourceServicePort,
+						TargetPort: intstr.IntOrString{StrVal: store.Get().GithubExampleEventSourceTargetPort},
+					},
+				},
+			},
+			Github: map[string]eventsourcev1alpha1.GithubEventSource{
+				store.Get().GithubExampleEventName: {
+					Webhook: &eventsourcev1alpha1.WebhookContext{
+						Endpoint: store.Get().GithubExampleEventSourceEndpointPath,
+						URL:      "http://replace-with-real-public-url",
+						Port:     store.Get().GithubExampleEventSourceTargetPort,
+						Method:   "POST",
+					},
+					Repositories: []eventsourcev1alpha1.OwnedRepositories{
+						{
+							Owner: repoOwner,
+							Names: []string{
+								repoName,
+							},
+						},
+					},
+					Events: []string{
+						"push",
+					},
+					APIToken: &corev1.SecretKeySelector{
+						Key: store.Get().GithubAccessTokenSecretKey,
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: store.Get().GithubAccessTokenSecretObjectName,
+						},
+					},
+					ContentType: "json",
+					Active:      true,
+					Insecure:    true,
+				},
+			},
+		},
+	}
+}
+
+func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
+	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
+		GenerateName:          "github-",
+		SpecWfTemplateRefName: store.Get().GithubExampleTriggerTemplateName,
+		Parameters: []string{
+			"message",
+		},
+	})
+
+	workflowResource := apicommon.NewResource(workflow)
+
+	return sensorsv1alpha1.Trigger{
+		Template: &sensorsv1alpha1.TriggerTemplate{
+			Name: store.Get().CronExampleTriggerTemplateName,
+			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    "argoproj.io",
+					Version:  "v1alpha1",
+					Resource: "workflows",
+				},
+				Operation: sensorsv1alpha1.Submit,
+				Source: &sensorsv1alpha1.ArtifactLocation{
+					Resource: &workflowResource,
+				},
+				Parameters: []sensorsv1alpha1.TriggerParameter{
+					{
+						Src: &sensorsv1alpha1.TriggerParameterSource{
+							DependencyName: store.Get().GithubExampleDependencyName,
+							DataKey:        "body.hook_id",
+						},
+						Dest: "spec.arguments.parameters.0.value",
+					},
+				},
+			},
+		},
+		RetryStrategy: &apicommon.Backoff{Steps: 3},
+	}
+}
+
+func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
+	triggers := []sensorsv1alpha1.Trigger{
+		createGithubExampleTrigger(),
+	}
+	dependencies := []sensorsv1alpha1.EventDependency{
+		{
+			Name:            store.Get().GithubExampleDependencyName,
+			EventSourceName: store.Get().GithubExampleEventSourceObjectName,
+			EventName:       store.Get().GithubExampleEventName,
+		},
+	}
+
+	return &sensorsv1alpha1.Sensor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       sensorreg.Kind,
+			APIVersion: sensorreg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: store.Get().GithubExampleSensorObjectName,
+		},
+		Spec: sensorsv1alpha1.SensorSpec{
+			EventBusName: store.Get().EventBusName,
+			Template: &sensorsv1alpha1.Template{
+				ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
+			},
+			Dependencies: dependencies,
+			Triggers:     triggers,
+		},
+	}
 }
