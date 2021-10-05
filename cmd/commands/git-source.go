@@ -198,7 +198,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
 		}
 
-		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
+		err = createGithubExamplePipeline(ctx, &gitSourceGithubExampleOptions{
 			runtimeName: opts.RuntimeName,
 			gsCloneOpts: opts.GsCloneOpts,
 			gsFs:        gsFs,
@@ -210,7 +210,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
 
-		log.G(ctx).Info("Pushing a demo pipelines to the new git-source repo")
+		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
 			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
 		}
@@ -598,11 +598,11 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 	return gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
 }
 
-func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
+func createGithubExamplePipeline(ctx context.Context, opts *gitSourceGithubExampleOptions) error {
 	// Create a github access token secret - NOT IN GITOPS WAY (won't be pushed to git)
 	namespace := opts.runtimeName
 	token := opts.gsCloneOpts.Auth.Password
-	err := createGithubAccessTokenSecret(token, namespace, opts.kubeFactory)
+	err := createGithubAccessTokenSecret(ctx, token, namespace, opts.kubeFactory)
 	if err != nil {
 		return fmt.Errorf("failed to create github access token secret. Error: %w", err)
 	}
@@ -782,7 +782,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 	}
 }
 
-func createGithubAccessTokenSecret(token, namespace string, kubeFactory kube.Factory) error {
+func createGithubAccessTokenSecret(ctx context.Context, token, namespace string, kubeFactory kube.Factory) error {
 	secretYaml, err := yaml.Marshal(&corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -800,7 +800,7 @@ func createGithubAccessTokenSecret(token, namespace string, kubeFactory kube.Fac
 		return err
 	}
 
-	if err = kubeFactory.Apply(context.TODO(), namespace, aputil.JoinManifests(secretYaml)); err != nil {
+	if err = kubeFactory.Apply(ctx, namespace, aputil.JoinManifests(secretYaml)); err != nil {
 		return err
 	}
 
