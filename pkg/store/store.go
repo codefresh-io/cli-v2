@@ -81,6 +81,7 @@ type Store struct {
 	WaitTimeout                          time.Duration
 	WorkflowName                         string
 	WorkflowReporterName                 string
+	WorkflowTriggerServiceAccount        string
 	CronExampleSensorFileName            string
 	CronExampleEventSourceFileName       string
 	CronExampleWfTemplateFileName        string
@@ -149,6 +150,7 @@ func init() {
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
+	s.WorkflowTriggerServiceAccount = "argo"
 	s.CronExampleEventSourceFileName = "event-source.calendar.yaml"
 	s.CronExampleSensorFileName = "sensor.cron.yaml"
 	s.CronExampleWfTemplateFileName = "workflow-template.hello-world.yaml"

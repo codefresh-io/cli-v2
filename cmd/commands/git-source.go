@@ -79,7 +79,7 @@ type (
 		gsFs        fs.FS
 	}
 
-	gitSourceGithubExampleOptions struct { // TODO: maybe use one type of gitSourceOpts for all example pipes?
+	gitSourceGithubExampleOptions struct {
 		runtimeName string
 		gsCloneOpts *git.CloneOptions
 		gsFs        fs.FS
@@ -594,29 +594,26 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 }
 
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
-	//err := createDemoWorkflowTemplate(opts.gsFs, opts.runtimeName)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
-	//}
-
-	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
-	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
-	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleSensorFileName)
-
-	gsRepoURL := opts.gsCloneOpts.URL()
-	eventSource := createGithubExampleEventSource(gsRepoURL)
-	err := opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
-	if err != nil {
-		return fmt.Errorf("failed to write yaml of secret. Error: %w", err)
-	}
-
+	// Create an ingress that will manage external access to the github eventsource service.
 	ingress := createGithubExampleIngress()
-	err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
+	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
 	}
 
+	// Create a github eventsource that will listen to push events in the git source repo
+	gsRepoURL := opts.gsCloneOpts.URL()
+	eventSource := createGithubExampleEventSource(gsRepoURL)
+	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
+	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	if err != nil {
+		return fmt.Errorf("failed to write yaml of secret. Error: %w", err)
+	}
+
+	// Create a sensor that will listen to the events published by the github eventsource, and trigger workflows
 	sensor := createGithubExampleSensor()
+	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleSensorFileName)
 	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of github example sensor. Error: %w", err)
@@ -628,7 +625,6 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 func createGithubExampleIngress() *netv1.Ingress {
 	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name: store.Get().GithubExampleIngressObjectName,
-		Host: store.Get().GithubExampleIngressHost,
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        store.Get().GithubExampleEventSourceEndpointPath,
@@ -640,7 +636,7 @@ func createGithubExampleIngress() *netv1.Ingress {
 	})
 }
 
-func getRepoOwnerAndNameFromURL(repoURL string) (owner string, name string) {
+func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {
 	_, repoRef, _, _, _, _, _ := aputil.ParseGitUrl(repoURL)
 	splitRepoRef := strings.Split(repoRef, "/")
 	owner = splitRepoRef[0]
@@ -649,7 +645,7 @@ func getRepoOwnerAndNameFromURL(repoURL string) (owner string, name string) {
 }
 
 func createGithubExampleEventSource(repoURL string) *eventsourcev1alpha1.EventSource {
-	repoOwner, repoName := getRepoOwnerAndNameFromURL(repoURL)
+	repoOwner, repoName := getRepoOwnerAndNameFromRepoURL(repoURL)
 
 	return &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
@@ -765,7 +761,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: store.Get().EventBusName,
 			Template: &sensorsv1alpha1.Template{
-				ServiceAccountName: "argo-server", // TODO: probably change to different to more appropriate SA and get its name from the store
+				ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
 			},
 			Dependencies: dependencies,
 			Triggers:     triggers,

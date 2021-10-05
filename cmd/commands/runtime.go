@@ -52,6 +52,7 @@ import (
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -224,11 +225,11 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	return componentNames
 }
 
-func createRuntimeOnPlatform(ctx context.Context, runtimeName string, server string, runtimeVersion string, ingressHost string, componentNames []string) (string, error) {
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeName, server, runtimeVersion, ingressHost, componentNames)
+func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, error) {
+	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", runtimeName, err)
+		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
 
 	return runtimeCreationResponse.NewAccessToken, nil
@@ -256,7 +257,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	token, err := createRuntimeOnPlatform(ctx, opts.RuntimeName, server, runtimeVersion, opts.IngressHost, componentNames)
+	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
+		RuntimeName:    opts.RuntimeName,
+		Cluster:        server,
+		RuntimeVersion: runtimeVersion,
+		IngressHost:    &opts.IngressHost,
+		ComponentNames: componentNames,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
@@ -739,11 +746,17 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:        rt.Name + store.Get().IngressName,
-		Namespace:   rt.Namespace,
+		Name:      rt.Name + store.Get().IngressName,
+		Namespace: rt.Namespace,
+		Annotations: map[string]string{
+			"kubernetes.io/ingress.class":                  "nginx",
+			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+			"nginx.ingress.kubernetes.io/backend-protocol": "https",
+		},
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().IngressPath),
+				PathType:    netv1.PathTypePrefix,
 				ServiceName: store.Get().ArgoWFServiceName,
 				ServicePort: store.Get().ArgoWFServicePort,
 			},
@@ -1104,7 +1117,7 @@ func createGithubAccessTokenSecret(ctx context.Context, opts *RuntimeInstallOpti
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().GithubAccessTokenSecretObjectName,
+			Name:      store.Get().GithubAccessTokenSecretObjectName,
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
