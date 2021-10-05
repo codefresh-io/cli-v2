@@ -338,7 +338,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:       store.Get().GitSourceName,
 		RuntimeName:  opts.RuntimeName,
 		FullGsPath:   fullGsPath,
-		KubeFactory:  opts.KubeFactory,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}

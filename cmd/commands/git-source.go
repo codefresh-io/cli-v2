@@ -33,7 +33,6 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
@@ -43,7 +42,6 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -59,7 +57,6 @@ type (
 		GsName       string
 		RuntimeName  string
 		FullGsPath   string
-		KubeFactory  kube.Factory
 	}
 
 	GitSourceDeleteOptions struct {
@@ -86,7 +83,6 @@ type (
 		runtimeName string
 		gsCloneOpts *git.CloneOptions
 		gsFs        fs.FS
-		kubeFactory kube.Factory
 	}
 )
 
@@ -198,11 +194,10 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
 		}
 
-		err = createGithubExamplePipeline(ctx, &gitSourceGithubExampleOptions{
+		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
 			runtimeName: opts.RuntimeName,
 			gsCloneOpts: opts.GsCloneOpts,
 			gsFs:        gsFs,
-			kubeFactory: opts.KubeFactory,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -598,19 +593,11 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 	return gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
 }
 
-func createGithubExamplePipeline(ctx context.Context, opts *gitSourceGithubExampleOptions) error {
-	// Create a github access token secret - NOT IN GITOPS WAY (won't be pushed to git)
-	namespace := opts.runtimeName
-	token := opts.gsCloneOpts.Auth.Password
-	err := createGithubAccessTokenSecret(ctx, token, namespace, opts.kubeFactory)
-	if err != nil {
-		return fmt.Errorf("failed to create github access token secret. Error: %w", err)
-	}
-
+func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	// Create an ingress that will manage external access to the github eventsource service
 	ingress := createGithubExampleIngress()
 	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
-	err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
 	}
@@ -780,29 +767,4 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 			Triggers:     triggers,
 		},
 	}
-}
-
-func createGithubAccessTokenSecret(ctx context.Context, token, namespace string, kubeFactory kube.Factory) error {
-	secretYaml, err := yaml.Marshal(&corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().GithubAccessTokenSecretObjectName,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			store.Get().GithubAccessTokenSecretKey: []byte(token),
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	if err = kubeFactory.Apply(ctx, namespace, aputil.JoinManifests(secretYaml)); err != nil {
-		return err
-	}
-
-	return nil
 }

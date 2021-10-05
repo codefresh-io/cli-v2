@@ -102,7 +102,6 @@ type Store struct {
 	GithubExampleEventName               string
 	GithubExampleTriggerTemplateName     string
 	GithubExampleDependencyName          string
-	GithubAccessTokenSecretFileName      string
 	GithubAccessTokenSecretObjectName    string
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
@@ -157,22 +156,21 @@ func init() {
 	s.CronExampleEventName = "example-with-interval"
 	s.CronExampleTriggerTemplateName = "hello-world"
 	s.CronExampleDependencyName = "calendar-dep"
-	s.GithubExampleEventSourceFileName = "event-source.github.yaml"
+	s.GithubExampleEventSourceFileName = "event-source.git-source.yaml"
 	s.GithubExampleEventSourceObjectName = "github"
-	s.GithubExampleEventSourceEndpointPath = "/example/"
+	s.GithubExampleEventSourceEndpointPath = "/git-source/"
 	s.GithubExampleEventSourceTargetPort = "13000"
 	s.GithubExampleEventSourceServicePort = 13000
-	s.GithubExampleIngressFileName = "ingress.github.yaml"
+	s.GithubExampleIngressFileName = "ingress.git-source.yaml"
 	s.GithubExampleIngressObjectName = "github"
-	s.GithubExampleSensorFileName = "sensor.github.yaml"
+	s.GithubExampleSensorFileName = "sensor.git-source.yaml"
 	s.GithubExampleSensorObjectName = "github"
 	s.GithubExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
 	s.GithubExampleEventName = "push"
 	s.GithubExampleTriggerTemplateName = "hello-world"
 	s.GithubExampleDependencyName = "github-dep"
-	s.GithubAccessTokenSecretFileName = "github-access.yaml"
-	s.GithubAccessTokenSecretObjectName = "github-access"
-	s.GithubAccessTokenSecretKey = "token"
+	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
+	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
 	initVersion()
 }
