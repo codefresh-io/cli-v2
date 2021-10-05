@@ -320,12 +320,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		insCloneOpts: opts.insCloneOpts,
-		gsCloneOpts:  opts.gsCloneOpts,
-		gsName:       store.Get().GitSourceName,
-		runtimeName:  opts.RuntimeName,
-		fullGsPath:   fullGsPath,
-		createDemoWorkflowTemplate: true,
+		InsCloneOpts: opts.InsCloneOpts,
+		GsCloneOpts:  opts.GsCloneOpts,
+		GsName:       store.Get().GitSourceName,
+		RuntimeName:  opts.RuntimeName,
+		FullGsPath:   fullGsPath,
+		CreateDemoWorkflowTemplate: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -335,12 +335,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 	mpCloneOpts.Parse()
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		insCloneOpts: opts.insCloneOpts,
-		gsCloneOpts: mpCloneOpts,
-		gsName:       store.Get().MarketplaceGitSourceName,
-		runtimeName:  opts.RuntimeName,
-		fullGsPath:   opts.gsCloneOpts.FS.Join(store.Get().MarketplaceRepo, store.Get().MarketplacePluginsPath),
-		createDemoWorkflowTemplate: false,
+		InsCloneOpts: opts.InsCloneOpts,
+		GsCloneOpts: mpCloneOpts,
+		GsName:       store.Get().MarketplaceGitSourceName,
+		RuntimeName:  opts.RuntimeName,
+		FullGsPath:   opts.GsCloneOpts.FS.Join(store.Get().MarketplaceRepo, store.Get().MarketplacePluginsPath),
+		CreateDemoWorkflowTemplate: false,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -361,20 +361,20 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	if opts.IngressHost != "" {
-		if err = createWorkflowsIngress(ctx, opts.insCloneOpts, rt); err != nil {
+		if err = createWorkflowsIngress(ctx, opts.InsCloneOpts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
 	}
 
-	if err = createCodefreshArgoAgentReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+	if err = createCodefreshArgoAgentReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
 	}
 
-	if err = createEventsReporter(ctx, opts.insCloneOpts, opts, rt); err != nil {
+	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
-	if err = createWorkflowReporter(ctx, opts.insCloneOpts, opts); err != nil {
+	if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 	return nil

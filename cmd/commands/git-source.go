@@ -159,7 +159,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				GsName:       args[1],
 				RuntimeName:  args[0],
 				FullGsPath:   gsCloneOpts.Path(),
-        CreateDemoWorkflowTemplate: false
+        		CreateDemoWorkflowTemplate: false,
 			})
 		},
 	}
@@ -177,9 +177,9 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	if opts.createDemoWorkflowTemplate {
+	if opts.CreateDemoWorkflowTemplate {
 
-	gsRepo, gsFs, err := opts.gsCloneOpts.GetRepo(ctx)
+	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
