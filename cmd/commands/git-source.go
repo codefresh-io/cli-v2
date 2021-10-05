@@ -17,7 +17,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	"os"
 	"strings"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	"github.com/juju/ansiterm"
 

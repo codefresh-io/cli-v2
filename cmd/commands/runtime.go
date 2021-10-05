@@ -329,6 +329,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
+	// required for demo pipeline
 	if err = createGithubAccessTokenSecret(ctx, opts); err != nil {
 		return fmt.Errorf("failed to create github secret: %w", err)
 	}
@@ -1110,7 +1111,6 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 func createGithubAccessTokenSecret(ctx context.Context, opts *RuntimeInstallOptions) error {
 	namespace := opts.RuntimeName
 	token := opts.GsCloneOpts.Auth.Password
-	//base64Token := base64.StdEncoding.EncodeToString([]byte(token))
 	secretYaml, err := yaml.Marshal(&v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
