@@ -734,7 +734,7 @@ func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 					{
 						Src: &sensorsv1alpha1.TriggerParameterSource{
 							DependencyName: store.Get().GithubExampleDependencyName,
-							DataKey:        "body.hook_id",
+							DataKey:        "body.ref",
 						},
 						Dest: "spec.arguments.parameters.0.value",
 					},
