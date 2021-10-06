@@ -263,6 +263,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeVersion: runtimeVersion,
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
+		Repo: &opts.InsCloneOpts.Repo,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
