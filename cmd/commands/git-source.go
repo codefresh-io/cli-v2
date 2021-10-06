@@ -52,15 +52,14 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		InsCloneOpts *git.CloneOptions
-		GsCloneOpts  *git.CloneOptions
-		GsName       string
-		RuntimeName  string
-		FullGsPath   string
-        CreateDemoWorkflowTemplate bool
-		Exclude      string
-		Include      string
-
+		InsCloneOpts               *git.CloneOptions
+		GsCloneOpts                *git.CloneOptions
+		GsName                     string
+		RuntimeName                string
+		FullGsPath                 string
+		CreateDemoWorkflowTemplate bool
+		Exclude                    string
+		Include                    string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -156,12 +155,12 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-				InsCloneOpts: insCloneOpts,
-				GsCloneOpts:  gsCloneOpts,
-				GsName:       args[1],
-				RuntimeName:  args[0],
-				FullGsPath:   gsCloneOpts.Path(),
-        		CreateDemoWorkflowTemplate: false,
+				InsCloneOpts:               insCloneOpts,
+				GsCloneOpts:                gsCloneOpts,
+				GsName:                     args[1],
+				RuntimeName:                args[0],
+				FullGsPath:                 gsCloneOpts.Path(),
+				CreateDemoWorkflowTemplate: false,
 			})
 		},
 	}
@@ -181,43 +180,43 @@ func NewGitSourceCreateCommand() *cobra.Command {
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
 	if opts.CreateDemoWorkflowTemplate {
 
-	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	fi, err := gsFs.ReadDir(".")
-	if err != nil {
-		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
-	}
-
-	if len(fi) == 0 {
-		err = createCronExamplePipeline(&gitSourceCronExampleOptions{
-			runtimeName: opts.RuntimeName,
-			gsCloneOpts: opts.GsCloneOpts,
-			gsFs:        gsFs,
-		})
+		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
+			return err
 		}
 
-		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
-			runtimeName: opts.RuntimeName,
-			gsCloneOpts: opts.GsCloneOpts,
-			gsFs:        gsFs,
-		})
+		fi, err := gsFs.ReadDir(".")
 		if err != nil {
-			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+			return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 		}
 
-		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
+		if len(fi) == 0 {
+			err = createCronExamplePipeline(&gitSourceCronExampleOptions{
+				runtimeName: opts.RuntimeName,
+				gsCloneOpts: opts.GsCloneOpts,
+				gsFs:        gsFs,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
+			}
 
-		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
-		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
-			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+			err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
+				runtimeName: opts.RuntimeName,
+				gsCloneOpts: opts.GsCloneOpts,
+				gsFs:        gsFs,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+			}
+
+			commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
+
+			log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
+			if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+				return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+			}
 		}
 	}
-}
 
 	appDef := &runtime.AppDef{
 		Name: opts.GsName,
@@ -459,7 +458,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 
 	return cmd
 }
-
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
 	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
