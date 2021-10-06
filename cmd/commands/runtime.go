@@ -326,7 +326,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:  opts.RuntimeName,
 		FullGsPath:   fullGsPath,
 		CreateDemoWorkflowTemplate: true,
-		Include: "**/*.yaml",
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -342,7 +341,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:  opts.RuntimeName,
 		FullGsPath:   store.Get().MarketplaceRepo,
 		CreateDemoWorkflowTemplate: false,
-		Include: "**/*.yaml",
+		Include: "**/workflowTemplate.yaml",
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}

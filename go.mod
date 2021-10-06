@@ -4,8 +4,8 @@ go 1.16
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/argoproj-labs/applicationset v0.1.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.18
+	github.com/argoproj-labs/applicationset v0.2.0
+	github.com/argoproj-labs/argocd-autopilot v0.2.20
 	github.com/argoproj/argo-cd/v2 v2.1.2
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
@@ -30,7 +30,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/applicationset => github.com/argoproj-labs/applicationset v0.0.0-20210614145856-2c62537a8e5a
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
 	k8s.io/api => k8s.io/api v0.21.1
