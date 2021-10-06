@@ -52,11 +52,14 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		InsCloneOpts *git.CloneOptions
-		GsCloneOpts  *git.CloneOptions
-		GsName       string
-		RuntimeName  string
-		FullGsPath   string
+		InsCloneOpts               *git.CloneOptions
+		GsCloneOpts                *git.CloneOptions
+		GsName                     string
+		RuntimeName                string
+		FullGsPath                 string
+		CreateDemoWorkflowTemplate bool
+		Exclude                    string
+		Include                    string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -152,11 +155,12 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-				InsCloneOpts: insCloneOpts,
-				GsCloneOpts:  gsCloneOpts,
-				GsName:       args[1],
-				RuntimeName:  args[0],
-				FullGsPath:   gsCloneOpts.Path(),
+				InsCloneOpts:               insCloneOpts,
+				GsCloneOpts:                gsCloneOpts,
+				GsName:                     args[1],
+				RuntimeName:                args[0],
+				FullGsPath:                 gsCloneOpts.Path(),
+				CreateDemoWorkflowTemplate: false,
 			})
 		},
 	}
@@ -174,40 +178,43 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
+	if opts.CreateDemoWorkflowTemplate {
 
-	fi, err := gsFs.ReadDir(".")
-	if err != nil {
-		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
-	}
-
-	if len(fi) == 0 {
-		err = createCronExamplePipeline(&gitSourceCronExampleOptions{
-			runtimeName: opts.RuntimeName,
-			gsCloneOpts: opts.GsCloneOpts,
-			gsFs:        gsFs,
-		})
+		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
+			return err
 		}
 
-		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
-			runtimeName: opts.RuntimeName,
-			gsCloneOpts: opts.GsCloneOpts,
-			gsFs:        gsFs,
-		})
+		fi, err := gsFs.ReadDir(".")
 		if err != nil {
-			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+			return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 		}
 
-		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
+		if len(fi) == 0 {
+			err = createCronExamplePipeline(&gitSourceCronExampleOptions{
+				runtimeName: opts.RuntimeName,
+				gsCloneOpts: opts.GsCloneOpts,
+				gsFs:        gsFs,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create cron example pipeline. Error: %w", err)
+			}
 
-		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
-		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
-			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+			err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
+				runtimeName: opts.RuntimeName,
+				gsCloneOpts: opts.GsCloneOpts,
+				gsFs:        gsFs,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+			}
+
+			commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
+
+			log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
+			if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+				return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+			}
 		}
 	}
 
@@ -217,7 +224,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		URL:  opts.GsCloneOpts.Repo,
 	}
 
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.GsName)
