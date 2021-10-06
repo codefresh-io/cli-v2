@@ -75,6 +75,8 @@ type Store struct {
 	IngressName                          string
 	IngressPath                          string
 	LabelKeyCFType                       string
+	MarketplaceGitSourceName             string
+	MarketplaceRepo			             string
 	MaxDefVersion                        *semver.Version
 	RuntimeDefURL                        string
 	RuntimeFilename                      string
@@ -106,9 +108,6 @@ type Store struct {
 	GithubAccessTokenSecretObjectName    string
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
-  MarketplaceGitSourceName             string
-	MarketplaceRepo			                 string
-	MarketplacePluginsPath               string
 }
 
 // Get returns the global store
@@ -151,7 +150,6 @@ func init() {
 	s.RuntimeFilename = "runtime.yaml"
 	s.MarketplaceGitSourceName = "marketplace-git-source"
     s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git/"
-	s.MarketplacePluginsPath = "plugins"
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"

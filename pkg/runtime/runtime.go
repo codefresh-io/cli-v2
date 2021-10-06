@@ -232,7 +232,7 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType, include, exclude string) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -250,6 +250,9 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
 			},
+			Exclude: exclude ,
+			Include: include,
+		
 		},
 		KubeFactory: f,
 		Timeout:     timeout,

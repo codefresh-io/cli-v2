@@ -57,7 +57,9 @@ type (
 		GsName       string
 		RuntimeName  string
 		FullGsPath   string
-    CreateDemoWorkflowTemplate bool
+        CreateDemoWorkflowTemplate bool
+		Exclude      string
+		Include      string
 
 	}
 
@@ -223,7 +225,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		URL:  opts.GsCloneOpts.Repo,
 	}
 
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 	log.G(ctx).Infof("Successfully created the git-source: '%s'", opts.GsName)

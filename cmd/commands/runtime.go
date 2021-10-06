@@ -306,7 +306,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("Creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -326,12 +326,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:  opts.RuntimeName,
 		FullGsPath:   fullGsPath,
 		CreateDemoWorkflowTemplate: true,
+		Include: "**/*.yaml",
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
 	mpCloneOpts := &git.CloneOptions{
-		Repo: fmt.Sprintf("%s%s", store.Get().MarketplaceRepo, store.Get().MarketplacePluginsPath),
+		Repo: store.Get().MarketplaceRepo,
 	}
 	mpCloneOpts.Parse()
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
@@ -339,8 +340,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsCloneOpts: mpCloneOpts,
 		GsName:       store.Get().MarketplaceGitSourceName,
 		RuntimeName:  opts.RuntimeName,
-		FullGsPath:   opts.GsCloneOpts.FS.Join(store.Get().MarketplaceRepo, store.Get().MarketplacePluginsPath),
+		FullGsPath:   store.Get().MarketplaceRepo,
 		CreateDemoWorkflowTemplate: false,
+		Include: "**/*.yaml",
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -732,7 +734,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -845,7 +847,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType,"", ""); err != nil {
 		return err
 	}
 
@@ -900,7 +902,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
 	}
 
