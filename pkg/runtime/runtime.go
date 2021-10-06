@@ -113,9 +113,10 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	runtime.Name = name
 	runtime.Namespace = name
 	runtime.Spec.devMode = devMode
-	for _, component := range runtime.Spec.Components {
-		component.URL = runtime.Spec.fullURL(component.URL)
+	for i := range runtime.Spec.Components {
+		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
 	}
+
 	return runtime, nil
 }
 
@@ -131,8 +132,8 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 		return nil, fmt.Errorf("failed to unmarshal runtime from '%s': %w", filename, err)
 	}
 
-	for _, component := range runtime.Spec.Components {
-		component.URL = runtime.Spec.fullURL(component.URL)
+	for i := range runtime.Spec.Components {
+		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
 	}
 
 	return runtime, nil
