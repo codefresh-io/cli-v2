@@ -5,9 +5,9 @@ resources:
   - https://raw.githubusercontent.com/argoproj-labs/applicationset/master/manifests/install.yaml?ref=2c62537a8e5a # TODO: switch to the next release when available
   - default-rbac.yaml
 images:
-  - name: quay.io/argoproj/argocd
+  - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.1.7
+    newTag: v2.1.8
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
