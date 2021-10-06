@@ -554,6 +554,21 @@ func RunRuntimeList(ctx context.Context) error {
 	return tb.Flush()
 }
 
+func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions) error {
+	ctx := cmd.Context()
+	if cloneOpts.Repo == "" {
+		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
+		if err != nil {
+			return err
+		}
+		if runtimeData.Repo != nil {
+			cloneOpts.Repo = *runtimeData.Repo
+			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+		}
+	}
+	return nil
+}
+
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
 		skipChecks bool
@@ -578,8 +593,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
-		PreRun: func(_ *cobra.Command, _ []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			err := ensureRepo(cmd, args, cloneOpts)
+			if err != nil {
+				return err
+			}
 			cloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -660,8 +680,13 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
-		PreRun: func(_ *cobra.Command, _ []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			err := ensureRepo(cmd, args, cloneOpts)
+			if err != nil {
+				return err
+			}
 			cloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
