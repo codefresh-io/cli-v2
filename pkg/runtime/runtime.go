@@ -113,26 +113,27 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	runtime.Name = name
 	runtime.Namespace = name
 	runtime.Spec.devMode = devMode
-	for _, component := range runtime.Spec.Components {
-		component.URL = runtime.Spec.fullURL(component.URL)
+	for i := range runtime.Spec.Components {
+		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
 	}
+
 	return runtime, nil
 }
 
 func Load(fs fs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
 	if err := fs.ReadYamls(filename, cm); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load runtime from '%s': %w", filename, err)
 	}
 
 	data := cm.Data["runtime"]
 	runtime := &Runtime{}
 	if err := yaml.Unmarshal([]byte(data), runtime); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal runtime from '%s': %w", filename, err)
 	}
 
-	for _, component := range runtime.Spec.Components {
-		component.URL = runtime.Spec.fullURL(component.URL)
+	for i := range runtime.Spec.Components {
+		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
 	}
 
 	return runtime, nil
@@ -141,7 +142,7 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 func (r *Runtime) Save(fs fs.FS, filename string, config *CommonConfig) error {
 	runtimeData, err := yaml.Marshal(r)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal runtime: %w", err)
 	}
 
 	cm := v1.ConfigMap{
@@ -172,7 +173,7 @@ func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime, config *CommonConfig) ([]App
 		return nil, err
 	}
 
-	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename), config); err != nil {
+	if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, r.Name+".yaml"), config); err != nil {
 		return nil, fmt.Errorf("failed to save runtime definition: %w", err)
 	}
 
@@ -232,7 +233,7 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType, include, exclude string) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -250,6 +251,8 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
 			},
+			Exclude: exclude,
+			Include: include,
 		},
 		KubeFactory: f,
 		Timeout:     timeout,

@@ -118,5 +118,3 @@ spec:
               memory: "512Mi"
               cpu: "0.8"
       restartPolicy: Always
-      nodeSelector:
-        kubernetes.io/arch: amd64

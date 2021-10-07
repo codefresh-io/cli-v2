@@ -52,6 +52,7 @@ import (
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -265,13 +266,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 
 	opts.RuntimeToken = token
-
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 
@@ -309,11 +308,61 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("Creating component '%s'", component.Name)
-		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
 
+	err = installComponents(ctx, opts, rt)
+	if err != nil {
+		return err
+	}
+
+	gsPath := opts.GsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
+	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
+
+	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+		InsCloneOpts:               opts.InsCloneOpts,
+		GsCloneOpts:                opts.GsCloneOpts,
+		GsName:                     store.Get().GitSourceName,
+		RuntimeName:                opts.RuntimeName,
+		FullGsPath:                 fullGsPath,
+		CreateDemoWorkflowTemplate: true,
+	}); err != nil {
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+	}
+
+	mpCloneOpts := &git.CloneOptions{
+		Repo: store.Get().MarketplaceRepo,
+	}
+	mpCloneOpts.Parse()
+	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+		InsCloneOpts:               opts.InsCloneOpts,
+		GsCloneOpts:                mpCloneOpts,
+		GsName:                     store.Get().MarketplaceGitSourceName,
+		RuntimeName:                opts.RuntimeName,
+		FullGsPath:                 store.Get().MarketplaceRepo,
+		CreateDemoWorkflowTemplate: false,
+		Include:                    "**/workflowTemplate.yaml",
+	}); err != nil {
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName, &wg)
+	if err != nil {
+		return fmt.Errorf("failed to complete installation: %w", err)
+	}
+	wg.Wait()
+
+	log.G(ctx).Infof("Done installing runtime '%s'", opts.RuntimeName)
+	return nil
+}
+
+func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	var err error
 	if opts.IngressHost != "" {
 		if err = createWorkflowsIngress(ctx, opts.InsCloneOpts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
@@ -331,30 +380,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
-
-	gsPath := opts.GsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
-	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
-
-	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts: opts.InsCloneOpts,
-		GsCloneOpts:  opts.GsCloneOpts,
-		GsName:       store.Get().GitSourceName,
-		RuntimeName:  opts.RuntimeName,
-		FullGsPath:   fullGsPath,
-	}); err != nil {
-		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
-	}
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName, &wg)
-	if err != nil {
-		return fmt.Errorf("failed to complete installation: %w", err)
-	}
-	wg.Wait()
-
-	log.G(ctx).Infof("Done installing runtime '%s'", opts.RuntimeName)
 	return nil
 }
 
@@ -721,7 +746,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
-	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename))
+	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
 	if err != nil {
 		return fmt.Errorf("failed to load current runtime definition: %w", err)
 	}
@@ -742,7 +767,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
@@ -777,11 +802,21 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:        rt.Name + store.Get().IngressName,
-		Namespace:   rt.Namespace,
-		Path:        store.Get().IngressPath,
-		ServiceName: store.Get().ArgoWFServiceName,
-		ServicePort: store.Get().ArgoWFServicePort,
+		Name:      rt.Name + store.Get().IngressName,
+		Namespace: rt.Namespace,
+		Annotations: map[string]string{
+			"kubernetes.io/ingress.class":                  "nginx",
+			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+			"nginx.ingress.kubernetes.io/backend-protocol": "https",
+		},
+		Paths: []ingressutil.IngressPath{
+			{
+				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().IngressPath),
+				PathType:    netv1.PathTypePrefix,
+				ServiceName: store.Get().ArgoWFServiceName,
+				ServicePort: store.Get().ArgoWFServicePort,
+			},
+		},
 	})
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
@@ -845,7 +880,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
 	}
 
@@ -900,7 +935,7 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
 	}
 
