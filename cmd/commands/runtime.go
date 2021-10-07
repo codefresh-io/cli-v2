@@ -609,8 +609,10 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 			KubeFactory:  opts.KubeFactory,
 			Force:        opts.Force,
 			FastExit: opts.FastExit,
-		}); err != nil { // TODO: maybe this is even redundant
-			return err
+		}); err != nil {
+			if !opts.Force {
+				return err
+			}
 		}
 	} else {
 		if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
@@ -629,7 +631,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
 	log.G(ctx).Infof("Done uninstalling runtime '%s'", opts.RuntimeName)
-	
+
 	return nil
 }
 
