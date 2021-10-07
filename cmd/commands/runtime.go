@@ -78,6 +78,7 @@ type (
 		KubeFactory kube.Factory
 		SkipChecks  bool
 		Force       bool
+		FastExit    bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -536,6 +537,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		f          kube.Factory
 		cloneOpts  *git.CloneOptions
 		force      bool
+		fastExit   bool
 	)
 
 	cmd := &cobra.Command{
@@ -570,14 +572,16 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
 				SkipChecks:  skipChecks,
-				Force: force,
+				Force:       force,
+				FastExit:    fastExit,
 			})
 		},
 	}
 
 	cmd.Flags().BoolVar(&skipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
-	cmd.Flags().BoolVar(&force, "force", false, "If true, will execute a hard uninstall which will clear the runtime from the platform [AND REMOVE LEFTOVER RESOURCES FROM CLUSTER?")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
+	cmd.Flags().BoolVar(&force, "force", false, "If true, will execute a hard uninstall which will clear the runtime from the platform [AND REMOVE LEFTOVER RESOURCES FROM CLUSTER?")
+	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait to find out whether or not the cluster resources were removed successfully")
 
 	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	f = kube.AddFlags(cmd.Flags())
@@ -597,32 +601,46 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime '%s'", opts.RuntimeName)
 
-	// log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
-
-	// if _, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName); err != nil {
-	// 	return fmt.Errorf("failed to delete runtime from the platform: %w", err)
-	// }
-
-	if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-		Namespace:    opts.RuntimeName,
-		Timeout:      opts.Timeout,
-		CloneOptions: opts.CloneOpts,
-		KubeFactory:  opts.KubeFactory,
-	}); err != nil {
-		// TODO: the problem is that the repo isn't being removed
-
-		// Adding a check here - if the error is "failed deleting argocd-autopilot resources: the server doesn't have a resource type \"applications\"""
-		// and maybe there are no resources to clean
-		return fmt.Errorf("failed uninstalling runtime: %w", err)
+	if opts.Force {
+		if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+			Namespace:    opts.RuntimeName,
+			Timeout:      opts.Timeout,
+			CloneOptions: opts.CloneOpts,
+			KubeFactory:  opts.KubeFactory,
+			Force:        opts.Force,
+			FastExit: opts.FastExit,
+		}); err != nil { // TODO: maybe this is even redundant
+			return err
+		}
+	} else {
+		if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+			Namespace:    opts.RuntimeName,
+			Timeout:      opts.Timeout,
+			CloneOptions: opts.CloneOpts,
+			KubeFactory:  opts.KubeFactory,
+			FastExit:     opts.FastExit,
+		}); err != nil {
+			log.G(ctx).Warn("you can attempt to uninstall again with the \"--force\" flag")
+		}	
 	}
 
-	log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
-
-	if _, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName); err != nil {
+	err := deleteRuntimeFromPlatform(ctx, opts)
+	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
-
 	log.G(ctx).Infof("Done uninstalling runtime '%s'", opts.RuntimeName)
+	
+	return nil
+}
+
+func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
+	_, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName)
+	if err != nil {
+		return err
+	}
+
+	log.G(ctx).Infof("Successfully deleted runtime '%s' from the platform", opts.RuntimeName)
 	return nil
 }
 
