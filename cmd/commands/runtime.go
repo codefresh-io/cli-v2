@@ -311,7 +311,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	err = installComponents(ctx, opts, rt)	
+	err = installComponents(ctx, opts, rt)
 	if err != nil {
 		return err
 	}
@@ -320,11 +320,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts: opts.InsCloneOpts,
-		GsCloneOpts:  opts.GsCloneOpts,
-		GsName:       store.Get().GitSourceName,
-		RuntimeName:  opts.RuntimeName,
-		FullGsPath:   fullGsPath,
+		InsCloneOpts:               opts.InsCloneOpts,
+		GsCloneOpts:                opts.GsCloneOpts,
+		GsName:                     store.Get().GitSourceName,
+		RuntimeName:                opts.RuntimeName,
+		FullGsPath:                 fullGsPath,
 		CreateDemoWorkflowTemplate: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
@@ -335,13 +335,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 	mpCloneOpts.Parse()
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts: opts.InsCloneOpts,
-		GsCloneOpts: mpCloneOpts,
-		GsName:       store.Get().MarketplaceGitSourceName,
-		RuntimeName:  opts.RuntimeName,
-		FullGsPath:   store.Get().MarketplaceRepo,
+		InsCloneOpts:               opts.InsCloneOpts,
+		GsCloneOpts:                mpCloneOpts,
+		GsName:                     store.Get().MarketplaceGitSourceName,
+		RuntimeName:                opts.RuntimeName,
+		FullGsPath:                 store.Get().MarketplaceRepo,
 		CreateDemoWorkflowTemplate: false,
-		Include: "**/workflowTemplate.yaml",
+		Include:                    "**/workflowTemplate.yaml",
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -712,7 +712,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
-	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, store.Get().RuntimeFilename))
+	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
 	if err != nil {
 		return fmt.Errorf("failed to load current runtime definition: %w", err)
 	}
@@ -846,7 +846,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType,"", ""); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
 	}
 

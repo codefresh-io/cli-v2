@@ -44,7 +44,6 @@ type Version struct {
 }
 
 type Store struct {
-  
 	ArgoCDServerName                     string
 	ArgoCDTokenKey                       string
 	ArgoCDTokenSecret                    string
@@ -76,10 +75,9 @@ type Store struct {
 	IngressPath                          string
 	LabelKeyCFType                       string
 	MarketplaceGitSourceName             string
-	MarketplaceRepo			             string
+	MarketplaceRepo                      string
 	MaxDefVersion                        *semver.Version
 	RuntimeDefURL                        string
-	RuntimeFilename                      string
 	Version                              Version
 	WaitTimeout                          time.Duration
 	WorkflowName                         string
@@ -147,9 +145,8 @@ func init() {
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
-	s.RuntimeFilename = "runtime.yaml"
 	s.MarketplaceGitSourceName = "marketplace-git-source"
-    s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git/"
+	s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git/"
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
