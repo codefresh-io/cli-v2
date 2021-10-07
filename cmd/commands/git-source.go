@@ -120,7 +120,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow
 		`),
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
@@ -129,6 +129,15 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			if len(args) < 2 {
 				log.G(ctx).Fatal("must enter git-source name")
+			}
+
+			err1 := ensureRepo(cmd, args, insCloneOpts)
+			if err1 != nil {
+				return err1
+			}
+			err2 := ensureGitSourceRepo(cmd, args, gsCloneOpts)
+			if err2 != nil {
+				return err2
 			}
 
 			if gsCloneOpts.Repo == "" {
@@ -150,6 +159,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			insCloneOpts.Parse()
 			gsCloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

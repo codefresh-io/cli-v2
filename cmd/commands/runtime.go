@@ -555,21 +555,6 @@ func RunRuntimeList(ctx context.Context) error {
 	return tb.Flush()
 }
 
-func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions) error {
-	ctx := cmd.Context()
-	if cloneOpts.Repo == "" {
-		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
-		if err != nil {
-			return err
-		}
-		if runtimeData.Repo != nil {
-			cloneOpts.Repo = *runtimeData.Repo
-			die(cmd.Flags().Set("repo", *runtimeData.Repo))
-		}
-	}
-	return nil
-}
-
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
 		skipChecks bool
