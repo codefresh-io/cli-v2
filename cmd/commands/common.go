@@ -16,6 +16,7 @@ package commands
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 	"regexp"
 
@@ -65,26 +66,11 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions)
 	if cloneOpts.Repo == "" {
 		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting runtime repo information: %w", err)
 		}
 		if runtimeData.Repo != nil {
 			cloneOpts.Repo = *runtimeData.Repo
 			die(cmd.Flags().Set("repo", *runtimeData.Repo))
-		}
-	}
-	return nil
-}
-
-func ensureGitSourceRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions) error {
-	ctx := cmd.Context()
-	if cloneOpts.Repo == "" {
-		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
-		if err != nil {
-			return err
-		}
-		if runtimeData.Repo != nil {
-			cloneOpts.Repo = *runtimeData.Repo + "_" + args[1] + "/resources_" + args[0]
-			die(cmd.Flags().Set("git-src-repo", cloneOpts.Repo))
 		}
 	}
 	return nil

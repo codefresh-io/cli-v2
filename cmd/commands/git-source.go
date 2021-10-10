@@ -131,17 +131,13 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			err1 := ensureRepo(cmd, args, insCloneOpts)
-			if err1 != nil {
-				return err1
-			}
-			err2 := ensureGitSourceRepo(cmd, args, gsCloneOpts)
-			if err2 != nil {
-				return err2
-			}
-
 			if gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+			}
+			
+			err := ensureRepo(cmd, args, insCloneOpts)
+			if err != nil {
+				return err
 			}
 
 			isValid, err := IsValid(args[1])
@@ -403,13 +399,21 @@ func RunGitSourceList(ctx context.Context, runtimeName string) error {
 
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
-		repoURL := gs.Self.RepoURL
-		path := gs.Self.Path
+		repoURL := "N/A"
+		path := "N/A"
 		healthStatus := "N/A"
 		syncStatus := gs.Self.Status.SyncStatus.String()
 
 		if gs.Self.Status.HealthStatus != nil {
 			healthStatus = gs.Self.Status.HealthStatus.String()
+		}
+
+		if gs.Self.RepoURL != nil {
+			repoURL = *gs.Self.RepoURL
+		}
+
+		if gs.Self.Path != nil {
+			path = *gs.Self.Path
 		}
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
@@ -439,7 +443,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source delete runtime_name git-source_name 
 		`),
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
@@ -450,7 +454,13 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
+			err := ensureRepo(cmd, args, insCloneOpts)
+			if err != nil {
+				return err
+			}
+
 			insCloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -498,7 +508,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name/my-workflow
 		`),
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
@@ -513,8 +523,14 @@ func NewGitSourceEditCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
+			err := ensureRepo(cmd, args, insCloneOpts)
+			if err != nil {
+				return err
+			}
+
 			insCloneOpts.Parse()
 			gsCloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
