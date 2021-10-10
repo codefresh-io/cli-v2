@@ -434,7 +434,7 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
 	}
 
-	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you need to uninstall it first", subjNamespace)
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you can uninstall it by running '<cf> runtime uninstall %s --skip-checks --force'", subjNamespace, subjNamespace)
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
