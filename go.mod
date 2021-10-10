@@ -30,7 +30,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-autopilot => /Users/elad-codefresh/work/argocd-autopilot // TODO: remove
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
 	k8s.io/api => k8s.io/api v0.21.1
