@@ -266,6 +266,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeVersion: runtimeVersion,
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
+		Repo: &opts.InsCloneOpts.Repo,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
@@ -580,8 +581,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
-		PreRun: func(_ *cobra.Command, _ []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			err := ensureRepo(cmd, args, cloneOpts)
+			if err != nil {
+				return err
+			}
 			cloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -681,8 +687,13 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
-		PreRun: func(_ *cobra.Command, _ []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			err := ensureRepo(cmd, args, cloneOpts)
+			if err != nil {
+				return err
+			}
 			cloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
