@@ -606,7 +606,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&skipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
 	cmd.Flags().BoolVar(&force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
-	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources")
+	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 
 	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	f = kube.AddFlags(cmd.Flags())
@@ -626,30 +626,19 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime '%s'", opts.RuntimeName)
 
-	if opts.Force {
-		if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-			Namespace:    opts.RuntimeName,
-			Timeout:      opts.Timeout,
-			CloneOptions: opts.CloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			Force:        opts.Force,
-			FastExit: opts.FastExit,
-		}); err != nil {
-			if !opts.Force {
-				return err
-			}
-		}
-	} else {
-		if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-			Namespace:    opts.RuntimeName,
-			Timeout:      opts.Timeout,
-			CloneOptions: opts.CloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			FastExit:     opts.FastExit,
-		}); err != nil {
+	if err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+		Namespace:    opts.RuntimeName,
+		Timeout:      opts.Timeout,
+		CloneOptions: opts.CloneOpts,
+		KubeFactory:  opts.KubeFactory,
+		Force:        opts.Force,
+		FastExit: opts.FastExit,
+	}); err != nil {
+		if !opts.Force {
 			log.G(ctx).Warn("you can attempt to uninstall again with the \"--force\" flag")
+			return err
 		}	
-	}
+	} 
 
 	err := deleteRuntimeFromPlatform(ctx, opts)
 	if err != nil {
