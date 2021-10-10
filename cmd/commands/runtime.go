@@ -47,6 +47,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/ghodss/yaml"
+	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -320,30 +321,32 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:               opts.InsCloneOpts,
-		GsCloneOpts:                opts.GsCloneOpts,
-		GsName:                     store.Get().GitSourceName,
-		RuntimeName:                opts.RuntimeName,
-		FullGsPath:                 fullGsPath,
-		CreateDemoWorkflowTemplate: true,
+		InsCloneOpts:        opts.InsCloneOpts,
+		GsCloneOpts:         opts.GsCloneOpts,
+		GsName:              store.Get().GitSourceName,
+		RuntimeName:         opts.RuntimeName,
+		FullGsPath:          fullGsPath,
+		CreateDemoResources: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
 	mpCloneOpts := &git.CloneOptions{
 		Repo: store.Get().MarketplaceRepo,
+		Auth: opts.GsCloneOpts.Auth,
+		FS:   fs.Create(memfs.New()),
 	}
 	mpCloneOpts.Parse()
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:               opts.InsCloneOpts,
-		GsCloneOpts:                mpCloneOpts,
-		GsName:                     store.Get().MarketplaceGitSourceName,
-		RuntimeName:                opts.RuntimeName,
-		FullGsPath:                 store.Get().MarketplaceRepo,
-		CreateDemoWorkflowTemplate: false,
-		Include:                    "**/workflowTemplate.yaml",
+		InsCloneOpts:        opts.InsCloneOpts,
+		GsCloneOpts:         mpCloneOpts,
+		GsName:              store.Get().MarketplaceGitSourceName,
+		RuntimeName:         opts.RuntimeName,
+		FullGsPath:          "/",
+		CreateDemoResources: false,
+		Include:             "**/workflowTemplate.yaml",
 	}); err != nil {
-		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
 	}
 
 	var wg sync.WaitGroup
