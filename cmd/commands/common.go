@@ -16,9 +16,11 @@ package commands
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 	"regexp"
 
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
@@ -57,4 +59,19 @@ func presetRequiredFlags(cmd *cobra.Command) {
 
 func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
+}
+
+func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions) error {
+	ctx := cmd.Context()
+	if cloneOpts.Repo == "" {
+		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
+		if err != nil {
+			return fmt.Errorf("Failed getting runtime repo information: %w", err)
+		}
+		if runtimeData.Repo != nil {
+			cloneOpts.Repo = *runtimeData.Repo
+			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+		}
+	}
+	return nil
 }
