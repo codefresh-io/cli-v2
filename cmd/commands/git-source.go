@@ -56,7 +56,6 @@ type (
 		GsCloneOpts         *git.CloneOptions
 		GsName              string
 		RuntimeName         string
-		FullGsPath          string
 		CreateDemoResources bool
 		Exclude             string
 		Include             string
@@ -159,7 +158,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				GsCloneOpts:         gsCloneOpts,
 				GsName:              args[1],
 				RuntimeName:         args[0],
-				FullGsPath:          gsCloneOpts.Path(),
 				CreateDemoResources: false,
 			})
 		},
@@ -167,9 +165,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		Prefix:           "git-src",
-		Optional:         true,
-		CreateIfNotExist: true,
+		Prefix:   "git-src",
+		Optional: true,
 	})
 
 	return cmd
@@ -179,7 +176,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	// upsert git-source repo
 	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to clone git-source repo: %w", err)
 	}
 
 	if opts.CreateDemoResources {

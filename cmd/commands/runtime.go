@@ -317,15 +317,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	gsPath := opts.GsCloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().GitSourceName, opts.RuntimeName)
-	fullGsPath := opts.GsCloneOpts.FS.Join(opts.GsCloneOpts.FS.Root(), gsPath)[1:]
-
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		InsCloneOpts:        opts.InsCloneOpts,
 		GsCloneOpts:         opts.GsCloneOpts,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
-		FullGsPath:          fullGsPath,
 		CreateDemoResources: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
@@ -342,7 +338,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsCloneOpts:         mpCloneOpts,
 		GsName:              store.Get().MarketplaceGitSourceName,
 		RuntimeName:         opts.RuntimeName,
-		FullGsPath:          "/",
 		CreateDemoResources: false,
 		Include:             "**/workflowTemplate.yaml",
 	}); err != nil {
