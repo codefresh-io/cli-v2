@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/argoproj-labs/applicationset v0.2.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.21
+	github.com/argoproj-labs/argocd-autopilot v0.2.22
 	github.com/argoproj/argo-cd/v2 v2.1.2
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
