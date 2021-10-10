@@ -79,6 +79,8 @@ type (
 		CloneOpts   *git.CloneOptions
 		KubeFactory kube.Factory
 		SkipChecks  bool
+		Force       bool
+		FastExit    bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -264,7 +266,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeVersion: runtimeVersion,
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
-		Repo: &opts.InsCloneOpts.Repo,
+		Repo:           &opts.InsCloneOpts.Repo,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
@@ -431,7 +433,7 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
 	}
 
-	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you need to uninstall it first", subjNamespace)
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you can uninstall it by running '%s runtime uninstall %s --skip-checks --force'", subjNamespace, store.Get().BinaryName, subjNamespace)
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
@@ -558,6 +560,8 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		skipChecks bool
 		f          kube.Factory
 		cloneOpts  *git.CloneOptions
+		force      bool
+		fastExit   bool
 	)
 
 	cmd := &cobra.Command{
@@ -597,12 +601,16 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
 				SkipChecks:  skipChecks,
+				Force:       force,
+				FastExit:    fastExit,
 			})
 		},
 	}
 
 	cmd.Flags().BoolVar(&skipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
+	cmd.Flags().BoolVar(&force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
+	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 
 	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	f = kube.AddFlags(cmd.Flags())
@@ -627,17 +635,32 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
+		Force:        opts.Force,
+		FastExit:     opts.FastExit,
 	}); err != nil {
-		return fmt.Errorf("failed uninstalling runtime: %w", err)
+		if !opts.Force {
+			log.G(ctx).Warn("you can attempt to uninstall again with the \"--force\" flag")
+			return err
+		}
 	}
 
-	log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
-
-	if _, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName); err != nil {
+	err := deleteRuntimeFromPlatform(ctx, opts)
+	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
-
 	log.G(ctx).Infof("Done uninstalling runtime '%s'", opts.RuntimeName)
+
+	return nil
+}
+
+func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
+	_, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName)
+	if err != nil {
+		return err
+	}
+
+	log.G(ctx).Infof("Successfully deleted runtime '%s' from the platform", opts.RuntimeName)
 	return nil
 }
 
