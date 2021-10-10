@@ -605,8 +605,8 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 	cmd.Flags().BoolVar(&skipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
-	cmd.Flags().BoolVar(&force, "force", false, "If true, will execute a hard uninstall which will clear the runtime from the platform [AND REMOVE LEFTOVER RESOURCES FROM CLUSTER?")
-	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait to find out whether or not the cluster resources were removed successfully")
+	cmd.Flags().BoolVar(&force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
+	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources")
 
 	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	f = kube.AddFlags(cmd.Flags())
