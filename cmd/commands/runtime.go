@@ -266,7 +266,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeVersion: runtimeVersion,
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
-		Repo: &opts.InsCloneOpts.Repo,
+		Repo:           &opts.InsCloneOpts.Repo,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
@@ -433,7 +433,7 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
 	}
 
-	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you can uninstall it by running '<cf> runtime uninstall %s --skip-checks --force'", subjNamespace, subjNamespace)
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you can uninstall it by running '%s runtime uninstall %s --skip-checks --force'", store.Get().BinaryName, subjNamespace, subjNamespace)
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
@@ -636,13 +636,13 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		CloneOptions: opts.CloneOpts,
 		KubeFactory:  opts.KubeFactory,
 		Force:        opts.Force,
-		FastExit: opts.FastExit,
+		FastExit:     opts.FastExit,
 	}); err != nil {
 		if !opts.Force {
 			log.G(ctx).Warn("you can attempt to uninstall again with the \"--force\" flag")
 			return err
-		}	
-	} 
+		}
+	}
 
 	err := deleteRuntimeFromPlatform(ctx, opts)
 	if err != nil {
