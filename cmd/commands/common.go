@@ -109,7 +109,7 @@ func getLatestCliRelease(ctx context.Context, opts *git.CloneOptions) (string, e
 		})
 	
 	} else {
-		// for runtime installations intended not for github, knowingly risking getting an api rate limit error
+		// for runtime installations intended not for github, knowingly risking hitting an api rate limit
 		c = gh.NewClient(hc)
 		latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
 			PerPage: 1,
