@@ -15,14 +15,18 @@
 package commands
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
+	gh "github.com/google/go-github/v39/github"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -38,6 +42,18 @@ var (
 
 	cfConfig *config.Config
 )
+
+// type github struct {
+// 	opts         *ProviderOptions
+// 	Repositories g.Repositories
+// 	Users        g.Users
+// }
+
+// type ProviderOptions struct {
+// 	Type string
+// 	Auth *Auth
+// 	Host string
+// }
 
 func postInitCommands(commands []*cobra.Command) {
 	for _, cmd := range commands {
@@ -61,7 +77,7 @@ func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions) error {
+func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo == "" {
 		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
@@ -74,4 +90,32 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions)
 		}
 	}
 	return nil
+}
+
+func getLatestCliRelease(ctx context.Context, cloneOpts *git.CloneOptions) (string, error) {
+	var (
+		c *gh.Client
+	)
+
+	hc := &http.Client{}
+	hc.Transport = &gh.BasicAuthTransport{
+		Username: cloneOpts.Auth.Username,
+		Password: cloneOpts.Auth.Password,
+	}
+
+	c = gh.NewClient(hc)
+
+	latestRepositoryRelease, res, err := c.Repositories.ListReleases(ctx, "codefresh-io", "cli-v2", &gh.ListOptions{
+		PerPage: 1,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if res.StatusCode != 200 {
+		return "", err
+	}
+
+	return *latestRepositoryRelease[0].Name, nil
 }

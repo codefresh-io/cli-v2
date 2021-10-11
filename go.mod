@@ -16,6 +16,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.1
 	github.com/gobuffalo/packr v1.30.1
+	github.com/google/go-github/v39 v39.1.0
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
@@ -27,9 +28,11 @@ require (
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	sigs.k8s.io/kustomize/api v0.8.8
+
 )
 
 replace (
+	github.com/argoproj-labs/argocd-autopilot => /Users/elad-codefresh/work/argocd-autopilot
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
 	k8s.io/api => k8s.io/api v0.21.1
