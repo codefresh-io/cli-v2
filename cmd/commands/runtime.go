@@ -239,6 +239,10 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	if err := preInstallationChecks(ctx, opts); err != nil {
+		return fmt.Errorf("pre installation checks failed: %w", err)
+	}
+
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -247,10 +251,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	runtimeVersion := "v99.99.99"
 	if rt.Spec.Version != nil { // in dev mode
 		runtimeVersion = rt.Spec.Version.String()
-	}
-
-	if err := preInstallationChecks(ctx, opts); err != nil {
-		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
 	server, err := util.CurrentServer()
@@ -385,7 +385,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Debug("running pre-installation checks...")
 
-	if err := VerifyLatestVersion(ctx, opts.InsCloneOpts); err != nil {
+	if err := verifyLatestVersion(ctx, opts.InsCloneOpts); err != nil {
 		return fmt.Errorf("verification of latest version failed: %w", err)
 	}
 
@@ -400,22 +400,6 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func VerifyLatestVersion(ctx context.Context, insCloneOpts *git.CloneOptions) error {
-	latestVersionString, err := getLatestCliRelease(ctx, insCloneOpts)
-	if err != nil {
-		return fmt.Errorf("failed getting the latest cli release: Err: %w", err)
-	}
-
-	latestVersionSemver := semver.MustParse(latestVersionString)
-
-	currentVersion := store.Get().Version.Version
-
-	if currentVersion.LessThan(latestVersionSemver) {
-		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
-	}
-
-	return nil
-}
 
 func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Factory) error {
 	log.G(ctx).Debug("checking for argocd collisions in cluster")

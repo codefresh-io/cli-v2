@@ -22,6 +22,7 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -71,7 +72,7 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) 
 	if cloneOpts.Repo == "" {
 		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
 		if err != nil {
-			return fmt.Errorf("Failed getting runtime repo information: %w", err)
+			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
 		if runtimeData.Repo != nil {
 			cloneOpts.Repo = *runtimeData.Repo
@@ -81,30 +82,64 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) 
 	return nil
 }
 
-func getLatestCliRelease(ctx context.Context, cloneOpts *git.CloneOptions) (string, error) {
+func getLatestCliRelease(ctx context.Context, opts *git.CloneOptions) (string, error) {
 	var (
 		c *gh.Client
+		latestRepositoryRelease []*gh.RepositoryRelease
+		res *gh.Response
+		err error
 	)
 
 	hc := &http.Client{}
-	hc.Transport = &gh.BasicAuthTransport{
-		Username: cloneOpts.Auth.Username,
-		Password: cloneOpts.Auth.Password,
-	}
-
-	c = gh.NewClient(hc)
-
-	latestRepositoryRelease, res, err := c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
-		PerPage: 1,
-	})
-
+	provider, _, err := opts.GetGitProvider(ctx, "", "", opts.Repo)
 	if err != nil {
 		return "", err
 	}
 
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf("http request failed with status code: %d", res.StatusCode)
+	if provider == store.Get().GithubAsProviderOfCliReleases {
+		hc.Transport = &gh.BasicAuthTransport{
+			Username: opts.Auth.Username,
+			Password: opts.Auth.Password,
+		}
+
+		c = gh.NewClient(hc)
+
+		latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
+			PerPage: 1,
+		})
+	
+	} else {
+		c = gh.NewClient(hc)
+		latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
+			PerPage: 1,
+		})
 	}
 
+		if err != nil {
+			return "", err
+		}
+	
+		if res.StatusCode != 200 {
+			return "", fmt.Errorf("http request failed with status code: %d", res.StatusCode)
+		}
+
+
 	return *latestRepositoryRelease[0].Name, nil
+}
+
+func verifyLatestVersion(ctx context.Context, opts *git.CloneOptions) error { 
+	latestVersionString, err := getLatestCliRelease(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("failed getting the latest cli release: Err: %w", err)
+	}
+
+	latestVersionSemver := semver.MustParse(latestVersionString)
+
+	currentVersion := store.Get().Version.Version
+
+	if currentVersion.LessThan(latestVersionSemver) {
+		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
+	}
+
+	return nil
 }

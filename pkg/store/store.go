@@ -108,6 +108,7 @@ type Store struct {
 	GithubAccessTokenSecretObjectName    string
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
+	GithubAsProviderOfCliReleases        string
 }
 
 // Get returns the global store
@@ -178,6 +179,7 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
+	s.GithubAsProviderOfCliReleases = "github"
 	initVersion()
 }
 
