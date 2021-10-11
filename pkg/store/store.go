@@ -53,7 +53,7 @@ type Store struct {
 	ArgoWFServiceName                    string
 	ArgoWFServicePort                    int32
 	BinaryName                           string
-	CliV2RepoName string
+	CliV2RepoName                        string
 	Codefresh                            string
 	CFComponentType                      string
 	CFGitSourceType                      string
@@ -63,7 +63,7 @@ type Store struct {
 	CFTokenSecretKey                     string
 	CodefreshCM                          string
 	CodefreshSA                          string
-	CodefreshIO		string
+	CodefreshIO                          string
 	ComponentsReporterName               string
 	ComponentsReporterSA                 string
 	ComponentsReporterURL                string
@@ -136,7 +136,7 @@ func init() {
 	s.CFTokenSecretKey = "token"
 	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
-	s.CodefreshIO = "codefresh-io",
+	s.CodefreshIO = "codefresh-io"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
