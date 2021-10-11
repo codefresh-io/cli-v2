@@ -56,6 +56,7 @@ type (
 		Components         []AppDef        `json:"components"`
 		Cluster            string          `json:"cluster"`
 		IngressHost        string          `json:"ingressHost"`
+		Repo               string          `json:"repo"`
 
 		devMode bool
 	}
