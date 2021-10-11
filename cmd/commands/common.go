@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	gh "github.com/google/go-github/v39/github"
@@ -105,7 +106,7 @@ func getLatestCliRelease(ctx context.Context, cloneOpts *git.CloneOptions) (stri
 
 	c = gh.NewClient(hc)
 
-	latestRepositoryRelease, res, err := c.Repositories.ListReleases(ctx, "codefresh-io", "cli-v2", &gh.ListOptions{
+	latestRepositoryRelease, res, err := c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
 		PerPage: 1,
 	})
 
@@ -114,7 +115,7 @@ func getLatestCliRelease(ctx context.Context, cloneOpts *git.CloneOptions) (stri
 	}
 
 	if res.StatusCode != 200 {
-		return "", err
+		return "", fmt.Errorf("http request failed with status code: %d", res.StatusCode)
 	}
 
 	return *latestRepositoryRelease[0].Name, nil
