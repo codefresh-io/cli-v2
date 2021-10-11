@@ -249,10 +249,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		runtimeVersion = rt.Spec.Version.String()
 	}
 
-	// if opts.Version == nil {
-	// 	opts.Version = rt.Spec.Version
-	// }
-
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
@@ -405,17 +401,17 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 }
 
 func VerifyLatestVersion(ctx context.Context, insCloneOpts *git.CloneOptions) error {
-	latestVersion, err := getLatestCliRelease(ctx, insCloneOpts)
+	latestVersionString, err := getLatestCliRelease(ctx, insCloneOpts)
 	if err != nil {
 		return fmt.Errorf("failed getting the latest cli release: Err: %w", err)
 	}
 
-	latestAsSemver := semver.MustParse(latestVersion)
+	latestVersionSemver := semver.MustParse(latestVersionString)
 
 	myVersion := store.Get().Version.Version
 
-	if myVersion.LessThan(latestAsSemver) {
-		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersion)
+	if myVersion.LessThan(latestVersionSemver) {
+		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
 	}
 
 	return nil

@@ -44,18 +44,6 @@ var (
 	cfConfig *config.Config
 )
 
-// type github struct {
-// 	opts         *ProviderOptions
-// 	Repositories g.Repositories
-// 	Users        g.Users
-// }
-
-// type ProviderOptions struct {
-// 	Type string
-// 	Auth *Auth
-// 	Host string
-// }
-
 func postInitCommands(commands []*cobra.Command) {
 	for _, cmd := range commands {
 		presetRequiredFlags(cmd)
