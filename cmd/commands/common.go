@@ -91,7 +91,7 @@ func getLatestCliRelease(ctx context.Context, opts *git.CloneOptions) (string, e
 	)
 
 	hc := &http.Client{}
-	provider, _, err := opts.GetGitProvider()
+	provider,  err := opts.GetGitProvider()
 	if err != nil {
 		return "", err
 	}
