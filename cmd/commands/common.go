@@ -84,10 +84,10 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) 
 
 func getLatestCliRelease(ctx context.Context, opts *git.CloneOptions) (string, error) {
 	var (
-		c *gh.Client
+		c                       *gh.Client
 		latestRepositoryRelease []*gh.RepositoryRelease
-		res *gh.Response
-		err error
+		res                     *gh.Response
+		err                     error
 	)
 
 	hc := &http.Client{}
@@ -96,39 +96,35 @@ func getLatestCliRelease(ctx context.Context, opts *git.CloneOptions) (string, e
 		return "", err
 	}
 
+	/* Knowingly risking hitting an api rate limit:
+	if the user installs on github, reusing the token (still possible rate limit)
+	If not, sending a request with an anonymous user (likely rate limit)
+	*/
 	if provider == store.Get().GithubAsProviderOfCliReleases {
 		hc.Transport = &gh.BasicAuthTransport{
 			Username: opts.Auth.Username,
 			Password: opts.Auth.Password,
 		}
 
-		c = gh.NewClient(hc)
+	} 
 
-		latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
-			PerPage: 1,
-		})
-	
-	} else {
-		// for runtime installations which are not using github. Knowingly risking hitting an api rate limit
-		c = gh.NewClient(hc)
-		latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
-			PerPage: 1,
-		})
+	c = gh.NewClient(hc)
+	latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
+		PerPage: 1,
+	})
+
+	if err != nil {
+		return "", err
 	}
 
-		if err != nil {
-			return "", err
-		}
-	
-		if res.StatusCode != 200 {
-			return "", fmt.Errorf("http request failed with status code: %d", res.StatusCode)
-		}
-
+	if res.StatusCode != 200 {
+		return "", fmt.Errorf("http request failed with status code: %d", res.StatusCode)
+	}
 
 	return *latestRepositoryRelease[0].Name, nil
 }
 
-func verifyLatestVersion(ctx context.Context, opts *git.CloneOptions) error { 
+func verifyLatestVersion(ctx context.Context, opts *git.CloneOptions) error {
 	latestVersionString, err := getLatestCliRelease(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed getting the latest cli release: Err: %w", err)
