@@ -408,9 +408,9 @@ func VerifyLatestVersion(ctx context.Context, insCloneOpts *git.CloneOptions) er
 
 	latestVersionSemver := semver.MustParse(latestVersionString)
 
-	myVersion := store.Get().Version.Version
+	currentVersion := store.Get().Version.Version
 
-	if myVersion.LessThan(latestVersionSemver) {
+	if currentVersion.LessThan(latestVersionSemver) {
 		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
 	}
 
