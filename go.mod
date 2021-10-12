@@ -5,12 +5,12 @@ go 1.16
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/argoproj-labs/applicationset v0.2.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.22
+	github.com/argoproj-labs/argocd-autopilot v0.2.23
 	github.com/argoproj/argo-cd/v2 v2.1.2
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
 	github.com/briandowns/spinner v1.16.0
-	github.com/codefresh-io/go-sdk v0.35.1
+	github.com/codefresh-io/go-sdk v0.35.0
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -23,6 +23,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	k8s.io/api v0.21.3
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible

@@ -275,6 +275,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeToken = token
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
+	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
@@ -384,6 +385,10 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Debug("running pre-installation checks...")
+
+	if err := verifyLatestVersion(ctx); err != nil {
+		return err
+	}
 
 	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
 		return fmt.Errorf("runtime collision check failed: %w", err)
@@ -591,8 +596,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return err
 			}
 
 			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
@@ -619,6 +629,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	if err := verifyLatestVersion(ctx); err != nil {
+		return err
+	}
+
 	// check whether the runtime exists
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
@@ -701,6 +715,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				err     error
 			)
 			ctx := cmd.Context()
+
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
@@ -710,6 +725,10 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
+			}
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return err
 			}
 
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{

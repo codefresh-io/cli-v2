@@ -15,13 +15,16 @@
 package commands
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
 	"regexp"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -61,17 +64,33 @@ func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func ensureRepo(cmd *cobra.Command, args []string, cloneOpts  *git.CloneOptions) error {
+func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo == "" {
 		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
 		if err != nil {
-			return fmt.Errorf("Failed getting runtime repo information: %w", err)
+			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
 		if runtimeData.Repo != nil {
 			cloneOpts.Repo = *runtimeData.Repo
 			die(cmd.Flags().Set("repo", *runtimeData.Repo))
 		}
 	}
+	return nil
+}
+
+func verifyLatestVersion(ctx context.Context) error {
+	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting latest cli release: %w", err)
+	}
+	
+	latestVersionSemver := semver.MustParse(latestVersionString)
+	currentVersion := store.Get().Version.Version
+
+	if currentVersion.LessThan(latestVersionSemver) {
+		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
+	}
+
 	return nil
 }
