@@ -749,10 +749,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 }
 
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
-	if err := verifyLatestVersion(ctx); err != nil {
-		return fmt.Errorf("verification of latest version failed: %w", err)
-	}
-
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

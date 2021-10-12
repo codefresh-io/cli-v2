@@ -26,7 +26,7 @@ var s Store
 
 var (
 	binaryName    = "cli-v2"
-	version       = "v0.0.117"
+	version       = "v99.99.99"
 	buildDate     = ""
 	gitCommit     = ""
 	maxDefVersion = "1.0.0"
@@ -53,7 +53,6 @@ type Store struct {
 	ArgoWFServiceName                    string
 	ArgoWFServicePort                    int32
 	BinaryName                           string
-	CliV2RepoName                        string
 	Codefresh                            string
 	CFComponentType                      string
 	CFGitSourceType                      string
@@ -63,7 +62,6 @@ type Store struct {
 	CFTokenSecretKey                     string
 	CodefreshCM                          string
 	CodefreshSA                          string
-	CodefreshIO                          string
 	ComponentsReporterName               string
 	ComponentsReporterSA                 string
 	ComponentsReporterURL                string
@@ -108,7 +106,6 @@ type Store struct {
 	GithubAccessTokenSecretObjectName    string
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
-	GithubAsProviderOfCliReleases        string
 }
 
 // Get returns the global store
@@ -123,7 +120,6 @@ func init() {
 	s.ArgoWFServiceName = "argo-server"
 	s.ArgoWFServicePort = 2746
 	s.BinaryName = binaryName
-	s.CliV2RepoName = "cli-v2"
 	s.Codefresh = "codefresh"
 	s.CFComponentType = "component"
 	s.CFGitSourceType = "git-source"
@@ -137,7 +133,6 @@ func init() {
 	s.CFTokenSecretKey = "token"
 	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
-	s.CodefreshIO = "codefresh-io"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
@@ -179,7 +174,6 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
-	s.GithubAsProviderOfCliReleases = "github"
 	initVersion()
 }
 
