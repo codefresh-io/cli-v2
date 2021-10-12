@@ -80,12 +80,11 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) 
 }
 
 func verifyLatestVersion(ctx context.Context) error {
-	release, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
+	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting latest cli release: %w", err)
 	}
 	
-	latestVersionString := release.Version
 	latestVersionSemver := semver.MustParse(latestVersionString)
 	currentVersion := store.Get().Version.Version
 
