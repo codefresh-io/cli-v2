@@ -26,7 +26,7 @@ var s Store
 
 var (
 	binaryName    = "cli-v2"
-	version       = "v99.99.99"
+	version       = "v0.0.117"
 	buildDate     = ""
 	gitCommit     = ""
 	maxDefVersion = "1.0.0"

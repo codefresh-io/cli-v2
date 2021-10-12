@@ -18,7 +18,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"net/http"
 	"os"
 	"regexp"
 
@@ -27,8 +26,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-
-	gh "github.com/google/go-github/v39/github"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -82,56 +79,14 @@ func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) 
 	return nil
 }
 
-func getLatestCliRelease(ctx context.Context, opts *git.CloneOptions) (string, error) {
-	var (
-		c                       *gh.Client
-		latestRepositoryRelease []*gh.RepositoryRelease
-		res                     *gh.Response
-		err                     error
-	)
-
-	hc := &http.Client{}
-	provider,  err := opts.GetGitProvider()
+func verifyLatestVersion(ctx context.Context) error {
+	release, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("failed getting latest cli release: %w", err)
 	}
-
-	/* Knowingly risking hitting an api rate limit:
-	if the user installs on github, reusing the token (still possible rate limit)
-	If not, sending a request with an anonymous user (likely rate limit)
-	*/
-	if provider == store.Get().GithubAsProviderOfCliReleases {
-		hc.Transport = &gh.BasicAuthTransport{
-			Username: opts.Auth.Username,
-			Password: opts.Auth.Password,
-		}
-
-	} 
-
-	c = gh.NewClient(hc)
-	latestRepositoryRelease, res, err = c.Repositories.ListReleases(ctx, store.Get().CodefreshIO, store.Get().CliV2RepoName, &gh.ListOptions{
-		PerPage: 1,
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf("http request failed with status code: %d", res.StatusCode)
-	}
-
-	return *latestRepositoryRelease[0].Name, nil
-}
-
-func verifyLatestVersion(ctx context.Context, opts *git.CloneOptions) error {
-	latestVersionString, err := getLatestCliRelease(ctx, opts)
-	if err != nil {
-		return fmt.Errorf("failed getting the latest cli release: Err: %w", err)
-	}
-
+	
+	latestVersionString := release.Version
 	latestVersionSemver := semver.MustParse(latestVersionString)
-
 	currentVersion := store.Get().Version.Version
 
 	if currentVersion.LessThan(latestVersionSemver) {

@@ -385,7 +385,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Debug("running pre-installation checks...")
 
-	if err := verifyLatestVersion(ctx, opts.InsCloneOpts); err != nil {
+	if err := verifyLatestVersion(ctx); err != nil {
 		return fmt.Errorf("verification of latest version failed: %w", err)
 	}
 
@@ -596,8 +596,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
+			}
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("verification of latest version failed: %w", err)
 			}
 
 			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
@@ -624,6 +629,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	if err := verifyLatestVersion(ctx); err != nil {
+		return fmt.Errorf("verification of latest version failed: %w", err)
+	}
+	
 	// check whether the runtime exists
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
@@ -706,6 +715,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				err     error
 			)
 			ctx := cmd.Context()
+
 			if len(args) < 1 {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
@@ -715,6 +725,10 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
+			}
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("verification of latest version failed: %w", err)
 			}
 
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
@@ -735,6 +749,10 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 }
 
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
+	if err := verifyLatestVersion(ctx); err != nil {
+		return fmt.Errorf("verification of latest version failed: %w", err)
+	}
+
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

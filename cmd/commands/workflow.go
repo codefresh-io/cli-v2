@@ -59,6 +59,10 @@ func NewWorkflowGetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("verification of latest version failed: %w", err)
+			}
+
 			return RunWorkflowGet(ctx, args[0])
 		},
 	}
@@ -85,6 +89,10 @@ func NewWorkflowListCommand() *cobra.Command {
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("verification of latest version failed: %w", err)
+			}
 
 			filterArgs := model.WorkflowsFilterArgs{
 				Namespace: &namespace,
