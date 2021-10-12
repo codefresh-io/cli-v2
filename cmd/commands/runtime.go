@@ -493,7 +493,13 @@ func NewRuntimeListCommand() *cobra.Command {
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return RunRuntimeList(cmd.Context())
+			ctx := cmd.Context()
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return err
+			}
+
+			return RunRuntimeList(ctx)
 		},
 	}
 	return cmd
