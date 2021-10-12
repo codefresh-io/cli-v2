@@ -275,6 +275,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeToken = token
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
+	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
