@@ -387,7 +387,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	if err := verifyLatestVersion(ctx); err != nil {
-		return fmt.Errorf("verification of latest version failed: %w", err)
+		return err
 	}
 
 	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
@@ -630,7 +630,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	if err := verifyLatestVersion(ctx); err != nil {
-		return fmt.Errorf("verification of latest version failed: %w", err)
+		return err
 	}
 
 	// check whether the runtime exists
