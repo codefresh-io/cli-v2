@@ -63,7 +63,7 @@ func NewPipelineGetCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunPipelineGet(ctx, name, namespace, runtime)
@@ -102,7 +102,7 @@ func NewPipelineListCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			filterArgs := model.PipelinesFilterArgs{

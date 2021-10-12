@@ -63,15 +63,15 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName    string
-		RuntimeToken   string
-		IngressHost    string
-		Insecure       bool
-		Version        *semver.Version
-		GsCloneOpts    *git.CloneOptions
-		InsCloneOpts   *git.CloneOptions
-		KubeFactory    kube.Factory
-		CommonConfig   *runtime.CommonConfig
+		RuntimeName  string
+		RuntimeToken string
+		IngressHost  string
+		Insecure     bool
+		Version      *semver.Version
+		GsCloneOpts  *git.CloneOptions
+		InsCloneOpts *git.CloneOptions
+		KubeFactory  kube.Factory
+		CommonConfig *runtime.CommonConfig
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -401,7 +401,6 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-
 func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Factory) error {
 	log.G(ctx).Debug("checking for argocd collisions in cluster")
 
@@ -603,7 +602,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
@@ -633,7 +632,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if err := verifyLatestVersion(ctx); err != nil {
 		return fmt.Errorf("verification of latest version failed: %w", err)
 	}
-	
+
 	// check whether the runtime exists
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
@@ -729,7 +728,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{

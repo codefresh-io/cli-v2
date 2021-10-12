@@ -60,7 +60,7 @@ func NewWorkflowGetCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunWorkflowGet(ctx, args[0])
@@ -91,7 +91,7 @@ func NewWorkflowListCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			filterArgs := model.WorkflowsFilterArgs{

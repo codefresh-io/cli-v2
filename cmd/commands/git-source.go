@@ -133,7 +133,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			if gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
-			
+
 			err := ensureRepo(cmd, args, insCloneOpts)
 			if err != nil {
 				return err
@@ -160,7 +160,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
@@ -379,9 +379,9 @@ func NewGitSourceListCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
-		
+
 			return RunGitSourceList(ctx, args[0])
 		},
 	}
@@ -479,8 +479,8 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
-			}		
+				return err
+			}
 
 			return RunGitSourceDelete(ctx, &GitSourceDeleteOptions{
 				RuntimeName:  args[0],
@@ -553,7 +553,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunGitSourceEdit(ctx, &GitSourceEditOptions{

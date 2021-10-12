@@ -60,7 +60,7 @@ func NewComponentListCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("verification of latest version failed: %w", err)
+				return err
 			}
 
 			return RunComponentList(ctx, args[0])
