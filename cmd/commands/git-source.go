@@ -508,7 +508,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 		return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
 	}
 
-	log.G(ctx).Debug("Successfully deleted the git-source: %s", opts.GsName)
+	log.G(ctx).Infof("Successfully deleted the git-source: %s", opts.GsName)
 
 	return nil
 }
