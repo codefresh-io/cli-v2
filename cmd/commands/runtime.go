@@ -501,7 +501,6 @@ func NewRuntimeListCommand() *cobra.Command {
 
 			return RunRuntimeList(ctx)
 		},
-		
 	}
 	return cmd
 }
