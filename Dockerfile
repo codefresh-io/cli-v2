@@ -13,6 +13,7 @@ RUN adduser \
     --uid 10001 \
     codefresh
 
+
 ARG GITHUB_TOKEN
 RUN git config \
     --global \
