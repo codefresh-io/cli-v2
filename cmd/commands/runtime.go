@@ -515,18 +515,6 @@ func NewRuntimeListCommand() *cobra.Command {
 		},
 	}
 
-	// prompt := promptui.Prompt{
-	// 	Label: "Runtime Name",
-	// }
-
-	// runtimeName, err := prompt.Run()
-
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Println(runtimeName)
-	// }
-
 	return cmd
 }
 

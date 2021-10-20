@@ -68,6 +68,7 @@ type Config struct {
 	requestTimeout  time.Duration
 	CurrentContext  string                 `mapstructure:"current-context" json:"current-context"`
 	Contexts        map[string]AuthContext `mapstructure:"contexts" json:"contexts"`
+	silent          bool
 }
 
 type AuthContext struct {
@@ -86,6 +87,7 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	f.StringVar(&conf.contextOverride, "auth-context", "", "Run the next command using a specific authentication context")
 	f.BoolVar(&conf.insecure, "insecure", false, "Disable certificate validation for TLS connections (e.g. to g.codefresh.io)")
 	f.DurationVar(&conf.requestTimeout, "request-timeout", defaultRequestTimeout, "Request timeout")
+	f.BoolVar(&conf.silent, "silent", false, "Disables the command wizard")
 
 	return conf
 }
