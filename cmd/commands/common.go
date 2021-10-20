@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/manifoldco/promptui"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -64,18 +65,45 @@ func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func ensureRepo(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions) error {
+func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo == "" {
-		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, args[0])
+		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
 			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
 		if runtimeData.Repo != nil {
 			cloneOpts.Repo = *runtimeData.Repo
 			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+		} else {
+			return getRepoFromUserInput(cmd, cloneOpts)
 		}
 	}
+	return nil
+}
+
+func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+	repoPrompt := promptui.Prompt{
+		Label: "Insert repo",
+	}
+	repoInput, err := repoPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Input error: %w", err)
+	}
+	cloneOpts.Repo = repoInput
+	die(cmd.Flags().Set("repo", repoInput))
+	return nil
+}
+
+func getRuntimeNameFromUserInput(runtimeName *string) error {
+	runtimeNamePrompt := promptui.Prompt{
+		Label: "Insert runtime name",
+	}
+	runtimeNameInput, err := runtimeNamePrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Input error: %w", err)
+	}
+	*runtimeName = runtimeNameInput
 	return nil
 }
 
