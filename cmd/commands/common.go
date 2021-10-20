@@ -100,7 +100,7 @@ func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error
 }
 
 func ensureRuntimeName(runtimeName *string, isSilent bool) error {
-	if *runtimeName != "" {
+	if *runtimeName == "" {
 		if !isSilent {
 			return getRuntimeNameFromUserInput(runtimeName)
 		}
@@ -123,12 +123,12 @@ func getRuntimeNameFromUserInput(runtimeName *string) error {
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, isSilent bool) error {
 	if cloneOpts.Auth.Password == "" && !isSilent {
-		return getGitTokenFromUserInput(cloneOpts)
+		return getGitTokenFromUserInput(cmd, cloneOpts)
 	}
 	return nil
 }
 
-func getGitTokenFromUserInput(cloneOpts *git.CloneOptions) error {
+func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Insert git token",
 	}
@@ -137,6 +137,7 @@ func getGitTokenFromUserInput(cloneOpts *git.CloneOptions) error {
 		return fmt.Errorf("Input error: %w", err)
 	}
 	cloneOpts.Auth.Password = gitTokenInput
+	die(cmd.Flags().Set("git-token", gitTokenInput))
 	return nil
 }
 

@@ -591,7 +591,6 @@ func RunRuntimeList(ctx context.Context) error {
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
 		runtimeName string
-		//timeout time.Duration
 		skipChecks bool
 		f          kube.Factory
 		cloneOpts  *git.CloneOptions
@@ -617,6 +616,9 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				runtimeName = args[0]
+			}
 			isSilent, err := cmd.Flags().GetBool("silent")
 			if err != nil {
 				return fmt.Errorf("%w", err)
