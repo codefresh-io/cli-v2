@@ -87,12 +87,16 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 }
 
 func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+	templates := &promptui.PromptTemplates{
+		Prompt:  "{{ . | cyan }} ",
+	}
 	repoPrompt := promptui.Prompt{
-		Label: "Insert repo",
+		Label: "Repository URL",
+		Templates: templates,
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
-		return fmt.Errorf("Input error: %w", err)
+		return fmt.Errorf("Prompt error: %w", err)
 	}
 	cloneOpts.Repo = repoInput
 	die(cmd.Flags().Set("repo", repoInput))
@@ -104,18 +108,22 @@ func ensureRuntimeName(runtimeName *string, isSilent bool) error {
 		if !isSilent {
 			return getRuntimeNameFromUserInput(runtimeName)
 		}
-		*runtimeName = "codefresh"
 	}
 	return nil
 }
 
 func getRuntimeNameFromUserInput(runtimeName *string) error {
+	templates := &promptui.PromptTemplates{
+		Prompt:  "{{ . | cyan }} ",
+	}
 	runtimeNamePrompt := promptui.Prompt{
-		Label: "Insert runtime name",
+		Label: "Runtime name",
+		Templates: templates,
+		Default: "codefresh",
 	}
 	runtimeNameInput, err := runtimeNamePrompt.Run()
 	if err != nil {
-		return fmt.Errorf("Input error: %w", err)
+		return fmt.Errorf("Prompt error: %w", err)
 	}
 	*runtimeName = runtimeNameInput
 	return nil
@@ -129,12 +137,16 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, isSilent bo
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+	templates := &promptui.PromptTemplates{
+		Prompt:  "{{ . | cyan }} ",
+	}
 	gitTokenPrompt := promptui.Prompt{
-		Label: "Insert git token",
+		Label: "Git provider api token",
+		Templates: templates,
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
 	if err != nil {
-		return fmt.Errorf("Input error: %w", err)
+		return fmt.Errorf("Prompt error: %w", err)
 	}
 	cloneOpts.Auth.Password = gitTokenInput
 	die(cmd.Flags().Set("git-token", gitTokenInput))
