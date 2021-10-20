@@ -137,18 +137,29 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	<BIN> runtime install runtime-name --repo gitops_repo
 `),
-		PreRunE: func(cmd *cobra.Command, _ []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				runtimeName = args[0]
+			}
+			isSilent, err := cmd.Flags().GetBool("silent")
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			
+			err = ensureRuntimeName(&runtimeName, isSilent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureRepo(cmd, runtimeName, insCloneOpts, isSilent, false)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureGitToken(cmd, insCloneOpts, isSilent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
-			}
-
-			err := getRuntimeNameFromUserInput(&runtimeName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			err = getRepoFromUserInput(cmd, insCloneOpts)
-			if err != nil {
-				return fmt.Errorf("%w", err)
 			}
 			insCloneOpts.Parse()
 			return nil
@@ -160,11 +171,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			)
 
 			ctx := cmd.Context()
-			if len(args) < 1 && runtimeName == "" {
+
+			if runtimeName == "" {
 				log.G(ctx).Fatal("must enter runtime name")
-			}
-			if len(args) > 0 {
-				runtimeName = args[0]
 			}
 
 			isValid, err := IsValid(runtimeName)
@@ -608,13 +617,21 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			err := getRuntimeNameFromUserInput(&runtimeName)
+			isSilent, err := cmd.Flags().GetBool("silent")
 			if err != nil {
-				return err
+				return fmt.Errorf("%w", err)
 			}
-			err = ensureRepo(cmd, runtimeName, cloneOpts)
+			err = ensureRuntimeName(&runtimeName, isSilent)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureRepo(cmd, runtimeName, cloneOpts, isSilent, true)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureGitToken(cmd, cloneOpts, isSilent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 			cloneOpts.Parse()
 			return nil
@@ -729,10 +746,10 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			err := ensureRepo(cmd, args[0], cloneOpts)
-			if err != nil {
-				return err
-			}
+			// err := ensureRepo(cmd, args[0], cloneOpts)
+			// if err != nil {
+			// 	return err
+			// }
 			cloneOpts.Parse()
 			return nil
 		},

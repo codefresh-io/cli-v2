@@ -65,17 +65,21 @@ func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions) error {
+func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, isSilent bool, fromAPI bool) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo == "" {
-		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
-		if err != nil {
-			return fmt.Errorf("failed getting runtime repo information: %w", err)
-		}
-		if runtimeData.Repo != nil {
-			cloneOpts.Repo = *runtimeData.Repo
-			die(cmd.Flags().Set("repo", *runtimeData.Repo))
-		} else {
+		if fromAPI {
+			runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+			if err != nil {
+				return fmt.Errorf("failed getting runtime repo information: %w", err)
+			}
+			if runtimeData.Repo != nil {
+				cloneOpts.Repo = *runtimeData.Repo
+				die(cmd.Flags().Set("repo", *runtimeData.Repo))
+				return nil
+			} 
+		} 
+		if !isSilent {
 			return getRepoFromUserInput(cmd, cloneOpts)
 		}
 	}
@@ -95,6 +99,16 @@ func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error
 	return nil
 }
 
+func ensureRuntimeName(runtimeName *string, isSilent bool) error {
+	if *runtimeName != "" {
+		if !isSilent {
+			return getRuntimeNameFromUserInput(runtimeName)
+		}
+		*runtimeName = "codefresh"
+	}
+	return nil
+}
+
 func getRuntimeNameFromUserInput(runtimeName *string) error {
 	runtimeNamePrompt := promptui.Prompt{
 		Label: "Insert runtime name",
@@ -104,6 +118,25 @@ func getRuntimeNameFromUserInput(runtimeName *string) error {
 		return fmt.Errorf("Input error: %w", err)
 	}
 	*runtimeName = runtimeNameInput
+	return nil
+}
+
+func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, isSilent bool) error {
+	if cloneOpts.Auth.Password == "" && !isSilent {
+		return getGitTokenFromUserInput(cloneOpts)
+	}
+	return nil
+}
+
+func getGitTokenFromUserInput(cloneOpts *git.CloneOptions) error {
+	gitTokenPrompt := promptui.Prompt{
+		Label: "Insert git token",
+	}
+	gitTokenInput, err := gitTokenPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Input error: %w", err)
+	}
+	cloneOpts.Auth.Password = gitTokenInput
 	return nil
 }
 

@@ -134,10 +134,10 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			err := ensureRepo(cmd, args[0], insCloneOpts)
-			if err != nil {
-				return err
-			}
+			// err := ensureRepo(cmd, args[0], insCloneOpts)
+			// if err != nil {
+			// 	return err
+			// }
 
 			isValid, err := IsValid(args[1])
 			if err != nil {
@@ -467,10 +467,10 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			err := ensureRepo(cmd, args[0], insCloneOpts)
-			if err != nil {
-				return err
-			}
+			// err := ensureRepo(cmd, args[0], insCloneOpts)
+			// if err != nil {
+			// 	return err
+			// }
 
 			insCloneOpts.Parse()
 			return nil
@@ -540,10 +540,10 @@ func NewGitSourceEditCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			err := ensureRepo(cmd, args[0], insCloneOpts)
-			if err != nil {
-				return err
-			}
+			// err := ensureRepo(cmd, args[0], insCloneOpts)
+			// if err != nil {
+			// 	return err
+			// }
 
 			insCloneOpts.Parse()
 			gsCloneOpts.Parse()
