@@ -145,7 +145,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			
+
 			err = ensureRuntimeName(&runtimeName, isSilent)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -591,11 +591,11 @@ func RunRuntimeList(ctx context.Context) error {
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
 		runtimeName string
-		skipChecks bool
-		f          kube.Factory
-		cloneOpts  *git.CloneOptions
-		force      bool
-		fastExit   bool
+		skipChecks  bool
+		f           kube.Factory
+		cloneOpts   *git.CloneOptions
+		force       bool
+		fastExit    bool
 	)
 
 	cmd := &cobra.Command{
@@ -726,8 +726,9 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		versionStr string
-		cloneOpts  *git.CloneOptions
+		runtimeName string
+		versionStr  string
+		cloneOpts   *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -748,10 +749,26 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// err := ensureRepo(cmd, args[0], cloneOpts)
-			// if err != nil {
-			// 	return err
-			// }
+			if len(args) > 0 {
+				runtimeName = args[0]
+			}
+			isSilent, err := cmd.Flags().GetBool("silent")
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			err = ensureRuntimeName(&runtimeName, isSilent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureRepo(cmd, runtimeName, cloneOpts, isSilent, false)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureGitToken(cmd, cloneOpts, isSilent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
 			cloneOpts.Parse()
 			return nil
 		},
@@ -762,7 +779,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			)
 			ctx := cmd.Context()
 
-			if len(args) < 1 {
+			if runtimeName == "" {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
@@ -778,7 +795,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
-				RuntimeName: args[0],
+				RuntimeName: runtimeName,
 				Version:     version,
 				CloneOpts:   cloneOpts,
 				CommonConfig: &runtime.CommonConfig{
