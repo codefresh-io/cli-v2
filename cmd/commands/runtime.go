@@ -118,6 +118,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -157,6 +158,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
+
+			finalParameters = map[string]string{
+				"Runtime name": runtimeName,
+				"Repository URL": insCloneOpts.Repo,
+			}
+
 			insCloneOpts.Parse()
 			return nil
 		},
@@ -167,6 +174,17 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			)
 
 			ctx := cmd.Context()
+
+			if !store.Get().Silent {
+				isApproved, err := promptSummaryToUser(ctx, finalParameters)
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
+	
+				if !isApproved {
+					log.G(ctx).Fatal("command was cancelled by user")
+				}
+			}
 
 			if runtimeName == "" {
 				log.G(ctx).Fatal("must enter runtime name")
@@ -626,15 +644,15 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-
-			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
-				"Repository URL": cloneOpts.Repo,
-			}
-
+			
 			err = ensureGitToken(cmd, cloneOpts, store.Get().Silent)
 			if err != nil {
 				return fmt.Errorf("%w", err)
+			}
+			
+			finalParameters = map[string]string{
+				"Runtime name": runtimeName,
+				"Repository URL": cloneOpts.Repo,
 			}
 
 			cloneOpts.Parse()
@@ -740,6 +758,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		runtimeName string
 		versionStr  string
 		cloneOpts   *git.CloneOptions
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -776,6 +795,12 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
+
+			finalParameters = map[string]string{
+				"Runtime name": runtimeName,
+				"Repository URL": cloneOpts.Repo,
+			}
+
 			cloneOpts.Parse()
 			return nil
 		},
@@ -785,6 +810,17 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				err     error
 			)
 			ctx := cmd.Context()
+
+			if !store.Get().Silent {
+				isApproved, err := promptSummaryToUser(ctx, finalParameters)
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
+	
+				if !isApproved {
+					log.G(ctx).Fatal("command was cancelled by user")
+				}
+			}
 
 			if runtimeName == "" {
 				log.G(ctx).Fatal("must enter runtime name")

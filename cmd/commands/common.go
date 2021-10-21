@@ -188,7 +188,7 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string)
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{
-		Label: "\033[34mDo you wish to continue ?",
+		Label: "\033[34mDo you wish to continue ?\033[0m",
 		Items: []string{"Yes", "No"},
 		Templates: templates,
 	}
