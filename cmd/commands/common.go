@@ -88,12 +88,8 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 }
 
 func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
-	templates := &promptui.PromptTemplates{
-		Prompt:  "{{ . | cyan }} ",
-	}
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
-		Templates: templates,
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
@@ -120,12 +116,8 @@ func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string, 
 }
 
 func getRuntimeNameFromUserInput(runtimeName *string) error {
-	templates := &promptui.PromptTemplates{
-		Prompt:  "{{ . | cyan }} ",
-	}
 	runtimeNamePrompt := promptui.Prompt{
 		Label: "Runtime name",
-		Templates: templates,
 		Default: "codefresh",
 	}
 	runtimeNameInput, err := runtimeNamePrompt.Run()
@@ -144,12 +136,8 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, isSilent bo
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
-	templates := &promptui.PromptTemplates{
-		Prompt:  "{{ . | cyan }} ",
-	}
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Git provider api token",
-		Templates: templates,
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
 	if err != nil {
@@ -202,7 +190,7 @@ func getApprovalFromUser(ctx context.Context, finalParameters map[string]string)
 
 func promptSummaryToUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
 	templates := &promptui.SelectTemplates{
-		Selected:  "{{ . | green }} ",
+		Selected:  "{{ . | yellow }} ",
 	}
 	promptStr := "\033[4m\033[1m\033[32mSummary\033[24m\033[22m"
 
