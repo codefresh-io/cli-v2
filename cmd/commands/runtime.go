@@ -761,7 +761,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			err = ensureRepo(cmd, runtimeName, cloneOpts, isSilent, false)
+			err = ensureRepo(cmd, runtimeName, cloneOpts, isSilent, true)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
