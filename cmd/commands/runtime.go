@@ -139,22 +139,23 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				runtimeName = args[0]
-			}
+			ctx := cmd.Context()
 
-			err := ensureRuntimeName(&runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
+
 			err = ensureRepo(cmd, runtimeName, insCloneOpts, store.Get().Silent, false)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
+
 			err = ensureGitToken(cmd, insCloneOpts, store.Get().Silent)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
+
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
@@ -170,24 +171,17 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
 				version *semver.Version
-				err     error
 			)
 
 			ctx := cmd.Context()
 
-			if !store.Get().Silent {
-				isApproved, err := promptSummaryToUser(ctx, finalParameters)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-	
-				if !isApproved {
-					log.G(ctx).Fatal("command was cancelled by user")
-				}
+			isApproved, err := getApprovalFromUser(ctx, finalParameters)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 
-			if runtimeName == "" {
-				log.G(ctx).Fatal("must enter runtime name")
+			if !isApproved {
+				return nil
 			}
 
 			isValid, err := IsValid(runtimeName)
@@ -631,11 +625,9 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				runtimeName = args[0]
-			}
+			ctx := cmd.Context()
 
-			err := ensureRuntimeName(&runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -661,19 +653,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if !store.Get().Silent {
-				isApproved, err := promptSummaryToUser(ctx, finalParameters)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-	
-				if !isApproved {
-					log.G(ctx).Fatal("command was cancelled by user")
-				}
+			isApproved, err := getApprovalFromUser(ctx, finalParameters)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 
-			if runtimeName == "" {
-				log.G(ctx).Fatal("must enter runtime name")
+			if !isApproved {
+				return nil
 			}
 
 			if err := verifyLatestVersion(ctx); err != nil {
@@ -779,11 +765,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				runtimeName = args[0]
-			}
+			ctx := cmd.Context()
 
-			err := ensureRuntimeName(&runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -811,19 +795,13 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			)
 			ctx := cmd.Context()
 
-			if !store.Get().Silent {
-				isApproved, err := promptSummaryToUser(ctx, finalParameters)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-	
-				if !isApproved {
-					log.G(ctx).Fatal("command was cancelled by user")
-				}
+			isApproved, err := getApprovalFromUser(ctx, finalParameters)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 
-			if runtimeName == "" {
-				log.G(ctx).Fatal("must enter runtime name")
+			if !isApproved {
+				return nil
 			}
 
 			if versionStr != "" {

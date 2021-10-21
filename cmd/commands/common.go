@@ -104,12 +104,18 @@ func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error
 	return nil
 }
 
-func ensureRuntimeName(runtimeName *string, isSilent bool) error {
+func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string, isSilent bool) error {
+	if len(args) > 0 {
+		*runtimeName = args[0]
+	}
+
 	if *runtimeName == "" {
 		if !isSilent {
 			return getRuntimeNameFromUserInput(runtimeName)
 		}
+		log.G(ctx).Fatal("must enter a runtime name")
 	}
+
 	return nil
 }
 
@@ -154,20 +160,22 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-func ensureGitSourceName(gitSourceName *string, isSilent bool) error {
-	if *gitSourceName == "" && !isSilent {
-		return getGitSourceNameFromUserInput(gitSourceName)
+func ensureGitSourceName(ctx context.Context, args []string, gitSourceName *string, isSilent bool) error {
+	if len(args) > 1 {
+		*gitSourceName = args[1]	
+	}
+	if *gitSourceName == "" {
+		if !isSilent {
+			return getGitSourceNameFromUserInput(gitSourceName)
+		}
+		log.G(ctx).Fatal("must enter a git-source name")
 	}
 	return nil
 }
 
 func getGitSourceNameFromUserInput(gitSourceName *string) error {
-	templates := &promptui.PromptTemplates{
-		Prompt:  "{{ . | cyan }} ",
-	}
 	gitSourceNamePrompt := promptui.Prompt{
 		Label: "Git-source name",
-		Templates: templates,
 	}
 	gitSourceNameInput, err := gitSourceNamePrompt.Run()
 	if err != nil {
@@ -175,6 +183,21 @@ func getGitSourceNameFromUserInput(gitSourceName *string) error {
 	}
 	*gitSourceName = gitSourceNameInput
 	return nil
+}
+
+func getApprovalFromUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
+	if !store.Get().Silent {
+		isApproved, err := promptSummaryToUser(ctx, finalParameters)
+		if err != nil {
+			return false, fmt.Errorf("%w", err)
+		}
+
+		if !isApproved {
+			log.G(ctx).Info("command was cancelled by user")
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func promptSummaryToUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
