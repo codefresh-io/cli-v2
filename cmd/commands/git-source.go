@@ -109,8 +109,10 @@ func NewGitSourceCommand() *cobra.Command {
 
 func NewGitSourceCreateCommand() *cobra.Command {
 	var (
-		insCloneOpts *git.CloneOptions
-		gsCloneOpts  *git.CloneOptions
+		runtimeName   string
+		gitSourceName string
+		insCloneOpts  *git.CloneOptions
+		gsCloneOpts   *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -123,29 +125,51 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			if len(args) < 1 {
+				runtimeName = args[0]
+			}
+
+			err := ensureRuntimeName(&runtimeName, store.Get().Silent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			if runtimeName == "" {
 				log.G(ctx).Fatal("must enter runtime name")
 			}
 
 			if len(args) < 2 {
+				gitSourceName = args[1]
+			}
+
+			err = ensureGitSourceName(&gitSourceName, store.Get().Silent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			if gitSourceName == "" {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
-			}
-
-			// err := ensureRepo(cmd, args[0], insCloneOpts)
-			// if err != nil {
-			// 	return err
-			// }
-
-			isValid, err := IsValid(args[1])
+			isValid, err := IsValid(gitSourceName)
 			if err != nil {
 				log.G(ctx).Fatal("failed to check the validity of the git-source name")
 			}
 
 			if !isValid {
 				log.G(ctx).Fatal("git-source name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+			}
+
+			if gsCloneOpts.Repo == "" {
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+			}
+
+			err = ensureRepo(cmd, runtimeName, insCloneOpts, store.Get().Silent, true)
+			if err != nil {
+				return err
+			}
+			err = ensureGitToken(cmd, insCloneOpts, store.Get().Silent)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 
 			if gsCloneOpts.Auth.Password == "" {

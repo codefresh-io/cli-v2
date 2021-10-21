@@ -24,6 +24,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/manifoldco/promptui"
@@ -151,6 +152,56 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	cloneOpts.Auth.Password = gitTokenInput
 	die(cmd.Flags().Set("git-token", gitTokenInput))
 	return nil
+}
+
+func ensureGitSourceName(gitSourceName *string, isSilent bool) error {
+	if *gitSourceName == "" && !isSilent {
+		return getGitSourceNameFromUserInput(gitSourceName)
+	}
+	return nil
+}
+
+func getGitSourceNameFromUserInput(gitSourceName *string) error {
+	templates := &promptui.PromptTemplates{
+		Prompt:  "{{ . | cyan }} ",
+	}
+	gitSourceNamePrompt := promptui.Prompt{
+		Label: "Git-source name",
+		Templates: templates,
+	}
+	gitSourceNameInput, err := gitSourceNamePrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+	*gitSourceName = gitSourceNameInput
+	return nil
+}
+
+func promptSummaryToUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
+	templates := &promptui.SelectTemplates{
+		Selected:  "{{ . | green }} ",
+	}
+	promptStr := "\033[4m\033[1m\033[32mSummary\033[24m\033[22m"
+
+	for key, value := range finalParameters {
+		promptStr += fmt.Sprintf("\n\033[32m%v: \033[0m%v", key, value)
+	}
+	log.G(ctx).Printf(promptStr)
+	prompt := promptui.Select{
+		Label: "\033[34mDo you wish to continue ?",
+		Items: []string{"Yes", "No"},
+		Templates: templates,
+	}
+	
+	_, result, err := prompt.Run()
+	if err != nil {
+		return false, fmt.Errorf("Prompt error: %w", err)
+	}
+
+	if result == "Yes" {
+		return true, nil
+	}
+	return false, nil
 }
 
 func verifyLatestVersion(ctx context.Context) error {
