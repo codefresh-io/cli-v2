@@ -66,7 +66,7 @@ func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, isSilent bool, fromAPI bool) error {
+func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo == "" {
 		if fromAPI {
@@ -80,7 +80,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 				return nil
 			} 
 		} 
-		if !isSilent {
+		if !store.Get().Silent {
 			return getRepoFromUserInput(cmd, cloneOpts)
 		}
 	}
@@ -100,14 +100,14 @@ func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error
 	return nil
 }
 
-func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string, isSilent bool) error {
+func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string) error {
 	if len(args) > 0 {
 		*runtimeName = args[0]
 	}
 
 	if *runtimeName == "" {
-		if !isSilent {
-			return getRuntimeNameFromUserInput(runtimeName)
+		if !store.Get().Silent {
+			return getRuntimeNameFromUserSelect(ctx, runtimeName)
 		}
 		log.G(ctx).Fatal("must enter a runtime name")
 	}
@@ -128,8 +128,45 @@ func getRuntimeNameFromUserInput(runtimeName *string) error {
 	return nil
 }
 
-func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, isSilent bool) error {
-	if cloneOpts.Auth.Password == "" && !isSilent {
+func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) error {
+	if !store.Get().Silent {
+		runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+		if err != nil {
+			return err
+		}
+
+		if len(runtimes) == 0 {
+			return fmt.Errorf("No runtimes were found")
+		}
+
+		runtimeNames := make([]string, len(runtimes))
+
+		for index, rt := range runtimes {
+			runtimeNames[index] = rt.Metadata.Name
+		}
+
+		templates := &promptui.SelectTemplates{
+			Selected:  "{{ . | yellow }} ",
+		}
+
+		prompt := promptui.Select{
+			Label: "\033[34mSelect runtime\033[0m",
+			Items: runtimeNames,
+			Templates: templates,
+		}
+		
+		_, result, err := prompt.Run()
+		if err != nil {
+			return fmt.Errorf("Prompt error: %w", err)
+		}
+
+		*runtimeName = result
+	}
+	return nil
+}
+
+func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		return getGitTokenFromUserInput(cmd, cloneOpts)
 	}
 	return nil
@@ -148,12 +185,12 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-func ensureGitSourceName(ctx context.Context, args []string, gitSourceName *string, isSilent bool) error {
+func ensureGitSourceName(ctx context.Context, args []string, gitSourceName *string) error {
 	if len(args) > 1 {
 		*gitSourceName = args[1]	
 	}
 	if *gitSourceName == "" {
-		if !isSilent {
+		if !store.Get().Silent {
 			return getGitSourceNameFromUserInput(gitSourceName)
 		}
 		log.G(ctx).Fatal("must enter a git-source name")

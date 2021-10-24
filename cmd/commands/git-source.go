@@ -125,12 +125,12 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			err = ensureGitSourceName(ctx, args, &gitSourceName, store.Get().Silent)
+			err = ensureGitSourceName(ctx, args, &gitSourceName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -152,11 +152,11 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, store.Get().Silent, true)
+			err = ensureRepo(cmd, runtimeName, insCloneOpts, true)
 			if err != nil {
 				return err
 			}
-			err = ensureGitToken(cmd, insCloneOpts, store.Get().Silent)
+			err = ensureGitToken(cmd, insCloneOpts)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -402,7 +402,7 @@ func NewGitSourceListCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -496,22 +496,22 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			err = ensureGitSourceName(ctx, args, &gitSourceName, store.Get().Silent)
+			err = ensureGitSourceName(ctx, args, &gitSourceName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, store.Get().Silent, true)
+			err = ensureRepo(cmd, runtimeName, insCloneOpts, true)
 			if err != nil {
 				return err
 			}
 
-			err = ensureGitToken(cmd, insCloneOpts, store.Get().Silent)
+			err = ensureGitToken(cmd, insCloneOpts)
 			if err != nil {
 				return err
 			}
@@ -589,12 +589,12 @@ func NewGitSourceEditCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			err = ensureGitSourceName(ctx, args, &gitSourceName, store.Get().Silent)
+			err = ensureGitSourceName(ctx, args, &gitSourceName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -603,7 +603,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, store.Get().Silent, true)
+			err = ensureRepo(cmd, runtimeName, insCloneOpts, true)
 			if err != nil {
 				return err
 			}

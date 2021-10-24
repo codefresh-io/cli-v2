@@ -141,17 +141,26 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			if len(args) > 0 {
+				runtimeName = args[0]
+			}
+			if !store.Get().Silent {
+				err := getRuntimeNameFromUserInput(&runtimeName)
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
+			}
+		
+			if runtimeName == "" {
+				log.G(ctx).Fatal("must enter a runtime name")
+			}
+
+			err := ensureRepo(cmd, runtimeName, insCloneOpts, false)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, store.Get().Silent, false)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			err = ensureGitToken(cmd, insCloneOpts, store.Get().Silent)
+			err = ensureGitToken(cmd, insCloneOpts)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -627,17 +636,17 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			err = ensureRepo(cmd, runtimeName, cloneOpts, store.Get().Silent, true)
+			err = ensureRepo(cmd, runtimeName, cloneOpts, true)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 			
-			err = ensureGitToken(cmd, cloneOpts, store.Get().Silent)
+			err = ensureGitToken(cmd, cloneOpts)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -767,15 +776,15 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName, store.Get().Silent)
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			err = ensureRepo(cmd, runtimeName, cloneOpts, store.Get().Silent, true)
+			err = ensureRepo(cmd, runtimeName, cloneOpts, true)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			err = ensureGitToken(cmd, cloneOpts, store.Get().Silent)
+			err = ensureGitToken(cmd, cloneOpts)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
