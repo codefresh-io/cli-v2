@@ -185,33 +185,42 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-func getApprovalFromUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
+func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
 	if !store.Get().Silent {
-		isApproved, err := promptSummaryToUser(ctx, finalParameters)
+		isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
 		if err != nil {
 			return false, fmt.Errorf("%w", err)
 		}
 
 		if !isApproved {
-			log.G(ctx).Info("command was cancelled by user")
+			log.G(ctx).Printf("%v command was cancelled by user", description)
 			return false, nil
 		}
 	}
 	return true, nil
 }
 
-func promptSummaryToUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
+func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
+	green := "\033[32m"
+	blue := "\033[34m"
+	colorReset := "\033[0m"
+	bold := "\033[1m"
+	underline := "\033[4m"
+	resetUnderline := "\033[24m"
+	resetBold := "\033[22m"
+	
 	templates := &promptui.SelectTemplates{
 		Selected:  "{{ . | yellow }} ",
 	}
-	promptStr := "\033[4m\033[1m\033[32mSummary\033[24m\033[22m"
+	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", green, bold, underline, colorReset, resetBold, resetUnderline)
+	labelStr := fmt.Sprintf("%vDo you wish to continue to %v ?%v", blue, description, colorReset)
 
 	for key, value := range finalParameters {
-		promptStr += fmt.Sprintf("\n\033[32m%v: \033[0m%v", key, value)
+		promptStr += fmt.Sprintf("\n%v%v: %v%v", green, key, colorReset, value)
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{
-		Label: "\033[34mDo you wish to continue ?\033[0m",
+		Label: labelStr,
 		Items: []string{"Yes", "No"},
 		Templates: templates,
 	}

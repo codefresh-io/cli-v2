@@ -184,7 +184,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters)
+			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime install")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -662,7 +662,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters)
+			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -804,7 +804,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			)
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters)
+			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
