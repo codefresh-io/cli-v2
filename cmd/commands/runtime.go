@@ -144,7 +144,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			if len(args) > 0 {
 				runtimeName = args[0]
 			}
-			if !store.Get().Silent {
+			if !store.Get().Silent && runtimeName == "" {
 				err := getRuntimeNameFromUserInput(&runtimeName)
 				if err != nil {
 					return fmt.Errorf("%w", err)
