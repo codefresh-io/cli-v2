@@ -68,7 +68,6 @@ type Config struct {
 	requestTimeout  time.Duration
 	CurrentContext  string                 `mapstructure:"current-context" json:"current-context"`
 	Contexts        map[string]AuthContext `mapstructure:"contexts" json:"contexts"`
-	silent          bool
 }
 
 type AuthContext struct {
