@@ -109,11 +109,8 @@ func NewGitSourceCommand() *cobra.Command {
 
 func NewGitSourceCreateCommand() *cobra.Command {
 	var (
-		runtimeName     string
-		gitSourceName   string
-		insCloneOpts    *git.CloneOptions
-		gsCloneOpts     *git.CloneOptions
-		finalParameters map[string]string
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -125,21 +122,24 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			err = ensureGitSourceName(ctx, args, &gitSourceName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if gitSourceName == "" {
+			if len(args) < 2 {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			isValid, err := IsValid(gitSourceName)
+			if gsCloneOpts.Repo == "" {
+				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+			}
+
+			err := ensureRepo(cmd, args[0], insCloneOpts, true)
+			if err != nil {
+				return err
+			}
+
+			isValid, err := IsValid(args[1])
 			if err != nil {
 				log.G(ctx).Fatal("failed to check the validity of the git-source name")
 			}
@@ -148,27 +148,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("git-source name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
 			}
 
-			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
-			}
-
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, true)
-			if err != nil {
-				return err
-			}
-			err = ensureGitToken(cmd, insCloneOpts)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
-			}
-
-			finalParameters = map[string]string{
-				"Runtime name":    runtimeName,
-				"Git-source name": gitSourceName,
-				"Repository URL":  insCloneOpts.Repo,
 			}
 
 			insCloneOpts.Parse()
@@ -178,15 +159,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if !isApproved {
-				return nil
-			}
-
 			if err := verifyLatestVersion(ctx); err != nil {
 				return err
 			}
@@ -194,8 +166,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 				InsCloneOpts:        insCloneOpts,
 				GsCloneOpts:         gsCloneOpts,
-				GsName:              gitSourceName,
-				RuntimeName:         runtimeName,
+				GsName:              args[1],
+				RuntimeName:         args[0],
 				CreateDemoResources: false,
 			})
 		},
@@ -394,20 +366,14 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 }
 
 func NewGitSourceListCommand() *cobra.Command {
-	var runtimeName string
 	cmd := &cobra.Command{
 		Use:     "list runtime_name",
 		Short:   "List all Codefresh git-sources of a given runtime",
 		Example: util.Doc(`<BIN> git-source list my-runtime`),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			err := ensureRuntimeName(ctx, args, &runtimeName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if len(args) < 1 {
+				log.G(cmd.Context()).Fatal("must enter runtime name")
 			}
-
-			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -416,7 +382,7 @@ func NewGitSourceListCommand() *cobra.Command {
 				return err
 			}
 
-			return RunGitSourceList(ctx, runtimeName)
+			return RunGitSourceList(ctx, args[0])
 		},
 	}
 	return cmd
@@ -481,10 +447,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string) error {
 
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
-		runtimeName     string
-		gitSourceName   string
-		insCloneOpts    *git.CloneOptions
-		finalParameters map[string]string
+		insCloneOpts *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -496,29 +459,17 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter runtime name")
 			}
 
-			err = ensureGitSourceName(ctx, args, &gitSourceName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+			if len(args) < 2 {
+				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, true)
+			err := ensureRepo(cmd, args[0], insCloneOpts, true)
 			if err != nil {
 				return err
-			}
-
-			err = ensureGitToken(cmd, insCloneOpts)
-			if err != nil {
-				return err
-			}
-
-			finalParameters = map[string]string{
-				"Runtime name":    runtimeName,
-				"Git-source name": gitSourceName,
 			}
 
 			insCloneOpts.Parse()
@@ -527,22 +478,13 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if !isApproved {
-				return nil
-			}
-
 			if err := verifyLatestVersion(ctx); err != nil {
 				return err
 			}
 
 			return RunGitSourceDelete(ctx, &GitSourceDeleteOptions{
-				RuntimeName:  runtimeName,
-				GsName:       gitSourceName,
+				RuntimeName:  args[0],
+				GsName:       args[1],
 				Timeout:      aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 				InsCloneOpts: insCloneOpts,
 			})
@@ -573,11 +515,8 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 func NewGitSourceEditCommand() *cobra.Command {
 	var (
-		runtimeName   string
-		gitSourceName string
-		insCloneOpts  *git.CloneOptions
-		gsCloneOpts   *git.CloneOptions
-		finalParameters map[string]string
+		insCloneOpts *git.CloneOptions
+		gsCloneOpts  *git.CloneOptions
 	)
 
 	cmd := &cobra.Command{
@@ -589,28 +528,21 @@ func NewGitSourceEditCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+			if len(args) < 1 {
+				log.G(ctx).Fatal("must enter a runtime name")
 			}
 
-			err = ensureGitSourceName(ctx, args, &gitSourceName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+			if len(args) < 2 {
+				log.G(ctx).Fatal("must enter a git-source name")
 			}
 
 			if gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, true)
+			err := ensureRepo(cmd, args[0], insCloneOpts, true)
 			if err != nil {
 				return err
-			}
-
-			finalParameters = map[string]string{
-				"Runtime name":    runtimeName,
-				"Git-source name": gitSourceName,
 			}
 
 			insCloneOpts.Parse()
@@ -620,22 +552,13 @@ func NewGitSourceEditCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if !isApproved {
-				return nil
-			}
-
 			if err := verifyLatestVersion(ctx); err != nil {
 				return err
 			}
 
 			return RunGitSourceEdit(ctx, &GitSourceEditOptions{
-				RuntimeName:  runtimeName,
-				GsName:       gitSourceName,
+				RuntimeName:  args[0],
+				GsName:       args[1],
 				InsCloneOpts: insCloneOpts,
 				GsCloneOpts:  gsCloneOpts,
 			})

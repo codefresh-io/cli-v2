@@ -185,31 +185,6 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-func ensureGitSourceName(ctx context.Context, args []string, gitSourceName *string) error {
-	if len(args) > 1 {
-		*gitSourceName = args[1]	
-	}
-	if *gitSourceName == "" {
-		if !store.Get().Silent {
-			return getGitSourceNameFromUserInput(gitSourceName)
-		}
-		log.G(ctx).Fatal("must enter a git-source name")
-	}
-	return nil
-}
-
-func getGitSourceNameFromUserInput(gitSourceName *string) error {
-	gitSourceNamePrompt := promptui.Prompt{
-		Label: "Git-source name",
-	}
-	gitSourceNameInput, err := gitSourceNamePrompt.Run()
-	if err != nil {
-		return fmt.Errorf("Prompt error: %w", err)
-	}
-	*gitSourceName = gitSourceNameInput
-	return nil
-}
-
 func getApprovalFromUser(ctx context.Context, finalParameters map[string]string) (bool, error) {
 	if !store.Get().Silent {
 		isApproved, err := promptSummaryToUser(ctx, finalParameters)
