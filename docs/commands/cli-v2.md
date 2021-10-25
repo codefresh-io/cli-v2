@@ -27,6 +27,7 @@ cli-v2 [flags]
   -h, --help                       help for cli-v2
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
       --request-timeout duration   Request timeout (default 30s)
+      --silent                     Disables the command wizard
 ```
 
 ### SEE ALSO
