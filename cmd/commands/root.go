@@ -49,7 +49,7 @@ variables in advanced to simplify the use of those commands.
 
 	cfConfig = config.AddFlags(cmd.PersistentFlags())
 	cmd.PersistentFlags().BoolVar(&silent, "silent", false, "Disables the command wizard")
-
+		
 	cmd.AddCommand(NewVersionCommand())
 	cmd.AddCommand(NewConfigCommand())
 	cmd.AddCommand(NewRuntimeCommand())
