@@ -185,56 +185,56 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-// func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
-// 	if !store.Get().Silent {
-// 		isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
-// 		if err != nil {
-// 			return false, fmt.Errorf("%w", err)
-// 		}
+func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
+	if !store.Get().Silent {
+		isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
+		if err != nil {
+			return false, fmt.Errorf("%w", err)
+		}
 
-// 		if !isApproved {
-// 			log.G(ctx).Printf("%v command was cancelled by user", description)
-// 			return false, nil
-// 		}
-// 	}
-// 	return true, nil
-// }
+		if !isApproved {
+			log.G(ctx).Printf("%v command was cancelled by user", description)
+			return false, nil
+		}
+	}
+	return true, nil
+}
 
-// func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
-// 	green := "\033[32m"
-// 	blue := "\033[34m"
-// 	colorReset := "\033[0m"
-// 	bold := "\033[1m"
-// 	underline := "\033[4m"
-// 	resetUnderline := "\033[24m"
-// 	resetBold := "\033[22m"
+func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
+	green := "\033[32m"
+	blue := "\033[34m"
+	colorReset := "\033[0m"
+	bold := "\033[1m"
+	underline := "\033[4m"
+	resetUnderline := "\033[24m"
+	resetBold := "\033[22m"
 	
-// 	templates := &promptui.SelectTemplates{
-// 		Selected:  "{{ . | yellow }} ",
-// 	}
-// 	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", green, bold, underline, colorReset, resetBold, resetUnderline)
-// 	labelStr := fmt.Sprintf("%vDo you wish to continue to %v ?%v", blue, description, colorReset)
+	templates := &promptui.SelectTemplates{
+		Selected:  "{{ . | yellow }} ",
+	}
+	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", green, bold, underline, colorReset, resetBold, resetUnderline)
+	labelStr := fmt.Sprintf("%vDo you wish to continue to %v ?%v", blue, description, colorReset)
 
-// 	for key, value := range finalParameters {
-// 		promptStr += fmt.Sprintf("\n%v%v: %v%v", green, key, colorReset, value)
-// 	}
-// 	log.G(ctx).Printf(promptStr)
-// 	prompt := promptui.Select{
-// 		Label: labelStr,
-// 		Items: []string{"Yes", "No"},
-// 		Templates: templates,
-// 	}
+	for key, value := range finalParameters {
+		promptStr += fmt.Sprintf("\n%v%v: %v%v", green, key, colorReset, value)
+	}
+	log.G(ctx).Printf(promptStr)
+	prompt := promptui.Select{
+		Label: labelStr,
+		Items: []string{"Yes", "No"},
+		Templates: templates,
+	}
 	
-// 	_, result, err := prompt.Run()
-// 	if err != nil {
-// 		return false, fmt.Errorf("Prompt error: %w", err)
-// 	}
+	_, result, err := prompt.Run()
+	if err != nil {
+		return false, fmt.Errorf("Prompt error: %w", err)
+	}
 
-// 	if result == "Yes" {
-// 		return true, nil
-// 	}
-// 	return false, nil
-// }
+	if result == "Yes" {
+		return true, nil
+	}
+	return false, nil
+}
 
 func verifyLatestVersion(ctx context.Context) error {
 	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
