@@ -118,7 +118,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
-		finalParameters map[string]string
+		//finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -169,10 +169,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
 
-			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
-				"Repository URL": insCloneOpts.Repo,
-			}
+			// finalParameters = map[string]string{
+			// 	"Runtime name": runtimeName,
+			// 	"Repository URL": insCloneOpts.Repo,
+			// }
 
 			insCloneOpts.Parse()
 			return nil
@@ -184,14 +184,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime install")
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
+			// isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime install")
+			// if err != nil {
+			// 	return fmt.Errorf("%w", err)
+			// }
 
-			if !isApproved {
-				return nil
-			}
+			// if !isApproved {
+			// 	return nil
+			// }
 
 			isValid, err := IsValid(runtimeName)
 			if err != nil {
@@ -613,7 +613,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		cloneOpts       *git.CloneOptions
 		force           bool
 		fastExit        bool
-		finalParameters map[string]string
+		//finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -651,10 +651,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 			
-			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
-				"Repository URL": cloneOpts.Repo,
-			}
+			// finalParameters = map[string]string{
+			// 	"Runtime name": runtimeName,
+			// 	"Repository URL": cloneOpts.Repo,
+			// }
 
 			cloneOpts.Parse()
 			return nil
@@ -662,14 +662,14 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
+			// isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
+			// if err != nil {
+			// 	return fmt.Errorf("%w", err)
+			// }
 
-			if !isApproved {
-				return nil
-			}
+			// if !isApproved {
+			// 	return nil
+			// }
 
 			if err := verifyLatestVersion(ctx); err != nil {
 				return err
@@ -753,7 +753,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		runtimeName string
 		versionStr  string
 		cloneOpts   *git.CloneOptions
-		finalParameters map[string]string
+		//finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -789,10 +789,10 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 
-			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
-				"Repository URL": cloneOpts.Repo,
-			}
+			// finalParameters = map[string]string{
+			// 	"Runtime name": runtimeName,
+			// 	"Repository URL": cloneOpts.Repo,
+			// }
 
 			cloneOpts.Parse()
 			return nil
@@ -804,14 +804,14 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			)
 			ctx := cmd.Context()
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
+			// isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
+			// if err != nil {
+			// 	return fmt.Errorf("%w", err)
+			// }
 
-			if !isApproved {
-				return nil
-			}
+			// if !isApproved {
+			// 	return nil
+			// }
 
 			if versionStr != "" {
 				version, err = semver.NewVersion(versionStr)
