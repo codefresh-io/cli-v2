@@ -24,6 +24,7 @@ import (
 
 func NewRoot() *cobra.Command {
 	s := store.Get()
+	var silent bool
 
 	cmd := &cobra.Command{
 		Use:   s.BinaryName,
@@ -47,6 +48,7 @@ variables in advanced to simplify the use of those commands.
 	}
 
 	cfConfig = config.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().BoolVar(&silent, "silent", false, "Disables the command wizard")
 
 	cmd.AddCommand(NewVersionCommand())
 	cmd.AddCommand(NewConfigCommand())
