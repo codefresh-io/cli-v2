@@ -244,7 +244,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&ingressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
-	cmd.Flags().BoolVar(&sampleInstall, "sample-install", true, "Installs samples resources, defaults to true")
+	cmd.Flags().BoolVar(&sampleInstall, "sample-install", true, "Installs sample resources, defaults to true")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
