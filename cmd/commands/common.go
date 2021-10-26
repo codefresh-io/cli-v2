@@ -42,6 +42,14 @@ var (
 	ingressPatch []byte
 
 	cfConfig *config.Config
+
+	GREEN = "\033[32m"
+	BLUE = "\033[34m"
+	BOLD = "\033[1m"
+	UNDERLINE = "\033[4m"
+	COLOR_RESET = "\033[0m"
+	UNDERLINE_RESET = "\033[24m"
+	BOLD_RESET = "\033[22m"
 )
 
 func postInitCommands(commands []*cobra.Command) {
@@ -201,22 +209,14 @@ func getApprovalFromUser(ctx context.Context, finalParameters map[string]string,
 }
 
 func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
-	green := "\033[32m"
-	blue := "\033[34m"
-	colorReset := "\033[0m"
-	bold := "\033[1m"
-	underline := "\033[4m"
-	resetUnderline := "\033[24m"
-	resetBold := "\033[22m"
-	
 	templates := &promptui.SelectTemplates{
 		Selected:  "{{ . | yellow }} ",
 	}
-	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", green, bold, underline, colorReset, resetBold, resetUnderline)
-	labelStr := fmt.Sprintf("%vDo you wish to continue to %v ?%v", blue, description, colorReset)
+	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", GREEN, BOLD, UNDERLINE, COLOR_RESET, BOLD_RESET, UNDERLINE_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to continue to %v ?%v", BLUE, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
-		promptStr += fmt.Sprintf("\n%v%v: %v%v", green, key, colorReset, value)
+		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{
