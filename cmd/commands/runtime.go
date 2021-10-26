@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -63,15 +64,16 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName  string
-		RuntimeToken string
-		IngressHost  string
-		Insecure     bool
-		Version      *semver.Version
-		GsCloneOpts  *git.CloneOptions
-		InsCloneOpts *git.CloneOptions
-		KubeFactory  kube.Factory
-		CommonConfig *runtime.CommonConfig
+		RuntimeName   string
+		RuntimeToken  string
+		IngressHost   string
+		Insecure      bool
+		SampleInstall bool
+		Version       *semver.Version
+		GsCloneOpts   *git.CloneOptions
+		InsCloneOpts  *git.CloneOptions
+		KubeFactory   kube.Factory
+		CommonConfig  *runtime.CommonConfig
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -113,12 +115,13 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		runtimeName  string
-		ingressHost  string
-		versionStr   string
-		f            kube.Factory
-		insCloneOpts *git.CloneOptions
-		gsCloneOpts  *git.CloneOptions
+		runtimeName     string
+		ingressHost     string
+		versionStr      string
+		f               kube.Factory
+		insCloneOpts    *git.CloneOptions
+		gsCloneOpts     *git.CloneOptions
+		sampleInstall   bool
 		finalParameters map[string]string
 	)
 
@@ -145,14 +148,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			if len(args) > 0 {
 				runtimeName = args[0]
 			}
-			
+
 			if !store.Get().Silent && runtimeName == "" {
 				err := getRuntimeNameFromUserInput(&runtimeName)
 				if err != nil {
 					return fmt.Errorf("%w", err)
 				}
 			}
-		
+
 			if runtimeName == "" {
 				log.G(ctx).Fatal("must enter a runtime name")
 			}
@@ -167,13 +170,19 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 
+			err = askUserIfToInstallCodefreshSamples(cmd, &sampleInstall)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
+				"Runtime name":   runtimeName,
 				"Repository URL": insCloneOpts.Repo,
+				"Installing sample resources": strconv.FormatBool(sampleInstall),
 			}
 
 			insCloneOpts.Parse()
@@ -218,13 +227,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			gsCloneOpts.Parse()
 
 			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
-				RuntimeName:  runtimeName,
-				IngressHost:  ingressHost,
-				Version:      version,
-				Insecure:     true,
-				GsCloneOpts:  gsCloneOpts,
-				InsCloneOpts: insCloneOpts,
-				KubeFactory:  f,
+				RuntimeName:   runtimeName,
+				IngressHost:   ingressHost,
+				Version:       version,
+				Insecure:      true,
+				SampleInstall: sampleInstall,
+				GsCloneOpts:   gsCloneOpts,
+				InsCloneOpts:  insCloneOpts,
+				KubeFactory:   f,
 				CommonConfig: &runtime.CommonConfig{
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
@@ -234,6 +244,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&ingressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
+	cmd.Flags().BoolVar(&sampleInstall, "sample-install", true, "Installs sample resources, defaults to true")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
@@ -366,7 +377,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsCloneOpts:         opts.GsCloneOpts,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: true,
+		CreateDemoResources: opts.SampleInstall,
 	}); err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -647,14 +658,14 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			
+
 			err = ensureGitToken(cmd, cloneOpts)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			
+
 			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
+				"Runtime name":   runtimeName,
 				"Repository URL": cloneOpts.Repo,
 			}
 
@@ -752,9 +763,9 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		runtimeName string
-		versionStr  string
-		cloneOpts   *git.CloneOptions
+		runtimeName     string
+		versionStr      string
+		cloneOpts       *git.CloneOptions
 		finalParameters map[string]string
 	)
 
@@ -792,7 +803,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name": runtimeName,
+				"Runtime name":   runtimeName,
 				"Repository URL": cloneOpts.Repo,
 			}
 
