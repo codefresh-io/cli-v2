@@ -157,8 +157,10 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 			Selected:  "{{ . | yellow }} ",
 		}
 
+		labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
+
 		prompt := promptui.Select{
-			Label: "\033[34mSelect runtime\033[0m",
+			Label: labelStr,
 			Items: runtimeNames,
 			Templates: templates,
 		}
