@@ -157,8 +157,10 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 			Selected:  "{{ . | yellow }} ",
 		}
 
+		labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
+
 		prompt := promptui.Select{
-			Label: "\033[34mSelect runtime\033[0m",
+			Label: labelStr,
 			Items: runtimeNames,
 			Templates: templates,
 		}
@@ -213,7 +215,7 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 		Selected:  "{{ . | yellow }} ",
 	}
 	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", GREEN, BOLD, UNDERLINE, COLOR_RESET, BOLD_RESET, UNDERLINE_RESET)
-	labelStr := fmt.Sprintf("%vDo you wish to continue to %v?%v", CYAN, description, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to continue with %v?%v", CYAN, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
 		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
