@@ -9,7 +9,8 @@ cli-v2 runtime [flags]
 ### Options
 
 ```
-  -h, --help   help for runtime
+  -h, --help     help for runtime
+      --silent   Disables the command wizard
 ```
 
 ### Options inherited from parent commands
@@ -19,7 +20,6 @@ cli-v2 runtime [flags]
       --cfconfig string            Custom path for authentication contexts config file (default "/home/user")
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
       --request-timeout duration   Request timeout (default 30s)
-      --silent                     Disables the command wizard
 ```
 
 ### SEE ALSO

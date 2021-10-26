@@ -106,17 +106,20 @@ func NewRuntimeCommand() *cobra.Command {
 	cmd.AddCommand(NewRuntimeListCommand())
 	cmd.AddCommand(NewRuntimeUninstallCommand())
 	cmd.AddCommand(NewRuntimeUpgradeCommand())
+	cmd.PersistentFlags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
 
 	return cmd
 }
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		runtimeName  string
 		ingressHost  string
 		versionStr   string
 		f            kube.Factory
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -136,25 +139,63 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	<BIN> runtime install runtime-name --repo gitops_repo
 `),
-		PreRun: func(_ *cobra.Command, _ []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			if len(args) > 0 {
+				runtimeName = args[0]
+			}
+			
+			if !store.Get().Silent && runtimeName == "" {
+				err := getRuntimeNameFromUserInput(&runtimeName)
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
+			}
+		
+			if runtimeName == "" {
+				log.G(ctx).Fatal("must enter a runtime name")
+			}
+
+			err := ensureRepo(cmd, runtimeName, insCloneOpts, false)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			err = ensureGitToken(cmd, insCloneOpts)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			if gsCloneOpts.Auth.Password == "" {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
 
+			finalParameters = map[string]string{
+				"Runtime name": runtimeName,
+				"Repository URL": insCloneOpts.Repo,
+			}
+
 			insCloneOpts.Parse()
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
 				version *semver.Version
-				err     error
 			)
 
 			ctx := cmd.Context()
-			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+
+			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime install")
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 
-			isValid, err := IsValid(args[0])
+			if !isApproved {
+				return nil
+			}
+
+			isValid, err := IsValid(runtimeName)
 			if err != nil {
 				log.G(ctx).Fatal("failed to check the validity of the runtime name")
 			}
@@ -170,7 +211,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				}
 			}
 
-			runtimeName := args[0]
 			if gsCloneOpts.Repo == "" {
 				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
 				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + runtimeName
@@ -502,6 +542,7 @@ func NewRuntimeListCommand() *cobra.Command {
 			return RunRuntimeList(ctx)
 		},
 	}
+
 	return cmd
 }
 
@@ -568,11 +609,13 @@ func RunRuntimeList(ctx context.Context) error {
 
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
-		skipChecks bool
-		f          kube.Factory
-		cloneOpts  *git.CloneOptions
-		force      bool
-		fastExit   bool
+		runtimeName     string
+		skipChecks      bool
+		f               kube.Factory
+		cloneOpts       *git.CloneOptions
+		force           bool
+		fastExit        bool
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -593,18 +636,41 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	<BIN> runtime uninstall runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			err := ensureRepo(cmd, args, cloneOpts)
+			ctx := cmd.Context()
+
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w", err)
 			}
+
+			err = ensureRepo(cmd, runtimeName, cloneOpts, true)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			
+			err = ensureGitToken(cmd, cloneOpts)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			
+			finalParameters = map[string]string{
+				"Runtime name": runtimeName,
+				"Repository URL": cloneOpts.Repo,
+			}
+
 			cloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			if !isApproved {
+				return nil
 			}
 
 			if err := verifyLatestVersion(ctx); err != nil {
@@ -612,7 +678,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			return RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-				RuntimeName: args[0],
+				RuntimeName: runtimeName,
 				Timeout:     store.Get().WaitTimeout,
 				CloneOpts:   cloneOpts,
 				KubeFactory: f,
@@ -686,8 +752,10 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		versionStr string
-		cloneOpts  *git.CloneOptions
+		runtimeName string
+		versionStr  string
+		cloneOpts   *git.CloneOptions
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -708,10 +776,26 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			err := ensureRepo(cmd, args, cloneOpts)
+			ctx := cmd.Context()
+
+			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w", err)
 			}
+			err = ensureRepo(cmd, runtimeName, cloneOpts, true)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			err = ensureGitToken(cmd, cloneOpts)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			finalParameters = map[string]string{
+				"Runtime name": runtimeName,
+				"Repository URL": cloneOpts.Repo,
+			}
+
 			cloneOpts.Parse()
 			return nil
 		},
@@ -722,8 +806,13 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			)
 			ctx := cmd.Context()
 
-			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			if !isApproved {
+				return nil
 			}
 
 			if versionStr != "" {
@@ -738,7 +827,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			return RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
-				RuntimeName: args[0],
+				RuntimeName: runtimeName,
 				Version:     version,
 				CloneOpts:   cloneOpts,
 				CommonConfig: &runtime.CommonConfig{
