@@ -106,6 +106,7 @@ func NewRuntimeCommand() *cobra.Command {
 	cmd.AddCommand(NewRuntimeListCommand())
 	cmd.AddCommand(NewRuntimeUninstallCommand())
 	cmd.AddCommand(NewRuntimeUpgradeCommand())
+	cmd.PersistentFlags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
 
 	return cmd
 }
