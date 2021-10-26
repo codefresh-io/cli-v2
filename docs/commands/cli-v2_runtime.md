@@ -9,7 +9,8 @@ cli-v2 runtime [flags]
 ### Options
 
 ```
-  -h, --help   help for runtime
+  -h, --help     help for runtime
+      --silent   Disables the command wizard
 ```
 
 ### Options inherited from parent commands

@@ -106,6 +106,7 @@ type Store struct {
 	GithubAccessTokenSecretObjectName    string
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
+	Silent 								 bool
 }
 
 // Get returns the global store
