@@ -44,7 +44,7 @@ var (
 	cfConfig *config.Config
 
 	GREEN = "\033[32m"
-	BLUE = "\033[34m"
+	CYAN = "\033[36m"
 	BOLD = "\033[1m"
 	UNDERLINE = "\033[4m"
 	COLOR_RESET = "\033[0m"
@@ -213,7 +213,7 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 		Selected:  "{{ . | yellow }} ",
 	}
 	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", GREEN, BOLD, UNDERLINE, COLOR_RESET, BOLD_RESET, UNDERLINE_RESET)
-	labelStr := fmt.Sprintf("%vDo you wish to continue to %v ?%v", BLUE, description, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to continue to %v?%v", CYAN, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
 		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
