@@ -5,10 +5,10 @@ metadata:
     app: cap-app-proxy
   name: cap-app-proxy
 spec:
-  ports:
-    - name: web
-      port: 2746
-      protocol: TCP
-      targetPort: 2746
   selector:
     app: cap-app-proxy
+  ports:
+    - name: http
+      port: 3017
+      protocol: TCP
+      targetPort: http

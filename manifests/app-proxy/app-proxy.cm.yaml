@@ -3,4 +3,5 @@ kind: ConfigMap
 metadata:
   name: cap-app-proxy-cm
 data:
-  apiPrefix: "/"
+  apiPrefix: "/app-proxy"
+  env: production

@@ -22,11 +22,21 @@ spec:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
                   key: apiPrefix
+                  optional: true
             - name: V1_HOST
               valueFrom:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
                   key: v1host
+                  optional: true
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: env
+                  optional: true
+            - name: PORT
+              value: "80"
           image: quay.io/codefresh/cap-app-proxy
           imagePullPolicy: Always
           name: cap-app-proxy
@@ -41,7 +51,6 @@ spec:
           ports:
             - name: http
               containerPort: 80
-              protocol: tcp
           resources:
             requests:
               memory: "256Mi"

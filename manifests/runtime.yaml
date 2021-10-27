@@ -21,3 +21,6 @@ spec:
     - name: argocd-agent
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-agent
+    - name: app-proxy
+      type: kustomize
+      url: manifests/app-proxy

@@ -180,8 +180,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name":   runtimeName,
-				"Repository URL": insCloneOpts.Repo,
+				"Runtime name":                runtimeName,
+				"Repository URL":              insCloneOpts.Repo,
 				"Installing sample resources": strconv.FormatBool(sampleInstall),
 			}
 
@@ -418,6 +418,10 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		if err = createWorkflowsIngress(ctx, opts.InsCloneOpts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
+	}
+
+	if err = configureAppProxy(ctx, opts, rt); err != nil {
+		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
 	}
 
 	if err = createCodefreshArgoAgentReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
@@ -925,7 +929,7 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:      rt.Name + store.Get().IngressName,
+		Name:      rt.Name + store.Get().WorkflowsIngressName,
 		Namespace: rt.Namespace,
 		Annotations: map[string]string{
 			"kubernetes.io/ingress.class":                  "nginx",
@@ -934,7 +938,7 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 		},
 		Paths: []ingressutil.IngressPath{
 			{
-				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().IngressPath),
+				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
 				PathType:    netv1.PathTypePrefix,
 				ServiceName: store.Get().ArgoWFServiceName,
 				ServicePort: store.Get().ArgoWFServicePort,
@@ -945,7 +949,7 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 		return err
 	}
 
-	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), ingressPatch, 0666); err != nil {
+	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
 		return err
 	}
 
@@ -975,6 +979,64 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 	log.G(ctx).Info("Pushing Argo Workflows ingress manifests")
 
 	return apu.PushWithMessage(ctx, r, "Created Workflows Ingress")
+}
+
+func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	overlaysDir := fs.Join(apstore.Default.AppsDir, "app-proxy", apstore.Default.OverlaysDir, rt.Name)
+
+	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
+	if err != nil {
+		return err
+	}
+
+	// configure codefresh host
+	kust.ConfigMapGenerator = append(kust.ConfigMapGenerator, kusttypes.ConfigMapArgs{
+		GeneratorArgs: kusttypes.GeneratorArgs{
+			Name:     store.Get().AppProxyServiceName + "-cm",
+			Behavior: "merge",
+			KvPairSources: kusttypes.KvPairSources{
+				LiteralSources: []string{fmt.Sprintf("v1host=%s", cfConfig.GetCurrentContext().URL)},
+			},
+		},
+	})
+
+	if opts.IngressHost != "" {
+		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+			Name:      rt.Name + store.Get().AppProxyIngressName,
+			Namespace: rt.Namespace,
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":                  "nginx",
+				"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+				"nginx.ingress.kubernetes.io/backend-protocol": "http",
+			},
+			Paths: []ingressutil.IngressPath{
+				{
+					Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().AppProxyIngressPath),
+					PathType:    netv1.PathTypePrefix,
+					ServiceName: store.Get().AppProxyServiceName,
+					ServicePort: store.Get().AppProxyServicePort,
+				},
+			},
+		})
+		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
+			return err
+		}
+
+		kust.Resources = append(kust.Resources, "ingress.yaml")
+	}
+
+	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing App-Proxy ingress manifests")
+
+	return apu.PushWithMessage(ctx, r, "Created App-Proxy Ingress")
 }
 
 func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {

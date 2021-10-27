@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - app-proxy.deploy.yaml
   - app-proxy.svc.yaml
-  - app-proxy.ing.yaml
   - app-proxy.sa.yaml
   - app-proxy.role.yaml
   - app-proxy.rb.yaml
