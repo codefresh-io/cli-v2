@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - app-proxy.deploy.yaml
+  - app-proxy.svc.yaml
+  - app-proxy.ing.yaml
+  - app-proxy.sa.yaml
+  - app-proxy.role.yaml
+  - app-proxy.rb.yaml
+  - app-proxy.cm.yaml
