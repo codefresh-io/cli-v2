@@ -28,4 +28,4 @@ configMapGenerator:
 - name: workflow-controller-configmap
   behavior: merge
   literals:
-   - containerRuntimeExecutor=emissary
+    - containerRuntimeExecutor=emissary
