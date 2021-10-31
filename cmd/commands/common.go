@@ -38,18 +38,18 @@ var (
 	die  = util.Die
 	exit = os.Exit
 
-	//go:embed assets/ingress-patch.json
-	ingressPatch []byte
+	//go:embed assets/workflows-ingress-patch.json
+	workflowsIngressPatch []byte
 
 	cfConfig *config.Config
 
-	GREEN = "\033[32m"
-	CYAN = "\033[36m"
-	BOLD = "\033[1m"
-	UNDERLINE = "\033[4m"
-	COLOR_RESET = "\033[0m"
+	GREEN           = "\033[32m"
+	CYAN            = "\033[36m"
+	BOLD            = "\033[1m"
+	UNDERLINE       = "\033[4m"
+	COLOR_RESET     = "\033[0m"
 	UNDERLINE_RESET = "\033[24m"
-	BOLD_RESET = "\033[22m"
+	BOLD_RESET      = "\033[22m"
 )
 
 func postInitCommands(commands []*cobra.Command) {
@@ -77,17 +77,17 @@ func IsValid(s string) (bool, error) {
 func askUserIfToInstallCodefreshSamples(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
 		templates := &promptui.SelectTemplates{
-			Selected:  "{{ . | yellow }} ",
+			Selected: "{{ . | yellow }} ",
 		}
 
 		labelStr := fmt.Sprintf("%vInstall codefresh samples?%v", CYAN, COLOR_RESET)
 
 		prompt := promptui.Select{
-			Label: labelStr,
-			Items: []string {"Yes (default)", "No"},
+			Label:     labelStr,
+			Items:     []string{"Yes (default)", "No"},
 			Templates: templates,
 		}
-		
+
 		_, result, err := prompt.Run()
 		if err != nil {
 			return fmt.Errorf("Prompt error: %w", err)
@@ -112,8 +112,8 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 				cloneOpts.Repo = *runtimeData.Repo
 				die(cmd.Flags().Set("repo", *runtimeData.Repo))
 				return nil
-			} 
-		} 
+			}
+		}
 		if !store.Get().Silent {
 			return getRepoFromUserInput(cmd, cloneOpts)
 		}
@@ -151,7 +151,7 @@ func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string) 
 
 func getRuntimeNameFromUserInput(runtimeName *string) error {
 	runtimeNamePrompt := promptui.Prompt{
-		Label: "Runtime name",
+		Label:   "Runtime name",
 		Default: "codefresh",
 		Pointer: promptui.PipeCursor,
 	}
@@ -181,17 +181,17 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 		}
 
 		templates := &promptui.SelectTemplates{
-			Selected:  "{{ . | yellow }} ",
+			Selected: "{{ . | yellow }} ",
 		}
 
 		labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
 
 		prompt := promptui.Select{
-			Label: labelStr,
-			Items: runtimeNames,
+			Label:     labelStr,
+			Items:     runtimeNames,
 			Templates: templates,
 		}
-		
+
 		_, result, err := prompt.Run()
 		if err != nil {
 			return fmt.Errorf("Prompt error: %w", err)
@@ -239,7 +239,7 @@ func getApprovalFromUser(ctx context.Context, finalParameters map[string]string,
 
 func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
 	templates := &promptui.SelectTemplates{
-		Selected:  "{{ . | yellow }} ",
+		Selected: "{{ . | yellow }} ",
 	}
 	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", GREEN, BOLD, UNDERLINE, COLOR_RESET, BOLD_RESET, UNDERLINE_RESET)
 	labelStr := fmt.Sprintf("%vDo you wish to continue with %v?%v", CYAN, description, COLOR_RESET)
@@ -249,11 +249,11 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{
-		Label: labelStr,
-		Items: []string{"Yes", "No"},
+		Label:     labelStr,
+		Items:     []string{"Yes", "No"},
 		Templates: templates,
 	}
-	
+
 	_, result, err := prompt.Run()
 	if err != nil {
 		return false, fmt.Errorf("Prompt error: %w", err)
@@ -270,7 +270,7 @@ func verifyLatestVersion(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed getting latest cli release: %w", err)
 	}
-	
+
 	latestVersionSemver := semver.MustParse(latestVersionString)
 	currentVersion := store.Get().Version.Version
 

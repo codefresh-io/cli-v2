@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cap-app-proxy
+  name: cap-app-proxy
+spec:
+  selector:
+    matchLabels:
+      app: cap-app-proxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: cap-app-proxy
+    spec:
+      serviceAccountName: cap-app-proxy
+      containers:
+        - env:
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: apiPrefix
+                  optional: true
+            - name: CF_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: cfHost
+                  optional: true
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: env
+                  optional: true
+            - name: RUNTIME_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: codefresh-token
+                  key: token
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT
+              value: "80"
+          image: quay.io/codefresh/cap-app-proxy
+          imagePullPolicy: Always
+          name: cap-app-proxy
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /api/ping
+          readinessProbe:
+            httpGet:
+              port: http
+              path: /api/ping
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "0.5"
+            limits:
+              memory: "2048Mi"
+              cpu: "2"
