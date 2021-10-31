@@ -1,5 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+images:
+  - name: quay.io/codefresh/cap-app-proxy
+    newName: quay.io/codefresh/cap-app-proxy
+    newTag: v0.0.1
 resources:
   - app-proxy.deploy.yaml
   - app-proxy.svc.yaml

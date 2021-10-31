@@ -1000,7 +1000,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Name:     store.Get().AppProxyServiceName + "-cm",
 			Behavior: "merge",
 			KvPairSources: kusttypes.KvPairSources{
-				LiteralSources: []string{fmt.Sprintf("v1host=%s", cfConfig.GetCurrentContext().URL)},
+				LiteralSources: []string{fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL)},
 			},
 		},
 	})
