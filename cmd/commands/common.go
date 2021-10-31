@@ -74,6 +74,32 @@ func IsValid(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
+func askUserIfToInstallCodefreshSamples(cmd *cobra.Command, sampleInstall *bool) error {
+	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
+		templates := &promptui.SelectTemplates{
+			Selected:  "{{ . | yellow }} ",
+		}
+
+		labelStr := fmt.Sprintf("%vInstall codefresh samples?%v", CYAN, COLOR_RESET)
+
+		prompt := promptui.Select{
+			Label: labelStr,
+			Items: []string {"Yes (default)", "No"},
+			Templates: templates,
+		}
+		
+		_, result, err := prompt.Run()
+		if err != nil {
+			return fmt.Errorf("Prompt error: %w", err)
+		}
+
+		if result == "No" {
+			*sampleInstall = false
+		}
+	}
+	return nil
+}
+
 func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo == "" {
@@ -127,6 +153,7 @@ func getRuntimeNameFromUserInput(runtimeName *string) error {
 	runtimeNamePrompt := promptui.Prompt{
 		Label: "Runtime name",
 		Default: "codefresh",
+		Pointer: promptui.PipeCursor,
 	}
 	runtimeNameInput, err := runtimeNamePrompt.Run()
 	if err != nil {
@@ -157,8 +184,10 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 			Selected:  "{{ . | yellow }} ",
 		}
 
+		labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
+
 		prompt := promptui.Select{
-			Label: "\033[34mSelect runtime\033[0m",
+			Label: labelStr,
 			Items: runtimeNames,
 			Templates: templates,
 		}
@@ -213,7 +242,7 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 		Selected:  "{{ . | yellow }} ",
 	}
 	promptStr := fmt.Sprintf("%v%v%vSummary%v%v%v", GREEN, BOLD, UNDERLINE, COLOR_RESET, BOLD_RESET, UNDERLINE_RESET)
-	labelStr := fmt.Sprintf("%vDo you wish to continue to %v?%v", CYAN, description, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to continue with %v?%v", CYAN, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
 		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)

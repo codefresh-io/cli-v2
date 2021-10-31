@@ -40,6 +40,7 @@ cli-v2 runtime install [runtime_name] [flags]
   -n, --namespace string           If present, the namespace scope for this CLI request
       --provider string            The git provider, one of: gitea|github
       --repo string                Repository URL [GIT_REPO]
+      --sample-install             Installs sample resources, defaults to true (default true)
       --version string             The runtime version to install, defaults to latest
       --wait-timeout duration      How long to wait for the runtime components to be ready (default 8m0s)
 ```
