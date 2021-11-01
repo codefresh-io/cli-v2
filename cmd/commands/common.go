@@ -310,7 +310,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 }
 
 func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
-	if store.Get().Silent {
+	if !store.Get().Silent {
 		ingressHostPrompt := promptui.Prompt{
 			Label: "Ingress host",
 		}
