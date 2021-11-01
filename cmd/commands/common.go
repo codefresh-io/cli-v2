@@ -28,6 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/manifoldco/promptui"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -222,19 +223,21 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
-	if !store.Get().Silent {
-		isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
-		if err != nil {
-			return false, fmt.Errorf("%w", err)
-		}
-
-		if !isApproved {
-			log.G(ctx).Printf("%v command was cancelled by user", description)
-			return false, nil
-		}
+func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) error {
+	if store.Get().Silent {
+		return nil
 	}
-	return true, nil
+
+	isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if !isApproved {
+		return fmt.Errorf("%v command was cancelled by user", description)
+	}
+
+	return nil
 }
 
 func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
@@ -263,6 +266,75 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 		return true, nil
 	}
 	return false, nil
+}
+
+func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
+	if store.Get().Silent {
+		return nil
+	}
+
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return err
+	}
+
+	contextsList := conf.Contexts
+	currentContext := conf.CurrentContext
+	var contextsNamesToShowUser []string
+	var contextsIndex []string
+
+	for key := range contextsList {
+		contextsIndex = append(contextsIndex, key)
+		if key == currentContext {
+			key = key + " (current)"
+		}
+		contextsNamesToShowUser = append(contextsNamesToShowUser, key)
+	}
+
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect kube context%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     contextsNamesToShowUser,
+		Templates: templates,
+	}
+
+	index, _, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	result := contextsIndex[index]
+
+	die(cmd.Flags().Set("context", result))
+	*kubeContextName = result
+
+	return nil
+}
+
+func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
+	if store.Get().Silent {
+		return nil
+	}
+
+	ingressHostPrompt := promptui.Prompt{
+		Label: "Ingress host",
+	}
+
+	ingressHostInput, err := ingressHostPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	die(cmd.Flags().Set("ingress-host", ingressHostInput))
+	*ingressHost = ingressHostInput
+
+	return nil
 }
 
 func verifyLatestVersion(ctx context.Context) error {

@@ -28,6 +28,7 @@ cli-v2 runtime install [runtime_name] [flags]
 ### Options
 
 ```
+      --context string             The name of the kubeconfig context to use
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
       --git-src-provider string    The git provider, one of: gitea|github
