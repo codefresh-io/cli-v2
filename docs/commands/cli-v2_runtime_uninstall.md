@@ -28,6 +28,7 @@ cli-v2 runtime uninstall [runtime_name] [flags]
 ### Options
 
 ```
+      --context string          The name of the kubeconfig context to use
       --fast-exit               If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified
       --force                   If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster
   -t, --git-token string        Your git provider api token [GIT_TOKEN]

@@ -71,8 +71,12 @@ type Store struct {
 	EventsReporterName                   string
 	ArgoCDAgentReporterName              string
 	GitSourceName                        string
-	IngressName                          string
-	IngressPath                          string
+	WorkflowsIngressName                 string
+	WorkflowsIngressPath                 string
+	AppProxyIngressName                  string
+	AppProxyIngressPath                  string
+	AppProxyServicePort                  int32
+	AppProxyServiceName                  string
 	LabelKeyCFType                       string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
@@ -106,7 +110,7 @@ type Store struct {
 	GithubAccessTokenSecretObjectName    string
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
-	Silent 								 bool
+	Silent                               bool
 }
 
 // Get returns the global store
@@ -141,8 +145,12 @@ func init() {
 	s.EventReportingEndpoint = "/2.0/api/events"
 	s.EventsReporterName = "events-reporter"
 	s.GitSourceName = "default-git-source"
-	s.IngressName = "-workflows-ingress"
-	s.IngressPath = "workflows"
+	s.WorkflowsIngressName = "-workflows-ingress"
+	s.WorkflowsIngressPath = "workflows"
+	s.AppProxyIngressName = "-cap-app-proxy"
+	s.AppProxyIngressPath = "app-proxy"
+	s.AppProxyServicePort = 3017
+	s.AppProxyServiceName = "cap-app-proxy"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
