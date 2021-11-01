@@ -117,6 +117,7 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		kubeContextName string
 		runtimeName     string
 		ingressHost     string
 		versionStr      string
@@ -147,7 +148,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := getContextNameFromUserSelect(cmd)
+			err := getContextNameFromUserSelect(cmd, &kubeContextName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -187,8 +188,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name":                runtimeName,
-				"Repository URL":              insCloneOpts.Repo,
+				"Kube context":   kubeContextName,
+				"Runtime name":   runtimeName,
+				"Repository URL": insCloneOpts.Repo,
 				"Installing sample resources": strconv.FormatBool(sampleInstall),
 			}
 
@@ -1355,7 +1357,7 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	return nil
 }
 
-func getContextNameFromUserSelect(cmd *cobra.Command) error {
+func getContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
 	if !store.Get().Silent {
 		configAccess := clientcmd.NewDefaultPathOptions()
 		conf, err := configAccess.GetStartingConfig()
@@ -1392,6 +1394,7 @@ func getContextNameFromUserSelect(cmd *cobra.Command) error {
 		}
 	
 		die(cmd.Flags().Set("context", result))
+		*kubeContextName = result
 	}
 
 	return nil
