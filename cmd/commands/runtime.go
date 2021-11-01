@@ -116,15 +116,10 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		kubeContextName string
-		runtimeName     string
-		ingressHost     string
-		versionStr      string
-		f               kube.Factory
-		insCloneOpts    *git.CloneOptions
-		gsCloneOpts     *git.CloneOptions
-		sampleInstall   bool
-		finalParameters map[string]string
+		installationOpts = RuntimeInstallOptions{}
+		kubeContextName  string
+		versionStr       string
+		finalParameters  map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -153,53 +148,34 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			if len(args) > 0 {
-				runtimeName = args[0]
+				installationOpts.RuntimeName = args[0]
 			}
 
-			if !store.Get().Silent && runtimeName == "" {
-				err := getRuntimeNameFromUserInput(&runtimeName)
+			if !store.Get().Silent && installationOpts.RuntimeName == "" {
+				err := getRuntimeNameFromUserInput(&installationOpts.RuntimeName)
 				if err != nil {
 					return fmt.Errorf("%w", err)
 				}
 			}
 
-			if runtimeName == "" {
+			if installationOpts.RuntimeName == "" {
 				log.G(ctx).Fatal("must enter a runtime name")
 			}
 
-			err = ensureRepo(cmd, runtimeName, insCloneOpts, false)
+			err = runtimeInstallCommandPreRunHandler(cmd, installationOpts)
 			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			err = ensureGitToken(cmd, insCloneOpts)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			err = getIngressHostFromUserInput(cmd, &ingressHost)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			err = askUserIfToInstallCodefreshSamples(cmd, &sampleInstall)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if gsCloneOpts.Auth.Password == "" {
-				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
+				return fmt.Errorf("Pre installation error: %w", err)
 			}
 
 			finalParameters = map[string]string{
 				"Kube context":                kubeContextName,
-				"Runtime name":                runtimeName,
-				"Repository URL":              insCloneOpts.Repo,
-				"Ingress host":                ingressHost,
-				"Installing sample resources": strconv.FormatBool(sampleInstall),
+				"Runtime name":                installationOpts.RuntimeName,
+				"Repository URL":              installationOpts.InsCloneOpts.Repo,
+				"Ingress host":                installationOpts.IngressHost,
+				"Installing sample resources": strconv.FormatBool(installationOpts.SampleInstall),
 			}
 
-			insCloneOpts.Parse()
+			installationOpts.InsCloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -218,7 +194,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return nil
 			}
 
-			isValid, err := IsValid(runtimeName)
+			isValid, err := IsValid(installationOpts.RuntimeName)
 			if err != nil {
 				log.G(ctx).Fatal("failed to check the validity of the runtime name")
 			}
@@ -232,46 +208,66 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				installationOpts.Version = version
 			}
 
-			if gsCloneOpts.Repo == "" {
-				host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(insCloneOpts.Repo)
-				gsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + runtimeName
-			}
-			gsCloneOpts.Parse()
+			installationOpts.GsCloneOpts.Parse()
+			installationOpts.Insecure = true
+			installationOpts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
-			return RunRuntimeInstall(ctx, &RuntimeInstallOptions{
-				RuntimeName:   runtimeName,
-				IngressHost:   ingressHost,
-				Version:       version,
-				Insecure:      true,
-				SampleInstall: sampleInstall,
-				GsCloneOpts:   gsCloneOpts,
-				InsCloneOpts:  insCloneOpts,
-				KubeFactory:   f,
-				CommonConfig: &runtime.CommonConfig{
-					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
-				},
-			})
+			return RunRuntimeInstall(ctx, &installationOpts)
 		},
 	}
 
-	cmd.Flags().StringVar(&ingressHost, "ingress-host", "", "The ingress host")
+	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
-	cmd.Flags().BoolVar(&sampleInstall, "sample-install", true, "Installs sample resources, defaults to true")
+	cmd.Flags().BoolVar(&installationOpts.SampleInstall, "sample-install", true, "Installs sample resources, defaults to true")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 
-	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
+	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
 	})
-	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
+	installationOpts.GsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:           "git-src",
 		Optional:         true,
 		CreateIfNotExist: true,
 	})
-	f = kube.AddFlags(cmd.Flags())
+	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
+}
+
+func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, installationOpts RuntimeInstallOptions) error {
+	err := ensureRepo(cmd, installationOpts.RuntimeName, installationOpts.InsCloneOpts, false)
+	if err != nil {
+		return err
+	}
+
+	err = ensureGitToken(cmd, installationOpts.InsCloneOpts)
+	if err != nil {
+		return err
+	}
+
+	err = getIngressHostFromUserInput(cmd, &installationOpts.IngressHost)
+	if err != nil {
+		return err
+	}
+
+	err = askUserIfToInstallCodefreshSamples(cmd, &installationOpts.SampleInstall)
+	if err != nil {
+		return err
+	}
+
+	if installationOpts.GsCloneOpts.Auth.Password == "" {
+		installationOpts.GsCloneOpts.Auth.Password = installationOpts.InsCloneOpts.Auth.Password
+	}
+
+	if installationOpts.GsCloneOpts.Repo == "" {
+		host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(installationOpts.InsCloneOpts.Repo)
+		installationOpts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + installationOpts.RuntimeName
+	}
+
+	return nil
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
