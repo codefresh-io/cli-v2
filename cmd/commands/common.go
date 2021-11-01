@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -280,13 +279,15 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 	contextsList := conf.Contexts
 	currentContext := conf.CurrentContext
-	var contextsNames []string
+	var contextsNamesToShowUser []string
+	var contextsIndex []string
 
 	for key := range contextsList {
+		contextsIndex = append(contextsIndex, key)
 		if key == currentContext {
 			key = key + " (current)"
 		}
-		contextsNames = append(contextsNames, key)
+		contextsNamesToShowUser = append(contextsNamesToShowUser, key)
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -297,24 +298,16 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     contextsNames,
+		Items:     contextsNamesToShowUser,
 		Templates: templates,
 	}
 
-	_, result, err := prompt.Run()
+	index, _, err := prompt.Run()
 	if err != nil {
 		return fmt.Errorf("Prompt error: %w", err)
 	}
 
-	match, err := regexp.MatchString(`.+ \(current\)`, result)
-	if err != nil {
-		return fmt.Errorf("Prompt error: %w", err)
-	}
-
-	if match {
-		resultSplit := strings.Split(result, " ")
-		result = resultSplit[0]
-	}
+	result := contextsIndex[index]
 
 	die(cmd.Flags().Set("context", result))
 	*kubeContextName = result
@@ -326,7 +319,7 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	if store.Get().Silent {
 		return nil
 	}
-	
+
 	ingressHostPrompt := promptui.Prompt{
 		Label: "Ingress host",
 	}
