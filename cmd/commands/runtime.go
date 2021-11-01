@@ -34,7 +34,6 @@ import (
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
-	// "github.com/manifoldco/promptui"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
