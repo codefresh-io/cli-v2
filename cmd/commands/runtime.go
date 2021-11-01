@@ -141,6 +141,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -174,13 +178,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Installing sample resources": strconv.FormatBool(installationOpts.SampleInstall),
 			}
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime install")
+			err = getApprovalFromUser(ctx, finalParameters, "runtime install")
 			if err != nil {
 				return fmt.Errorf("%w", err)
-			}
-
-			if !isApproved {
-				return fmt.Errorf("")
 			}
 
 			installationOpts.InsCloneOpts.Parse()
@@ -450,10 +450,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Debug("running pre-installation checks...")
 
-	if err := verifyLatestVersion(ctx); err != nil {
-		return err
-	}
-
 	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
 		return fmt.Errorf("runtime collision check failed: %w", err)
 	}
@@ -556,6 +552,14 @@ func NewRuntimeListCommand() *cobra.Command {
 		Use:     "list [runtime_name]",
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -567,10 +571,6 @@ func NewRuntimeListCommand() *cobra.Command {
 }
 
 func RunRuntimeList(ctx context.Context) error {
-	if err := verifyLatestVersion(ctx); err != nil {
-		return err
-	}
-	
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return err
@@ -663,6 +663,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -689,13 +693,9 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				"Repository URL": cloneOpts.Repo,
 			}
 
-			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
+			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
 			if err != nil {
 				return fmt.Errorf("%w", err)
-			}
-
-			if !isApproved {
-				return fmt.Errorf("")
 			}
 
 			cloneOpts.Parse()
@@ -728,10 +728,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	if err := verifyLatestVersion(ctx); err != nil {
-		return err
-	}
-
 	// check whether the runtime exists
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
@@ -805,6 +801,10 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			if err := verifyLatestVersion(ctx); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -823,6 +823,11 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				"Repository URL": cloneOpts.Repo,
 			}
 
+			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			cloneOpts.Parse()
 			return nil
 		},
@@ -832,15 +837,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				err     error
 			)
 			ctx := cmd.Context()
-
-			isApproved, err := getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if !isApproved {
-				return nil
-			}
 
 			if versionStr != "" {
 				version, err = semver.NewVersion(versionStr)
@@ -867,10 +863,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 }
 
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
-	if err := verifyLatestVersion(ctx); err != nil {
-		return err
-	}
-
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

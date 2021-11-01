@@ -223,19 +223,21 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	return nil
 }
 
-func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
-	if !store.Get().Silent {
-		isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
-		if err != nil {
-			return false, fmt.Errorf("%w", err)
-		}
-
-		if !isApproved {
-			log.G(ctx).Printf("%v command was cancelled by user", description)
-			return false, nil
-		}
+func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) error {
+	if store.Get().Silent {
+		return nil
 	}
-	return true, nil
+
+	isApproved, err := promptSummaryToUser(ctx, finalParameters, description)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if !isApproved {
+		return fmt.Errorf("%v command was cancelled by user", description)
+	}
+
+	return nil
 }
 
 func promptSummaryToUser(ctx context.Context, finalParameters map[string]string, description string) (bool, error) {
