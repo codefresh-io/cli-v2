@@ -192,10 +192,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Kube context":   kubeContextName,
-				"Runtime name":   runtimeName,
-				"Repository URL": insCloneOpts.Repo,
-				"Ingress host": ingressHost,
+				"Kube context":                kubeContextName,
+				"Runtime name":                runtimeName,
+				"Repository URL":              insCloneOpts.Repo,
+				"Ingress host":                ingressHost,
 				"Installing sample resources": strconv.FormatBool(sampleInstall),
 			}
 

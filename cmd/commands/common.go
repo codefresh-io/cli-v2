@@ -274,30 +274,30 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 		if err != nil {
 			return err
 		}
-	
+
 		contextsList := conf.Contexts
 		currentContext := conf.CurrentContext
 		var contextsNames []string
-	
+
 		for key := range contextsList {
 			if key == currentContext {
 				key = key + " (current)"
 			}
 			contextsNames = append(contextsNames, key)
 		}
-	
+
 		templates := &promptui.SelectTemplates{
-			Selected:  "{{ . | yellow }} ",
+			Selected: "{{ . | yellow }} ",
 		}
-	
+
 		labelStr := fmt.Sprintf("%vSelect kube context%v", CYAN, COLOR_RESET)
-	
+
 		prompt := promptui.Select{
-			Label: labelStr,
-			Items: contextsNames,
+			Label:     labelStr,
+			Items:     contextsNames,
 			Templates: templates,
 		}
-		
+
 		_, result, err := prompt.Run()
 		if err != nil {
 			return fmt.Errorf("Prompt error: %w", err)
@@ -312,7 +312,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 			resultSplit := strings.Split(result, " ")
 			result = resultSplit[0]
 		}
-	
+
 		die(cmd.Flags().Set("context", result))
 		*kubeContextName = result
 	}
@@ -325,12 +325,12 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 		ingressHostPrompt := promptui.Prompt{
 			Label: "Ingress host",
 		}
-	
+
 		ingressHostInput, err := ingressHostPrompt.Run()
 		if err != nil {
 			return fmt.Errorf("Prompt error: %w", err)
 		}
-		
+
 		die(cmd.Flags().Set("ingress-host", ingressHostInput))
 		*ingressHost = ingressHostInput
 	}
