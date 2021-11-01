@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -300,6 +301,16 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 		_, result, err := prompt.Run()
 		if err != nil {
 			return fmt.Errorf("Prompt error: %w", err)
+		}
+
+		match, err := regexp.MatchString(`.+ \(current\)`, result)
+		if err != nil {
+			return fmt.Errorf("Prompt error: %w", err)
+		}
+
+		if match {
+			resultSplit := strings.Split(result, " ")
+			result = resultSplit[0]
 		}
 	
 		die(cmd.Flags().Set("context", result))
