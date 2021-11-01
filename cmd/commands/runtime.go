@@ -34,6 +34,7 @@ import (
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	"github.com/manifoldco/promptui"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -58,6 +59,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	kustid "sigs.k8s.io/kustomize/api/resid"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 )
@@ -145,6 +147,11 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			err := getContextNameFromUserSelect(cmd)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
 			if len(args) > 0 {
 				runtimeName = args[0]
 			}
@@ -160,7 +167,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a runtime name")
 			}
 
-			err := ensureRepo(cmd, runtimeName, insCloneOpts, false)
+			err = ensureRepo(cmd, runtimeName, insCloneOpts, false)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1343,6 +1350,48 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 
 	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func getContextNameFromUserSelect(cmd *cobra.Command) error {
+	if !store.Get().Silent {
+		configAccess := clientcmd.NewDefaultPathOptions()
+		conf, err := configAccess.GetStartingConfig()
+		if err != nil {
+			return err
+		}
+	
+		contextsList := conf.Contexts
+		currentContext := conf.CurrentContext
+		var contextsNames []string
+	
+		for key := range contextsList {
+			if key == currentContext {
+				key = key + " (current)"
+			}
+			contextsNames = append(contextsNames, key)
+		}
+	
+		templates := &promptui.SelectTemplates{
+			Selected:  "{{ . | yellow }} ",
+		}
+	
+		labelStr := fmt.Sprintf("%vSelect kube context%v", CYAN, COLOR_RESET)
+	
+		prompt := promptui.Select{
+			Label: labelStr,
+			Items: contextsNames,
+			Templates: templates,
+		}
+		
+		_, result, err := prompt.Run()
+		if err != nil {
+			return fmt.Errorf("Prompt error: %w", err)
+		}
+	
+		die(cmd.Flags().Set("context", result))
 	}
 
 	return nil
