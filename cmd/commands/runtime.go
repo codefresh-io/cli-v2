@@ -148,7 +148,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := getContextNameFromUserSelect(cmd, &kubeContextName)
+			err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -633,6 +633,7 @@ func RunRuntimeList(ctx context.Context) error {
 
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
+		kubeContextName string
 		runtimeName     string
 		skipChecks      bool
 		f               kube.Factory
@@ -662,7 +663,12 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := ensureRuntimeName(ctx, args, &runtimeName)
+			err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			err = ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -678,6 +684,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
+				"Kube context":   kubeContextName,
 				"Runtime name":   runtimeName,
 				"Repository URL": cloneOpts.Repo,
 			}
@@ -1357,7 +1364,7 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	return nil
 }
 
-func getContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
+func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
 	if !store.Get().Silent {
 		configAccess := clientcmd.NewDefaultPathOptions()
 		conf, err := configAccess.GetStartingConfig()
