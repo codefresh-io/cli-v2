@@ -28,6 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/manifoldco/promptui"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -263,6 +264,67 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 		return true, nil
 	}
 	return false, nil
+}
+
+func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
+	if !store.Get().Silent {
+		configAccess := clientcmd.NewDefaultPathOptions()
+		conf, err := configAccess.GetStartingConfig()
+		if err != nil {
+			return err
+		}
+	
+		contextsList := conf.Contexts
+		currentContext := conf.CurrentContext
+		var contextsNames []string
+	
+		for key := range contextsList {
+			if key == currentContext {
+				key = key + " (current)"
+			}
+			contextsNames = append(contextsNames, key)
+		}
+	
+		templates := &promptui.SelectTemplates{
+			Selected:  "{{ . | yellow }} ",
+		}
+	
+		labelStr := fmt.Sprintf("%vSelect kube context%v", CYAN, COLOR_RESET)
+	
+		prompt := promptui.Select{
+			Label: labelStr,
+			Items: contextsNames,
+			Templates: templates,
+		}
+		
+		_, result, err := prompt.Run()
+		if err != nil {
+			return fmt.Errorf("Prompt error: %w", err)
+		}
+	
+		die(cmd.Flags().Set("context", result))
+		*kubeContextName = result
+	}
+
+	return nil
+}
+
+func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
+	if store.Get().Silent {
+		ingressHostPrompt := promptui.Prompt{
+			Label: "Ingress host",
+		}
+	
+		ingressHostInput, err := ingressHostPrompt.Run()
+		if err != nil {
+			return fmt.Errorf("Prompt error: %w", err)
+		}
+		
+		die(cmd.Flags().Set("ingress-host", ingressHostInput))
+		*ingressHost = ingressHostInput
+	}
+
+	return nil
 }
 
 func verifyLatestVersion(ctx context.Context) error {
