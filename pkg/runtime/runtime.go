@@ -85,7 +85,6 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		if version != nil {
 			urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
 		}
-		
 
 		res, err := http.Get(urlString)
 		if err != nil {
