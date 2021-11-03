@@ -862,7 +862,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	return cmd
 }
 
-
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
