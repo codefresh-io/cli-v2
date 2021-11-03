@@ -78,6 +78,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		body []byte
 		err  error
 	)
+	
 
 	devMode := false
 	if strings.HasPrefix(store.RuntimeDefURL, "http") {
