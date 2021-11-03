@@ -78,7 +78,6 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		body []byte
 		err  error
 	)
-	
 
 	devMode := false
 	if strings.HasPrefix(store.RuntimeDefURL, "http") {
@@ -188,6 +187,10 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	if err := updateKustomization(fs, argocdDir, r.FullSpecifier(), newRt.FullSpecifier()); err != nil {
 		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
 	}
+
+	newRt.Cluster = r.Cluster
+	newRt.IngressHost = r.IngressHost
+	newRt.Repo = r.Repo
 
 	newComponents := make([]AppDef, 0)
 	for _, newComponent := range newRt.Components {
