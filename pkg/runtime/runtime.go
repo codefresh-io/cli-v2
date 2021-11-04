@@ -188,6 +188,10 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
 	}
 
+	newRt.Cluster = r.Cluster
+	newRt.IngressHost = r.IngressHost
+	newRt.Repo = r.Repo
+
 	newComponents := make([]AppDef, 0)
 	for _, newComponent := range newRt.Components {
 		curComponent := r.component(newComponent.Name)
