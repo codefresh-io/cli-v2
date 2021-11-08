@@ -449,14 +449,6 @@ func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err 
 	}
 }
 
-func buildAndAppendInstallationError(level model.ErrorLevels, message string, installationErrors *[]*model.HealthErrorInput) {
-	installationError := &model.HealthErrorInput{
-		Level:   level,
-		Message: message,
-	}
-	*installationErrors = append(*installationErrors, installationError)
-}
-
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	if opts.IngressHost != "" {
