@@ -299,7 +299,6 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	var installationErrors []*model.HealthErrorInput
 	if err := preInstallationChecks(ctx, opts); err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
@@ -338,7 +337,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
-	defer reportInstallationErrorToPlatform(ctx, opts.RuntimeName, &installationErrors)
+	var installationErr error
+	
+	defer reportInstallationErrorToPlatform(ctx, opts.RuntimeName, &installationErr)
 	
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
@@ -352,13 +353,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		},
 	})
 	if err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to bootstrap repository: %s", err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to bootstrap repository: %w", err)
+		installationErr = fmt.Errorf("failed to bootstrap repository: %w", err)
+		return installationErr
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -369,49 +365,29 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		},
 	})
 	if err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to create project: %s", err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to create project: %w", err)
+		installationErr = fmt.Errorf("failed to create project: %w", err)
+		return installationErr
 	}
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
 	if err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig); err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to create codefresh-cm: %s", err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to create codefresh-cm: %w", err)
+		installationErr = fmt.Errorf("failed to create codefresh-cm: %w", err)
+		return installationErr
 	}
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("Creating component '%s'", component.Name)
 		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
-			buildAndAppendInstallationError(
-				model.ErrorLevelsError,
-				fmt.Sprintf("failed to create '%s' application: %s", component.Name, err),
-				&installationErrors,
-			)
-
-			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			installationErr = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			return installationErr
 		}
 	}
 
 	err = installComponents(ctx, opts, rt)
 	if err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to install components: %s", err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to install components: %s", err)
+		installationErr = fmt.Errorf("failed to install components: %s", err)
+		return installationErr
 	}
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
@@ -421,13 +397,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.SampleInstall,
 	}); err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to create `%s`: %s", store.Get().GitSourceName, err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+		installationErr = fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+		return installationErr
 	}
 
 	mpCloneOpts := &git.CloneOptions{
@@ -444,13 +415,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: false,
 		Include:             "**/workflowTemplate.yaml",
 	}); err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to create `%s`: %s", store.Get().MarketplaceGitSourceName, err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
+		installationErr = fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
+		return installationErr
 	}
 
 	var wg sync.WaitGroup
@@ -458,13 +424,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	wg.Add(1)
 	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName, &wg)
 	if err != nil {
-		buildAndAppendInstallationError(
-			model.ErrorLevelsError,
-			fmt.Sprintf("failed to complete installation: %s", err),
-			&installationErrors,
-		)
-
-		return fmt.Errorf("failed to complete installation: %w", err)
+		installationErr = fmt.Errorf("failed to complete installation: %w", err)
+		return installationErr
 	}
 	wg.Wait()
 
@@ -473,18 +434,18 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	return nil
 }
 
-func reportInstallationErrorToPlatform(ctx context.Context, runtime string, errors *[]*model.HealthErrorInput) {
-	if len(*errors) == 0 {
-		return
+func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err *error) {
+	installationError := &model.HealthErrorInput{
+		Level:   model.ErrorLevelsError,
+		Message: (*err).Error(),
 	}
-
-	_, err := cfConfig.NewClient().V2().Runtime().ReportErrors(ctx, &model.ReportRuntimeErrorsArgs{
+	_, err1 := cfConfig.NewClient().V2().Runtime().ReportErrors(ctx, &model.ReportRuntimeErrorsArgs{
 		Runtime: runtime,
-		Errors:  *errors,
+		Errors:  []*model.HealthErrorInput{installationError},
 	})
 
-	if err != nil {
-		fmt.Printf("failed to report installation errors of runtime: %s. Error: %s", runtime, err)
+	if err1 != nil {
+		log.G(ctx).Error("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
 	}
 }
 
