@@ -351,14 +351,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 		},
 	})
-	if err == nil {
+	if err != nil {
 		buildAndAppendInstallationError(
 			model.ErrorLevelsError,
 			fmt.Sprintf("failed to bootstrap repository: %s", err),
 			&installationErrors,
 		)
 
-		// return fmt.Errorf("failed to bootstrap repository: %w", err)
+		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -368,14 +368,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 		},
 	})
-	if err == nil {
+	if err != nil {
 		buildAndAppendInstallationError(
 			model.ErrorLevelsError,
 			fmt.Sprintf("failed to create project: %s", err),
 			&installationErrors,
 		)
 
-		// return fmt.Errorf("failed to create project: %w", err)
+		return fmt.Errorf("failed to create project: %w", err)
 	}
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
@@ -404,14 +404,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	err = installComponents(ctx, opts, rt)
-	if err == nil {
+	if err != nil {
 		buildAndAppendInstallationError(
 			model.ErrorLevelsError,
 			fmt.Sprintf("failed to install components: %s", err),
 			&installationErrors,
 		)
 
-		// return fmt.Errorf("failed to install components: %s", err)
+		return fmt.Errorf("failed to install components: %s", err)
 	}
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
@@ -420,14 +420,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.SampleInstall,
-	}); err == nil {
+	}); err != nil {
 		buildAndAppendInstallationError(
 			model.ErrorLevelsError,
 			fmt.Sprintf("failed to create `%s`: %s", store.Get().GitSourceName, err),
 			&installationErrors,
 		)
 
-		// return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 
 	mpCloneOpts := &git.CloneOptions{
@@ -443,14 +443,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: false,
 		Include:             "**/workflowTemplate.yaml",
-	}); err == nil {
+	}); err != nil {
 		buildAndAppendInstallationError(
 			model.ErrorLevelsError,
 			fmt.Sprintf("failed to create `%s`: %s", store.Get().MarketplaceGitSourceName, err),
 			&installationErrors,
 		)
 
-		// return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
+		return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
 	}
 
 	var wg sync.WaitGroup
