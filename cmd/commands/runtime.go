@@ -435,6 +435,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err *error) {
+	if err == nil {
+		return
+	}
+	
 	installationError := &model.HealthErrorInput{
 		Level:   model.ErrorLevelsError,
 		Message: (*err).Error(),
