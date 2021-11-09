@@ -337,6 +337,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
+	var installationErr error
+	
+	defer reportInstallationErrorToPlatform(ctx, opts.RuntimeName, &installationErr)
+	
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: rt.Spec.FullSpecifier(),
@@ -349,7 +353,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to bootstrap repository: %w", err)
+		installationErr = fmt.Errorf("failed to bootstrap repository: %w", err)
+		return installationErr
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -360,25 +365,29 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
+		installationErr = fmt.Errorf("failed to create project: %w", err)
+		return installationErr
 	}
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
 	if err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig); err != nil {
-		return fmt.Errorf("failed to create codefresh-cm: %w", err)
+		installationErr = fmt.Errorf("failed to create codefresh-cm: %w", err)
+		return installationErr
 	}
 
 	for _, component := range rt.Spec.Components {
 		log.G(ctx).Infof("Creating component '%s'", component.Name)
 		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
-			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			installationErr = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			return installationErr
 		}
 	}
 
 	err = installComponents(ctx, opts, rt)
 	if err != nil {
-		return err
+		installationErr = fmt.Errorf("failed to install components: %s", err)
+		return installationErr
 	}
 
 	if err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
@@ -388,7 +397,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.SampleInstall,
 	}); err != nil {
-		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+		installationErr = fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
+		return installationErr
 	}
 
 	mpCloneOpts := &git.CloneOptions{
@@ -405,7 +415,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: false,
 		Include:             "**/workflowTemplate.yaml",
 	}); err != nil {
-		return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
+		installationErr = fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
+		return installationErr
 	}
 
 	var wg sync.WaitGroup
@@ -413,12 +424,33 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	wg.Add(1)
 	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName, &wg)
 	if err != nil {
-		return fmt.Errorf("failed to complete installation: %w", err)
+		installationErr = fmt.Errorf("failed to complete installation: %w", err)
+		return installationErr
 	}
 	wg.Wait()
 
 	log.G(ctx).Infof("Done installing runtime '%s'", opts.RuntimeName)
+	
 	return nil
+}
+
+func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err *error) {
+	if *err == nil {
+		return
+	}
+
+	installationError := &model.HealthErrorInput{
+		Level:   model.ErrorLevelsError,
+		Message: (*err).Error(),
+	}
+	_, err1 := cfConfig.NewClient().V2().Runtime().ReportErrors(ctx, &model.ReportRuntimeErrorsArgs{
+		Runtime: runtime,
+		Errors:  []*model.HealthErrorInput{installationError},
+	})
+
+	if err1 != nil {
+		log.G(ctx).Error("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
+	}
 }
 
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
@@ -515,7 +547,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
-	maxRetries := 180           // up to 30 min
+	maxRetries := 180          // up to 30 min
 	longerThanUsualCount := 30 // after 5 min
 	waitMsg := "Waiting for the runtime installation to complete"
 	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
