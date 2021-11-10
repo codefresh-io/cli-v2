@@ -110,19 +110,18 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 				return fmt.Errorf("failed getting runtime repo information: %w", err)
 			}
 			if runtimeData.Repo != nil {
-				cloneOpts.Repo = *runtimeData.Repo
 				die(cmd.Flags().Set("repo", *runtimeData.Repo))
 				return nil
 			}
 		}
 		if !store.Get().Silent {
-			return getRepoFromUserInput(cmd, cloneOpts)
+			return getRepoFromUserInput(cmd)
 		}
 	}
 	return nil
 }
 
-func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
 	}
@@ -130,7 +129,6 @@ func getRepoFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error
 	if err != nil {
 		return fmt.Errorf("Prompt error: %w", err)
 	}
-	cloneOpts.Repo = repoInput
 	die(cmd.Flags().Set("repo", repoInput))
 	return nil
 }
@@ -205,12 +203,12 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
-		return getGitTokenFromUserInput(cmd, cloneOpts)
+		return getGitTokenFromUserInput(cmd)
 	}
 	return nil
 }
 
-func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Git provider api token",
 	}
@@ -218,7 +216,6 @@ func getGitTokenFromUserInput(cmd *cobra.Command, cloneOpts *git.CloneOptions) e
 	if err != nil {
 		return fmt.Errorf("Prompt error: %w", err)
 	}
-	cloneOpts.Auth.Password = gitTokenInput
 	die(cmd.Flags().Set("git-token", gitTokenInput))
 	return nil
 }
@@ -323,7 +320,7 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	}
 
 	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host",
+		Label: "Ingress host (leave blank to skip)",
 	}
 
 	ingressHostInput, err := ingressHostPrompt.Run()

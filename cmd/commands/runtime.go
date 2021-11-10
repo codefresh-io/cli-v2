@@ -165,7 +165,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter a runtime name")
 			}
 
-			err = runtimeInstallCommandPreRunHandler(cmd, installationOpts)
+			err = runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
 			if err != nil {
 				return fmt.Errorf("Pre installation error: %w", err)
 			}
@@ -236,7 +236,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
-func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, installationOpts RuntimeInstallOptions) error {
+func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, installationOpts *RuntimeInstallOptions) error {
 	err := ensureRepo(cmd, installationOpts.RuntimeName, installationOpts.InsCloneOpts, false)
 	if err != nil {
 		return err
