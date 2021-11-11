@@ -35,7 +35,7 @@ func TestConfig_Write(t *testing.T) {
 		"Basic": {
 			ctx: context.Background(),
 			config: Config{
-				Contexts: map[string]AuthContext{
+				Contexts: map[string]*AuthContext{
 					"foo": {
 						Type:  "APIKey",
 						Name:  "foo",

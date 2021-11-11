@@ -66,17 +66,18 @@ type Config struct {
 	path            string
 	contextOverride string
 	requestTimeout  time.Duration
-	CurrentContext  string                 `mapstructure:"current-context" json:"current-context"`
-	Contexts        map[string]AuthContext `mapstructure:"contexts" json:"contexts"`
+	CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
+	Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
 }
 
 type AuthContext struct {
-	Type   string `mapstructure:"type" json:"type"`
-	Name   string `mapstructure:"name" json:"name"`
-	URL    string `mapstructure:"url" json:"url"`
-	Token  string `mapstructure:"token" json:"token"`
-	Beta   bool   `mapstructure:"beta" json:"beta"`
-	OnPrem bool   `mapstructure:"onPrem" json:"onPrem"`
+	Type           string `mapstructure:"type" json:"type"`
+	Name           string `mapstructure:"name" json:"name"`
+	URL            string `mapstructure:"url" json:"url"`
+	Token          string `mapstructure:"token" json:"token"`
+	Beta           bool   `mapstructure:"beta" json:"beta"`
+	OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
+	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
 }
 
 func AddFlags(f *pflag.FlagSet) *Config {
@@ -142,7 +143,7 @@ func (c *Config) Save() error {
 
 // GetCurrentContext returns current authentication context
 // or the one specified with --auth-context.
-func (c *Config) GetCurrentContext() AuthContext {
+func (c *Config) GetCurrentContext() *AuthContext {
 	ctx := c.CurrentContext
 	if c.contextOverride != "" {
 		ctx = c.contextOverride
@@ -190,7 +191,7 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 		return fmt.Errorf("authentication context with the name '%s' already exists", name)
 	}
 
-	authCtx := AuthContext{
+	authCtx := &AuthContext{
 		Name:  name,
 		URL:   url,
 		Token: token,
@@ -207,13 +208,13 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	authCtx.OnPrem = isAdminUser(usr)
 
 	if c.Contexts == nil {
-		c.Contexts = map[string]AuthContext{}
+		c.Contexts = map[string]*AuthContext{}
 	}
 	c.Contexts[name] = authCtx
 	return nil
 }
 
-func (c *Config) clientForContext(ctx AuthContext) codefresh.Codefresh {
+func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 	httpClient := &http.Client{}
 	httpClient.Timeout = c.requestTimeout
 	if c.insecure {

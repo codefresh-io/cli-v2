@@ -55,6 +55,7 @@ variables in advanced to simplify the use of those commands.
 	cmd.AddCommand(NewComponentCommand())
 	cmd.AddCommand(NewWorkflowCommand())
 	cmd.AddCommand(NewPipelineCommand())
+	cmd.AddCommand(NewIntegrationCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 
