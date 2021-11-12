@@ -11,6 +11,7 @@ import (
 	model "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type (
@@ -144,7 +145,8 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 
 	cmd.Flags().StringVar(&provider, "provider", "github", "One of github|gitlab")
 	cmd.Flags().StringVar(&opts.APIURL, "api-url", "", "Git provider API Url")
-	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false, "If true, this integration would only be visible to account admins")
+	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false,
+		"If true, this integration would only be visible to account admins (default: false)")
 
 	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "api-url"))
 
@@ -163,51 +165,138 @@ func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, op
 }
 
 func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
+	var (
+		opts              model.EditGitIntegrationArgs
+		accountAdminsOnly bool
+	)
+
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List your git integrations",
+		Use:   "edit NAME",
+		Short: "Edit a git integration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunGitIntegrationListCommand(cmd.Context(), *client)
+			if len(args) < 1 {
+				return fmt.Errorf("missing integration name")
+			}
+
+			opts.Name = args[0]
+
+			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
+			if accountAdminsOnly {
+				opts.SharingPolicy = model.SharingPolicyAccountAdmins
+			}
+
+			return RunGitIntegrationEditCommand(cmd.Context(), *client, &opts)
 		},
 	}
 
+	cmd.Flags().StringVar(&opts.APIURL, "api-url", "", "Git provider API Url")
+	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false,
+		"If true, this integration would only be visible to account admins (default: false)")
+
 	return cmd
+}
+
+func RunGitIntegrationEditCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.EditGitIntegrationArgs) error {
+	intg, err := client.GitIntegrations().Edit(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("failed to edit git integration: %w", err)
+	}
+
+	log.G(ctx).Infof("edited git integration: %s", intg.Name)
+
+	return nil
 }
 
 func NewGitIntegrationRemoveCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List your git integrations",
+		Use:   "remove",
+		Short: "Remove a git integration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunGitIntegrationListCommand(cmd.Context(), *client)
+			if len(args) < 1 {
+				return fmt.Errorf("missing integration name")
+			}
+
+			return RunGitIntegrationRemoveCommand(cmd.Context(), *client, args[0])
 		},
 	}
 
 	return cmd
 }
 
+func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI, name string) error {
+	if err := client.GitIntegrations().Remove(ctx, name); err != nil {
+		return fmt.Errorf("failed to remove git integration: %w", err)
+	}
+
+	log.G(ctx).Infof("removed git integration: %s", name)
+
+	return nil
+}
+
 func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
+	var (
+		opts model.RegisterToGitIntegrationArgs
+	)
+
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List your git integrations",
+		Use:   "register NAME",
+		Short: "Register to a git integrations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunGitIntegrationListCommand(cmd.Context(), *client)
+			if len(args) < 1 {
+				return fmt.Errorf("missing integration name")
+			}
+
+			opts.Name = args[0]
+
+			return RunGitIntegrationRegisterCommand(cmd.Context(), *client, &opts)
 		},
 	}
 
+	util.Die(viper.BindEnv("token", "GIT_TOKEN"))
+
+	cmd.Flags().StringVar(&opts.Token, "token", "", "Authentication token")
+
+	util.Die(cmd.MarkFlagRequired("token"))
+
 	return cmd
+}
+
+func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.RegisterToGitIntegrationArgs) error {
+	intg, err := client.GitIntegrations().Register(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("failed to register to git integration: %w", err)
+	}
+
+	log.G(ctx).Infof("registered to git integration: %s", intg.Name)
+
+	return nil
 }
 
 func NewGitIntegrationDeregisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List your git integrations",
+		Use:   "deregister NAME",
+		Short: "Deregister user from a git integrations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunGitIntegrationListCommand(cmd.Context(), *client)
+			if len(args) < 1 {
+				return fmt.Errorf("missing integration name")
+			}
+
+			return RunGitIntegrationDeregisterCommand(cmd.Context(), *client, args[0])
 		},
 	}
 
 	return cmd
+}
+
+func RunGitIntegrationDeregisterCommand(ctx context.Context, client sdk.AppProxyAPI, name string) error {
+	gi, err := client.GitIntegrations().Deregister(ctx, name)
+	if err != nil {
+		return fmt.Errorf("failed to deregister user from git integration: %w", err)
+	}
+
+	log.G(ctx).Infof("deregistered user from git integration: %s", gi.Name)
+
+	return nil
 }
 
 func getAppProxyClient(runtime *string, client *sdk.AppProxyAPI) func(*cobra.Command, []string) error {
