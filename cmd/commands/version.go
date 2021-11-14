@@ -17,7 +17,9 @@ package commands
 import (
 	"fmt"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 
 	"github.com/spf13/cobra"
 )
@@ -30,19 +32,48 @@ func NewVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Show cli version",
-		Run: func(_ *cobra.Command, _ []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			s := store.Get()
 
 			if opts.long {
-				fmt.Printf("Version: %s\n", s.Version.Version)
-				fmt.Printf("BuildDate: %s\n", s.Version.BuildDate)
-				fmt.Printf("GitCommit: %s\n", s.Version.GitCommit)
-				fmt.Printf("GoVersion: %s\n", s.Version.GoVersion)
-				fmt.Printf("GoCompiler: %s\n", s.Version.GoCompiler)
-				fmt.Printf("Platform: %s\n", s.Version.Platform)
+				fmt.Printf("CLI:\n")
+				fmt.Printf("    Version: %s\n", s.Version.Version)
+				fmt.Printf("    BuildDate: %s\n", s.Version.BuildDate)
+				fmt.Printf("    GitCommit: %s\n", s.Version.GitCommit)
+				fmt.Printf("    GoVersion: %s\n", s.Version.GoVersion)
+				fmt.Printf("    GoCompiler: %s\n", s.Version.GoCompiler)
+				fmt.Printf("    Platform: %s\n", s.Version.Platform)
+
+				// try to get app proxy version info
+				if err := cfConfig.Load(cmd, args); err != nil {
+					return err
+				}
+
+				runtime := ""
+				var apClient codefresh.AppProxyAPI
+
+				if err := getAppProxyClient(&runtime, &apClient)(cmd, args); err != nil {
+					// can't create client, print error only if in debug level
+					log.G(cmd.Context()).Debug(fmt.Errorf("failed to build app proxy client: %w", err))
+					return nil
+				}
+
+				apInfo, err := apClient.VersionInfo().VersionInfo(cmd.Context())
+				if err != nil {
+					// can't get version, print error only if in debug level
+					log.G(cmd.Context()).Debug(fmt.Errorf("failed to get app proxy version info: %w", err))
+					return nil
+				}
+
+				fmt.Printf("\nAppProxy:\n")
+				fmt.Printf("    Version: %s\n", apInfo.Version)
+				fmt.Printf("    PlatformHost: %s\n", apInfo.PlatformHost)
+				fmt.Printf("    PlatformVersion: %s\n", apInfo.PlatformVersion)
 			} else {
 				fmt.Printf("%+s\n", s.Version.Version)
 			}
+
+			return nil
 		},
 	}
 
