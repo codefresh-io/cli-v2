@@ -41,5 +41,7 @@ cli-v2 config [flags]
 * [cli-v2 config current-context](cli-v2_config_current-context.md)	 - Shows the currently selected Codefresh authentication context
 * [cli-v2 config delete-context](cli-v2_config_delete-context.md)	 - Delete the specified authentication context
 * [cli-v2 config get-contexts](cli-v2_config_get-contexts.md)	 - Lists all Codefresh authentication contexts
+* [cli-v2 config get-runtime](cli-v2_config_get-runtime.md)	 - Gets the default runtime for the current authentication context
+* [cli-v2 config set-runtime](cli-v2_config_set-runtime.md)	 - Sets the default runtime name to use for the current authentication context
 * [cli-v2 config use-context](cli-v2_config_use-context.md)	 - Switch the current authentication context
 
