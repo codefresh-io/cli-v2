@@ -52,6 +52,8 @@ commands, respectively:
 	cmd.AddCommand(NewConfigUseContextCommand())
 	cmd.AddCommand(NewConfigCreateContextCommand())
 	cmd.AddCommand(NewConfigDeleteContextCommand())
+	cmd.AddCommand(NewConfigSetRuntimeCommand())
+	cmd.AddCommand(NewConfigGetRuntimeCommand())
 
 	return cmd
 }
@@ -136,6 +138,76 @@ func RunConfigCurrentContext(ctx context.Context) error {
 	}
 
 	log.G(ctx).Info(cur.Name)
+	return nil
+}
+
+func NewConfigSetRuntimeCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-runtime RUNTIME",
+		Short: "Sets the default runtime name to use for the current authentication context",
+		Example: util.Doc(`
+# Sets the default runtime to 'runtime-2':
+
+		<BIN> config set-runtime runtime-2`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("must provide runtime name to use")
+
+			}
+
+			return RunConfigSetRuntime(cmd.Context(), args[0])
+		},
+	}
+
+	return cmd
+}
+
+func RunConfigSetRuntime(ctx context.Context, runtime string) error {
+	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
+	if err != nil {
+		return err
+	}
+
+	cur := cfConfig.GetCurrentContext()
+	if cur.Name == "" {
+		log.G(ctx).Fatal(util.Doc("no currently selected context, use '<BIN> config use-context' to select a context"))
+	}
+
+	cur.DefaultRuntime = runtime
+
+	if err := cfConfig.Save(); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	log.G(ctx).Infof("default runtime set to: %s", runtime)
+
+	return nil
+}
+
+func NewConfigGetRuntimeCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get-runtime",
+		Short: "Gets the default runtime for the current authentication context",
+		Example: util.Doc(`
+# Prints the default runtime:
+
+		<BIN> config get-runtime`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return RunConfigGetRuntime(cmd.Context())
+		},
+	}
+
+	return cmd
+}
+
+func RunConfigGetRuntime(ctx context.Context) error {
+	cur := cfConfig.GetCurrentContext()
+	if cur.DefaultRuntime == "" {
+		return fmt.Errorf(util.Doc("no default runtime is set for current context, use '<BIN> config set-runtime' to set one"))
+	}
+
+	log.G(ctx).Infof("default runtime set to: %s", cur.DefaultRuntime)
+
 	return nil
 }
 

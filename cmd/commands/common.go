@@ -278,14 +278,14 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 	contextsList := conf.Contexts
 	currentContext := conf.CurrentContext
-	var contextsNamesToShowUser []string
-	var contextsIndex []string
+	contextsNamesToShowUser := []string{currentContext + " (current)"}
+	contextsIndex := []string{currentContext}
 
 	for key := range contextsList {
-		contextsIndex = append(contextsIndex, key)
 		if key == currentContext {
-			key = key + " (current)"
+			continue
 		}
+		contextsIndex = append(contextsIndex, key)
 		contextsNamesToShowUser = append(contextsNamesToShowUser, key)
 	}
 
@@ -316,6 +316,10 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
 	if store.Get().Silent {
+		return nil
+	}
+
+	if ingressHost != nil && *ingressHost != "" {
 		return nil
 	}
 
