@@ -141,7 +141,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				return err
 			}
 
-			isValid, err := IsValid(args[1])
+			isValid, err := IsValidName(args[1])
 			if err != nil {
 				log.G(ctx).Fatal("failed to check the validity of the git-source name")
 			}
@@ -166,7 +166,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return err
 			}
 
@@ -388,7 +388,7 @@ func NewGitSourceListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return err
 			}
 
@@ -489,7 +489,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return err
 			}
 
@@ -564,7 +564,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return err
 			}
 

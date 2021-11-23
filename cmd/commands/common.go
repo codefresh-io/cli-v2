@@ -71,17 +71,17 @@ func presetRequiredFlags(cmd *cobra.Command) {
 	cmd.Flags().SortFlags = false
 }
 
-func IsValid(s string) (bool, error) {
+func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func askUserIfToInstallCodefreshSamples(cmd *cobra.Command, sampleInstall *bool) error {
+func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
 		templates := &promptui.SelectTemplates{
 			Selected: "{{ . | yellow }} ",
 		}
 
-		labelStr := fmt.Sprintf("%vInstall codefresh samples?%v", CYAN, COLOR_RESET)
+		labelStr := fmt.Sprintf("%vInstall Codefresh demo resources?%v", CYAN, COLOR_RESET)
 
 		prompt := promptui.Select{
 			Label:     labelStr,
@@ -324,7 +324,7 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	}
 
 	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host (leave blank to skip)",
+		Label: "Ingress host (required)",
 	}
 
 	ingressHostInput, err := ingressHostPrompt.Run()
@@ -338,7 +338,7 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	return nil
 }
 
-func verifyLatestVersion(ctx context.Context) error {
+func verifyCLILatestVersion(ctx context.Context) error {
 	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting latest cli release: %w", err)

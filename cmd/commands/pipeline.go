@@ -62,7 +62,7 @@ func NewPipelineGetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return err
 			}
 
@@ -101,7 +101,7 @@ func NewPipelineListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return err
 			}
 
