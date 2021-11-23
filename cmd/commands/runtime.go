@@ -74,6 +74,8 @@ type (
 		InsCloneOpts  *git.CloneOptions
 		KubeFactory   kube.Factory
 		CommonConfig  *runtime.CommonConfig
+
+		versionStr string
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -117,7 +119,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	var (
 		installationOpts = RuntimeInstallOptions{}
 		kubeContextName  string
-		versionStr       string
 		finalParameters  map[string]string
 	)
 
@@ -187,39 +188,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var (
-				version *semver.Version
-			)
-
-			ctx := cmd.Context()
-
-			isValid, err := IsValid(installationOpts.RuntimeName)
-			if err != nil {
-				log.G(ctx).Fatal("failed to check the validity of the runtime name")
-			}
-
-			if !isValid {
-				log.G(ctx).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
-			}
-
-			if versionStr != "" {
-				version, err = semver.NewVersion(versionStr)
-				if err != nil {
-					return err
-				}
-				installationOpts.Version = version
-			}
-
-			installationOpts.GsCloneOpts.Parse()
-			installationOpts.Insecure = true
-			installationOpts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
-
-			return RunRuntimeInstall(ctx, &installationOpts)
+			return RunRuntimeInstall(cmd.Context(), &installationOpts)
 		},
 	}
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
-	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
+	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install, defaults to latest")
 	cmd.Flags().BoolVar(&installationOpts.SampleInstall, "sample-install", true, "Installs sample resources, defaults to true")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 
@@ -488,6 +462,35 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	if err := checkExistingRuntimes(ctx, opts.RuntimeName); err != nil {
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
+
+	return nil
+}
+
+func checkCliVersion(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var (
+		version *semver.Version
+	)
+
+	isValid, err := IsValid(opts.RuntimeName)
+	if err != nil {
+		log.G(ctx).Fatal("failed to check the validity of the runtime name")
+	}
+
+	if !isValid {
+		log.G(ctx).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+	}
+
+	if opts.versionStr != "" {
+		version, err = semver.NewVersion(opts.versionStr)
+		if err != nil {
+			return err
+		}
+		opts.Version = version
+	}
+
+	opts.GsCloneOpts.Parse()
+	opts.Insecure = true
+	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
 	return nil
 }

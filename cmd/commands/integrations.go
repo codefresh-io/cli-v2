@@ -60,6 +60,8 @@ func NewIntegrationCommand() *cobra.Command {
 
 	cmd.AddCommand(NewGitIntegrationCommand(&client))
 
+	cmd.Hidden = true // hide this command for now
+
 	return cmd
 }
 
