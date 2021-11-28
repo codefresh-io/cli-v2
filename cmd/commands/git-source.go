@@ -66,6 +66,7 @@ type (
 		GsName       string
 		InsCloneOpts *git.CloneOptions
 		Timeout      time.Duration
+		Force bool
 	}
 
 	GitSourceEditOptions struct {
@@ -449,6 +450,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string) error {
 func NewGitSourceDeleteCommand() *cobra.Command {
 	var (
 		insCloneOpts *git.CloneOptions
+		force bool
 	)
 
 	cmd := &cobra.Command{
@@ -489,9 +491,12 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 				GsName:       args[1],
 				Timeout:      aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 				InsCloneOpts: insCloneOpts,
+				Force: force,
 			})
 		},
 	}
+
+	cmd.Flags().BoolVar(&force, "force", false, "If true, will guarantee the git-source is removed from the platform")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 
