@@ -172,8 +172,6 @@ github.com/ardielle/ardielle-go v1.5.2/go.mod h1:I4hy1n795cUhaVt/ojz83SNVCYIGsAF
 github.com/ardielle/ardielle-tools v1.5.4/go.mod h1:oZN+JRMnqGiIhrzkRN9l26Cej9dEx4jeNG6A+AdkShk=
 github.com/argoproj-labs/applicationset v0.2.0 h1:yq3u88VtH9bXAl8DkIzBi0Q5FCe/ExZHlnGHDxxsyY4=
 github.com/argoproj-labs/applicationset v0.2.0/go.mod h1:vElTdgajynEAIRuQMqQwYWSWTbdgrQPW6zDsxNPs+NE=
-github.com/argoproj-labs/argocd-autopilot v0.2.25 h1:8TPiq7p2HuYdsMr4So8rKPiFp3Kkpm1Wx1SmP6Eodaw=
-github.com/argoproj-labs/argocd-autopilot v0.2.25/go.mod h1:YKl9+scJtfTi4418Z4AbQrCL5FXvMByDuDNLyV4axa0=
 github.com/argoproj-labs/argocd-autopilot v0.2.26 h1:5iB85rvXCh0v5jtX+gnEjvq6Anat9ADr4Bm5iZTttsQ=
 github.com/argoproj-labs/argocd-autopilot v0.2.26/go.mod h1:GjkycwSEKpDJaxHMz0gfIclRIdmHiSW7p9U2mR+We6Q=
 github.com/argoproj/argo-cd/v2 v2.1.0-rc2/go.mod h1:a21F1IEszRrCLvXXYc1sML3mjlMN3pp6rpDxy+7E0os=
@@ -1288,6 +1286,8 @@ github.com/vmware/govmomi v0.20.3/go.mod h1:URlwyTFZX72RmxtxuaFL2Uj3fD1JTvZdx59b
 github.com/willf/bitset v1.1.11/go.mod h1:83CECat5yLh5zVOf4P1ErAgKA5UDvKtgyUABdr3+MjI=
 github.com/xanzy/go-gitlab v0.33.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=
 github.com/xanzy/go-gitlab v0.50.0/go.mod h1:Q+hQhV508bDPoBijv7YjK/Lvlb4PhVhJdKqXVQrUoAE=
+github.com/xanzy/go-gitlab v0.52.2 h1:gkgg1z4ON70sphibtD86Bfmt1qV3mZ0pU0CBBCFAEvQ=
+github.com/xanzy/go-gitlab v0.52.2/go.mod h1:Q+hQhV508bDPoBijv7YjK/Lvlb4PhVhJdKqXVQrUoAE=
 github.com/xanzy/ssh-agent v0.2.1/go.mod h1:mLlQY/MoOhWBj+gOGMQkOeiEvkx+8pJSI+0Bx9h2kr4=
 github.com/xanzy/ssh-agent v0.3.0 h1:wUMzuKtKilRgBAD1sUb8gOwwRr2FGoBVumcjoOACClI=
 github.com/xanzy/ssh-agent v0.3.0/go.mod h1:3s9xbODqPuuhK9JV1R321M/FlMZSBvE5aY6eAcqrDh0=
