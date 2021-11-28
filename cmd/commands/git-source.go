@@ -178,6 +178,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:   "git-src",
 		Optional: true,
+		CreateIfNotExist: true,
 	})
 
 	return cmd
