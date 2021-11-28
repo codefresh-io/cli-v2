@@ -174,6 +174,8 @@ github.com/argoproj-labs/applicationset v0.2.0 h1:yq3u88VtH9bXAl8DkIzBi0Q5FCe/Ex
 github.com/argoproj-labs/applicationset v0.2.0/go.mod h1:vElTdgajynEAIRuQMqQwYWSWTbdgrQPW6zDsxNPs+NE=
 github.com/argoproj-labs/argocd-autopilot v0.2.25 h1:8TPiq7p2HuYdsMr4So8rKPiFp3Kkpm1Wx1SmP6Eodaw=
 github.com/argoproj-labs/argocd-autopilot v0.2.25/go.mod h1:YKl9+scJtfTi4418Z4AbQrCL5FXvMByDuDNLyV4axa0=
+github.com/argoproj-labs/argocd-autopilot v0.2.26 h1:5iB85rvXCh0v5jtX+gnEjvq6Anat9ADr4Bm5iZTttsQ=
+github.com/argoproj-labs/argocd-autopilot v0.2.26/go.mod h1:GjkycwSEKpDJaxHMz0gfIclRIdmHiSW7p9U2mR+We6Q=
 github.com/argoproj/argo-cd/v2 v2.1.0-rc2/go.mod h1:a21F1IEszRrCLvXXYc1sML3mjlMN3pp6rpDxy+7E0os=
 github.com/argoproj/argo-cd/v2 v2.1.0/go.mod h1:/e8fSyHanaAHLR5YsIIWfCGujTN452K6L7DaYep5KRU=
 github.com/argoproj/argo-cd/v2 v2.1.2 h1:Ls+nJQJ7HWHeg9AKtFeeUCQTsSFvzDpbZq+ALxHL680=
