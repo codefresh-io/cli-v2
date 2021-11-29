@@ -338,9 +338,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	var installationErr error
-	
+
 	defer reportInstallationErrorToPlatform(ctx, opts.RuntimeName, &installationErr)
-	
+
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier: rt.Spec.FullSpecifier(),
@@ -403,7 +403,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	mpCloneOpts := &git.CloneOptions{
 		Repo: store.Get().MarketplaceRepo,
-		Auth: opts.GsCloneOpts.Auth,
 		FS:   fs.Create(memfs.New()),
 	}
 	mpCloneOpts.Parse()
@@ -430,7 +429,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	wg.Wait()
 
 	log.G(ctx).Infof("Done installing runtime '%s'", opts.RuntimeName)
-	
+
 	return nil
 }
 
