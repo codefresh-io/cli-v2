@@ -456,7 +456,7 @@ func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err 
 	})
 
 	if err1 != nil {
-		log.G(ctx).Error("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
+		log.G(ctx).Errorf("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
 	}
 }
 
