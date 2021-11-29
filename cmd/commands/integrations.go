@@ -41,6 +41,11 @@ type (
 
 var defaultGitIntegrationName = "default"
 
+var gitProvidersByName = map[string]model.GitProviders{
+	"github": model.GitProvidersGithub,
+	"gitlab": model.GitProvidersGitlab,
+}
+
 func NewIntegrationCommand() *cobra.Command {
 	var (
 		runtime string
@@ -189,24 +194,19 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 		accountAdminsOnly bool
 	)
 
-	providers := map[string]model.GitProviders{
-		"github": model.GitProvidersGithub,
-		"gitlab": model.GitProvidersGitlab,
-	}
-
 	cmd := &cobra.Command{
 		Use:   "add [NAME]",
 		Short: "Add a new git integration",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
 			if len(args) > 0 {
 				opts.Name = &args[0]
 			}
 
-			p, ok := providers[provider]
-			if !ok {
-				return fmt.Errorf("provider '%s' is not a valid provider name", provider)
+			if opts.Provider, err = parseGitProvider(provider); err != nil {
+				return err
 			}
-			opts.Provider = p
 
 			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
@@ -432,4 +432,12 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	}
 
 	return fmt.Errorf("invalid output format: %s", format)
+}
+
+func parseGitProvider(provider string) (model.GitProviders, error) {
+	p, ok := gitProvidersByName[provider]
+	if !ok {
+		return model.GitProviders(""), fmt.Errorf("provider '%s' is not a valid provider name", provider)
+	}
+	return p, nil
 }

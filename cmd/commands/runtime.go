@@ -20,7 +20,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -34,6 +33,7 @@ import (
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -72,6 +72,7 @@ type (
 		Version              *semver.Version
 		GsCloneOpts          *git.CloneOptions
 		InsCloneOpts         *git.CloneOptions
+		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
 		KubeFactory          kube.Factory
 		CommonConfig         *runtime.CommonConfig
 
@@ -118,7 +119,10 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		installationOpts = RuntimeInstallOptions{}
+		gitIntegrationOpts = apmodel.AddGitIntegrationArgs{
+			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
+		}
+		installationOpts = RuntimeInstallOptions{GitIntegrationOpts: &gitIntegrationOpts}
 		finalParameters  map[string]string
 	)
 
@@ -171,6 +175,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
+	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -247,6 +252,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
+
+	if err := ensureGitIntegrationOpts(opts); err != nil {
+		return err
+	}
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
@@ -403,17 +412,31 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return installationErr
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName, &wg)
-	if err != nil {
+	if err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName); err != nil {
 		installationErr = fmt.Errorf("failed to complete installation: %w", err)
 		return installationErr
 	}
-	wg.Wait()
 
-	log.G(ctx).Infof("Done installing runtime '%s'", opts.RuntimeName)
+	if err := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts); err != nil {
+		return fmt.Errorf("failed to create default git integration: %w", err)
+	}
+
+	log.G(ctx).Infof("Runtime '%s' installed successfully", opts.RuntimeName)
+
+	return nil
+}
+
+func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+
+	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Added default git integration")
 
 	return nil
 }
@@ -530,13 +553,14 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return fmt.Errorf("runtime '%s' already exists", runtime)
 }
 
-func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
+func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
 	maxRetries := 180          // up to 30 min
 	longerThanUsualCount := 30 // after 5 min
 	waitMsg := "Waiting for the runtime installation to complete"
 	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
@@ -547,13 +571,12 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 
 		if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			stop()
-			wg.Done()
-			ticker.Stop()
 			return nil
 		}
 
 		if triesLeft == longerThanUsualCount {
 			stop()
+			time.Sleep(time.Second)
 			stop = util.WithSpinner(ctx, longetThanUsualMsg)
 		}
 	}
@@ -1371,4 +1394,47 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	}
 
 	return nil
+}
+
+func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
+	var err error
+	if opts.InsCloneOpts.Provider == "" {
+		if opts.GitIntegrationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
+			return err
+		}
+	}
+
+	if opts.GitIntegrationOpts.APIURL == "" {
+		if opts.GitIntegrationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationOpts.Provider); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
+	const suggest = "you can specify a git provider explicitly with --provider"
+
+	if strings.Contains(cloneURL, "github.com") {
+		return apmodel.GitProvidersGithub, nil
+	}
+	if strings.Contains(cloneURL, "gitlab.com") {
+		return apmodel.GitProvidersGitlab, nil
+	}
+
+	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
+}
+
+func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
+	const suggest = "you can specify a git provider explicitly with --provider-api-url"
+
+	switch provider {
+	case apmodel.GitProvidersGithub:
+		return "https://api.github.com", nil
+	case apmodel.GitProvidersGitlab:
+		return "https://gitlab.com/api/v4", nil
+	}
+
+	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
