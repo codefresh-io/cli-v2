@@ -31,7 +31,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --context string             The name of the kubeconfig context to use
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
-      --git-src-provider string    The git provider, one of: gitea|github
+      --git-src-provider string    The git provider, one of: gitea|github|gitlab
       --git-src-repo string        Repository URL [GIT_SRC_GIT_REPO]
   -t, --git-token string           Your git provider api token [GIT_TOKEN]
   -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
@@ -39,7 +39,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --ingress-host string        The ingress host
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string           If present, the namespace scope for this CLI request
-      --provider string            The git provider, one of: gitea|github
+      --provider string            The git provider, one of: gitea|github|gitlab
       --repo string                Repository URL [GIT_REPO]
       --sample-install             Installs sample resources, defaults to true (default true)
       --version string             The runtime version to install, defaults to latest
