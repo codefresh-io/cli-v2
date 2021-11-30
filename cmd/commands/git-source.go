@@ -111,7 +111,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	var (
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
-		initRepo   bool
+		createRepo   bool
 	)
 
 	cmd := &cobra.Command{
@@ -154,8 +154,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				gsCloneOpts.Auth.Password = insCloneOpts.Auth.Password
 			}
 
-			if initRepo {
-				gsCloneOpts.CreateIfNotExist = initRepo
+			if createRepo {
+				gsCloneOpts.CreateIfNotExist = createRepo
 			}
 
 			insCloneOpts.Parse()
@@ -180,12 +180,12 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&initRepo, "init-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
+	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		Prefix:           "git-src",
-		Optional:         true,
+		Prefix:   "git-src",
+		Optional: true,
 	})
 
 	return cmd
