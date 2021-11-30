@@ -17,6 +17,7 @@ cli-v2 git-source create runtime_name git-source_name [flags]
 ### Options
 
 ```
+      --create-repo                If true, will create the specified git-source repo in case it doesn't already exist
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
       --git-src-repo string        Repository URL [GIT_SRC_GIT_REPO]
