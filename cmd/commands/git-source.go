@@ -159,7 +159,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			}
 
 			insCloneOpts.Parse()
-
 			gsCloneOpts.Parse()
 
 			return nil
