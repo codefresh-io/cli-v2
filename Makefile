@@ -9,7 +9,7 @@ IMAGE_NAMESPACE?=codefresh
 
 RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
 
-DEV_RUNTIME_DEF_URL="$(shell pwd)/manifests/runtime.yaml"
+DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 
 CLI_SRCS := $(shell find . -name '*.go')
 
