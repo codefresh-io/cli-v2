@@ -622,7 +622,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST")
 	if err != nil {
 		return err
 	}
@@ -636,6 +636,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
+		ingressHost := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -653,7 +654,11 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage = *rt.HealthMessage
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		if rt.IngressHost != nil {
+			ingressHost = *rt.IngressHost
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -662,6 +667,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthStatus,
 			healthMessage,
 			installationStatus,
+			ingressHost,
 		)
 		if err != nil {
 			return err
