@@ -211,6 +211,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Git provider api token",
+		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
 	if err != nil {
@@ -316,11 +317,11 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
 	if store.Get().Silent {
-		return nil
-	}
+		if ingressHost != nil && *ingressHost != "" {
+			return nil
+		}
 
-	if ingressHost != nil && *ingressHost != "" {
-		return nil
+		return fmt.Errorf("missing ingress host")
 	}
 
 	ingressHostPrompt := promptui.Prompt{
@@ -330,6 +331,8 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	ingressHostInput, err := ingressHostPrompt.Run()
 	if err != nil {
 		return fmt.Errorf("Prompt error: %w", err)
+	} else if ingressHostInput == "" {
+		return fmt.Errorf("missing ingress host")
 	}
 
 	die(cmd.Flags().Set("ingress-host", ingressHostInput))

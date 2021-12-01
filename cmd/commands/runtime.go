@@ -182,6 +182,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
+	util.Die(cmd.MarkFlagRequired("ingress-host"))
+
 	return cmd
 }
 
@@ -564,6 +566,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 func NewRuntimeListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list [runtime_name]",
+		Aliases: []string{"ls"},
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -767,10 +770,14 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		}
 	}
 
-	err := deleteRuntimeFromPlatform(ctx, opts)
-	if err != nil {
+	if err := deleteRuntimeFromPlatform(ctx, opts); err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
+
+	if cfConfig.GetCurrentContext().DefaultRuntime == opts.RuntimeName {
+		cfConfig.GetCurrentContext().DefaultRuntime = ""
+	}
+
 	log.G(ctx).Infof("Done uninstalling runtime '%s'", opts.RuntimeName)
 
 	return nil
