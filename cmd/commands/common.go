@@ -316,11 +316,11 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 }
 
 func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
-	if store.Get().Silent {
-		if ingressHost != nil && *ingressHost != "" {
-			return nil
-		}
+	if ingressHost != nil && *ingressHost != "" {
+		return nil
+	}
 
+	if store.Get().Silent {
 		return fmt.Errorf("missing ingress host")
 	}
 
