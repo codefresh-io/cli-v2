@@ -155,7 +155,7 @@ func init() {
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.MarketplaceGitSourceName = "marketplace-git-source"
-	s.MarketplaceRepo = "https://github.com/codefresh-io/2.0-marketplace.git"
+	s.MarketplaceRepo = "https://github.com/codefresh-io/argo-hub.git"
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
