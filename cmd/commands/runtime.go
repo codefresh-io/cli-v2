@@ -983,13 +983,8 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:        rt.Name + store.Get().WorkflowsIngressName,
-		Namespace:   rt.Namespace,
-		Annotations: map[string]string{
-			// "kubernetes.io/ingress.class":                  "nginx",
-			// "nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-			// "nginx.ingress.kubernetes.io/backend-protocol": "https",
-		},
+		Name:      rt.Name + store.Get().WorkflowsIngressName,
+		Namespace: rt.Namespace,
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        fmt.Sprintf("/%s/", store.Get().WorkflowsIngressPath),
@@ -1061,13 +1056,8 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if opts.IngressHost != "" {
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-			Name:        rt.Name + store.Get().AppProxyIngressName,
-			Namespace:   rt.Namespace,
-			Annotations: map[string]string{
-				// "kubernetes.io/ingress.class":                  "nginx",
-				// "nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-				// "nginx.ingress.kubernetes.io/backend-protocol": "http",
-			},
+			Name:      rt.Name + store.Get().AppProxyIngressName,
+			Namespace: rt.Namespace,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        fmt.Sprintf("/%s/", store.Get().AppProxyIngressPath),
