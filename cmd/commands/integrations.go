@@ -39,8 +39,6 @@ type (
 	}
 )
 
-var defaultGitIntegrationName = "default"
-
 var gitProvidersByName = map[string]model.GitProviders{
 	"github": model.GitProvidersGithub,
 	"gitlab": model.GitProvidersGitlab,
