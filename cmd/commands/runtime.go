@@ -977,17 +977,17 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:      rt.Name + store.Get().WorkflowsIngressName,
-		Namespace: rt.Namespace,
+		Name:        rt.Name + store.Get().WorkflowsIngressName,
+		Namespace:   rt.Namespace,
 		Annotations: map[string]string{
-			"kubernetes.io/ingress.class":                  "nginx",
-			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-			"nginx.ingress.kubernetes.io/backend-protocol": "https",
+			// "kubernetes.io/ingress.class":                  "nginx",
+			// "nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+			// "nginx.ingress.kubernetes.io/backend-protocol": "https",
 		},
 		Paths: []ingressutil.IngressPath{
 			{
-				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
-				PathType:    netv1.PathTypePrefix,
+				Path:        fmt.Sprintf("/%s/", store.Get().WorkflowsIngressPath),
+				PathType:    netv1.PathTypeImplementationSpecific,
 				ServiceName: store.Get().ArgoWFServiceName,
 				ServicePort: store.Get().ArgoWFServicePort,
 			},
@@ -1055,17 +1055,17 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if opts.IngressHost != "" {
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-			Name:      rt.Name + store.Get().AppProxyIngressName,
-			Namespace: rt.Namespace,
+			Name:        rt.Name + store.Get().AppProxyIngressName,
+			Namespace:   rt.Namespace,
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":                  "nginx",
-				"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-				"nginx.ingress.kubernetes.io/backend-protocol": "http",
+				// "kubernetes.io/ingress.class":                  "nginx",
+				// "nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+				// "nginx.ingress.kubernetes.io/backend-protocol": "http",
 			},
 			Paths: []ingressutil.IngressPath{
 				{
-					Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().AppProxyIngressPath),
-					PathType:    netv1.PathTypePrefix,
+					Path:        fmt.Sprintf("/%s/", store.Get().AppProxyIngressPath),
+					PathType:    netv1.PathTypeImplementationSpecific,
 					ServiceName: store.Get().AppProxyServiceName,
 					ServicePort: store.Get().AppProxyServicePort,
 				},
