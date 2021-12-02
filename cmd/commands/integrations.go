@@ -39,6 +39,11 @@ type (
 	}
 )
 
+var gitProvidersByName = map[string]model.GitProviders{
+	"github": model.GitProvidersGithub,
+	"gitlab": model.GitProvidersGitlab,
+}
+
 func NewIntegrationCommand() *cobra.Command {
 	var (
 		runtime string
@@ -59,6 +64,8 @@ func NewIntegrationCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&runtime, "runtime", "", "Name of runtime to use")
 
 	cmd.AddCommand(NewGitIntegrationCommand(&client))
+
+	cmd.Hidden = true // hide this command for now
 
 	return cmd
 }
@@ -142,24 +149,25 @@ func RunGitIntegrationListCommand(ctx context.Context, client sdk.AppProxyAPI, f
 
 func NewGitIntegrationGetCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
-		format string
+		format      string
+		integration *string
 	)
 
 	allowedFormats := []string{"yaml", "yml", "json"}
 
 	cmd := &cobra.Command{
-		Use:   "get NAME",
+		Use:   "get [NAME]",
 		Short: "Retrieve a git integration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("missing integration name")
+			if len(args) > 0 {
+				integration = &args[0]
 			}
 
 			if err := verifyOutputFormat(format, allowedFormats...); err != nil {
 				return err
 			}
 
-			return RunGitIntegrationGetCommand(cmd.Context(), *client, args[0], format)
+			return RunGitIntegrationGetCommand(cmd.Context(), *client, integration, format)
 		},
 	}
 
@@ -168,7 +176,7 @@ func NewGitIntegrationGetCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	return cmd
 }
 
-func RunGitIntegrationGetCommand(ctx context.Context, client sdk.AppProxyAPI, name, format string) error {
+func RunGitIntegrationGetCommand(ctx context.Context, client sdk.AppProxyAPI, name *string, format string) error {
 	gi, err := client.GitIntegrations().Get(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to get git integration: %w", err)
@@ -184,26 +192,19 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 		accountAdminsOnly bool
 	)
 
-	providers := map[string]model.GitProviders{
-		"github": model.GitProvidersGithub,
-		"gitlab": model.GitProvidersGitlab,
-	}
-
 	cmd := &cobra.Command{
-		Use:   "add NAME",
+		Use:   "add [NAME]",
 		Short: "Add a new git integration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("missing integration name")
+			var err error
+
+			if len(args) > 0 {
+				opts.Name = &args[0]
 			}
 
-			opts.Name = args[0]
-
-			p, ok := providers[provider]
-			if !ok {
-				return fmt.Errorf("provider '%s' is not a valid provider name", provider)
+			if opts.Provider, err = parseGitProvider(provider); err != nil {
+				return err
 			}
-			opts.Provider = p
 
 			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
@@ -242,14 +243,12 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "edit NAME",
+		Use:   "edit [NAME]",
 		Short: "Edit a git integration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("missing integration name")
+			if len(args) > 0 {
+				opts.Name = &args[0]
 			}
-
-			opts.Name = args[0]
 
 			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
@@ -310,14 +309,12 @@ func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "register NAME",
+		Use:   "register [NAME]",
 		Short: "Register to a git integrations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("missing integration name")
+			if len(args) > 0 {
+				opts.Name = &args[0]
 			}
-
-			opts.Name = args[0]
 
 			return RunGitIntegrationRegisterCommand(cmd.Context(), *client, &opts)
 		},
@@ -344,22 +341,26 @@ func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAP
 }
 
 func NewGitIntegrationDeregisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
+	var (
+		integration *string
+	)
+
 	cmd := &cobra.Command{
-		Use:   "deregister NAME",
+		Use:   "deregister [NAME]",
 		Short: "Deregister user from a git integrations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("missing integration name")
+			if len(args) > 0 {
+				integration = &args[0]
 			}
 
-			return RunGitIntegrationDeregisterCommand(cmd.Context(), *client, args[0])
+			return RunGitIntegrationDeregisterCommand(cmd.Context(), *client, integration)
 		},
 	}
 
 	return cmd
 }
 
-func RunGitIntegrationDeregisterCommand(ctx context.Context, client sdk.AppProxyAPI, name string) error {
+func RunGitIntegrationDeregisterCommand(ctx context.Context, client sdk.AppProxyAPI, name *string) error {
 	gi, err := client.GitIntegrations().Deregister(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to deregister user from git integration: %w", err)
@@ -429,4 +430,12 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	}
 
 	return fmt.Errorf("invalid output format: %s", format)
+}
+
+func parseGitProvider(provider string) (model.GitProviders, error) {
+	p, ok := gitProvidersByName[provider]
+	if !ok {
+		return model.GitProviders(""), fmt.Errorf("provider '%s' is not a valid provider name", provider)
+	}
+	return p, nil
 }

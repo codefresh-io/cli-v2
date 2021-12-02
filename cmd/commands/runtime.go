@@ -20,7 +20,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -34,6 +33,7 @@ import (
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -64,16 +64,20 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName   string
-		RuntimeToken  string
-		IngressHost   string
-		Insecure      bool
-		SampleInstall bool
-		Version       *semver.Version
-		GsCloneOpts   *git.CloneOptions
-		InsCloneOpts  *git.CloneOptions
-		KubeFactory   kube.Factory
-		CommonConfig  *runtime.CommonConfig
+		RuntimeName          string
+		RuntimeToken         string
+		IngressHost          string
+		Insecure             bool
+		InstallDemoResources bool
+		Version              *semver.Version
+		GsCloneOpts          *git.CloneOptions
+		InsCloneOpts         *git.CloneOptions
+		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
+		KubeFactory          kube.Factory
+		CommonConfig         *runtime.CommonConfig
+
+		versionStr  string
+		kubeContext string
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -115,9 +119,10 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		installationOpts = RuntimeInstallOptions{}
-		kubeContextName  string
-		versionStr       string
+		gitIntegrationOpts = apmodel.AddGitIntegrationArgs{
+			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
+		}
+		installationOpts = RuntimeInstallOptions{GitIntegrationOpts: &gitIntegrationOpts}
 		finalParameters  map[string]string
 	)
 
@@ -139,89 +144,38 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			if err := verifyLatestVersion(ctx); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
 			if len(args) > 0 {
 				installationOpts.RuntimeName = args[0]
 			}
 
-			if !store.Get().Silent && installationOpts.RuntimeName == "" {
-				err := getRuntimeNameFromUserInput(&installationOpts.RuntimeName)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-			}
-
-			if installationOpts.RuntimeName == "" {
-				log.G(ctx).Fatal("must enter a runtime name")
-			}
-
-			err = runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
-			if err != nil {
+			if err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts); err != nil {
 				return fmt.Errorf("Pre installation error: %w", err)
 			}
 
 			finalParameters = map[string]string{
-				"Kube context":                kubeContextName,
-				"Runtime name":                installationOpts.RuntimeName,
-				"Repository URL":              installationOpts.InsCloneOpts.Repo,
-				"Ingress host":                installationOpts.IngressHost,
-				"Installing sample resources": strconv.FormatBool(installationOpts.SampleInstall),
+				"Kube context":              installationOpts.kubeContext,
+				"Runtime name":              installationOpts.RuntimeName,
+				"Repository URL":            installationOpts.InsCloneOpts.Repo,
+				"Ingress host":              installationOpts.IngressHost,
+				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
-			err = getApprovalFromUser(ctx, finalParameters, "runtime install")
-			if err != nil {
+			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			installationOpts.InsCloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var (
-				version *semver.Version
-			)
-
-			ctx := cmd.Context()
-
-			isValid, err := IsValid(installationOpts.RuntimeName)
-			if err != nil {
-				log.G(ctx).Fatal("failed to check the validity of the runtime name")
-			}
-
-			if !isValid {
-				log.G(ctx).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
-			}
-
-			if versionStr != "" {
-				version, err = semver.NewVersion(versionStr)
-				if err != nil {
-					return err
-				}
-				installationOpts.Version = version
-			}
-
-			installationOpts.GsCloneOpts.Parse()
-			installationOpts.Insecure = true
-			installationOpts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
-
-			return RunRuntimeInstall(ctx, &installationOpts)
+			return RunRuntimeInstall(cmd.Context(), &installationOpts)
 		},
 	}
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
-	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to install, defaults to latest")
-	cmd.Flags().BoolVar(&installationOpts.SampleInstall, "sample-install", true, "Installs sample resources, defaults to true")
+	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
+	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
+	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -233,38 +187,78 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
+	util.Die(cmd.MarkFlagRequired("ingress-host"))
+
 	return cmd
 }
 
-func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, installationOpts *RuntimeInstallOptions) error {
-	err := ensureRepo(cmd, installationOpts.RuntimeName, installationOpts.InsCloneOpts, false)
-	if err != nil {
+func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	if err := verifyCLILatestVersion(cmd.Context()); err != nil {
 		return err
 	}
 
-	err = ensureGitToken(cmd, installationOpts.InsCloneOpts)
-	if err != nil {
+	if opts.versionStr != "" {
+		version, err := semver.NewVersion(opts.versionStr)
+		if err != nil {
+			return err
+		}
+		opts.Version = version
+	}
+
+	if !store.Get().Silent && opts.RuntimeName == "" {
+		if err := getRuntimeNameFromUserInput(&opts.RuntimeName); err != nil {
+			return err
+		}
+	}
+
+	if opts.RuntimeName == "" {
+		return fmt.Errorf("must enter a runtime name")
+	}
+
+	if isValid, err := IsValidName(opts.RuntimeName); err != nil {
+		log.G(cmd.Context()).Fatal("failed to check the validity of the runtime name")
+	} else if !isValid {
+		log.G(cmd.Context()).Fatal("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+	}
+
+	if err := getKubeContextNameFromUserSelect(cmd, &opts.kubeContext); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := ensureRepo(cmd, opts.RuntimeName, opts.InsCloneOpts, false); err != nil {
 		return err
 	}
 
-	err = getIngressHostFromUserInput(cmd, &installationOpts.IngressHost)
-	if err != nil {
+	if err := ensureGitToken(cmd, opts.InsCloneOpts); err != nil {
 		return err
 	}
 
-	err = askUserIfToInstallCodefreshSamples(cmd, &installationOpts.SampleInstall)
-	if err != nil {
+	if err := getIngressHostFromUserInput(cmd, &opts.IngressHost); err != nil {
 		return err
 	}
 
-	if installationOpts.GsCloneOpts.Auth.Password == "" {
-		installationOpts.GsCloneOpts.Auth.Password = installationOpts.InsCloneOpts.Auth.Password
+	if err := askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources); err != nil {
+		return err
 	}
 
-	if installationOpts.GsCloneOpts.Repo == "" {
-		host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(installationOpts.InsCloneOpts.Repo)
-		installationOpts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + installationOpts.RuntimeName
+	if opts.GsCloneOpts.Auth.Password == "" {
+		opts.GsCloneOpts.Auth.Password = opts.InsCloneOpts.Auth.Password
 	}
+
+	if opts.GsCloneOpts.Repo == "" {
+		host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
+		opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
+	}
+
+	opts.InsCloneOpts.Parse()
+	opts.GsCloneOpts.Parse()
+
+	if err := ensureGitIntegrationOpts(opts); err != nil {
+		return err
+	}
+
+	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
+	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
 	return nil
 }
@@ -395,7 +389,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsCloneOpts:         opts.GsCloneOpts,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: opts.SampleInstall,
+		CreateDemoResources: opts.InstallDemoResources,
 	}); err != nil {
 		installationErr = fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 		return installationErr
@@ -418,17 +412,31 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return installationErr
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName, &wg)
-	if err != nil {
+	if err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName); err != nil {
 		installationErr = fmt.Errorf("failed to complete installation: %w", err)
 		return installationErr
 	}
-	wg.Wait()
 
-	log.G(ctx).Infof("Done installing runtime '%s'", opts.RuntimeName)
+	if err := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts); err != nil {
+		return fmt.Errorf("failed to create default git integration: %w", err)
+	}
+
+	log.G(ctx).Infof("Runtime '%s' installed successfully", opts.RuntimeName)
+
+	return nil
+}
+
+func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+
+	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Added default git integration")
 
 	return nil
 }
@@ -448,7 +456,7 @@ func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err 
 	})
 
 	if err1 != nil {
-		log.G(ctx).Error("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
+		log.G(ctx).Errorf("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
 	}
 }
 
@@ -545,13 +553,14 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return fmt.Errorf("runtime '%s' already exists", runtime)
 }
 
-func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg *sync.WaitGroup) error {
+func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
 	maxRetries := 180          // up to 30 min
 	longerThanUsualCount := 30 // after 5 min
 	waitMsg := "Waiting for the runtime installation to complete"
 	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
@@ -562,13 +571,12 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 
 		if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			stop()
-			wg.Done()
-			ticker.Stop()
 			return nil
 		}
 
 		if triesLeft == longerThanUsualCount {
 			stop()
+			time.Sleep(time.Second)
 			stop = util.WithSpinner(ctx, longetThanUsualMsg)
 		}
 	}
@@ -581,12 +589,13 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string, wg
 func NewRuntimeListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list [runtime_name]",
+		Aliases: []string{"ls"},
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 			return nil
@@ -613,7 +622,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST")
 	if err != nil {
 		return err
 	}
@@ -627,6 +636,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
+		ingressHost := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -644,7 +654,11 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage = *rt.HealthMessage
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		if rt.IngressHost != nil {
+			ingressHost = *rt.IngressHost
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -653,6 +667,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthStatus,
 			healthMessage,
 			installationStatus,
+			ingressHost,
 		)
 		if err != nil {
 			return err
@@ -694,7 +709,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
@@ -784,10 +799,14 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		}
 	}
 
-	err := deleteRuntimeFromPlatform(ctx, opts)
-	if err != nil {
+	if err := deleteRuntimeFromPlatform(ctx, opts); err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
+
+	if cfConfig.GetCurrentContext().DefaultRuntime == opts.RuntimeName {
+		cfConfig.GetCurrentContext().DefaultRuntime = ""
+	}
+
 	log.G(ctx).Infof("Done uninstalling runtime '%s'", opts.RuntimeName)
 
 	return nil
@@ -832,7 +851,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyLatestVersion(ctx); err != nil {
+			if err := verifyCLILatestVersion(ctx); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
@@ -966,15 +985,10 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:      rt.Name + store.Get().WorkflowsIngressName,
 		Namespace: rt.Namespace,
-		Annotations: map[string]string{
-			"kubernetes.io/ingress.class":                  "nginx",
-			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-			"nginx.ingress.kubernetes.io/backend-protocol": "https",
-		},
 		Paths: []ingressutil.IngressPath{
 			{
-				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
-				PathType:    netv1.PathTypePrefix,
+				Path:        fmt.Sprintf("/%s/", store.Get().WorkflowsIngressPath),
+				PathType:    netv1.PathTypeImplementationSpecific,
 				ServiceName: store.Get().ArgoWFServiceName,
 				ServicePort: store.Get().ArgoWFServicePort,
 			},
@@ -1044,15 +1058,10 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 			Name:      rt.Name + store.Get().AppProxyIngressName,
 			Namespace: rt.Namespace,
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":                  "nginx",
-				"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-				"nginx.ingress.kubernetes.io/backend-protocol": "http",
-			},
 			Paths: []ingressutil.IngressPath{
 				{
-					Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().AppProxyIngressPath),
-					PathType:    netv1.PathTypePrefix,
+					Path:        fmt.Sprintf("/%s/", store.Get().AppProxyIngressPath),
+					PathType:    netv1.PathTypeImplementationSpecific,
 					ServiceName: store.Get().AppProxyServiceName,
 					ServicePort: store.Get().AppProxyServicePort,
 				},
@@ -1381,4 +1390,47 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	}
 
 	return nil
+}
+
+func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
+	var err error
+	if opts.InsCloneOpts.Provider == "" {
+		if opts.GitIntegrationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
+			return err
+		}
+	}
+
+	if opts.GitIntegrationOpts.APIURL == "" {
+		if opts.GitIntegrationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationOpts.Provider); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
+	const suggest = "you can specify a git provider explicitly with --provider"
+
+	if strings.Contains(cloneURL, "github.com") {
+		return apmodel.GitProvidersGithub, nil
+	}
+	if strings.Contains(cloneURL, "gitlab.com") {
+		return apmodel.GitProvidersGitlab, nil
+	}
+
+	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
+}
+
+func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
+	const suggest = "you can specify a git provider explicitly with --provider-api-url"
+
+	switch provider {
+	case apmodel.GitProvidersGithub:
+		return "https://api.github.com", nil
+	case apmodel.GitProvidersGitlab:
+		return "https://gitlab.com/api/v4", nil
+	}
+
+	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }

@@ -29,6 +29,7 @@ cli-v2 runtime install [runtime_name] [flags]
 
 ```
       --context string             The name of the kubeconfig context to use
+      --demo-resources             Installs demo resources (default: true) (default true)
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
       --git-src-provider string    The git provider, one of: gitea|github|gitlab
@@ -40,9 +41,9 @@ cli-v2 runtime install [runtime_name] [flags]
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string           If present, the namespace scope for this CLI request
       --provider string            The git provider, one of: gitea|github|gitlab
+      --provider-api-url string    Git provider API url
       --repo string                Repository URL [GIT_REPO]
-      --sample-install             Installs sample resources, defaults to true (default true)
-      --version string             The runtime version to install, defaults to latest
+      --version string             The runtime version to install (default: latest)
       --wait-timeout duration      How long to wait for the runtime components to be ready (default 8m0s)
 ```
 

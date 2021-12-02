@@ -71,17 +71,17 @@ func presetRequiredFlags(cmd *cobra.Command) {
 	cmd.Flags().SortFlags = false
 }
 
-func IsValid(s string) (bool, error) {
+func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func askUserIfToInstallCodefreshSamples(cmd *cobra.Command, sampleInstall *bool) error {
+func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
 		templates := &promptui.SelectTemplates{
 			Selected: "{{ . | yellow }} ",
 		}
 
-		labelStr := fmt.Sprintf("%vInstall codefresh samples?%v", CYAN, COLOR_RESET)
+		labelStr := fmt.Sprintf("%vInstall Codefresh demo resources?%v", CYAN, COLOR_RESET)
 
 		prompt := promptui.Select{
 			Label:     labelStr,
@@ -211,6 +211,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Git provider api token",
+		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
 	if err != nil {
@@ -315,21 +316,23 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 }
 
 func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
-	if store.Get().Silent {
-		return nil
-	}
-
 	if ingressHost != nil && *ingressHost != "" {
 		return nil
 	}
 
+	if store.Get().Silent {
+		return fmt.Errorf("missing ingress host")
+	}
+
 	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host (leave blank to skip)",
+		Label: "Ingress host (required)",
 	}
 
 	ingressHostInput, err := ingressHostPrompt.Run()
 	if err != nil {
 		return fmt.Errorf("Prompt error: %w", err)
+	} else if ingressHostInput == "" {
+		return fmt.Errorf("missing ingress host")
 	}
 
 	die(cmd.Flags().Set("ingress-host", ingressHostInput))
@@ -338,7 +341,7 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	return nil
 }
 
-func verifyLatestVersion(ctx context.Context) error {
+func verifyCLILatestVersion(ctx context.Context) error {
 	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting latest cli release: %w", err)
