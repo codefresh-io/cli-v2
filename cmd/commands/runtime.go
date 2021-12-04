@@ -406,7 +406,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().MarketplaceGitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: false,
-		Include:             "**/workflowTemplate.yaml",
+		Exclude:             "**/images/**/*"
+		Include:             "workflows/**/*.yaml",
 	}); err != nil {
 		installationErr = fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
 		return installationErr
