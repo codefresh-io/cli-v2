@@ -556,33 +556,22 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
 	maxRetries := 180          // up to 30 min
-	longerThanUsualCount := 30 // after 5 min
 	waitMsg := "Waiting for the runtime installation to complete"
-	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
+	defer stop()
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
-			stop()
 			return fmt.Errorf("failed to complete the runtime installation. Error: %w", err)
 		}
 
 		if runtime.InstallationStatus == model.InstallationStatusCompleted {
-			stop()
 			return nil
 		}
-
-		if triesLeft == longerThanUsualCount {
-			stop()
-			time.Sleep(time.Second)
-			stop = util.WithSpinner(ctx, longetThanUsualMsg)
-		}
 	}
-
-	stop()
 
 	return fmt.Errorf("timed out while waiting for runtime installation to complete")
 }
