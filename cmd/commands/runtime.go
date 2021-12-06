@@ -556,9 +556,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
 	maxRetries := 180          // up to 30 min
-	longerThanUsualCount := 30 // after 5 min
 	waitMsg := "Waiting for the runtime installation to complete"
-	longetThanUsualMsg := waitMsg + " (this is taking longer than usual, you might need to check your cluster for errors)"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
@@ -573,12 +571,6 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 		if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			stop()
 			return nil
-		}
-
-		if triesLeft == longerThanUsualCount {
-			stop()
-			time.Sleep(time.Second)
-			stop = util.WithSpinner(ctx, longetThanUsualMsg)
 		}
 	}
 
