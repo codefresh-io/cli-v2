@@ -560,21 +560,18 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
+	defer stop()
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
-			stop()
 			return fmt.Errorf("failed to complete the runtime installation. Error: %w", err)
 		}
 
 		if runtime.InstallationStatus == model.InstallationStatusCompleted {
-			stop()
 			return nil
 		}
 	}
-
-	stop()
 
 	return fmt.Errorf("timed out while waiting for runtime installation to complete")
 }
