@@ -17,3 +17,15 @@ rules:
       - patch
       - list
       - watch
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - workflows
+    verbs:
+      - get
+      - create
+      - delete
+      - update
+      - patch
+      - list
+      - watch
