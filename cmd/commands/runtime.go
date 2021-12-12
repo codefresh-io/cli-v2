@@ -1033,16 +1033,21 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return err
 	}
 
+	literalResources := []string{
+		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
+	}
+
+	if cfConfig.GetCurrentContext().IsProduction() {
+		literalResources = append(literalResources, "env=production")
+	}
+
 	// configure codefresh host
 	kust.ConfigMapGenerator = append(kust.ConfigMapGenerator, kusttypes.ConfigMapArgs{
 		GeneratorArgs: kusttypes.GeneratorArgs{
 			Name:     store.Get().AppProxyServiceName + "-cm",
 			Behavior: "merge",
 			KvPairSources: kusttypes.KvPairSources{
-				LiteralSources: []string{
-					fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
-					"env=production",
-				},
+				LiteralSources: literalResources,
 			},
 		},
 	})
