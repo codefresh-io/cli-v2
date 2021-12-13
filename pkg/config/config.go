@@ -35,6 +35,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 )
@@ -78,6 +79,10 @@ type AuthContext struct {
 	Beta           bool   `mapstructure:"beta" json:"beta"`
 	OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
+}
+
+func (ac *AuthContext) IsProduction() bool {
+	return ac.URL == store.Get().DefaultAPI
 }
 
 func AddFlags(f *pflag.FlagSet) *Config {

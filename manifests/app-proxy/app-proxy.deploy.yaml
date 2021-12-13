@@ -35,6 +35,12 @@ spec:
                   name: cap-app-proxy-cm
                   key: env
                   optional: true
+            - name: ARGO_WORKFLOWS_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoWorkflowsInsecure
+                  optional: true
             - name: RUNTIME_TOKEN
               valueFrom:
                 secretKeyRef:
