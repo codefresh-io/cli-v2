@@ -111,6 +111,9 @@ type Store struct {
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
 	Silent                               bool
+	RolloutsGroup                        string
+	RolloutsVersion                      string
+	RolloutsResourceName                 string
 }
 
 // Get returns the global store
@@ -183,6 +186,9 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
+	s.RolloutsGroup = "argoproj.io"                        
+	s.RolloutsVersion = "v1alpha1"                      
+	s.RolloutsResourceName = "rollouts"
 	initVersion()
 }
 

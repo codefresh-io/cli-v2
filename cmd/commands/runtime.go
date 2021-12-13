@@ -1112,7 +1112,9 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data"); err != nil {
+	triggers := []string{"events"}
+
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, triggers, "data"); err != nil {
 		return err
 	}
 
@@ -1171,7 +1173,9 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object"); err != nil {
+	triggers := []string{"workflows", "rollouts"} 
+
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, triggers, "data.object"); err != nil {
 		return err
 	}
 
@@ -1349,19 +1353,25 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 				Resource:  argowf.WorkflowPlural,
 				Namespace: namespace,
 			},
+			"rollouts": {
+				Group: store.Get().RolloutsGroup,
+				Version: store.Get().RolloutsVersion,
+				Resource: store.Get().RolloutsResourceName,
+				Namespace: namespace,
+			},
 		},
 	})
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, triggers []string, dataKey string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-		Triggers:        []string{trigger},
+		Triggers:        triggers,
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
