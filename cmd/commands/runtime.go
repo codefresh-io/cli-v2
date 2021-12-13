@@ -975,9 +975,15 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:      rt.Name + store.Get().WorkflowsIngressName,
 		Namespace: rt.Namespace,
+		Annotations: map[string]string{
+			"ingress.kubernetes.io/protocol": "https",
+			"ingress.kubernetes.io/rewrite-target": "/$2",
+			"nginx.ingress.kubernetes.io/backend-protocol": "https",
+			"nginx.ingress.kubernetes.io/rewrite-target": "/$2",
+		},
 		Paths: []ingressutil.IngressPath{
 			{
-				Path:        fmt.Sprintf("/%s/", store.Get().WorkflowsIngressPath),
+				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
 				PathType:    netv1.PathTypeImplementationSpecific,
 				ServiceName: store.Get().ArgoWFServiceName,
 				ServicePort: store.Get().ArgoWFServicePort,
