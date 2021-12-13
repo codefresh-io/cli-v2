@@ -85,7 +85,7 @@ type Store struct {
 	Version                              Version
 	WaitTimeout                          time.Duration
 	WorkflowName                         string
-	CapReporterName                      string
+	WorkflowReporterName                 string
 	WorkflowTriggerServiceAccount        string
 	CronExampleSensorFileName            string
 	CronExampleEventSourceFileName       string
@@ -161,7 +161,7 @@ func init() {
 	s.MarketplaceRepo = "https://github.com/codefresh-io/argo-hub.git"
 	s.WaitTimeout = 8 * time.Minute
 	s.WorkflowName = "workflow"
-	s.CapReporterName = "cap-reporter"
+	s.WorkflowReporterName = "workflow-reporter"
 	s.WorkflowTriggerServiceAccount = "argo"
 	s.CronExampleEventSourceFileName = "event-source.calendar.yaml"
 	s.CronExampleSensorFileName = "sensor.cron.yaml"
@@ -186,8 +186,8 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
-	s.RolloutsGroup = "argoproj.io"
-	s.RolloutsVersion = "v1alpha1"
+	s.RolloutsGroup = "argoproj.io"                        
+	s.RolloutsVersion = "v1alpha1"                      
 	s.RolloutsResourceName = "rollouts"
 	initVersion()
 }

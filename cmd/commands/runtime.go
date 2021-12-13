@@ -555,7 +555,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
-	maxRetries := 180 // up to 30 min
+	maxRetries := 180          // up to 30 min
 	waitMsg := "Waiting for the runtime installation to complete"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
@@ -1150,9 +1150,9 @@ func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneO
 }
 
 func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().CapReporterName, opts.RuntimeName, "resources")
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().WorkflowReporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
-		Name: store.Get().CapReporterName,
+		Name: store.Get().WorkflowReporterName,
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
@@ -1173,9 +1173,9 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		return err
 	}
 
-	triggers := []string{"workflows", "rollouts"}
+	triggers := []string{"workflows", "rollouts"} 
 
-	if err := createSensor(repofs, store.Get().CapReporterName, resPath, opts.RuntimeName, store.Get().CapReporterName, triggers, "data.object"); err != nil {
+	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, triggers, "data.object"); err != nil {
 		return err
 	}
 
@@ -1342,7 +1342,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 
 func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {
 	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:               store.Get().CapReporterName,
+		Name:               store.Get().WorkflowReporterName,
 		Namespace:          namespace,
 		ServiceAccountName: store.Get().CodefreshSA,
 		EventBusName:       store.Get().EventBusName,
@@ -1354,9 +1354,9 @@ func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) err
 				Namespace: namespace,
 			},
 			"rollouts": {
-				Group:     store.Get().RolloutsGroup,
-				Version:   store.Get().RolloutsVersion,
-				Resource:  store.Get().RolloutsResourceName,
+				Group: store.Get().RolloutsGroup,
+				Version: store.Get().RolloutsVersion,
+				Resource: store.Get().RolloutsResourceName,
 				Namespace: namespace,
 			},
 		},
