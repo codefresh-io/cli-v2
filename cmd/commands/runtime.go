@@ -106,14 +106,12 @@ type (
 	}
 
 	validationRequest struct {
-		cpu                  string
-		localDiskMinimumSize string
-		memorySize           string
-		rbac                 []rbacValidation
+		cpu        string
+		memorySize string
+		rbac       []rbacValidation
 	}
 
 	validationResult struct {
-		isValid bool
 		message []string
 	}
 )
@@ -314,9 +312,9 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
-	// TODO: notice: client was *kubernetes.Clientset, and was changed to kubernetes.Interface
-	result := validationResult{true, nil}
-
+	requirementsValidationErrorMessage := "cluster does not meet minimum requirements"
+	var specificErrorMessages []string
+	
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("Cannot create kubernetes clientset: %v ", err))
@@ -325,8 +323,8 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 	req := validationRequest{
 		rbac: []rbacValidation{
 			{
-				Resource: "ServiceAccount",
-				Verbs:    []string{"create", "delete"},
+				Resource:  "ServiceAccount",
+				Verbs:     []string{"create", "delete"},
 				Namespace: namespace,
 			},
 			{
@@ -362,6 +360,8 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 				Namespace: namespace,
 			},
 		},
+		memorySize: store.Get().MinimumMemorySizeRequired,
+		cpu:        store.Get().MinimumCpuRequired,
 	}
 
 	specs := []*authv1.SelfSubjectAccessReview{}
@@ -385,11 +385,10 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 
 	rbacres := testRBAC(ctx, client, specs)
 	if len(rbacres) > 0 {
-		result.isValid = false
 		for _, res := range rbacres {
-			result.message = append(result.message, res)
+			specificErrorMessages = append(specificErrorMessages, res)
 		}
-		return fmt.Errorf("failed testing rbac: %s", result.message)
+		return fmt.Errorf("failed testing rbac: %v", specificErrorMessages)
 	}
 
 	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
@@ -397,30 +396,24 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return err
 	}
 	if nodes == nil {
-		return fmt.Errorf("Nodes not found")
+		return fmt.Errorf("%s: Nodes not found", requirementsValidationErrorMessage)
 	}
 
 	if len(nodes.Items) == 0 {
-		result.message = append(result.message, "No nodes in cluster")
-		result.isValid = false
+		return fmt.Errorf("%s: No nodes in cluster", requirementsValidationErrorMessage)
 	}
 
 	atLeastOneMet := false
 	for _, n := range nodes.Items {
 		res := testNode(n, req)
 		if len(res) > 0 {
-			result.message = append(result.message, res...)
+			specificErrorMessages = append(specificErrorMessages, res...)
 		} else {
 			atLeastOneMet = true
 		}
 	}
 	if !atLeastOneMet {
-		result.isValid = false
-		return fmt.Errorf("cluster does not meet minimum requirements: %s", result.message)
-	}
-
-	if !result.isValid {
-		return fmt.Errorf("cluster does not meet minimum requirements: %s", result.message)
+		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
 	return nil

@@ -111,6 +111,9 @@ type Store struct {
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
 	Silent                               bool
+	MinimumMemorySizeRequired            string
+	MinimumCpuRequired                   string
+	MinimumLocalDiskSizeRequired         string
 }
 
 // Get returns the global store
@@ -183,6 +186,8 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
+	s.MinimumMemorySizeRequired = "3000"            
+	s.MinimumCpuRequired = "2"                   
 	initVersion()
 }
 
