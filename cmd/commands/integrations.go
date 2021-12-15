@@ -377,17 +377,15 @@ func getAppProxyClient(runtime *string, client *sdk.AppProxyAPI) func(*cobra.Com
 			return err
 		}
 
-		if *runtime != "" {
-			return nil
+		if *runtime == "" {
+			cur := cfConfig.GetCurrentContext()
+
+			if cur.DefaultRuntime == "" {
+				return fmt.Errorf("default runtime not set, you must specify the runtime name with --runtime")
+			}
+
+			*runtime = cur.DefaultRuntime
 		}
-
-		cur := cfConfig.GetCurrentContext()
-
-		if cur.DefaultRuntime == "" {
-			return fmt.Errorf("missing name of runtime to use")
-		}
-
-		*runtime = cur.DefaultRuntime
 
 		appProxy, err := cfConfig.NewClient().AppProxy(cmd.Context(), *runtime)
 		if err != nil {
