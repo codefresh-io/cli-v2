@@ -110,10 +110,6 @@ type (
 		memorySize string
 		rbac       []rbacValidation
 	}
-
-	validationResult struct {
-		message []string
-	}
 )
 
 func NewRuntimeCommand() *cobra.Command {
