@@ -53,11 +53,14 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
+	authv1 "k8s.io/api/authorization/v1"
 	v1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	kustid "sigs.k8s.io/kustomize/api/resid"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 )
@@ -75,9 +78,8 @@ type (
 		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
 		KubeFactory          kube.Factory
 		CommonConfig         *runtime.CommonConfig
-
-		versionStr  string
-		kubeContext string
+		versionStr           string
+		kubeContext          string
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -94,6 +96,25 @@ type (
 		Version      *semver.Version
 		CloneOpts    *git.CloneOptions
 		CommonConfig *runtime.CommonConfig
+	}
+
+	rbacValidation struct {
+		Namespace string
+		Resource  string
+		Verbs     []string
+		Group     string
+	}
+
+	validationRequest struct {
+		cpu                  string
+		localDiskMinimumSize string
+		memorySize           string
+		rbac                 []rbacValidation
+	}
+
+	validationResult struct {
+		isValid bool
+		message []string
 	}
 )
 
@@ -290,6 +311,176 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 	}
 
 	return runtimeCreationResponse.NewAccessToken, nil
+}
+
+func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+	// TODO: notice: client was *kubernetes.Clientset, and was changed to kubernetes.Interface
+	result := validationResult{true, nil}
+
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("Cannot create kubernetes clientset: %v ", err))
+	}
+
+	req := validationRequest{
+		rbac: []rbacValidation{
+			{
+				Resource: "ServiceAccount",
+				Verbs:    []string{"create", "delete"},
+				Namespace: namespace,
+			},
+			{
+				Resource:  "ConfigMap",
+				Verbs:     []string{"create", "update", "delete"},
+				Namespace: namespace,
+			},
+			{
+				Resource:  "Service",
+				Verbs:     []string{"create", "update", "delete"},
+				Namespace: namespace,
+			},
+			{
+				Resource:  "Role",
+				Group:     "rbac.authorization.k8s.io",
+				Verbs:     []string{"create", "update", "delete"},
+				Namespace: namespace,
+			},
+			{
+				Resource:  "RoleBinding",
+				Group:     "rbac.authorization.k8s.io",
+				Verbs:     []string{"create", "update", "delete"},
+				Namespace: namespace,
+			},
+			{
+				Resource:  "persistentvolumeclaims",
+				Verbs:     []string{"create", "update", "delete"},
+				Namespace: namespace,
+			},
+			{
+				Resource:  "pods",
+				Verbs:     []string{"create", "update", "delete"},
+				Namespace: namespace,
+			},
+		},
+	}
+
+	specs := []*authv1.SelfSubjectAccessReview{}
+	for _, rbac := range req.rbac {
+		for _, verb := range rbac.Verbs {
+			attr := &authv1.ResourceAttributes{
+				Resource: rbac.Resource,
+				Verb:     verb,
+				Group:    rbac.Group,
+			}
+			if rbac.Namespace != "" {
+				attr.Namespace = rbac.Namespace
+			}
+			specs = append(specs, &authv1.SelfSubjectAccessReview{
+				Spec: authv1.SelfSubjectAccessReviewSpec{
+					ResourceAttributes: attr,
+				},
+			})
+		}
+	}
+
+	rbacres := testRBAC(ctx, client, specs)
+	if len(rbacres) > 0 {
+		result.isValid = false
+		for _, res := range rbacres {
+			result.message = append(result.message, res)
+		}
+		return fmt.Errorf("failed testing rbac: %s", result.message)
+	}
+
+	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	if nodes == nil {
+		return fmt.Errorf("Nodes not found")
+	}
+
+	if len(nodes.Items) == 0 {
+		result.message = append(result.message, "No nodes in cluster")
+		result.isValid = false
+	}
+
+	atLeastOneMet := false
+	for _, n := range nodes.Items {
+		res := testNode(n, req)
+		if len(res) > 0 {
+			result.message = append(result.message, res...)
+		} else {
+			atLeastOneMet = true
+		}
+	}
+	if !atLeastOneMet {
+		result.isValid = false
+		return fmt.Errorf("cluster does not meet minimum requirements: %s", result.message)
+	}
+
+	if !result.isValid {
+		return fmt.Errorf("cluster does not meet minimum requirements: %s", result.message)
+	}
+
+	return nil
+}
+
+func testRBAC(ctx context.Context, client kubernetes.Interface, specs []*authv1.SelfSubjectAccessReview) []string {
+	res := []string{}
+	for _, sar := range specs {
+		resp, err := client.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, sar, metav1.CreateOptions{})
+		if err != nil {
+			res = append(res, err.Error())
+			continue
+		}
+		if !resp.Status.Allowed {
+			verb := sar.Spec.ResourceAttributes.Verb
+			namespace := sar.Spec.ResourceAttributes.Namespace
+			resource := sar.Spec.ResourceAttributes.Resource
+			group := sar.Spec.ResourceAttributes.Group
+			msg := strings.Builder{}
+			msg.WriteString(fmt.Sprintf("Insufficient permission, %s %s/%s is not allowed", verb, group, resource))
+			if namespace != "" {
+				msg.WriteString(fmt.Sprintf(" on namespace %s", namespace))
+			}
+			res = append(res, msg.String())
+		}
+	}
+	return res
+}
+
+func testNode(n v1.Node, req validationRequest) []string {
+	result := []string{}
+
+	if req.cpu != "" {
+		requiredCPU, err := resource.ParseQuantity(req.cpu)
+		if err != nil {
+			result = append(result, err.Error())
+			return result
+		}
+		cpu := n.Status.Capacity.Cpu()
+
+		if cpu != nil && cpu.Cmp(requiredCPU) == -1 {
+			msg := fmt.Sprintf("Insufficiant CPU on node %s, current: %s - required: %s", n.GetObjectMeta().GetName(), cpu.String(), requiredCPU.String())
+			result = append(result, msg)
+		}
+	}
+
+	if req.memorySize != "" {
+		requiredMemory, err := resource.ParseQuantity(req.memorySize)
+		if err != nil {
+			result = append(result, err.Error())
+			return result
+		}
+		memory := n.Status.Capacity.Memory()
+		if memory != nil && memory.Cmp(requiredMemory) == -1 {
+			msg := fmt.Sprintf("Insufficiant Memory on node %s, current: %s - required: %s", n.GetObjectMeta().GetName(), memory.String(), requiredMemory.String())
+			result = append(result, msg)
+		}
+	}
+
+	return result
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -498,6 +689,11 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
+	err := ensureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
+	}
+
 	return nil
 }
 
@@ -555,7 +751,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
-	maxRetries := 180          // up to 30 min
+	maxRetries := 180 // up to 30 min
 	waitMsg := "Waiting for the runtime installation to complete"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
