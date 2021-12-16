@@ -117,9 +117,7 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 
 	rbacres := testRBAC(ctx, client, specs)
 	if len(rbacres) > 0 {
-		for _, res := range rbacres {
-			specificErrorMessages = append(specificErrorMessages, res)
-		}
+		specificErrorMessages = append(specificErrorMessages, rbacres...)
 		return fmt.Errorf("%s: failed testing rbac: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
