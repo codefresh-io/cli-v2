@@ -8,7 +8,7 @@
 
 ## Introduction
 
-The new Codefresh CLI tool.
+The new Codefresh CLI tool
 
 ## Installation
 ### Using brew:
