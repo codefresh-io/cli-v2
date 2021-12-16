@@ -384,13 +384,14 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		for _, res := range rbacres {
 			specificErrorMessages = append(specificErrorMessages, res)
 		}
-		return fmt.Errorf("failed testing rbac: %v", specificErrorMessages)
+		return fmt.Errorf("%s: failed testing rbac: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
 	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: failed getting nodes: %v", requirementsValidationErrorMessage, err)
 	}
+	
 	if nodes == nil {
 		return fmt.Errorf("%s: Nodes not found", requirementsValidationErrorMessage)
 	}
