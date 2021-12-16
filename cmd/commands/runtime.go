@@ -47,7 +47,7 @@ import (
 	argowf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 
 	"github.com/Masterminds/semver/v3"
-	cliv2kube "github.com/codefresh-io/cli-v2/pkg/util/kube"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -498,7 +498,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
-	err := cliv2kube.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
+	err := kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
 	}
