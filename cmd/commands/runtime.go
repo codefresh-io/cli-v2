@@ -47,6 +47,7 @@ import (
 	argowf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 
 	"github.com/Masterminds/semver/v3"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -75,9 +76,8 @@ type (
 		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
 		KubeFactory          kube.Factory
 		CommonConfig         *runtime.CommonConfig
-
-		versionStr  string
-		kubeContext string
+		versionStr           string
+		kubeContext          string
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -498,6 +498,11 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
+	err := kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
+	}
+
 	return nil
 }
 
@@ -555,7 +560,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
-	maxRetries := 180          // up to 30 min
+	maxRetries := 180 // up to 30 min
 	waitMsg := "Waiting for the runtime installation to complete"
 	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
@@ -976,10 +981,10 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 		Name:      rt.Name + store.Get().WorkflowsIngressName,
 		Namespace: rt.Namespace,
 		Annotations: map[string]string{
-			"ingress.kubernetes.io/protocol": "https",
-			"ingress.kubernetes.io/rewrite-target": "/$2",
+			"ingress.kubernetes.io/protocol":               "https",
+			"ingress.kubernetes.io/rewrite-target":         "/$2",
 			"nginx.ingress.kubernetes.io/backend-protocol": "https",
-			"nginx.ingress.kubernetes.io/rewrite-target": "/$2",
+			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
 		},
 		Paths: []ingressutil.IngressPath{
 			{
