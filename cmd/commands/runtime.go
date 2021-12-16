@@ -313,7 +313,7 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 	
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Cannot create kubernetes clientset: %v ", err))
+		return fmt.Errorf("%s: cannot create kubernetes clientset: %v ", requirementsValidationErrorMessage, err)
 	}
 
 	req := validationRequest{
@@ -335,13 +335,13 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 			},
 			{
 				Resource:  "Role",
-				Group:     "rbac.authorization.k8s.io",
+				Group:     store.Get().RoleApiGroup,
 				Verbs:     []string{"create", "update", "delete"},
 				Namespace: namespace,
 			},
 			{
 				Resource:  "RoleBinding",
-				Group:     "rbac.authorization.k8s.io",
+				Group:     store.Get().RoleApiGroup,
 				Verbs:     []string{"create", "update", "delete"},
 				Namespace: namespace,
 			},
@@ -391,7 +391,7 @@ func ensureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 	if err != nil {
 		return fmt.Errorf("%s: failed getting nodes: %v", requirementsValidationErrorMessage, err)
 	}
-	
+
 	if nodes == nil {
 		return fmt.Errorf("%s: Nodes not found", requirementsValidationErrorMessage)
 	}
