@@ -229,10 +229,10 @@ func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 	}
 
 	return newCodefresh(&codefresh.ClientOptions{
+		Host:   ctx.URL,
 		Auth: codefresh.AuthOptions{
 			Token: ctx.Token,
 		},
-		Host:   ctx.URL,
 		Client: httpClient,
 	})
 }
