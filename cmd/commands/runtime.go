@@ -509,14 +509,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
 	}
 
-	// if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
-	// 	return fmt.Errorf("failed to create workflows-reporter: %w", err)
-	// }
-
-	// if err = createReplicaSetReporter(ctx, opts.InsCloneOpts, opts); err != nil {
-	// 	return fmt.Errorf("failed to create replicaset-reporter: %w", err)
-	// }
-
 	return nil
 }
 
@@ -1228,7 +1220,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Codefresh", strings.Title(reporterCreateOpts.reporterName), "Reporter mainifests")
+	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " Reporter mainifests")
 
 	return apu.PushWithMessage(ctx, r, "Created Codefresh Workflow Reporter")
 }
