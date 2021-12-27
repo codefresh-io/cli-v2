@@ -1220,7 +1220,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " Reporter mainifests")
+	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " mainifests")
 
 	return apu.PushWithMessage(ctx, r, "Created Codefresh Workflow Reporter")
 }
