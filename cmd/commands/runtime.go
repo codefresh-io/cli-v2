@@ -501,7 +501,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().ReplicaSetReporterName,
-		resourceName: store.Get().ReplicaSetReporterName,
+		resourceName: store.Get().ReplicaSetResourceName,
 		group:        "apps",
 		version:      "v1",
 		saName:       store.Get().ReplicaSetReporterServiceAccount,
