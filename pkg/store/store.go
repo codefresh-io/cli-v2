@@ -117,6 +117,7 @@ type Store struct {
 	ReplicaSetReporterName               string
 	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
+	WorkflowResourceName                 string
 }
 
 // Get returns the global store
@@ -194,6 +195,7 @@ func init() {
 	s.ReplicaSetReporterName = "replicaset-reporter"
 	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
 	s.ReplicaSetResourceName = "replicasets"
+	s.WorkflowResourceName = "workflows"
 	initVersion()
 }
 

@@ -95,6 +95,13 @@ type (
 		CloneOpts    *git.CloneOptions
 		CommonConfig *runtime.CommonConfig
 	}
+	reporterCreateOptions struct {
+		reporterName string
+		resourceName string
+		group        string
+		version      string
+		saName       string
+	}
 )
 
 func NewRuntimeCommand() *cobra.Command {
@@ -481,13 +488,34 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
-	if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
+	if err = createReporter(
+		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+			reporterName: store.Get().WorkflowReporterName,
+			resourceName: store.Get().WorkflowResourceName,
+			group:        argowf.Group,
+			version:      argowf.Version,
+			saName:       store.Get().CodefreshSA,
+		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	if err = createReplicaSetReporter(ctx, opts.InsCloneOpts, opts); err != nil {
+	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+		reporterName: store.Get().ReplicaSetReporterName,
+		resourceName: store.Get().ReplicaSetReporterName,
+		group:        "apps",
+		version:      "v1",
+		saName:       store.Get().ReplicaSetReporterServiceAccount,
+	}); err != nil {
 		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
 	}
+
+	// if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
+	// 	return fmt.Errorf("failed to create workflows-reporter: %w", err)
+	// }
+
+	// if err = createReplicaSetReporter(ctx, opts.InsCloneOpts, opts); err != nil {
+	// 	return fmt.Errorf("failed to create replicaset-reporter: %w", err)
+	// }
 
 	return nil
 }
@@ -981,7 +1009,7 @@ func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt
 		return err
 	}
 
-	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
+	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:      rt.Name + store.Get().WorkflowsIngressName,
 		Namespace: rt.Namespace,
@@ -1172,10 +1200,10 @@ func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneO
 	return apu.PushWithMessage(ctx, r, "Created ArgoCD Agent Reporter")
 }
 
-func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().WorkflowReporterName, opts.RuntimeName, "resources")
+func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
-		Name: store.Get().WorkflowReporterName,
+		Name: reporterCreateOpts.reporterName,
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
 	}
@@ -1188,54 +1216,21 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 		return err
 	}
 
-	if err := createWorkflowReporterRBAC(repofs, resPath, opts.RuntimeName); err != nil {
+	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName); err != nil {
 		return err
 	}
 
-	if err := createWorkflowReporterEventSource(repofs, resPath, opts.RuntimeName); err != nil {
+	if err := createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts); err != nil {
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().WorkflowReporterName, resPath, opts.RuntimeName, store.Get().WorkflowReporterName, "workflows", "data.object"); err != nil {
+	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, reporterCreateOpts.resourceName, "data.object"); err != nil {
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Codefresh Workflow Reporter mainifests")
+	log.G(ctx).Info("Pushing Codefresh", strings.Title(reporterCreateOpts.reporterName), "Reporter mainifests")
 
 	return apu.PushWithMessage(ctx, r, "Created Codefresh Workflow Reporter")
-}
-
-func createReplicaSetReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ReplicaSetReporterName, opts.RuntimeName, "resources")
-	appDef := &runtime.AppDef{
-		Name: store.Get().ReplicaSetReporterName,
-		Type: application.AppTypeDirectory,
-		URL:  cloneOpts.URL() + "/" + resPath,
-	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
-		return err
-	}
-
-	r, repofs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := createReplicaSetRBAC(repofs, resPath, opts.RuntimeName); err != nil {
-		return err
-	}
-
-	if err := createReplicaSetEventSource(repofs, resPath, opts.RuntimeName); err != nil {
-		return err
-	}
-
-	if err := createSensor(repofs, store.Get().ReplicaSetReporterName, resPath, opts.RuntimeName, store.Get().ReplicaSetReporterName, store.Get().ReplicaSetResourceName, "data.object"); err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Pushing Codefresh ReplicaSet Reporter mainifests")
-
-	return apu.PushWithMessage(ctx, r, "Created Codefresh ReplicaSet Reporter")
 }
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
@@ -1317,14 +1312,14 @@ func getArgoCDAgentTokenSecret(ctx context.Context, token string, namespace stri
 	})
 }
 
-func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
+func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().CodefreshSA,
+			Name:      saName,
 			Namespace: runtimeName,
 		},
 	}
@@ -1335,7 +1330,7 @@ func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().CodefreshSA,
+			Name:      saName,
 			Namespace: runtimeName,
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -1353,97 +1348,25 @@ func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().CodefreshSA,
+			Name:      saName,
 			Namespace: runtimeName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
 				Namespace: runtimeName,
-				Name:      store.Get().CodefreshSA,
+				Name:      saName,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			Kind: "Role",
-			Name: store.Get().CodefreshSA,
+			Name: saName,
 		},
 	}
 
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createReplicaSetRBAC(repofs fs.FS, path, runtimeName string) error {
-	serviceAccount := &v1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ServiceAccount",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ReplicaSetReporterServiceAccount,
-			Namespace: runtimeName,
-		},
-	}
-
-	role := &rbacv1.Role{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Role",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ReplicaSetReporterServiceAccount,
-			Namespace: runtimeName,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{"*"},
-				Resources: []string{"*"},
-				Verbs:     []string{"*"},
-			},
-		},
-	}
-
-	roleBinding := rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "RoleBinding",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ReplicaSetReporterServiceAccount,
-			Namespace: runtimeName,
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Namespace: runtimeName,
-				Name:      store.Get().ReplicaSetReporterServiceAccount,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			Kind: "Role",
-			Name: store.Get().ReplicaSetReporterServiceAccount,
-		},
-	}
-
-	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
-}
-
-func createReplicaSetEventSource(repofs fs.FS, path, namespace string) error {
-	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:               store.Get().ReplicaSetReporterName,
-		Namespace:          namespace,
-		ServiceAccountName: store.Get().ReplicaSetReporterServiceAccount,
-		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			"replicasets": {
-				Group:     "apps",
-				Version:   "v1",
-				Resource:  store.Get().ReplicaSetResourceName,
-				Namespace: namespace,
-			},
-		},
-	})
-	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
-}
 
 func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
 	port := 443
@@ -1467,17 +1390,17 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createWorkflowReporterEventSource(repofs fs.FS, path, namespace string) error {
+func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
 	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
-		Name:               store.Get().WorkflowReporterName,
+		Name:               reporterCreateOpts.reporterName,
 		Namespace:          namespace,
-		ServiceAccountName: store.Get().CodefreshSA,
+		ServiceAccountName: reporterCreateOpts.saName,
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			"workflows": {
-				Group:     argowf.Group,
-				Version:   argowf.Version,
-				Resource:  argowf.WorkflowPlural,
+				Group:     reporterCreateOpts.group,
+				Version:   reporterCreateOpts.version,
+				Resource:  reporterCreateOpts.resourceName,
 				Namespace: namespace,
 			},
 		},
