@@ -114,6 +114,9 @@ type Store struct {
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
+	ReplicaSetReporterName               string
+	ReplicaSetReporterServiceAccount     string
+	ReplicaSetResourceName               string
 }
 
 // Get returns the global store
@@ -188,6 +191,9 @@ func init() {
 	s.ArgoCD = "argo-cd"
 	s.MinimumMemorySizeRequired = "3000"
 	s.MinimumCpuRequired = "2"
+	s.ReplicaSetReporterName = "replicaset-reporter"
+	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
+	s.ReplicaSetResourceName = "replicasets"
 	initVersion()
 }
 

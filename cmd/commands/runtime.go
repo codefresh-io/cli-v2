@@ -484,6 +484,11 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createWorkflowReporter(ctx, opts.InsCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
+
+	if err = createReplicaSetReporter(ctx, opts.InsCloneOpts, opts); err != nil {
+		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
+	}
+
 	return nil
 }
 
@@ -1200,6 +1205,39 @@ func createWorkflowReporter(ctx context.Context, cloneOpts *git.CloneOptions, op
 	return apu.PushWithMessage(ctx, r, "Created Codefresh Workflow Reporter")
 }
 
+func createReplicaSetReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ReplicaSetReporterName, opts.RuntimeName, "resources")
+	appDef := &runtime.AppDef{
+		Name: store.Get().ReplicaSetReporterName,
+		Type: application.AppTypeDirectory,
+		URL:  cloneOpts.URL() + "/" + resPath,
+	}
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
+		return err
+	}
+
+	r, repofs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := createReplicaSetRBAC(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
+	if err := createReplicaSetEventSource(repofs, resPath, opts.RuntimeName); err != nil {
+		return err
+	}
+
+	if err := createSensor(repofs, store.Get().ReplicaSetReporterName, resPath, opts.RuntimeName, store.Get().ReplicaSetReporterName, store.Get().ReplicaSetResourceName, "data.object"); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing Codefresh ReplicaSet Reporter mainifests")
+
+	return apu.PushWithMessage(ctx, r, "Created Codefresh ReplicaSet Reporter")
+}
+
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 	projPath := repofs.Join(apstore.Default.ProjectsDir, rt.Name+".yaml")
 	project, appset, err := getProjectInfoFromFile(repofs, projPath)
@@ -1332,6 +1370,79 @@ func createWorkflowReporterRBAC(repofs fs.FS, path, runtimeName string) error {
 	}
 
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
+}
+
+func createReplicaSetRBAC(repofs fs.FS, path, runtimeName string) error {
+	serviceAccount := &v1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ServiceAccount",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ReplicaSetReporterServiceAccount,
+			Namespace: runtimeName,
+		},
+	}
+
+	role := &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Role",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ReplicaSetReporterServiceAccount,
+			Namespace: runtimeName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+				Verbs:     []string{"*"},
+			},
+		},
+	}
+
+	roleBinding := rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store.Get().ReplicaSetReporterServiceAccount,
+			Namespace: runtimeName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Namespace: runtimeName,
+				Name:      store.Get().ReplicaSetReporterServiceAccount,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "Role",
+			Name: store.Get().ReplicaSetReporterServiceAccount,
+		},
+	}
+
+	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
+}
+
+func createReplicaSetEventSource(repofs fs.FS, path, namespace string) error {
+	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+		Name:               store.Get().ReplicaSetReporterName,
+		Namespace:          namespace,
+		ServiceAccountName: store.Get().ReplicaSetReporterServiceAccount,
+		EventBusName:       store.Get().EventBusName,
+		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
+			"replicasets": {
+				Group:     "apps",
+				Version:   "v1",
+				Resource:  store.Get().ReplicaSetResourceName,
+				Namespace: namespace,
+			},
+		},
+	})
+	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
 func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
