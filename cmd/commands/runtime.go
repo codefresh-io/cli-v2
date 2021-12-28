@@ -1359,7 +1359,6 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-
 func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
 	port := 443
 	if insecure {
