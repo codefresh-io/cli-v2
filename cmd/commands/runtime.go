@@ -337,11 +337,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier: rt.Spec.FullSpecifier(),
-		Namespace:    opts.RuntimeName,
-		KubeFactory:  opts.KubeFactory,
-		CloneOptions: opts.InsCloneOpts,
-		Insecure:     opts.Insecure,
+		AppSpecifier: 	 rt.Spec.FullSpecifier(),
+		Namespace:       opts.RuntimeName,
+		KubeFactory:     opts.KubeFactory,
+		CloneOptions:    opts.InsCloneOpts,
+		Insecure:     	 opts.Insecure,
+		KubeContextName: opts.kubeContext,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 		},

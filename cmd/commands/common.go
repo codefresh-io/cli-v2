@@ -268,6 +268,7 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 
 func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
 	if store.Get().Silent {
+		*kubeContextName, _ = cmd.Flags().GetString("context")
 		return nil
 	}
 
