@@ -8,6 +8,12 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - pods
+    verbs:
+      - delete
+  - apiGroups:
+      - ""
+    resources:
       - secrets
     verbs:
       - get
@@ -29,3 +35,9 @@ rules:
       - patch
       - list
       - watch
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - workflowstemplates
+    verbs:
+      - get
