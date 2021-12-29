@@ -1,13 +1,14 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   labels:
     app: cap-app-proxy
   name: cap-app-proxy
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: cap-app-proxy
+  kind: ClusterRole
+  name: argo-server-cluster-role
 subjects:
   - kind: ServiceAccount
     name: cap-app-proxy
+    namespace: default
