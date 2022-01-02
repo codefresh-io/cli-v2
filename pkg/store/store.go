@@ -205,7 +205,7 @@ func init() {
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
 	s.MinimumMemorySizeRequired = "5000"
-	s.MinimumCpuRequired = "4"
+	s.MinimumCpuRequired = "2"
 	s.ReplicaSetReporterName = "replicaset-reporter"
 	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
 	s.ReplicaSetResourceName = "replicasets"
