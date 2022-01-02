@@ -3,10 +3,11 @@ kind: Kustomization
 images:
   - name: quay.io/codefresh/cap-app-proxy
     newName: quay.io/codefresh/cap-app-proxy
-    newTag: v0.0.13
+    newTag: v0.0.14
 resources:
   - app-proxy.deploy.yaml
   - app-proxy.svc.yaml
   - app-proxy.sa.yaml
-  - app-proxy.crb.yaml
+  - app-proxy.rb.yaml
+  - app-proxy.role.yaml
   - app-proxy.cm.yaml

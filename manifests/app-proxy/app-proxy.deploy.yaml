@@ -57,13 +57,14 @@ spec:
           name: cap-app-proxy
           livenessProbe:
             initialDelaySeconds: 5
-            timeoutSeconds: 3
+            timeoutSeconds: 10
+            failureThreshold: 10
             httpGet:
               port: http
               path: /api/ping
           readinessProbe:
             initialDelaySeconds: 5
-            timeoutSeconds: 3
+            timeoutSeconds: 10
             httpGet:
               port: http
               path: /api/ping
