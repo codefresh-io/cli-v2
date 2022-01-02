@@ -114,6 +114,10 @@ type Store struct {
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
+	ReplicaSetReporterName               string
+	ReplicaSetReporterServiceAccount     string
+	ReplicaSetResourceName               string
+	WorkflowResourceName                 string
 }
 
 // Get returns the global store
@@ -186,8 +190,12 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
-	s.MinimumMemorySizeRequired = "3000"
-	s.MinimumCpuRequired = "2"
+	s.MinimumMemorySizeRequired = "5000"
+	s.MinimumCpuRequired = "4"
+	s.ReplicaSetReporterName = "replicaset-reporter"
+	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
+	s.ReplicaSetResourceName = "replicasets"
+	s.WorkflowResourceName = "workflows"
 	initVersion()
 }
 

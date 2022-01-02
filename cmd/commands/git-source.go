@@ -355,7 +355,7 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 				GroupVersionResource: metav1.GroupVersionResource{
 					Group:    "argoproj.io",
 					Version:  "v1alpha1",
-					Resource: "workflows",
+					Resource: store.Get().WorkflowResourceName,
 				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
@@ -783,7 +783,7 @@ func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 				GroupVersionResource: metav1.GroupVersionResource{
 					Group:    "argoproj.io",
 					Version:  "v1alpha1",
-					Resource: "workflows",
+					Resource: store.Get().WorkflowResourceName,
 				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
