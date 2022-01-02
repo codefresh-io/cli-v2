@@ -8,6 +8,7 @@ spec:
   selector:
     matchLabels:
       app: cap-app-proxy
+  replicas: 2
   template:
     metadata:
       labels:
@@ -57,6 +58,7 @@ spec:
           livenessProbe:
             initialDelaySeconds: 5
             timeoutSeconds: 3
+            failureThreshold: 10
             httpGet:
               port: http
               path: /api/ping

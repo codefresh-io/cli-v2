@@ -17,7 +17,7 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts
     - name: workflows
       type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
+      url: manifests/argo-workflows
     - name: argocd-agent
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-agent
