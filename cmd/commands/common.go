@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -332,6 +333,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
 	if ingressHost != nil && *ingressHost != "" {
+		*ingressHost = strings.TrimSpace(*ingressHost)
 		return nil
 	}
 
@@ -346,7 +348,10 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	ingressHostInput, err := ingressHostPrompt.Run()
 	if err != nil {
 		return fmt.Errorf("Prompt error: %w", err)
-	} else if ingressHostInput == "" {
+	}
+
+	ingressHostInput = strings.TrimSpace(ingressHostInput)
+	if ingressHostInput == "" {
 		return fmt.Errorf("missing ingress host")
 	}
 
