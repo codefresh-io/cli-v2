@@ -1403,7 +1403,7 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 		ServiceAccountName: reporterCreateOpts.saName,
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			"workflows": {
+			reporterCreateOpts.resourceName: {
 				Group:     reporterCreateOpts.group,
 				Version:   reporterCreateOpts.version,
 				Resource:  reporterCreateOpts.resourceName,
