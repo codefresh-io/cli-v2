@@ -41,6 +41,12 @@ spec:
                   name: cap-app-proxy-cm
                   key: cfHost
                   optional: true
+            - name: CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: cors
+                  optional: true
             - name: ENV
               valueFrom:
                 configMapKeyRef:
