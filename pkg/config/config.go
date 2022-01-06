@@ -49,7 +49,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 )
@@ -239,7 +238,7 @@ func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 	}
 
 	return newCodefresh(&codefresh.ClientOptions{
-		Host:   ctx.URL,
+		Host: ctx.URL,
 		Auth: codefresh.AuthOptions{
 			Token: ctx.Token,
 		},
