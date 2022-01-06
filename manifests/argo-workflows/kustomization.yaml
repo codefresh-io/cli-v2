@@ -13,17 +13,6 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: default
-  # add to the app-proxy service account the required permissions
-  # to manipulate workflows
-  - target:
-      group: rbac.authorization.k8s.io
-      version: v1
-      kind: ClusterRoleBinding
-      name: argo-server-binding
-    patch: |-
-      - op: add
-        path: /subjects/1
-        value: { "kind": "ServiceAccount", "name": "cap-app-proxy", "namespace": "default" }
 
   - target:
       group: apps
