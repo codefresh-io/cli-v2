@@ -358,11 +358,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier: 	 rt.Spec.FullSpecifier(),
+		AppSpecifier:    rt.Spec.FullSpecifier(),
 		Namespace:       opts.RuntimeName,
 		KubeFactory:     opts.KubeFactory,
 		CloneOptions:    opts.InsCloneOpts,
-		Insecure:     	 opts.Insecure,
+		Insecure:        opts.Insecure,
 		KubeContextName: opts.kubeContext,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
@@ -1085,12 +1085,12 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	}
 
 	literalResources := []string{
-		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
+		"apiPrefix=api",
 		"argoWorkflowsInsecure=true",
-	}
-
-	if cfConfig.GetCurrentContext().IsProduction() {
-		literalResources = append(literalResources, "env=production")
+		"argoWorkflowsUrl=https://argo-server:2746",
+		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
+		fmt.Sprintf("cors=%s", cfConfig.GetCurrentContext().URL),
+		"env=production",
 	}
 
 	// configure codefresh host

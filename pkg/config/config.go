@@ -95,10 +95,6 @@ type AuthContext struct {
 	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
 }
 
-func (ac *AuthContext) IsProduction() bool {
-	return ac.URL == store.Get().DefaultAPI
-}
-
 func AddFlags(f *pflag.FlagSet) *Config {
 	conf := &Config{path: defaultPath}
 
