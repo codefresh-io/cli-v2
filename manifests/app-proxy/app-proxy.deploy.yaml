@@ -23,6 +23,18 @@ spec:
                   name: cap-app-proxy-cm
                   key: apiPrefix
                   optional: true
+            - name: ARGO_WORKFLOWS_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoWorkflowsInsecure
+                  optional: true
+            - name: ARGO_WORKFLOWS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoWorkflowsUrl
+                  optional: true
             - name: CF_HOST
               valueFrom:
                 configMapKeyRef:
@@ -35,23 +47,50 @@ spec:
                   name: cap-app-proxy-cm
                   key: env
                   optional: true
-            - name: ARGO_WORKFLOWS_INSECURE
+            - name: GRAPHQL_DEBUG
               valueFrom:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
-                  key: argoWorkflowsInsecure
+                  key: graphqlDebug
+                  optional: true
+            - name: GRAPHQL_PLAYGROUND
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: graphqlPlayground
+                  optional: true
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: port
+                  optional: true
+            - name: REPOS_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: reposDir
+                  optional: true
+            - name: RUNTIME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: runtimeName
                   optional: true
             - name: RUNTIME_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: codefresh-token
                   key: token
-            - name: NAMESPACE
+            - name: STORE_BACKEND
               valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: PORT
-              value: "80"
+                secretKeyRef:
+                  name: codefresh-token
+                  key: storeBackend
           image: quay.io/codefresh/cap-app-proxy
           imagePullPolicy: Always
           name: cap-app-proxy
