@@ -1111,6 +1111,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				"ingress.kubernetes.io/rewrite-target":         "/$2",
 				"nginx.ingress.kubernetes.io/backend-protocol": "http",
 				"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
+				"traefik.ingress.kubernetes.io/rewrite-target": "/$2",
 			},
 			Paths: []ingressutil.IngressPath{
 				{
