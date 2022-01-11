@@ -17,12 +17,6 @@ spec:
       serviceAccountName: cap-app-proxy
       containers:
         - env:
-            - name: API_PATH_PREFIX
-              valueFrom:
-                configMapKeyRef:
-                  name: cap-app-proxy-cm
-                  key: apiPrefix
-                  optional: true
             - name: ARGO_WORKFLOWS_INSECURE
               valueFrom:
                 configMapKeyRef:
@@ -97,6 +91,12 @@ spec:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
                   key: storeBackend
+                  optional: true
+            - name: STRIP_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: stripPrefix
                   optional: true
           image: quay.io/codefresh/cap-app-proxy
           imagePullPolicy: Always
