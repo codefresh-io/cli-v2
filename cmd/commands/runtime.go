@@ -1106,16 +1106,9 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 			Name:      rt.Name + store.Get().AppProxyIngressName,
 			Namespace: rt.Namespace,
-			Annotations: map[string]string{
-				"ingress.kubernetes.io/protocol":               "http",
-				"ingress.kubernetes.io/rewrite-target":         "/$2",
-				"nginx.ingress.kubernetes.io/backend-protocol": "http",
-				"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-				"traefik.ingress.kubernetes.io/rewrite-target": "/$2",
-			},
 			Paths: []ingressutil.IngressPath{
 				{
-					Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().AppProxyIngressPath),
+					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),
 					PathType:    netv1.PathTypeImplementationSpecific,
 					ServiceName: store.Get().AppProxyServiceName,
 					ServicePort: store.Get().AppProxyServicePort,
