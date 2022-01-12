@@ -329,7 +329,6 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
-	defer postInstallationHandler(&err, ctx, opts)
 
 	err = preInstallationChecks(ctx, opts)
 	appendLogToSummary(&summaryArr, "Pre installation checks", err)
@@ -355,6 +354,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	componentNames := getComponents(rt, opts)
+
+	defer postInstallationHandler(&err, ctx, opts)
 
 	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
