@@ -355,7 +355,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	defer postInstallationHandler(&err, ctx, opts)
+	defer postInstallationHandler(ctx, opts, &err)
 
 	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
@@ -1524,7 +1524,7 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
-func postInstallationHandler(err *error, ctx context.Context, opts *RuntimeInstallOptions) {
+func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error) {
 	if *err != nil {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
