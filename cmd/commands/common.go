@@ -60,6 +60,7 @@ var (
 	cfConfig *config.Config
 
 	GREEN           = "\033[32m"
+	RED             = "\033[31m"
 	CYAN            = "\033[36m"
 	BOLD            = "\033[1m"
 	UNDERLINE       = "\033[4m"
