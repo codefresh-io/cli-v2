@@ -292,7 +292,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	}
 
 	//  should find a more dynamic way to get these additional components
-	additionalComponents := []string{"events-reporter", "workflow-reporter", "replicaset-reporter"}
+	additionalComponents := []string{"events-reporter", "workflow-reporter", "replicaset-reporter", "rollout-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
 		componentNames = append(componentNames, componentFullName)
@@ -517,11 +517,21 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().ReplicaSetReporterName,
 		resourceName: store.Get().ReplicaSetResourceName,
-		group:        "apps",
-		version:      "v1",
+		group:        "argoproj.io",
+		version:      "v1alpha1",
 		saName:       store.Get().ReplicaSetReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
+	}
+
+	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+		reporterName: store.Get().RolloutReporterName,
+		resourceName: store.Get().RolloutResourceName,
+		group:        "apps",
+		version:      "v1",
+		saName:       store.Get().RolloutReporterServiceAccount,
+	}); err != nil {
+		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
 
 	return nil
