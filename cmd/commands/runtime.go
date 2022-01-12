@@ -386,10 +386,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
-	//var installationErr error
-
-	//defer reportInstallationErrorToPlatform(ctx, opts.RuntimeName, &installationErr)
-
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier:    rt.Spec.FullSpecifier(),
@@ -1635,4 +1631,6 @@ func printSummaryToUser(summaryArr *[]summaryLog) {
 			fmt.Printf("%s\n", summary[i].message)
 		}
     }
+	//clear array to avoid double printing
+	*summaryArr = []summaryLog{}
 }
