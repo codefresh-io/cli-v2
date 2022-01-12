@@ -365,7 +365,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(&summaryArr, "Creating runtime on platform", err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -397,7 +397,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(&summaryArr, "Bootstrapping repository", err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -419,7 +419,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(&summaryArr, "Creating Project", err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -437,7 +437,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
 	appendLogToSummary(&summaryArr, "Creating codefresh-cm", err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -456,7 +456,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		appendLogToSummary(&summaryArr, infoStr, err)
 		if err != nil {
-			summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+			summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 			RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 				RuntimeName: opts.RuntimeName,
 				Timeout: store.Get().WaitTimeout,
@@ -473,7 +473,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = installComponents(ctx, opts, rt)
 	appendLogToSummary(&summaryArr, "Installing components", err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -496,7 +496,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(&summaryArr, gitSrcMessage, err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -527,7 +527,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(&summaryArr, createGitSrcMessgae, err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
@@ -543,7 +543,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
 	appendLogToSummary(&summaryArr, "Completing runtime installation", err)
 	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"Uninstalling runtime", Info})
+		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
