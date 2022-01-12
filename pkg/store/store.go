@@ -134,7 +134,7 @@ type Store struct {
 	WorkflowResourceName                 string
 	RolloutReporterName                  string
 	RolloutResourceName                  string
-	RolloutReporterServiceAccount     string
+	RolloutReporterServiceAccount        string
 }
 
 // Get returns the global store
