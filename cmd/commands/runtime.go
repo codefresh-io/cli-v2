@@ -517,8 +517,8 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().ReplicaSetReporterName,
 		resourceName: store.Get().ReplicaSetResourceName,
-		group:        "argoproj.io",
-		version:      "v1alpha1",
+		group:        "apps",
+		version:      "v1",
 		saName:       store.Get().ReplicaSetReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
@@ -527,8 +527,8 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().RolloutReporterName,
 		resourceName: store.Get().RolloutResourceName,
-		group:        "apps",
-		version:      "v1",
+		group:        "argoproj.io",
+		version:      "v1alpha1",
 		saName:       store.Get().RolloutReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
@@ -1245,7 +1245,9 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 
 	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " mainifests")
 
-	return apu.PushWithMessage(ctx, r, "Created Codefresh Workflow Reporter")
+	pushMessage := "Created Codefresh" + strings.Title(reporterCreateOpts.reporterName) + "Reporter"
+
+	return apu.PushWithMessage(ctx, r, pushMessage)
 }
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
