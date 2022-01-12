@@ -493,25 +493,6 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 	return nil
 }
 
-func reportInstallationErrorToPlatform(ctx context.Context, runtime string, err *error) {
-	if *err == nil {
-		return
-	}
-
-	installationError := &model.HealthErrorInput{
-		Level:   model.ErrorLevelsError,
-		Message: (*err).Error(),
-	}
-	_, err1 := cfConfig.NewClient().V2().Runtime().ReportErrors(ctx, &model.ReportRuntimeErrorsArgs{
-		Runtime: runtime,
-		Errors:  []*model.HealthErrorInput{installationError},
-	})
-
-	if err1 != nil {
-		log.G(ctx).Errorf("failed to report installation errors of runtime: %s. Error: %s", runtime, err1)
-	}
-}
-
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	if opts.IngressHost != "" {
