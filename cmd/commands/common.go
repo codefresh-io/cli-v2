@@ -361,19 +361,3 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 
 	return nil
 }
-
-func verifyCLILatestVersion(ctx context.Context) error {
-	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
-	if err != nil {
-		return fmt.Errorf("failed getting latest cli release: %w", err)
-	}
-
-	latestVersionSemver := semver.MustParse(latestVersionString)
-	currentVersion := store.Get().Version.Version
-
-	if currentVersion.LessThan(latestVersionSemver) {
-		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
-	}
-
-	return nil
-}

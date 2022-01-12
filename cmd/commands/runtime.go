@@ -228,10 +228,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	if err := verifyCLILatestVersion(cmd.Context()); err != nil {
-		return err
-	}
-
 	if opts.versionStr != "" {
 		version, err := semver.NewVersion(opts.versionStr)
 		if err != nil {
@@ -661,11 +657,6 @@ func NewRuntimeListCommand() *cobra.Command {
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return fmt.Errorf("%w", err)
-			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -776,10 +767,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return fmt.Errorf("%w", err)
-			}
 
 			err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
 			if err != nil {
@@ -926,10 +913,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return fmt.Errorf("%w", err)
-			}
 
 			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {

@@ -180,10 +180,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
-
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 				InsCloneOpts:        insCloneOpts,
 				GsCloneOpts:         gsCloneOpts,
@@ -402,10 +398,6 @@ func NewGitSourceListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
-
 			return RunGitSourceList(ctx, args[0])
 		},
 	}
@@ -503,10 +495,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
-
 			return RunGitSourceDelete(ctx, &GitSourceDeleteOptions{
 				RuntimeName:  args[0],
 				GsName:       args[1],
@@ -577,10 +565,6 @@ func NewGitSourceEditCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
 
 			return RunGitSourceEdit(ctx, &GitSourceEditOptions{
 				RuntimeName:  args[0],

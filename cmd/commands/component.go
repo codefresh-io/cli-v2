@@ -73,10 +73,6 @@ func NewComponentListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
-
 			return RunComponentList(ctx, args[0])
 		},
 	}
