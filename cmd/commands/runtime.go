@@ -130,6 +130,8 @@ const (
 	Info summaryLogLevels = "Info"
 )
 
+var summaryArr []summaryLog
+
 func NewRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "runtime",
@@ -326,7 +328,6 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	summaryArr := []summaryLog{}
 	defer printSummaryToUser(&summaryArr)
 
 	if err := preInstallationChecks(ctx, opts); err != nil {
@@ -337,10 +338,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	if err != nil {
-		appendLogToSummary(&summaryArr, "Pre installation checks", Failed)
+		appendLogToSummary(&summaryArr, "Dowmloading runtime definition", Failed)
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
-	appendLogToSummary(&summaryArr, "Pre installation checks", Success)
+	appendLogToSummary(&summaryArr, "Dowmloading runtime definition", Success)
 
 	runtimeVersion := "v99.99.99"
 	if rt.Spec.Version != nil { // in dev mode
@@ -366,6 +367,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	if err != nil {
 		appendLogToSummary(&summaryArr, "Creating runtime on platform", Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
 	appendLogToSummary(&summaryArr, "Creating runtime on platform", Success)
@@ -393,6 +404,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	if err != nil {
 		appendLogToSummary(&summaryArr, "Bootstrapping repository", Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
 	appendLogToSummary(&summaryArr, "Bootstrapping repository", Success)
@@ -406,6 +427,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	if err != nil {
 		appendLogToSummary(&summaryArr, "Creating Project", Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 	appendLogToSummary(&summaryArr, "Creating Project", Success)
@@ -414,6 +445,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	// otherwise it will not start and no events will get to the platform.
 	if err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig); err != nil {
 		appendLogToSummary(&summaryArr, "Creating codefresh-cm", Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
 	}
 
@@ -422,6 +463,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		log.G(ctx).Infof(infoStr)
 		if err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 			appendLogToSummary(&summaryArr, infoStr, Failed)
+			appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+			RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+				RuntimeName: opts.RuntimeName,
+				Timeout: store.Get().WaitTimeout,
+				CloneOpts: opts.InsCloneOpts,
+				KubeFactory: opts.KubeFactory,
+				SkipChecks: true,
+				Force: true,
+				FastExit: false,
+			})
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 		appendLogToSummary(&summaryArr, infoStr, Success)
@@ -430,6 +481,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = installComponents(ctx, opts, rt)
 	if err != nil {
 		appendLogToSummary(&summaryArr, "Installing components", Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to install components: %s", err)
 	}
 	appendLogToSummary(&summaryArr, "Installing components", Success)
@@ -443,6 +504,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: opts.InstallDemoResources,
 	}); err != nil {
 		appendLogToSummary(&summaryArr, gitSrcMessage, Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
 	appendLogToSummary(&summaryArr, gitSrcMessage, Success)
@@ -463,12 +534,32 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Include:             "workflows/**/*.yaml",
 	}); err != nil {
 		appendLogToSummary(&summaryArr, createGitSrcMessgae, Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
 	}
 	appendLogToSummary(&summaryArr, createGitSrcMessgae, Success)
 
 	if err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName); err != nil {
 		appendLogToSummary(&summaryArr, "Completing runtime installation", Failed)
+		appendLogToSummary(&summaryArr, "Uninstalling runtime", Info)
+		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
+			RuntimeName: opts.RuntimeName,
+			Timeout: store.Get().WaitTimeout,
+			CloneOpts: opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks: true,
+			Force: true,
+			FastExit: false,
+		})
 		return fmt.Errorf("failed to complete installation: %w", err)
 	}
 	appendLogToSummary(&summaryArr, "Completing runtime installation", Success)
@@ -478,7 +569,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to create default git integration: %w", err)
 	}
 	appendLogToSummary(&summaryArr, "Creating a default git integration", Success)
-	appendLogToSummary(&summaryArr, "Creating a default git integration", Info)
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	appendLogToSummary(&summaryArr, installationSuccessMsg, Info)
@@ -847,7 +937,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 }
 
 func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	summaryArr := []summaryLog{}
 	defer printSummaryToUser(&summaryArr)
 
 	// check whether the runtime exists
@@ -1539,11 +1628,11 @@ func printSummaryToUser(summaryArr *[]summaryLog) {
 	summary := *summaryArr
 	for i := 0; i < len(summary); i++ {
 		if summary[i].level == Success {
-			fmt.Printf("%s -> %v%s%v", summary[i].message, GREEN, summary[i].level, COLOR_RESET)
+			fmt.Printf("%s -> %v%s%v\n", summary[i].message, GREEN, summary[i].level, COLOR_RESET)
 		} else if summary[i].level == Failed {
-			fmt.Printf("%s -> %v%s%v", summary[i].message, RED, summary[i].level, COLOR_RESET)
+			fmt.Printf("%s -> %v%s%v\n", summary[i].message, RED, summary[i].level, COLOR_RESET)
 		} else {
-			fmt.Printf("%s", summary[i].message)
+			fmt.Printf("%s\n", summary[i].message)
 		}
     }
 }
