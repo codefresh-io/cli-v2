@@ -168,3 +168,8 @@ $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.36.0
+
+.PHONY: flatten-manifests-base-paths
+flatten-manifests-base-paths:
+	cat manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@@' > /tmp/tmp_runtime.yaml
+	mv /tmp/tmp_runtime.yaml manifests/runtime.yaml
