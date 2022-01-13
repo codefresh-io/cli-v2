@@ -132,6 +132,9 @@ type Store struct {
 	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
 	WorkflowResourceName                 string
+	RolloutReporterName                  string
+	RolloutResourceName                  string
+	RolloutReporterServiceAccount        string
 }
 
 // Get returns the global store
@@ -210,6 +213,9 @@ func init() {
 	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
 	s.ReplicaSetResourceName = "replicasets"
 	s.WorkflowResourceName = "workflows"
+	s.RolloutReporterName = "rollout-reporter"
+	s.RolloutResourceName = "rollouts"
+	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
 	initVersion()
 }
 

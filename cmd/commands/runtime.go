@@ -292,7 +292,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	}
 
 	//  should find a more dynamic way to get these additional components
-	additionalComponents := []string{"events-reporter", "workflow-reporter", "replicaset-reporter"}
+	additionalComponents := []string{"events-reporter", "workflow-reporter", "replicaset-reporter", "rollout-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
 		componentNames = append(componentNames, componentFullName)
@@ -524,6 +524,16 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
 	}
 
+	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+		reporterName: store.Get().RolloutReporterName,
+		resourceName: store.Get().RolloutResourceName,
+		group:        "argoproj.io",
+		version:      "v1alpha1",
+		saName:       store.Get().RolloutReporterServiceAccount,
+	}); err != nil {
+		return fmt.Errorf("failed to create rollout-reporter: %w", err)
+	}
+
 	return nil
 }
 
@@ -610,7 +620,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
-			return fmt.Errorf("failed to complete the runtime installation. Error: %w", err)
+			log.G(ctx).Warn("retrying the call to graphql API. Error: %w", err)
 		}
 
 		if runtime.InstallationStatus == model.InstallationStatusCompleted {
@@ -1235,7 +1245,9 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 
 	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " mainifests")
 
-	return apu.PushWithMessage(ctx, r, "Created Codefresh Workflow Reporter")
+	pushMessage := "Created Codefresh" + strings.Title(reporterCreateOpts.reporterName) + "Reporter"
+
+	return apu.PushWithMessage(ctx, r, pushMessage)
 }
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
