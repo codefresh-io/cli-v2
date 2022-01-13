@@ -360,3 +360,8 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 
 	return nil
 }
+
+func decorateErrorWithDocsLink(err error) error {
+	newMsg := fmt.Sprintf("%s\nfor more information: %s", err.Error(), store.Get().DocsLink)
+	return fmt.Errorf("%s" ,newMsg)
+}

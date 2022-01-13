@@ -91,6 +91,7 @@ type Store struct {
 	AppProxyIngressPath                  string
 	AppProxyServicePort                  int32
 	AppProxyServiceName                  string
+	DocsLink							 string
 	LabelKeyCFType                       string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
@@ -175,6 +176,7 @@ func init() {
 	s.AppProxyIngressPath = "app-proxy"
 	s.AppProxyServicePort = 3017
 	s.AppProxyServiceName = "cap-app-proxy"
+	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
