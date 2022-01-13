@@ -181,3 +181,7 @@ func CurrentServer() (string, error) {
 	server := conf.Clusters[conf.Contexts[conf.CurrentContext].Cluster].Server
 	return server, nil
 }
+
+func DecorateErrorWithDocsLink(err error) error {
+	return fmt.Errorf("%s\nfor more information: %s", err.Error(), store.Get().DocsLink)
+}

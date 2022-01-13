@@ -363,7 +363,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary("Creating runtime on platform", err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to create a new runtime: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create a new runtime: %w", err))
 	}
 
 	opts.RuntimeToken = token
@@ -385,7 +385,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary("Bootstrapping repository", err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -397,7 +397,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary("Creating Project", err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
 	}
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
@@ -405,7 +405,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
 	appendLogToSummary("Creating codefresh-cm", err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
 	}
 
 	for _, component := range rt.Spec.Components {
@@ -414,14 +414,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		appendLogToSummary(infoStr, err)
 		if err != nil {
-			return decorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
+			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
 		}
 	}
 
 	err = installComponents(ctx, opts, rt)
 	appendLogToSummary("Installing components", err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
 	}
 
 	gitSrcMessage := fmt.Sprintf("Creating git source `%s`", store.Get().GitSourceName)
@@ -434,7 +434,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(gitSrcMessage, err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err))
 	}
 
 	mpCloneOpts := &git.CloneOptions{
@@ -455,19 +455,19 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	appendLogToSummary(createGitSrcMessgae, err)
 	if err != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
 	appendLogToSummary("Completing runtime installation", timeoutErr)
 	if timeoutErr != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
 	}
 
 	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
 	appendLogToSummary("Creating a default git integration", gitIntgErr)
 	if gitIntgErr != nil {
-		return decorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
