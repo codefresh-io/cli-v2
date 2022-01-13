@@ -550,7 +550,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	appendLogToSummary("Dowmloading runtime definition", err)
+	appendLogToSummary("Downloading runtime definition", err)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
