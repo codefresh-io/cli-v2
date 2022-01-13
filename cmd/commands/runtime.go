@@ -338,10 +338,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		return fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
-	}
-
 	runtimeVersion := "v99.99.99"
 	if rt.Spec.Version != nil { // in dev mode
 		runtimeVersion = rt.Spec.Version.String()
@@ -472,7 +468,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
 	appendLogToSummary("Creating a default git integration", gitIntgErr)
 	if gitIntgErr != nil {
-		return fmt.Errorf("failed to create default git integration: %w\nyou can create it manually with the command: `cf integration git add default --runtime %s --api-url https://github.com`", gitIntgErr, opts.RuntimeName)
+		return fmt.Errorf("failed to create default git integration: %w", gitIntgErr)
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
@@ -554,6 +550,16 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Debug("running pre-installation checks...")
 
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	appendLogToSummary("Dowmloading runtime definition", err)
+	if err != nil {
+		return fmt.Errorf("failed to download runtime definition: %w", err)
+	}
+
+	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+		return fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+	}
+
 	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
 		return fmt.Errorf("runtime collision check failed: %w", err)
 	}
@@ -562,7 +568,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
-	err := kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
+	err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
 	}
