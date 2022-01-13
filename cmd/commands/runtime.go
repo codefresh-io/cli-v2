@@ -472,7 +472,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
 	appendLogToSummary("Creating a default git integration", gitIntgErr)
 	if gitIntgErr != nil {
-		return fmt.Errorf("failed to create default git integration: %w\nyou can create it manually with the command: `cf integration git add default --runtime [RUNTIME_NAME] --api-url https://github.com`", gitIntgErr)
+		return fmt.Errorf("failed to create default git integration: %w\nyou can create it manually with the command: `cf integration git add default --runtime %s --api-url https://github.com`", gitIntgErr, opts.RuntimeName)
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
