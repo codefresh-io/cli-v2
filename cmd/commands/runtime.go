@@ -1495,6 +1495,7 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error) {
 	if *err != nil {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
+		log.G(ctx).Infof("installation failed, uninstalling runtime")
 		RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout: store.Get().WaitTimeout,
