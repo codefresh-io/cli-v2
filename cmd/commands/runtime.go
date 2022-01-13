@@ -338,6 +338,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
+	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+		return fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+	}
+
 	runtimeVersion := "v99.99.99"
 	if rt.Spec.Version != nil { // in dev mode
 		runtimeVersion = rt.Spec.Version.String()
