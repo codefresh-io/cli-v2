@@ -327,13 +327,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
 
 	err = preInstallationChecks(ctx, opts)
-	appendLogToSummary(&summaryArr, "Pre installation checks", err)
+	appendLogToSummary("Pre installation checks", err)
 	if err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	appendLogToSummary(&summaryArr, "Dowmloading runtime definition", err)
+	appendLogToSummary("Dowmloading runtime definition", err)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
@@ -344,7 +344,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	server, err := util.CurrentServer()
-	appendLogToSummary(&summaryArr, "Getting current server address", err)
+	appendLogToSummary("Getting current server address", err)
 	if err != nil {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
@@ -361,7 +361,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		ComponentNames: componentNames,
 		Repo:           &opts.InsCloneOpts.Repo,
 	})
-	appendLogToSummary(&summaryArr, "Creating runtime on platform", err)
+	appendLogToSummary("Creating runtime on platform", err)
 	if err != nil {
 		return fmt.Errorf("failed to create a new runtime: %w", err)
 	}
@@ -383,7 +383,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 		},
 	})
-	appendLogToSummary(&summaryArr, "Bootstrapping repository", err)
+	appendLogToSummary("Bootstrapping repository", err)
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap repository: %w", err)
 	}
@@ -395,7 +395,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 		},
 	})
-	appendLogToSummary(&summaryArr, "Creating Project", err)
+	appendLogToSummary("Creating Project", err)
 	if err != nil {
 		return fmt.Errorf("failed to create project: %w", err)
 	}
@@ -403,7 +403,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
 	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
-	appendLogToSummary(&summaryArr, "Creating codefresh-cm", err)
+	appendLogToSummary("Creating codefresh-cm", err)
 	if err != nil {
 		
 		return fmt.Errorf("failed to create codefresh-cm: %w", err)
@@ -413,14 +413,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		appendLogToSummary(&summaryArr, infoStr, err)
+		appendLogToSummary(infoStr, err)
 		if err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
 
 	err = installComponents(ctx, opts, rt)
-	appendLogToSummary(&summaryArr, "Installing components", err)
+	appendLogToSummary("Installing components", err)
 	if err != nil {
 		return fmt.Errorf("failed to install components: %s", err)
 	}
@@ -433,7 +433,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
 	})
-	appendLogToSummary(&summaryArr, gitSrcMessage, err)
+	appendLogToSummary(gitSrcMessage, err)
 	if err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err)
 	}
@@ -454,21 +454,21 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Exclude:             "**/images/**/*",
 		Include:             "workflows/**/*.yaml",
 	})
-	appendLogToSummary(&summaryArr, createGitSrcMessgae, err)
+	appendLogToSummary(createGitSrcMessgae, err)
 	if err != nil {
 		return fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err)
 	}
 
-	err = intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
-	appendLogToSummary(&summaryArr, "Completing runtime installation", err)
-	if err != nil {
-		return fmt.Errorf("failed to complete installation: %w", err)
+	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
+	appendLogToSummary("Completing runtime installation", timeoutErr)
+	if timeoutErr != nil {
+		return fmt.Errorf("failed to complete installation: %w", timeoutErr)
 	}
 
-	err = addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
-	appendLogToSummary(&summaryArr, "Creating a default git integration", err)
+	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
+	appendLogToSummary("Creating a default git integration", gitIntgErr)
 	if err != nil {
-		return fmt.Errorf("failed to create default git integration: %w", err)
+		return fmt.Errorf("failed to create default git integration: %w", gitIntgErr)
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
@@ -815,7 +815,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	// check whether the runtime exists
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
-		appendLogToSummary(&summaryArr, "Checking if runtime exists", err)
+		appendLogToSummary("Checking if runtime exists", err)
 		if err != nil {
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
 			return err
@@ -832,7 +832,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
-	appendLogToSummary(&summaryArr, "Uninstalling repo", err)
+	appendLogToSummary("Uninstalling repo", err)
 	if err != nil {
 		if !opts.Force {
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
@@ -841,7 +841,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
-	appendLogToSummary(&summaryArr, "Deleting runtime from platform", err)
+	appendLogToSummary("Deleting runtime from platform", err)
 	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
@@ -851,7 +851,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	installationDoneStr := fmt.Sprintf("Done uninstalling runtime '%s'", opts.RuntimeName)
-	appendLogToSummary(&summaryArr, installationDoneStr, nil)
+	appendLogToSummary(installationDoneStr, nil)
 
 	return nil
 }
@@ -1503,15 +1503,13 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	}
 
 	printSummaryToUser()
-
-	//send information to platform? (maybe through deleteRuntime mutation)
 }
 
-func appendLogToSummary(summaryArr *[]summaryLog, message string, err error){
+func appendLogToSummary(message string, err error){
 	if err != nil {
-		*summaryArr = append(*summaryArr, summaryLog{message, Failed})
+		summaryArr = append(summaryArr, summaryLog{message, Failed})
 	} else {
-		*summaryArr = append(*summaryArr, summaryLog{message, Success})
+		summaryArr = append(summaryArr, summaryLog{message, Success})
 	}
 }
 
