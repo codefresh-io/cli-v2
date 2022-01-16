@@ -83,7 +83,7 @@ type (
 	RuntimeInstallOptions struct {
 		RuntimeName          string
 		RuntimeToken         string
-		RuntimeIV            string
+		RuntimeStoreIV       string
 		IngressHost          string
 		Insecure             bool
 		InstallDemoResources bool
@@ -373,7 +373,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	opts.RuntimeToken = token
-	opts.RuntimeIV = iv
+	opts.RuntimeStoreIV = iv
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
@@ -1162,7 +1162,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeIV)
+	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeStoreIV)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}

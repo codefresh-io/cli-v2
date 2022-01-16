@@ -86,7 +86,7 @@ spec:
                 secretKeyRef:
                   name: codefresh-token
                   key: token
-            - name: RUNTIME_IV
+            - name: RUNTIME_STORE_IV
               valueFrom:
                 secretKeyRef:
                   name: codefresh-token
