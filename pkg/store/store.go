@@ -75,6 +75,7 @@ type Store struct {
 	CFRuntimeType                        string
 	CFTokenSecret                        string
 	CFTokenSecretKey                     string
+	CFTIVKey                             string
 	CodefreshCM                          string
 	CodefreshSA                          string
 	ComponentsReporterName               string
@@ -163,6 +164,7 @@ func init() {
 	s.ArgoCDAgentReporterName = "argocd-agent"
 	s.ArgoCDAgentSA = "argocd-agent"
 	s.CFTokenSecretKey = "token"
+	s.CFIVSecretKey = "iv"
 	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
 	s.ComponentsReporterName = "components-reporter"
