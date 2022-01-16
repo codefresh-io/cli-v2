@@ -83,7 +83,6 @@ type (
 		RuntimeToken         string
 		IngressHost          string
 		Insecure             bool
-		InsecureIngressHost	 bool
 		InstallDemoResources bool
 		Version              *semver.Version
 		GsCloneOpts          *git.CloneOptions
@@ -210,7 +209,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
-	cmd.Flags().BoolVar(&installationOpts.InsecureIngressHost, "insecure-ingress-host", false, "Will make insecure call to app-proxy during installation (default: false)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 
@@ -282,7 +280,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		log.G(cmd.Context()).Fatal("failed to check ingress host certificate: %w", err)
 	}
 	if certFail {
-		if err = askUserIfToProceedWithInsecure(cmd, &opts.InsecureIngressHost); err != nil {
+		if err = askUserIfToProceedWithInsecure(cmd); err != nil {
 			return err
 		}
 	}
@@ -497,7 +495,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime)
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client: %w", err)
 	}

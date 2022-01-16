@@ -49,6 +49,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 )
@@ -76,12 +77,12 @@ var (
 var newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
 
 type Config struct {
-	insecure        bool
-	path            string
-	contextOverride string
-	requestTimeout  time.Duration
-	CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
-	Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
+	insecure            bool
+	path                string
+	contextOverride     string
+	requestTimeout      time.Duration
+	CurrentContext      string                  `mapstructure:"current-context" json:"current-context"`
+	Contexts            map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
 }
 
 type AuthContext struct {
@@ -100,6 +101,7 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	f.StringVar(&conf.path, "cfconfig", defaultPath, "Custom path for authentication contexts config file")
 	f.StringVar(&conf.contextOverride, "auth-context", "", "Run the next command using a specific authentication context")
 	f.BoolVar(&conf.insecure, "insecure", false, "Disable certificate validation for TLS connections (e.g. to g.codefresh.io)")
+	f.BoolVar(&store.Get().InsecureIngressHost, "insecure-ingress-host", false, "Disable certificate validation of ingress host (default: false)")
 	f.DurationVar(&conf.requestTimeout, "request-timeout", defaultRequestTimeout, "Request timeout")
 
 	return conf

@@ -397,7 +397,7 @@ func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, err
 	return false, nil
 }
 
-func askUserIfToProceedWithInsecure(cmd *cobra.Command, insecureIngressHost *bool) error {
+func askUserIfToProceedWithInsecure(cmd *cobra.Command) error {
 	if store.Get().Silent {
 		return nil
 	}
@@ -419,7 +419,7 @@ func askUserIfToProceedWithInsecure(cmd *cobra.Command, insecureIngressHost *boo
 	}
 
 	if result == "Yes" {
-		*insecureIngressHost = true
+		store.Get().InsecureIngressHost = true
 	} else if result == "Cancel installation" {
 		log.G(cmd.Context()).Fatal("installation was cancelled")
 	}
