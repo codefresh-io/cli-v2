@@ -36,7 +36,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -60,6 +59,7 @@ var (
 	cfConfig *config.Config
 
 	GREEN           = "\033[32m"
+	RED             = "\033[31m"
 	CYAN            = "\033[36m"
 	BOLD            = "\033[1m"
 	UNDERLINE       = "\033[4m"
@@ -357,22 +357,6 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 
 	die(cmd.Flags().Set("ingress-host", ingressHostInput))
 	*ingressHost = ingressHostInput
-
-	return nil
-}
-
-func verifyCLILatestVersion(ctx context.Context) error {
-	latestVersionString, err := cfConfig.NewClient().V2().CliReleases().GetLatest(ctx)
-	if err != nil {
-		return fmt.Errorf("failed getting latest cli release: %w", err)
-	}
-
-	latestVersionSemver := semver.MustParse(latestVersionString)
-	currentVersion := store.Get().Version.Version
-
-	if currentVersion.LessThan(latestVersionSemver) {
-		return fmt.Errorf("please upgrade to the latest cli version: %s", latestVersionString)
-	}
 
 	return nil
 }

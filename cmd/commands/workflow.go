@@ -73,10 +73,6 @@ func NewWorkflowGetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
-
 			return RunWorkflowGet(ctx, args[0])
 		},
 	}
@@ -103,10 +99,6 @@ func NewWorkflowListCommand() *cobra.Command {
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
 
 			filterArgs := model.WorkflowsFilterArgs{
 				Namespace: &namespace,

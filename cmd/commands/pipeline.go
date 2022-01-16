@@ -76,10 +76,6 @@ func NewPipelineGetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
-
 			return RunPipelineGet(ctx, name, namespace, runtime)
 		},
 	}
@@ -114,10 +110,6 @@ func NewPipelineListCommand() *cobra.Command {
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			if err := verifyCLILatestVersion(ctx); err != nil {
-				return err
-			}
 
 			filterArgs := model.PipelinesFilterArgs{
 				Name:      &name,
