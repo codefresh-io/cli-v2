@@ -32,6 +32,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -362,5 +363,65 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	die(cmd.Flags().Set("ingress-host", ingressHostInput))
 	*ingressHost = ingressHostInput
 
+	return nil
+}
+
+func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, error) {
+	match, _ := regexp.MatchString(`^http://`, ingress)
+	if match {
+		return false, nil
+	}
+
+	res, err := http.Get(ingress)
+	if err != nil {
+		//check if error is related to certificate
+		return true, nil
+		
+
+		// if not related to cert
+		return false, err
+		
+
+	}
+
+	res.Body.Close()
+
+	/* 
+	if it begins with https://
+		make GET request to ingresshost
+		if it fails because of certificate:
+			ask use if to continue with in insecure mode (consider --silent flag)
+		if it fail from other reasons:
+			fail the installation
+	*/
+	return false, nil
+}
+
+func askUserIfToProceedWithInsecure(cmd *cobra.Command, insecureIngressHost *bool) error {
+	if store.Get().Silent {
+		return nil
+	}
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vThe provided ingressHost doesn't have a certificate. Do you wish to continue with insecure ingress host mode?%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     []string{"No (default)", "Yes", "Cancel installation"},
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	if result == "Yes" {
+		*insecureIngressHost = true
+	} else if result == "Cancel installation" {
+		log.G(cmd.Context()).Fatal("installation was cancelled")
+	}
 	return nil
 }
