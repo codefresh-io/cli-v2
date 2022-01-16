@@ -268,6 +268,13 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
+	isValid, err := IsValidIngressHost(opts.IngressHost)
+	if err != nil {
+		log.G(cmd.Context()).Fatal("failed to check the validity of the ingress host")
+	} else if !isValid {
+		log.G(cmd.Context()).Fatal("ingress host must begin with a protocol http:// or https://")
+	}
+
 	if err := askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources); err != nil {
 		return err
 	}

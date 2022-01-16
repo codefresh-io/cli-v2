@@ -90,6 +90,10 @@ func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
+func IsValidIngressHost(ingress string) (bool, error) {
+	return regexp.MatchString(`^(http|https)://`, ingress)
+}
+
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
 		templates := &promptui.SelectTemplates{
