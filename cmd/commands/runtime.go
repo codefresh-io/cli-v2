@@ -1509,7 +1509,7 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
-func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error) error {
+func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error) {
 	if *err != nil {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warn("installation failed, performing installation rollback")
@@ -1523,12 +1523,11 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 			FastExit: false,
 		})
 		if err != nil {
-			return fmt.Errorf("installation rollback failed: %w", err)
+			log.G(ctx).Errorf("installation rollback failed: %w", err)
 		}
 	}
 
 	printSummaryToUser()
-	return nil
 }
 
 func appendLogToSummary(message string, err error){
