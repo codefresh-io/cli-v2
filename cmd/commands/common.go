@@ -405,7 +405,7 @@ func askUserIfToProceedWithInsecure(cmd *cobra.Command) error {
 		Selected: "{{ . | yellow }} ",
 	}
 
-	labelStr := fmt.Sprintf("%vThe provided ingressHost doesn't have a certificate. Do you wish to continue with insecure ingress host mode?%v", CYAN, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vThe provided ingressHost does not have a certificate. Do you wish to continue with insecure ingress host mode?%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,

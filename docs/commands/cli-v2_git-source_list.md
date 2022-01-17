@@ -24,6 +24,7 @@ cli-v2 git-source list my-runtime
       --auth-context string        Run the next command using a specific authentication context
       --cfconfig string            Custom path for authentication contexts config file (default "/home/user")
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
+      --insecure-ingress-host      Disable certificate validation of ingress host (default: false)
       --request-timeout duration   Request timeout (default 30s)
 ```
 
