@@ -325,7 +325,10 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 
 	const IV_LENGTH = 16
 	iv := make([]byte, IV_LENGTH)
-	io.ReadFull(rand.Reader, iv)
+	_, err = io.ReadFull(rand.Reader, iv)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create an initialization vector: %s. Error: %w", opts.RuntimeName, err)
+	}
 
 	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), nil
 }
