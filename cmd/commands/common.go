@@ -33,6 +33,7 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -374,26 +375,23 @@ func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, err
 
 	res, err := http.Get(ingress)
 	if err != nil {
-		//check if error is related to certificate
-		return true, nil
+		castedErr, ok := err.(*url.Error); 
+		if !ok {
+			return false, fmt.Errorf("failed casting error type: %T", err)
+		}
+		errStr := castedErr.Error()
 		
+		if matched, _ := regexp.MatchString(`no route to host`, errStr); matched {
+			return false, fmt.Errorf("ingress host does not respond. please check you have provided a the corect one")
+		}
 
-		// if not related to cert
-		return false, err
-		
-
+		if matched, _ := regexp.MatchString(`certificate is valid for .+, not`, errStr); matched {
+			return true, nil
+		}
 	}
 
 	res.Body.Close()
 
-	/* 
-	if it begins with https://
-		make GET request to ingresshost
-		if it fails because of certificate:
-			ask use if to continue with in insecure mode (consider --silent flag)
-		if it fail from other reasons:
-			fail the installation
-	*/
 	return false, nil
 }
 
