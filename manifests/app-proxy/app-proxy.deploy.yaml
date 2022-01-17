@@ -90,7 +90,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: codefresh-token
-                  key: iv
+                  key: encryptionIV
             - name: STORE_BACKEND
               valueFrom:
                 configMapKeyRef:

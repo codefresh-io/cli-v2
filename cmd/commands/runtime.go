@@ -31,13 +31,13 @@ package commands
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	b64 "encoding/base64"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
@@ -327,7 +327,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 	iv := make([]byte, IV_LENGTH)
 	io.ReadFull(rand.Reader, iv)
 
-	return runtimeCreationResponse.NewAccessToken, b64.StdEncoding.EncodeToString(iv), nil
+	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), nil
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
