@@ -68,6 +68,7 @@ type Store struct {
 	ArgoWFServicePort                    int32
 	BinaryName                           string
 	Codefresh                            string
+	CodefreshDeliveryPipelines           string
 	CFComponentType                      string
 	CFGitSourceType                      string
 	CFRuntimeDefType                     string
@@ -151,6 +152,7 @@ func init() {
 	s.ArgoWFServicePort = 2746
 	s.BinaryName = binaryName
 	s.Codefresh = "codefresh"
+	s.CodefreshDeliveryPipelines = "codefresh-delivery-pipelines"
 	s.CFComponentType = "component"
 	s.CFGitSourceType = "git-source"
 	s.CFRuntimeDefType = "runtimeDef"
@@ -193,15 +195,15 @@ func init() {
 	s.CronExampleEventName = "example-with-interval"
 	s.CronExampleTriggerTemplateName = "hello-world"
 	s.CronExampleDependencyName = "calendar-dep"
-	s.GithubExampleEventSourceFileName = "event-source.git-source.yaml"
-	s.GithubExampleEventSourceObjectName = "github"
-	s.GithubExampleEventSourceEndpointPath = "/git-source/"
+	s.GithubExampleEventSourceFileName = "push-github.event-source.yaml"
+	s.GithubExampleEventSourceObjectName = "push-github"
+	s.GithubExampleEventSourceEndpointPath = "/webhooks/push-github/"
 	s.GithubExampleEventSourceTargetPort = "13000"
 	s.GithubExampleEventSourceServicePort = 13000
-	s.GithubExampleIngressFileName = "ingress.git-source.yaml"
+	s.GithubExampleIngressFileName = fmt.Sprintf("%s.ingress.yaml", s.CodefreshDeliveryPipelines)
 	s.GithubExampleIngressObjectName = "github"
-	s.GithubExampleSensorFileName = "sensor.git-source.yaml"
-	s.GithubExampleSensorObjectName = "github"
+	s.GithubExampleSensorFileName = "push-github.sensor.yaml"
+	s.GithubExampleSensorObjectName = "push-github"
 	s.GithubExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
 	s.GithubExampleEventName = "push"
 	s.GithubExampleTriggerTemplateName = "hello-world"
