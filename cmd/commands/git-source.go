@@ -737,7 +737,7 @@ func createGithubExampleEventSource(repoURL string, ingressHost string) *eventso
 				store.Get().GithubExampleEventName: {
 					Webhook: &eventsourcev1alpha1.WebhookContext{
 						Endpoint: store.Get().GithubExampleEventSourceEndpointPath,
-						URL:      ingressHost,
+						URL:      strings.Trim(ingressHost, "/"),
 						Port:     store.Get().GithubExampleEventSourceTargetPort,
 						Method:   "POST",
 					},
