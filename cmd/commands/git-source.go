@@ -73,6 +73,7 @@ type (
 		CreateDemoResources bool
 		Exclude             string
 		Include             string
+		IngressHost		 	string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -99,6 +100,7 @@ type (
 		runtimeName string
 		gsCloneOpts *git.CloneOptions
 		gsFs        fs.FS
+		ingressHost string
 	}
 )
 
@@ -249,6 +251,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			runtimeName: opts.RuntimeName,
 			gsCloneOpts: opts.GsCloneOpts,
 			gsFs:        gsFs,
+			ingressHost: opts.IngressHost,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -668,7 +671,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 
 	// Create a github eventsource that will listen to push events in the git source repo
 	gsRepoURL := opts.gsCloneOpts.URL()
-	eventSource := createGithubExampleEventSource(gsRepoURL)
+	eventSource := createGithubExampleEventSource(gsRepoURL, opts.ingressHost)
 	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
 	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 	if err != nil {
@@ -688,7 +691,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 
 func createGithubExampleIngress() *netv1.Ingress {
 	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name: store.Get().GithubExampleIngressObjectName,
+		Name: store.Get().CodefreshDeliveryPipelines,
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        store.Get().GithubExampleEventSourceEndpointPath,
@@ -696,8 +699,7 @@ func createGithubExampleIngress() *netv1.Ingress {
 				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
 			},
-		},
-	})
+		},	})
 }
 
 func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {
@@ -708,7 +710,7 @@ func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) 
 	return owner, name
 }
 
-func createGithubExampleEventSource(repoURL string) *eventsourcev1alpha1.EventSource {
+func createGithubExampleEventSource(repoURL string, ingressHost string) *eventsourcev1alpha1.EventSource {
 	repoOwner, repoName := getRepoOwnerAndNameFromRepoURL(repoURL)
 
 	return &eventsourcev1alpha1.EventSource{
@@ -733,7 +735,7 @@ func createGithubExampleEventSource(repoURL string) *eventsourcev1alpha1.EventSo
 				store.Get().GithubExampleEventName: {
 					Webhook: &eventsourcev1alpha1.WebhookContext{
 						Endpoint: store.Get().GithubExampleEventSourceEndpointPath,
-						URL:      "http://replace-with-real-public-url",
+						URL:      strings.Trim(ingressHost, "/"),
 						Port:     store.Get().GithubExampleEventSourceTargetPort,
 						Method:   "POST",
 					},

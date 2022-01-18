@@ -86,6 +86,12 @@ spec:
                 secretKeyRef:
                   name: codefresh-token
                   key: token
+            - name: RUNTIME_STORE_IV
+              valueFrom:
+                secretKeyRef:
+                  name: codefresh-token
+                  key: encryptionIV
+                  optional: true
             - name: STORE_BACKEND
               valueFrom:
                 configMapKeyRef:
