@@ -370,43 +370,48 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 	return nil
 }
 
-func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, error) {
-	httpsIngress := ingress
+func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
 	var err error
-	match, _ := regexp.MatchString(`^http://`, httpsIngress)
+	match, _ := regexp.MatchString(`^http://`, ingress)
 	if match {
-		httpsIngress, err = httpToHttps(ingress)
+		ingress, err = httpToHttps(ingress)
 		if err != nil {
 			return false, err
 		}
 	}
 
-	res, err := http.Get(httpsIngress)
+	res, err := http.Get(ingress)
 
-	if err != nil {
-		urlErr, ok := err.(*url.Error)
-		if !ok {
-			return false, err
-		}
-		_, ok1 := urlErr.Err.(x509.CertificateInvalidError)
-		_, ok2 := urlErr.Err.(x509.SystemRootsError)
-		_, ok3 := urlErr.Err.(x509.UnknownAuthorityError)
-		_, ok4 := urlErr.Err.(x509.ConstraintViolationError)
-		_, ok5 := urlErr.Err.(x509.HostnameError)
+	if err == nil {
+		res.Body.Close()
+		return true, nil
+	}
 
-		if ok1 || ok2 || ok3 || ok4 || ok5 {
-			insecureOk := checkIngressHostWithInsecure(httpsIngress)
-			if insecureOk {
-				if match { //if user provided http ingress
-					log.G(ctx).Warn("")
-				}
-				return true, nil
-			}
-		}
+	urlErr, ok := err.(*url.Error)
+	if !ok {
 		return false, err
 	}
-	res.Body.Close()
+	_, ok1 := urlErr.Err.(x509.CertificateInvalidError)
+	_, ok2 := urlErr.Err.(x509.SystemRootsError)
+	_, ok3 := urlErr.Err.(x509.UnknownAuthorityError)
+	_, ok4 := urlErr.Err.(x509.ConstraintViolationError)
+	_, ok5 := urlErr.Err.(x509.HostnameError)
 
+	certErr := ok1 || ok2 || ok3 || ok4 || ok5
+	if !certErr {
+		return false, err
+	}
+
+	insecureOk := checkIngressHostWithInsecure(ingress)
+	if !insecureOk {
+		return false, err
+	}
+
+	if match { //if user provided http ingress
+		log.G(ctx).Warn("The ingress host uses an insecure protocol. The browser may block subsequent runtime requests from the UI unless explicitly approved.")
+		return true, nil
+	}
+	
 	return false, nil
 }
 
@@ -420,9 +425,12 @@ func checkIngressHostWithInsecure(ingress string) bool {
 	if err != nil {
 		return false
 	}
-	_, err = httpClient.Do(req)
-	
-	return err == nil
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	res.Body.Close()
+	return true
 }
 
 func httpToHttps(rawUrl string) (string, error) {
@@ -434,19 +442,24 @@ func httpToHttps(rawUrl string) (string, error) {
 	return parsedUrl.String(), nil
 }
 
-func askUserIfToProceedWithInsecure(cmd *cobra.Command) error {
-	if store.Get().Silent || store.Get().InsecureIngressHost {
+func askUserIfToProceedWithInsecure(ctx context.Context) error {
+	if store.Get().InsecureIngressHost {
 		return nil
 	}
+	if store.Get().Silent {
+		return fmt.Errorf("Cancelled installation due to invalid ingress host certificate")
+	}
+
 	templates := &promptui.SelectTemplates{
 		Selected: "{{ . | yellow }} ",
 	}
 
-	labelStr := fmt.Sprintf("%vThe provided ingressHost does not have a certificate. Do you wish to continue with insecure ingress host mode?%v", CYAN, COLOR_RESET)
+	log.G(ctx).Warnf("The provided ingressHost does not have a valid certificate.")
+	labelStr := fmt.Sprintf("%vDo you wish to continue the installation with insecure ingress host mode?%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     []string{"No (default)", "Yes", "Cancel installation"},
+		Items:     []string{"Yes", "Cancel installation"},
 		Templates: templates,
 	}
 
@@ -457,8 +470,8 @@ func askUserIfToProceedWithInsecure(cmd *cobra.Command) error {
 
 	if result == "Yes" {
 		store.Get().InsecureIngressHost = true
-	} else if result == "Cancel installation" {
-		log.G(cmd.Context()).Fatal("installation was cancelled")
+	} else {
+		return fmt.Errorf("Cancelled installation due to invalid ingress host certificate")
 	}
 	return nil
 }

@@ -275,12 +275,12 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		log.G(cmd.Context()).Fatal("ingress host must begin with a protocol http:// or https://")
 	}
 
-	certFail, err := ingressHostCertificateCheck(cmd.Context(), opts.IngressHost)
+	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
 	if err != nil {
-		log.G(cmd.Context()).Fatal("failed to check ingress host certificate: %w", err)
+		log.G(cmd.Context()).Fatal("failed to check ingress host: %w", err)
 	}
-	if certFail {
-		if err = askUserIfToProceedWithInsecure(cmd); err != nil {
+	if !certValid {
+		if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
 			return err
 		}
 	}
