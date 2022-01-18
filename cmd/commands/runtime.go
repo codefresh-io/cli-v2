@@ -30,7 +30,10 @@ package commands
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -82,6 +85,7 @@ type (
 	RuntimeInstallOptions struct {
 		RuntimeName          string
 		RuntimeToken         string
+		RuntimeStoreIV       string
 		IngressHost          string
 		Insecure             bool
 		InstallDemoResources bool
@@ -314,14 +318,20 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	return componentNames
 }
 
-func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, error) {
+func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallationArgs) (string, string, error) {
 	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, opts)
-
 	if err != nil {
-		return "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
+		return "", "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
 
-	return runtimeCreationResponse.NewAccessToken, nil
+	const IV_LENGTH = 16
+	iv := make([]byte, IV_LENGTH)
+	_, err = io.ReadFull(rand.Reader, iv)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create an initialization vector: %s. Error: %w", opts.RuntimeName, err)
+	}
+
+	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), nil
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -354,7 +364,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	defer postInstallationHandler(ctx, opts, &err)
 
-	token, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
+	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
 		Cluster:        server,
 		RuntimeVersion: runtimeVersion,
@@ -368,6 +378,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	opts.RuntimeToken = token
+	opts.RuntimeStoreIV = iv
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
@@ -432,6 +443,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
+		IngressHost: 	   opts.IngressHost,
 	})
 	appendLogToSummary(gitSrcMessage, err)
 	if err != nil {
@@ -1159,7 +1171,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken)
+	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeStoreIV)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
@@ -1294,7 +1306,7 @@ var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.Ap
 	return proj, appSet, nil
 }
 
-func getRuntimeTokenSecret(namespace string, token string) ([]byte, error) {
+func getRuntimeTokenSecret(namespace string, token string, iv string) ([]byte, error) {
 	return yaml.Marshal(&v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1305,7 +1317,8 @@ func getRuntimeTokenSecret(namespace string, token string) ([]byte, error) {
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			store.Get().CFTokenSecretKey: []byte(token),
+			store.Get().CFTokenSecretKey:   []byte(token),
+			store.Get().CFStoreIVSecretKey: []byte(iv),
 		},
 	})
 }
