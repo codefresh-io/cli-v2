@@ -30,6 +30,8 @@ package commands
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	_ "embed"
 	"fmt"
 	"net/http"
@@ -374,25 +376,52 @@ func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, err
 	}
 
 	res, err := http.Get(ingress)
+
 	if err != nil {
-		castedErr, ok := err.(*url.Error); 
+		urlErr, ok := err.(*url.Error)
 		if !ok {
-			return false, fmt.Errorf("failed casting error type: %T", err)
+			return false, err
 		}
-		errStr := castedErr.Error()
-		
-		if matched, _ := regexp.MatchString(`no route to host`, errStr); matched {
-			return false, fmt.Errorf("ingress host does not respond. please check you have provided a the corect one")
-		}
+		_, ok1 := urlErr.Err.(x509.CertificateInvalidError)
+		_, ok2 := urlErr.Err.(x509.SystemRootsError)
+		_, ok3 := urlErr.Err.(x509.UnknownAuthorityError)
+		_, ok4 := urlErr.Err.(x509.ConstraintViolationError)
+		_, ok5 := urlErr.Err.(x509.HostnameError)
 
-		if matched, _ := regexp.MatchString(`certificate is valid for .+, not`, errStr); matched {
-			return true, nil
+		if ok1 || ok2 || ok3 || ok4 || ok5 {
+			insecureOk := checkIngressHostWithInsecure(ingress)
+			if insecureOk {
+				return true, nil
+			}
 		}
+		return false, err
 	}
-
 	res.Body.Close()
 
 	return false, nil
+}
+
+func checkIngressHostWithInsecure(ingress string) bool {
+	httpClient := &http.Client{}
+	//httpClient.Timeout = 
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	httpClient.Transport = customTransport
+	req, err := http.NewRequest("GET", ingress, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		if /*http error*/ true {
+			return true
+		}
+		return false
+	}
+	if resp != nil {
+		return true
+	}
+	return false
 }
 
 func askUserIfToProceedWithInsecure(cmd *cobra.Command) error {
