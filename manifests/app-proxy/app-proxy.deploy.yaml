@@ -91,6 +91,7 @@ spec:
                 secretKeyRef:
                   name: codefresh-token
                   key: encryptionIV
+                  optional: true
             - name: STORE_BACKEND
               valueFrom:
                 configMapKeyRef:
