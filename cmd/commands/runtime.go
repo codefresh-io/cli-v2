@@ -312,7 +312,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
 	if err != nil {
-		log.G(cmd.Context()).Fatal("failed to check ingress host: %w", err)
+		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
 	}
 	
 	if !certValid {
