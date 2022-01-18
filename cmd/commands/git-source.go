@@ -699,9 +699,7 @@ func createGithubExampleIngress() *netv1.Ingress {
 				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
 			},
-		},
-		Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx"},
-	})
+		},	})
 }
 
 func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {
