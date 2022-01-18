@@ -337,11 +337,11 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
 
-	// err = preInstallationChecks(ctx, opts)
-	// appendLogToSummary("Pre installation checks", err)
-	// if err != nil {
-	// 	return fmt.Errorf("pre installation checks failed: %w", err)
-	// }
+	err = preInstallationChecks(ctx, opts)
+	appendLogToSummary("Pre installation checks", err)
+	if err != nil {
+		return fmt.Errorf("pre installation checks failed: %w", err)
+	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	appendLogToSummary("Dowmloading runtime definition", err)
@@ -1435,12 +1435,6 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 		},
 	})
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
-}
-
-// TODO: move this func somewhere else
-func pop(s []string, i int) []string {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
 }
 
 func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
