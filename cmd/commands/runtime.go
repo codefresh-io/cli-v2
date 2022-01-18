@@ -268,25 +268,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if err := getIngressHostFromUserInput(cmd, &opts.IngressHost); err != nil {
+	if err := ensureIngressHost(cmd, opts); err != nil {
 		return err
-	}
-
-	isValid, err := IsValidIngressHost(opts.IngressHost)
-	if err != nil {
-		log.G(cmd.Context()).Fatal("failed to check the validity of the ingress host")
-	} else if !isValid {
-		log.G(cmd.Context()).Fatal("ingress host must begin with a protocol http:// or https://")
-	}
-
-	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
-	if err != nil {
-		log.G(cmd.Context()).Fatal("failed to check ingress host: %w", err)
-	}
-	if !certValid {
-		if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
-			return err
-		}
 	}
 
 	if err := askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources); err != nil {
@@ -311,6 +294,32 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
+
+	return nil
+}
+
+func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	if err := getIngressHostFromUserInput(cmd, &opts.IngressHost); err != nil {
+		return err
+	}
+
+	isValid, err := IsValidIngressHost(opts.IngressHost)
+	if err != nil {
+		log.G(cmd.Context()).Fatal("failed to check the validity of the ingress host")
+	} else if !isValid {
+		log.G(cmd.Context()).Fatal("ingress host must begin with a protocol http:// or https://")
+	}
+
+	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
+	if err != nil {
+		log.G(cmd.Context()).Fatal("failed to check ingress host: %w", err)
+	}
+	
+	if !certValid {
+		if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
