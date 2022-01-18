@@ -91,7 +91,7 @@ type Store struct {
 	AppProxyIngressPath                  string
 	AppProxyServicePort                  int32
 	AppProxyServiceName                  string
-	DocsLink							 string
+	DocsLink                             string
 	LabelKeyCFType                       string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
@@ -136,6 +136,7 @@ type Store struct {
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
+	AnalysisRunResourceName             string
 }
 
 // Get returns the global store
@@ -218,6 +219,7 @@ func init() {
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutResourceName = "rollouts"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
+	s.AnalysisRunResourceName = "analysisruns"
 	initVersion()
 }
 

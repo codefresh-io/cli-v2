@@ -58,6 +58,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	argowf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 
 	"github.com/Masterminds/semver/v3"
@@ -110,24 +111,24 @@ type (
 		CommonConfig *runtime.CommonConfig
 	}
 	reporterCreateOptions struct {
-		reporterName string
-		resourceName string
-		group        string
-		version      string
-		saName       string
+		reporterName  string
+		resourceNames []string
+		group         string
+		version       string
+		saName        string
 	}
 
 	summaryLogLevels string
-	summaryLog struct {
+	summaryLog       struct {
 		message string
-		level 	summaryLogLevels
+		level   summaryLogLevels
 	}
 )
 
 const (
 	Success summaryLogLevels = "Success"
-	Failed summaryLogLevels = "Failed"
-	Info summaryLogLevels = "Info"
+	Failed  summaryLogLevels = "Failed"
+	Info    summaryLogLevels = "Info"
 )
 
 var summaryArr []summaryLog
@@ -326,11 +327,11 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
 
-	err = preInstallationChecks(ctx, opts)
-	appendLogToSummary("Pre installation checks", err)
-	if err != nil {
-		return fmt.Errorf("pre installation checks failed: %w", err)
-	}
+	// err = preInstallationChecks(ctx, opts)
+	// appendLogToSummary("Pre installation checks", err)
+	// if err != nil {
+	// 	return fmt.Errorf("pre installation checks failed: %w", err)
+	// }
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	appendLogToSummary("Dowmloading runtime definition", err)
@@ -514,31 +515,35 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if err = createReporter(
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-			reporterName: store.Get().WorkflowReporterName,
-			resourceName: store.Get().WorkflowResourceName,
-			group:        argowf.Group,
-			version:      argowf.Version,
-			saName:       store.Get().CodefreshSA,
+			reporterName:  store.Get().WorkflowReporterName,
+			resourceNames: []string{store.Get().WorkflowResourceName},
+			group:         argowf.Group,
+			version:       argowf.Version,
+			saName:        store.Get().CodefreshSA,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-		reporterName: store.Get().ReplicaSetReporterName,
-		resourceName: store.Get().ReplicaSetResourceName,
-		group:        "apps",
-		version:      "v1",
-		saName:       store.Get().ReplicaSetReporterServiceAccount,
+		reporterName:  store.Get().ReplicaSetReporterName,
+		resourceNames: []string{store.Get().ReplicaSetResourceName},
+		group:         "apps",
+		version:       "v1",
+		saName:        store.Get().ReplicaSetReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
 	}
 
+	rolloutResourceNames := []string{
+		store.Get().RolloutResourceName,
+		store.Get().AnalysisRunResourceName,
+	}
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-		reporterName: store.Get().RolloutReporterName,
-		resourceName: store.Get().RolloutResourceName,
-		group:        "argoproj.io",
-		version:      "v1alpha1",
-		saName:       store.Get().RolloutReporterServiceAccount,
+		reporterName:  store.Get().RolloutReporterName,
+		resourceNames: rolloutResourceNames,
+		group:         "argoproj.io",
+		version:       "v1alpha1",
+		saName:        store.Get().RolloutReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1192,7 +1197,8 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data"); err != nil {
+	eventsReporterTriggers := []string{"events"}
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
 		return err
 	}
 
@@ -1251,7 +1257,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, reporterCreateOpts.resourceName, "data.object"); err != nil {
+	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, reporterCreateOpts.resourceNames, "data.object"); err != nil {
 		return err
 	}
 
@@ -1418,32 +1424,58 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
+// TODO: move this func somewhere else
+func pop(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
 func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
-	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+	var eventSource *v1alpha1.EventSource
+	var options *eventsutil.CreateEventSourceOptions
+	resourceNames := reporterCreateOpts.resourceNames
+	firstResourceName := resourceNames[0]
+
+	options = &eventsutil.CreateEventSourceOptions{
 		Name:               reporterCreateOpts.reporterName,
 		Namespace:          namespace,
 		ServiceAccountName: reporterCreateOpts.saName,
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			reporterCreateOpts.resourceName: {
+			firstResourceName: {
 				Group:     reporterCreateOpts.group,
 				Version:   reporterCreateOpts.version,
-				Resource:  reporterCreateOpts.resourceName,
+				Resource:  firstResourceName,
 				Namespace: namespace,
 			},
 		},
-	})
+	}
+
+	if len(resourceNames) > 1 {
+		for i := 1; i < len(resourceNames); i++ {
+			name := resourceNames[i]
+			options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
+				Group:     reporterCreateOpts.group,
+				Version:   reporterCreateOpts.version,
+				Resource:  name,
+				Namespace: namespace,
+			}
+		}
+	}
+
+	eventSource = eventsutil.CreateEventSource(options)
+
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, triggers []string, dataKey string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-		Triggers:        []string{trigger},
+		Triggers:        triggers,
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
@@ -1513,12 +1545,12 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		log.G(ctx).Warn("installation failed, performing installation rollback")
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
-			Timeout: store.Get().WaitTimeout,
-			CloneOpts: opts.InsCloneOpts,
+			Timeout:     store.Get().WaitTimeout,
+			CloneOpts:   opts.InsCloneOpts,
 			KubeFactory: opts.KubeFactory,
-			SkipChecks: true,
-			Force: true,
-			FastExit: false,
+			SkipChecks:  true,
+			Force:       true,
+			FastExit:    false,
 		})
 		if err != nil {
 			log.G(ctx).Errorf("installation rollback failed: %w", err)
@@ -1528,7 +1560,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	printSummaryToUser()
 }
 
-func appendLogToSummary(message string, err error){
+func appendLogToSummary(message string, err error) {
 	if err != nil {
 		summaryArr = append(summaryArr, summaryLog{message, Failed})
 	} else {
@@ -1545,7 +1577,7 @@ func printSummaryToUser() {
 		} else {
 			fmt.Printf("%s\n", summaryArr[i].message)
 		}
-    }
+	}
 	//clear array to avoid double printing
 	summaryArr = []summaryLog{}
 }
