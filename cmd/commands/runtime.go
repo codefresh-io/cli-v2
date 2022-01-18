@@ -431,6 +431,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
+		IngressHost: 	   opts.IngressHost,
 	})
 	appendLogToSummary(gitSrcMessage, err)
 	if err != nil {
