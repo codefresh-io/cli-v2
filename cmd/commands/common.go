@@ -39,6 +39,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
@@ -370,12 +371,17 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 }
 
 func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, error) {
-	match, _ := regexp.MatchString(`^http://`, ingress)
+	httpsIngress := ingress
+	var err error
+	match, _ := regexp.MatchString(`^http://`, httpsIngress)
 	if match {
-		return false, nil
+		httpsIngress, err = httpToHttps(ingress)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	res, err := http.Get(ingress)
+	res, err := http.Get(httpsIngress)
 
 	if err != nil {
 		urlErr, ok := err.(*url.Error)
@@ -389,8 +395,11 @@ func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, err
 		_, ok5 := urlErr.Err.(x509.HostnameError)
 
 		if ok1 || ok2 || ok3 || ok4 || ok5 {
-			insecureOk := checkIngressHostWithInsecure(ingress)
+			insecureOk := checkIngressHostWithInsecure(httpsIngress)
 			if insecureOk {
+				if match { //if user provided http ingress
+					log.G(ctx).Warn("")
+				}
 				return true, nil
 			}
 		}
@@ -403,7 +412,7 @@ func ingressHostCertificateCheck(ctx context.Context, ingress string) (bool, err
 
 func checkIngressHostWithInsecure(ingress string) bool {
 	httpClient := &http.Client{}
-	//httpClient.Timeout = 
+	httpClient.Timeout = 10 * time.Second
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient.Transport = customTransport
@@ -411,21 +420,22 @@ func checkIngressHostWithInsecure(ingress string) bool {
 	if err != nil {
 		return false
 	}
-	resp, err := httpClient.Do(req)
+	_, err = httpClient.Do(req)
+	
+	return err == nil
+}
+
+func httpToHttps(rawUrl string) (string, error) {
+	parsedUrl, err := url.Parse(rawUrl)
 	if err != nil {
-		if /*http error*/ true {
-			return true
-		}
-		return false
+		return "", err
 	}
-	if resp != nil {
-		return true
-	}
-	return false
+	parsedUrl.Scheme = "https"
+	return parsedUrl.String(), nil
 }
 
 func askUserIfToProceedWithInsecure(cmd *cobra.Command) error {
-	if store.Get().Silent {
+	if store.Get().Silent || store.Get().InsecureIngressHost {
 		return nil
 	}
 	templates := &promptui.SelectTemplates{
