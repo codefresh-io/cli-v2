@@ -656,7 +656,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
-			log.G(ctx).Warnf("retrying the call to graphql API. Error: %w", err)
+			log.G(ctx).Warnf("retrying the call to graphql API. Error: %w", err) // TODO: fix formatting
 		} else if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			return nil
 		}
