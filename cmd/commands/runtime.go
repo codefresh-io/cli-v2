@@ -443,7 +443,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
-		IngressHost: 	   opts.IngressHost,
+		IngressHost:         opts.IngressHost,
 	})
 	appendLogToSummary(gitSrcMessage, err)
 	if err != nil {
@@ -1273,7 +1273,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " mainifests")
+	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " manifests")
 
 	pushMessage := "Created Codefresh" + strings.Title(reporterCreateOpts.reporterName) + "Reporter"
 
