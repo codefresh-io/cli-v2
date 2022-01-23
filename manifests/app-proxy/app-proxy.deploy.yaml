@@ -8,7 +8,6 @@ spec:
   selector:
     matchLabels:
       app: cap-app-proxy
-  replicas: 2
   template:
     metadata:
       labels:
