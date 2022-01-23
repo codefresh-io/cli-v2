@@ -387,6 +387,7 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 		return true, nil
 	}
 
+	log.G(ctx).WithError(err).Error("ingress host check error:")
 	urlErr, ok := err.(*url.Error)
 	if !ok {
 		return false, err
