@@ -442,7 +442,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
-		IngressHost: 	   opts.IngressHost,
+		IngressHost:         opts.IngressHost,
 	})
 	appendLogToSummary(gitSrcMessage, err)
 	if err != nil {
@@ -651,7 +651,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
-			log.G(ctx).Warnf("retrying the call to graphql API. Error: %w", err)
+			log.G(ctx).Warnf("retrying the call to graphql API. Error: %s", err.Error())
 		} else if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			return nil
 		}

@@ -8,7 +8,6 @@ spec:
   selector:
     matchLabels:
       app: cap-app-proxy
-  replicas: 2
   template:
     metadata:
       labels:
@@ -126,7 +125,7 @@ spec:
           resources:
             requests:
               memory: "256Mi"
-              cpu: "0.5"
+              cpu: "100m"
             limits:
               memory: "2048Mi"
               cpu: "2"
