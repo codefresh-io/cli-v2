@@ -390,6 +390,7 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 	log.G(ctx).WithError(err).Error("ingress host check error:")
 	urlErr, ok := err.(*url.Error)
 	if !ok {
+		log.G(ctx).Error("not a url error")
 		return false, err
 	}
 	_, ok1 := urlErr.Err.(x509.CertificateInvalidError)
@@ -405,6 +406,7 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 
 	insecureOk := checkIngressHostWithInsecure(ingress)
 	if !insecureOk {
+		log.G(ctx).Error("insecure call failed")
 		return false, err
 	}
 
