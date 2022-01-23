@@ -402,7 +402,7 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 	certErr := ok1 || ok2 || ok3 || ok4 || ok5
 	if !certErr {
 		log.G(ctx).Error("failed with non-certificate error")
-		return false, err
+		return true, nil
 	}
 
 	insecureOk := checkIngressHostWithInsecure(ingress)
