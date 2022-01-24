@@ -268,7 +268,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if err := getIngressHostFromUserInput(cmd, &opts.IngressHost); err != nil {
+	if err := ensureIngressHost(cmd, opts); err != nil {
 		return err
 	}
 
@@ -294,6 +294,32 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
+
+	return nil
+}
+
+func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	if err := getIngressHostFromUserInput(cmd, &opts.IngressHost); err != nil {
+		return err
+	}
+
+	isValid, err := IsValidIngressHost(opts.IngressHost)
+	if err != nil {
+		log.G(cmd.Context()).Fatal("failed to check the validity of the ingress host")
+	} else if !isValid {
+		log.G(cmd.Context()).Fatal("ingress host must begin with a protocol http:// or https://")
+	}
+
+	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
+	if err != nil {
+		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
+	}
+	
+	if !certValid {
+		if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -343,7 +369,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	appendLogToSummary("Dowmloading runtime definition", err)
+	appendLogToSummary("Downloading runtime definition", err)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
@@ -490,7 +516,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime)
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client: %w", err)
 	}
@@ -1267,7 +1293,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " mainifests")
+	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " manifests")
 
 	pushMessage := "Created Codefresh" + strings.Title(reporterCreateOpts.reporterName) + "Reporter"
 

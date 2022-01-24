@@ -128,6 +128,7 @@ type Store struct {
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
 	Silent                               bool
+	InsecureIngressHost					 bool
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
