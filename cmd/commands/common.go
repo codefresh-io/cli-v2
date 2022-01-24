@@ -373,11 +373,11 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
 	var err error
 	match, _ := regexp.MatchString(`^http://`, ingress)
-	if match {
-		ingress, err = httpToHttps(ingress)
-		if err != nil {
-			return false, err
-		}
+	if match { //if user provided http ingress
+		log.G(ctx).Warn("insecure ingress host. validation will not be made")
+		log.G(ctx).Warn("The ingress host uses an insecure protocol. The browser may block subsequent runtime requests from the UI unless explicitly approved.")
+
+		return true, nil
 	}
 
 	res, err := http.Get(ingress)
@@ -387,10 +387,8 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 		return true, nil
 	}
 
-	log.G(ctx).WithError(err).Error("ingress host check error:")
 	urlErr, ok := err.(*url.Error)
 	if !ok {
-		log.G(ctx).Error("not a url error")
 		return false, err
 	}
 	_, ok1 := urlErr.Err.(x509.CertificateInvalidError)
@@ -402,18 +400,13 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 	certErr := ok1 || ok2 || ok3 || ok4 || ok5
 	if !certErr {
 		log.G(ctx).Error("failed with non-certificate error")
-		return true, nil
+		return false, err
 	}
 
 	insecureOk := checkIngressHostWithInsecure(ingress)
 	if !insecureOk {
 		log.G(ctx).Error("insecure call failed")
 		return false, err
-	}
-
-	if match { //if user provided http ingress
-		log.G(ctx).Warn("The ingress host uses an insecure protocol. The browser may block subsequent runtime requests from the UI unless explicitly approved.")
-		return true, nil
 	}
 	
 	return false, nil
@@ -435,15 +428,6 @@ func checkIngressHostWithInsecure(ingress string) bool {
 	}
 	res.Body.Close()
 	return true
-}
-
-func httpToHttps(rawUrl string) (string, error) {
-	parsedUrl, err := url.Parse(rawUrl)
-	if err != nil {
-		return "", err
-	}
-	parsedUrl.Scheme = "https"
-	return parsedUrl.String(), nil
 }
 
 func askUserIfToProceedWithInsecure(ctx context.Context) error {
