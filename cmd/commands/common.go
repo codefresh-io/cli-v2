@@ -374,7 +374,6 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 	var err error
 	match, _ := regexp.MatchString(`^http://`, ingress)
 	if match { //if user provided http ingress
-		log.G(ctx).Warn("insecure ingress host. validation will not be made")
 		log.G(ctx).Warn("The ingress host uses an insecure protocol. The browser may block subsequent runtime requests from the UI unless explicitly approved.")
 
 		return true, nil
@@ -399,14 +398,12 @@ func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, err
 
 	certErr := ok1 || ok2 || ok3 || ok4 || ok5
 	if !certErr {
-		log.G(ctx).Error("failed with non-certificate error")
-		return false, err
+		return false, fmt.Errorf("failed with non-certificate error: %w", err)
 	}
 
 	insecureOk := checkIngressHostWithInsecure(ingress)
 	if !insecureOk {
-		log.G(ctx).Error("insecure call failed")
-		return false, err
+		return false, fmt.Errorf("insecure call failed: %w", err)
 	}
 	
 	return false, nil
@@ -435,7 +432,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 		return nil
 	}
 	if store.Get().Silent {
-		return fmt.Errorf("Cancelled installation due to invalid ingress host certificate")
+		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -459,7 +456,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	if result == "Yes" {
 		store.Get().InsecureIngressHost = true
 	} else {
-		return fmt.Errorf("Cancelled installation due to invalid ingress host certificate")
+		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 	}
 	return nil
 }
