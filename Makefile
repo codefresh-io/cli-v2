@@ -1,4 +1,4 @@
-VERSION=v0.0.201
+VERSION=v0.0.202
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -19,6 +19,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 DEV_MODE?=true
+SEGMENT_WRITE_KEY?=""
 
 ifeq (${DEV_MODE},true)
 	RUNTIME_DEF_URL=${DEV_RUNTIME_DEF_URL}
@@ -96,6 +97,7 @@ $(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	GIT_COMMIT=$(GIT_COMMIT) \
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \
 	RUNTIME_DEF_URL=$(RUNTIME_DEF_URL) \
+	SEGMENT_WRITE_KEY=$(SEGMENT_WRITE_KEY) \
 	MAIN=./cmd \
 	./hack/build.sh
 

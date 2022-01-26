@@ -25,13 +25,14 @@ import (
 var s Store
 
 var (
-	binaryName    = "cli-v2"
-	version       = "v99.99.99"
-	buildDate     = ""
-	gitCommit     = ""
-	maxDefVersion = "1.0.0"
-	RuntimeDefURL = "manifests/runtime.yaml"
-	ArgoAgentURL  = "manifests/argo-agent/agent.yaml"
+	binaryName      = "cli-v2"
+	version         = "v99.99.99"
+	buildDate       = ""
+	gitCommit       = ""
+	segmentWriteKey = ""
+	maxDefVersion   = "1.0.0"
+	RuntimeDefURL   = "manifests/runtime.yaml"
+	ArgoAgentURL    = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
@@ -125,6 +126,7 @@ type Store struct {
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
+	SegmentWriteKey                      string
 }
 
 // Get returns the global store
@@ -209,6 +211,7 @@ func init() {
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutResourceName = "rollouts"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
+	s.SegmentWriteKey = segmentWriteKey
 	initVersion()
 }
 

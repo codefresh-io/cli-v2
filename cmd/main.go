@@ -20,6 +20,7 @@ import (
 
 	"github.com/codefresh-io/cli-v2/cmd/commands"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 
@@ -42,6 +43,7 @@ func main() {
 	apu.ConfigureLoggerOrDie(c)
 
 	if err := c.ExecuteContext(ctx); err != nil {
+		reporter.G().Close()
 		log.G(ctx).Fatal(err)
 	}
 }

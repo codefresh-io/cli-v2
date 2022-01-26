@@ -24,10 +24,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
-	"github.com/briandowns/spinner"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -53,10 +54,17 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 		for {
 			s := <-sig
 			cancels++
+			reporter.G().ReportStep(reporter.CliStepData{
+				Event:       reporter.SIGNAL_TERMINATION,
+				Status:      reporter.CANCELED,
+				Description: "Cancelled by an external signal",
+				Err:         nil,
+			})
 			if cancels == 1 {
 				log.G(ctx).Printf("got signal: %s", s)
 				cancel()
 			} else {
+				reporter.G().Close()
 				log.G(ctx).Printf("forcing exit")
 				os.Exit(1)
 			}
