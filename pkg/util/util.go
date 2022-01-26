@@ -55,7 +55,12 @@ func ContextWithCancelOnSignals(ctx context.Context, reporter *ar.AnalyticsRepor
 			s := <-sig
 			cancels++
 			if *reporter != nil {
-				(*reporter).ReportStep(ar.SIGNAL_TERMINATION, ar.CANCELED, "Cancelled by an external signal ", nil)
+				(*reporter).ReportStep(ar.CliStepData{
+					Event:       ar.SIGNAL_TERMINATION,
+					Status:      ar.CANCELED,
+					Description: "Cancelled by an external signal",
+					Err:         nil,
+				})
 			}
 			if cancels == 1 {
 				log.G(ctx).Printf("got signal: %s", s)

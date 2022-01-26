@@ -7,9 +7,15 @@ import (
 
 type (
 	AnalyticsReporter interface {
-		ReportStep(event CliEventType, status CliStepStatus, stepDescription string, err error)
+		ReportStep(CliStepData)
 	}
 
+	CliStepData struct {
+		Event       CliEventType
+		Status      CliStepStatus
+		Description string
+		Err         error
+	}
 	segmentAnalyticsReporter struct {
 		client    analytics.Client
 		userId    string
@@ -65,23 +71,23 @@ func NewAnalyticsReporter(userId, accountId string) AnalyticsReporter {
 	}
 }
 
-func (s *segmentAnalyticsReporter) ReportStep(event CliEventType, status CliStepStatus, stepDescription string, err error) {
+func (s *segmentAnalyticsReporter) ReportStep(step CliStepData) {
 	properties := analytics.NewProperties().
-		Set("status", status).
-		Set("description", stepDescription).
+		Set("status", step.Status).
+		Set("description", step.Description).
 		Set("accountId", s.accountId)
 
-	if err != nil {
-		properties = properties.Set("error", err.Error())
+	if step.Err != nil {
+		properties = properties.Set("error", step.Err.Error())
 	}
 
 	s.client.Enqueue(analytics.Track{
 		UserId:     s.userId,
-		Event:      string(event),
+		Event:      string(step.Event),
 		Properties: properties,
 	})
 }
 
-func (s *noopAnalyticsReporter) ReportStep(event CliEventType, status CliStepStatus, stepDescription string, err error) {
+func (s *noopAnalyticsReporter) ReportStep(_ CliStepData) {
 	// If no segmentWriteKey is provided this reporter will be used instead.
 }

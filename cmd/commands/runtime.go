@@ -1580,7 +1580,13 @@ func HandleCliStep(ctx context.Context, reporter ar.AnalyticsReporter, event ar.
 	if err != nil {
 		status = ar.FAILURE
 	}
-	reporter.ReportStep(event, status, message, err)
+
+	reporter.ReportStep(ar.CliStepData{
+		Event:       event,
+		Status:      status,
+		Description: message,
+		Err:         err,
+	})
 }
 
 func appendLogToSummary(message string, err error) {
