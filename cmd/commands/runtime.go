@@ -1606,5 +1606,5 @@ func createAnalyticsReporter(ctx context.Context) {
 		log.G().Debug("Failed to get user from context")
 		return
 	}
-	reporter.Init(user.ID, user.GetActiveAccount().ID)
+	reporter.Init(user)
 }

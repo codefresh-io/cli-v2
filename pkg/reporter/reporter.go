@@ -17,6 +17,7 @@ package reporter
 import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/google/uuid"
 	"gopkg.in/segmentio/analytics-go.v3"
 )
@@ -40,10 +41,12 @@ type (
 	CliStepStatus string
 
 	segmentAnalyticsReporter struct {
-		client    analytics.Client
-		flowId    string
-		userId    string
-		accountId string
+		client      analytics.Client
+		flowId      string
+		userId      string
+		userName    string
+		accountId   string
+		accountName string
 	}
 
 	noopAnalyticsReporter struct{}
@@ -84,24 +87,30 @@ func G() AnalyticsReporter {
 	return ar
 }
 
-func Init(userId, accountId string) {
+func Init(user *codefresh.User) {
 	writeKey := store.Get().SegmentWriteKey
 	if writeKey == "" {
 		log.G().Debug("No segment write key was provided. Using the noop reporter.")
 		return
 	}
 
+	account := user.GetActiveAccount()
+
 	ar = &segmentAnalyticsReporter{
-		client:    analytics.New(writeKey),
-		flowId:    uuid.New().String(),
-		userId:    userId,
-		accountId: accountId,
+		client:      analytics.New(writeKey),
+		flowId:      uuid.New().String(),
+		userId:      user.ID,
+		userName:    user.Name,
+		accountId:   account.ID,
+		accountName: account.Name,
 	}
 }
 
 func (r *segmentAnalyticsReporter) ReportStep(step CliStepData) {
 	properties := analytics.NewProperties().
 		Set("accountId", r.accountId).
+		Set("accountName", r.accountName).
+		Set("userName", r.userName).
 		Set("flowId", r.flowId).
 		Set("description", step.Description).
 		Set("status", step.Status)
@@ -110,7 +119,6 @@ func (r *segmentAnalyticsReporter) ReportStep(step CliStepData) {
 		properties = properties.Set("error", step.Err.Error())
 	}
 
-	log.G().Infof("Reporting track with data: %v", step)
 	err := r.client.Enqueue(analytics.Track{
 		UserId:     r.userId,
 		Event:      string(step.Event),
@@ -118,15 +126,13 @@ func (r *segmentAnalyticsReporter) ReportStep(step CliStepData) {
 	})
 
 	if err != nil {
-		log.G().Info("Failed reporting: %w", err)
+		log.G().Debugf("Failed reporting to segment: %w", err)
 	}
-
-	log.G().Info("Finished reporting")
 }
 
 func (r *segmentAnalyticsReporter) Close() {
 	if err := r.client.Close(); err != nil {
-		log.G().Errorf("Failed to close segment client: %w", err)
+		log.G().Debugf("Failed to close segment client: %w", err)
 	}
 }
 
