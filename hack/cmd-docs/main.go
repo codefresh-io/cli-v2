@@ -38,7 +38,7 @@ func main() {
 	log.Printf("org home: %s", orgHome)
 	log.Printf("new home: %s", home)
 
-	if err := doc.GenMarkdownTree(commands.NewRoot(nil), outputDir); err != nil {
+	if err := doc.GenMarkdownTree(commands.NewRoot(), outputDir); err != nil {
 		log.Fatal(err)
 	}
 

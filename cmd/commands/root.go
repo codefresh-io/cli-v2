@@ -18,15 +18,11 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	ar "github.com/codefresh-io/cli-v2/pkg/util/analytics-reporter"
 
 	"github.com/spf13/cobra"
 )
 
-var reporter *ar.AnalyticsReporter
-
-func NewRoot(ar *ar.AnalyticsReporter) *cobra.Command {
-	reporter = ar
+func NewRoot() *cobra.Command {
 	s := store.Get()
 
 	cmd := &cobra.Command{
