@@ -12,6 +12,7 @@ var ar AnalyticsReporter = &noopAnalyticsReporter{}
 type (
 	AnalyticsReporter interface {
 		ReportStep(CliStepData)
+		Close()
 	}
 
 	CliStepData struct {
@@ -95,13 +96,29 @@ func (r *segmentAnalyticsReporter) ReportStep(step CliStepData) {
 		properties = properties.Set("error", step.Err.Error())
 	}
 
-	r.client.Enqueue(analytics.Track{
+	log.G().Infof("Reporting track with data: %v", step)
+	err := r.client.Enqueue(analytics.Track{
 		UserId:     r.userId,
 		Event:      string(step.Event),
 		Properties: properties,
 	})
+
+	if err != nil {
+		log.G().Info("Failed reporting: %w", err)
+	}
+
+	log.G().Info("Finished reporting")
+}
+
+func (r *segmentAnalyticsReporter) Close() {
+	if err := r.client.Close(); err != nil {
+		log.G().Errorf("Failed to close segment client: %w", err)
+	}
 }
 
 func (r *noopAnalyticsReporter) ReportStep(_ CliStepData) {
 	// If no segmentWriteKey is provided this reporter will be used instead.
+}
+
+func (r *noopAnalyticsReporter) Close() {
 }

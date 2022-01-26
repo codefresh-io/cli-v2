@@ -1561,8 +1561,6 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 }
 
 func handleCliStep(event reporter.CliEventType, message string, err error) {
-	appendLogToSummary(message, err)
-
 	r := reporter.G()
 	status := reporter.SUCCESS
 	if err != nil {
@@ -1575,6 +1573,8 @@ func handleCliStep(event reporter.CliEventType, message string, err error) {
 		Description: message,
 		Err:         err,
 	})
+
+	appendLogToSummary(message, err)
 }
 
 func appendLogToSummary(message string, err error) {
