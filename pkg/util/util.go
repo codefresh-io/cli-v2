@@ -55,7 +55,7 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 			s := <-sig
 			cancels++
 			reporter.G().ReportStep(reporter.CliStepData{
-				Event:       reporter.SIGNAL_TERMINATION,
+				Step:        reporter.SIGNAL_TERMINATION,
 				Status:      reporter.CANCELED,
 				Description: "Cancelled by an external signal",
 				Err:         nil,
