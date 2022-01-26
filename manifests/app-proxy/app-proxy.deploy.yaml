@@ -106,19 +106,19 @@ spec:
           image: quay.io/codefresh/cap-app-proxy
           imagePullPolicy: Always
           name: cap-app-proxy
+          readinessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            httpGet:
+              port: http
+              path: /api/readyz
           livenessProbe:
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             timeoutSeconds: 10
             failureThreshold: 10
             httpGet:
               port: http
-              path: /api/ping
-          readinessProbe:
-            initialDelaySeconds: 5
-            timeoutSeconds: 10
-            httpGet:
-              port: http
-              path: /api/ping
+              path: /api/healthz
           ports:
             - name: http
               containerPort: 80
