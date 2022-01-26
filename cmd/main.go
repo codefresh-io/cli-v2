@@ -21,6 +21,7 @@ import (
 	"github.com/codefresh-io/cli-v2/cmd/commands"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	ar "github.com/codefresh-io/cli-v2/pkg/util/analytics-reporter"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 
 	"github.com/sirupsen/logrus"
@@ -29,12 +30,13 @@ import (
 //go:generate sh -c "echo  generating command docs... && cd .. && go run ./hack/cmd-docs/main.go"
 
 func main() {
+	var reporter ar.AnalyticsReporter
 	ctx := context.Background()
 	lgr := log.FromLogrus(logrus.NewEntry(logrus.New()), &log.LogrusConfig{Level: "info"})
 	ctx = log.WithLogger(ctx, lgr)
-	ctx = util.ContextWithCancelOnSignals(ctx, syscall.SIGINT, syscall.SIGTERM)
+	ctx = util.ContextWithCancelOnSignals(ctx, &reporter, syscall.SIGINT, syscall.SIGTERM)
 
-	c := commands.NewRoot()
+	c := commands.NewRoot(&reporter)
 
 	lgr.AddPFlags(c)
 

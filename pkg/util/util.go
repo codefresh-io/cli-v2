@@ -24,10 +24,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	ar "github.com/codefresh-io/cli-v2/pkg/util/analytics-reporter"
 
-	"github.com/briandowns/spinner"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -43,7 +44,7 @@ var (
 
 // ContextWithCancelOnSignals returns a context that is canceled when one of the specified signals
 // are received
-func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.Context {
+func ContextWithCancelOnSignals(ctx context.Context, reporter *ar.AnalyticsReporter, sigs ...os.Signal) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, sigs...)
@@ -53,6 +54,9 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 		for {
 			s := <-sig
 			cancels++
+			if *reporter != nil {
+				(*reporter).ReportStep(ar.SIGNAL_TERMINATION, ar.CANCELED, "Cancelled by an external signal ", nil)
+			}
 			if cancels == 1 {
 				log.G(ctx).Printf("got signal: %s", s)
 				cancel()

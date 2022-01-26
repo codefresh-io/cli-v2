@@ -40,7 +40,8 @@ COPY . .
 ENV GOPATH /go
 ENV GOBIN /go/bin
 
-RUN make local DEV_MODE=false
+ARG SEGMENT_WRITE_KEY
+RUN make local DEV_MODE=false SEGMENT_WRITE_KEY=${SEGMENT_WRITE_KEY}
 
 ### Run
 FROM alpine:3.13 as codefresh

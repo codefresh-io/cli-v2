@@ -79,6 +79,7 @@ type AuthContext struct {
 	Beta           bool   `mapstructure:"beta" json:"beta"`
 	OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
+	config         *Config
 }
 
 func AddFlags(f *pflag.FlagSet) *Config {
@@ -126,6 +127,10 @@ func (c *Config) Load(cmd *cobra.Command, args []string) error {
 
 	if err := viper.Unmarshal(c); err != nil {
 		return err
+	}
+
+	for _, v := range c.Contexts {
+		v.config = c
 	}
 
 	c.validate()
@@ -194,11 +199,12 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	}
 
 	authCtx := &AuthContext{
-		Name:  name,
-		URL:   url,
-		Token: token,
-		Type:  "APIKey",
-		Beta:  false,
+		Name:   name,
+		URL:    url,
+		Token:  token,
+		Type:   "APIKey",
+		Beta:   false,
+		config: c,
 	}
 
 	// validate new context
@@ -319,4 +325,8 @@ func init() {
 		log.G().WithError(err).Fatal("failed to get user home directory")
 	}
 	defaultPath = homedir
+}
+
+func (a *AuthContext) GetUser(ctx context.Context) (*codefresh.User, error) {
+	return a.config.clientForContext(a).Users().GetCurrent(ctx)
 }
