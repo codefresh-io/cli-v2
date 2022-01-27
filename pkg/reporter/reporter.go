@@ -31,17 +31,19 @@ type (
 	}
 
 	CliStepData struct {
-		Event       CliEventType
+		Step        CliStep
 		Status      CliStepStatus
 		Description string
 		Err         error
 	}
 
-	CliEventType  string
+	CliStep       string
 	CliStepStatus string
+	FlowType      string
 
 	segmentAnalyticsReporter struct {
 		client      analytics.Client
+		flowType    FlowType
 		flowId      string
 		userId      string
 		userName    string
@@ -53,33 +55,38 @@ type (
 )
 
 const (
+	cliEvent string = "cli-runtime-operations"
+
 	// Install
-	InstallStepPreChecks                   CliEventType = "install.pre-installation-checks"
-	InstallStepDownloadRuntimeDefinitions  CliEventType = "install.download-runtime-definitions"
-	InstallStepGetServerAddress            CliEventType = "install.get-server-address"
-	InstallStepCreateRuntimeOnPlatform     CliEventType = "install.create-runtime-on-platform"
-	InstallStepBootstrapRepo               CliEventType = "install.bootstrap-repo"
-	InstallStepCreateProject               CliEventType = "install.create-project"
-	InstallStepCreateConfigMap             CliEventType = "install.create-codefresh-cm"
-	InstallStepCreateComponent             CliEventType = "install.create-component"
-	InstallStepInstallComponenets          CliEventType = "install.install-components"
-	InstallStepCreateGitsource             CliEventType = "install.create-gitsource"
-	InstallStepCreateMarketplaceGitsource  CliEventType = "install.create-marketplace-gitsource"
-	InstallStepCompleteRuntimeInstallation CliEventType = "install.complete-runtime-installation"
-	InstallStepCreateDefaultGitIntegration CliEventType = "install.create-default-git-integration"
+	InstallStepPreChecks                   CliStep = "install.pre-installation-checks"
+	InstallStepDownloadRuntimeDefinitions  CliStep = "install.download-runtime-definitions"
+	InstallStepGetServerAddress            CliStep = "install.get-server-address"
+	InstallStepCreateRuntimeOnPlatform     CliStep = "install.create-runtime-on-platform"
+	InstallStepBootstrapRepo               CliStep = "install.bootstrap-repo"
+	InstallStepCreateProject               CliStep = "install.create-project"
+	InstallStepCreateConfigMap             CliStep = "install.create-codefresh-cm"
+	InstallStepCreateComponent             CliStep = "install.create-component"
+	InstallStepInstallComponenets          CliStep = "install.install-components"
+	InstallStepCreateGitsource             CliStep = "install.create-gitsource"
+	InstallStepCreateMarketplaceGitsource  CliStep = "install.create-marketplace-gitsource"
+	InstallStepCompleteRuntimeInstallation CliStep = "install.complete-runtime-installation"
+	InstallStepCreateDefaultGitIntegration CliStep = "install.create-default-git-integration"
 
 	// Uninstall
-	UninstallStepCheckRuntimeExists            CliEventType = "uninstall.check-runtime-exists"
-	UninstallStepUninstallRepo                 CliEventType = "uninstall.uninstall-repo"
-	UninstallStepDeleteRuntimeFromPlatform     CliEventType = "uninstall.delete-runtime-from-platform"
-	UninstallStepCompleteRuntimeUninstallation CliEventType = "uninstall.complete-runtime-uninstall"
+	UninstallStepCheckRuntimeExists            CliStep = "uninstall.check-runtime-exists"
+	UninstallStepUninstallRepo                 CliStep = "uninstall.uninstall-repo"
+	UninstallStepDeleteRuntimeFromPlatform     CliStep = "uninstall.delete-runtime-from-platform"
+	UninstallStepCompleteRuntimeUninstallation CliStep = "uninstall.complete-runtime-uninstall"
 
 	// General
-	SIGNAL_TERMINATION CliEventType = "signal-termination"
+	SIGNAL_TERMINATION CliStep = "signal-termination"
 
 	SUCCESS  CliStepStatus = "SUCCESS"
 	FAILURE  CliStepStatus = "FAILURE"
 	CANCELED CliStepStatus = "CANCELED"
+
+	InstallFlow   FlowType = "installation"
+	UninstallFlow FlowType = "uninstallation"
 )
 
 // G returns the global reporter
@@ -87,7 +94,7 @@ func G() AnalyticsReporter {
 	return ar
 }
 
-func Init(user *codefresh.User) {
+func Init(user *codefresh.User, flow FlowType) {
 	writeKey := store.Get().SegmentWriteKey
 	if writeKey == "" {
 		log.G().Debug("No segment write key was provided. Using the noop reporter.")
@@ -99,6 +106,7 @@ func Init(user *codefresh.User) {
 	ar = &segmentAnalyticsReporter{
 		client:      analytics.New(writeKey),
 		flowId:      uuid.New().String(),
+		flowType:    flow,
 		userId:      user.ID,
 		userName:    user.Name,
 		accountId:   account.ID,
@@ -106,22 +114,24 @@ func Init(user *codefresh.User) {
 	}
 }
 
-func (r *segmentAnalyticsReporter) ReportStep(step CliStepData) {
+func (r *segmentAnalyticsReporter) ReportStep(data CliStepData) {
 	properties := analytics.NewProperties().
 		Set("accountId", r.accountId).
 		Set("accountName", r.accountName).
 		Set("userName", r.userName).
 		Set("flowId", r.flowId).
-		Set("description", step.Description).
-		Set("status", step.Status)
+		Set("flowType", r.flowType).
+		Set("description", data.Description).
+		Set("step", data.Step).
+		Set("status", data.Status)
 
-	if step.Err != nil {
-		properties = properties.Set("error", step.Err.Error())
+	if data.Err != nil {
+		properties = properties.Set("error", data.Err.Error())
 	}
 
 	err := r.client.Enqueue(analytics.Track{
 		UserId:     r.userId,
-		Event:      string(step.Event),
+		Event:      cliEvent,
 		Properties: properties,
 	})
 

@@ -175,7 +175,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				installationOpts.RuntimeName = args[0]
 			}
 
-			createAnalyticsReporter(cmd.Context())
+			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow)
 
 			if err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts); err != nil {
 				return fmt.Errorf("Pre installation error: %w", err)
@@ -205,7 +205,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
-
+	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
+	
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
 	})
@@ -215,8 +216,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		CreateIfNotExist: true,
 	})
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
-
+	
 	util.Die(cmd.MarkFlagRequired("ingress-host"))
+	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 
 	return cmd
 }
@@ -796,7 +798,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			var err error
 			ctx := cmd.Context()
 
-			createAnalyticsReporter(ctx)
+			createAnalyticsReporter(ctx, reporter.UninstallFlow)
 
 			err = getKubeContextNameFromUserSelect(cmd, &kubeContextName)
 			if err != nil {
@@ -1560,7 +1562,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	printSummaryToUser()
 }
 
-func handleCliStep(event reporter.CliEventType, message string, err error) {
+func handleCliStep(step reporter.CliStep, message string, err error) {
 	r := reporter.G()
 	status := reporter.SUCCESS
 	if err != nil {
@@ -1568,7 +1570,7 @@ func handleCliStep(event reporter.CliEventType, message string, err error) {
 	}
 
 	r.ReportStep(reporter.CliStepData{
-		Event:       event,
+		Step:        step,
 		Status:      status,
 		Description: message,
 		Err:         err,
@@ -1599,12 +1601,12 @@ func printSummaryToUser() {
 	summaryArr = []summaryLog{}
 }
 
-func createAnalyticsReporter(ctx context.Context) {
+func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType) {
 	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
 	// If error, it will default to noop reporter
 	if err != nil {
 		log.G().Debug("Failed to get user from context")
 		return
 	}
-	reporter.Init(user)
+	reporter.Init(user, flow)
 }
