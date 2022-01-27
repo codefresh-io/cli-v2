@@ -187,6 +187,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
+				"IngressClass":              installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -330,7 +331,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return nil
 	}
 
-	fmt.Print("Fetching nginx ingress classes info from cluster...\n")
+	fmt.Print("Fetching nginx ingress classes info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
