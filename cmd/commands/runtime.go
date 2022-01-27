@@ -346,7 +346,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	if len(ingressClassNames) == 0 { //TODO add docs link
-		return fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime")
+		return fmt.Errorf("no ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime")
 	}
 
 	if len(ingressClassNames) == 1 {
