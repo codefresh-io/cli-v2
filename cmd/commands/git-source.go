@@ -191,7 +191,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	cmd.Flags().StringVar(&ingressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during git-source installation")
-	cmd.Flags().StringVar(&ingressClass, "ingress-class", "", "The ingress class name")
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
