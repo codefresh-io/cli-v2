@@ -24,6 +24,26 @@ patches:
         path: /spec/template/spec/containers/0/args/-
         value: --auth-mode=server
 
+patchesStrategicMerge:
+    - |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: workflow-controller-configmap
+        data:
+          # Fields reference can be found here: https://argoproj.github.io/argo-workflows/workflow-controller-configmap.yaml
+          workflowDefaults: |
+            spec:
+              ttlStrategy:
+                secondsAfterCompletion: 86400
+                secondsAfterSuccess: 86400
+                secondsAfterFailure: 86400
+              podGC:
+                strategy: OnWorkflowCompletion
+                labelSelector:
+                  matchLabels:
+                    should-be-deleted: "true"
+
 configMapGenerator:
   - name: workflow-controller-configmap
     behavior: merge
