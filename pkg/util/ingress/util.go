@@ -28,11 +28,12 @@ type (
 	}
 
 	CreateIngressOptions struct {
-		Name        string
-		Namespace   string
-		Annotations map[string]string
-		Host        string
-		Paths       []IngressPath
+		Name             string
+		Namespace        string
+		IngressClassName string
+		Annotations      map[string]string
+		Host             string
+		Paths            []IngressPath
 	}
 )
 
@@ -67,6 +68,7 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 			Name:      opts.Name,
 		},
 		Spec: netv1.IngressSpec{
+			IngressClassName: &opts.IngressClassName,
 			Rules: []netv1.IngressRule{
 				{
 					Host: opts.Host,

@@ -226,11 +226,10 @@ func getIngressClassFromUserSelect(ctx context.Context, f kube.Factory, ingressC
 		return fmt.Errorf("No ingressClasses were found. please install an ingress class on your cluster before installing a runtime")
 	}
 
-	//map labels to names and show user
-	ingressClassLabels := make([]string, len(ingressClassList.Items))
+	ingressNameToLabel := make(map[string]string)
 	ingressClassNames := make([]string, len(ingressClassList.Items))
 	for index, ic := range ingressClassList.Items {
-		ingressClassLabels[index] = ic.ObjectMeta.Labels["app.kubernetes.io/name"]
+		ingressNameToLabel[ic.Name] = ic.ObjectMeta.Labels["app.kubernetes.io/name"]
 		ingressClassNames[index] = ic.Name
 	}
 
@@ -242,7 +241,7 @@ func getIngressClassFromUserSelect(ctx context.Context, f kube.Factory, ingressC
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     ingressClassLabels,
+		Items:     ingressClassNames,
 		Templates: templates,
 	}
 
@@ -251,6 +250,10 @@ func getIngressClassFromUserSelect(ctx context.Context, f kube.Factory, ingressC
 		return fmt.Errorf("Prompt error: %w", err)
 	}
 
+	if ingressNameToLabel[result] != "ingress-nginx" {
+		log.G(ctx).Fatal("ingress classes that are not nginx are not supported. please install nginx ingress and try again")
+	}
+	
 	*ingressClass = result
 
 	return nil

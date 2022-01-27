@@ -202,7 +202,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
-	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "ingress-nginx", "The ingress class name (default: ingress-nginx)")
+	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
@@ -323,9 +323,12 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 }
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	// if store.Get().Silent {
-	// 	return nil
-	// }
+	if store.Get().Silent {
+		if opts.IngressClass == "" {
+			log.G(ctx).Fatal("must enter a valid value to --ingress-class")
+		}
+		return nil
+	}
 
 	getIngressClassFromUserSelect(ctx, opts.KubeFactory, &opts.IngressClass)
 
@@ -478,6 +481,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
 		IngressHost:         opts.IngressHost,
+		IngressClass:        opts.IngressClass,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err)
 	if err != nil {
@@ -542,7 +546,7 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	if opts.IngressHost != "" {
-		if err = createWorkflowsIngress(ctx, opts.InsCloneOpts, rt); err != nil {
+		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
 	}
@@ -1081,16 +1085,17 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return apu.PushWithMessage(ctx, r, "Persisted runtime data")
 }
 
-func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
-	r, fs, err := cloneOpts.GetRepo(ctx)
+func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:      rt.Name + store.Get().WorkflowsIngressName,
-		Namespace: rt.Namespace,
+		Name:             rt.Name + store.Get().WorkflowsIngressName,
+		Namespace:        rt.Namespace,
+		IngressClassName: opts.IngressClass,
 		Annotations: map[string]string{
 			"ingress.kubernetes.io/protocol":               "https",
 			"ingress.kubernetes.io/rewrite-target":         "/$2",
@@ -1175,8 +1180,9 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if opts.IngressHost != "" {
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-			Name:      rt.Name + store.Get().AppProxyIngressName,
-			Namespace: rt.Namespace,
+			Name:             rt.Name + store.Get().AppProxyIngressName,
+			Namespace:        rt.Namespace,
+			IngressClassName: opts.IngressClass,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),
