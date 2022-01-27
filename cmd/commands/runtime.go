@@ -206,7 +206,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
-	
+
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
 	})
@@ -216,7 +216,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		CreateIfNotExist: true,
 	})
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
-	
+
 	util.Die(cmd.MarkFlagRequired("ingress-host"))
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 
@@ -352,17 +352,14 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	var err error
-	r := reporter.G()
-
-	err = preInstallationChecks(ctx, opts)
-	handleCliStep(reporter.InstallStepPreChecks, "Pre installation checks", err)
+	err := preInstallationChecks(ctx, opts)
+	handleCliStep(reporter.InstallStepPreChecks, "Pre installation checks", err, true)
 	if err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepDownloadRuntimeDefinitions, "Downloading runtime definition", err)
+	handleCliStep(reporter.InstallStepDownloadRuntimeDefinitions, "Downloading runtime definition", err, true)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
@@ -373,14 +370,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	server, err := util.CurrentServer()
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err)
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, true)
 	if err != nil {
 		return fmt.Errorf("failed to get current server address: %w", err)
 	}
 
 	componentNames := getComponents(rt, opts)
 
-	defer postInstallationHandler(ctx, opts, &err, r)
+	defer postInstallationHandler(ctx, opts, &err)
 
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
@@ -390,7 +387,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		ComponentNames: componentNames,
 		Repo:           &opts.InsCloneOpts.Repo,
 	})
-	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err)
+	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create a new runtime: %w", err))
 	}
@@ -413,7 +410,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 		},
 	})
-	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err)
+	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
@@ -425,7 +422,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 		},
 	})
-	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err)
+	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
 	}
@@ -433,7 +430,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
 	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
-	handleCliStep(reporter.InstallStepCreateConfigMap, "Creating codefresh-cm", err)
+	handleCliStep(reporter.InstallStepCreateConfigMap, "Creating codefresh-cm", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
 	}
@@ -442,14 +439,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		handleCliStep(reporter.InstallStepCreateComponent, infoStr, err)
+		handleCliStep(reporter.InstallStepCreateComponent, infoStr, err, true)
 		if err != nil {
 			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
 		}
 	}
 
 	err = installComponents(ctx, opts, rt)
-	handleCliStep(reporter.InstallStepInstallComponenets, "Installing components", err)
+	handleCliStep(reporter.InstallStepInstallComponenets, "Installing components", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
 	}
@@ -463,7 +460,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: opts.InstallDemoResources,
 		IngressHost:         opts.IngressHost,
 	})
-	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err)
+	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err))
 	}
@@ -484,22 +481,24 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Exclude:             "**/images/**/*",
 		Include:             "workflows/**/*.yaml",
 	})
-	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err)
+	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr)
+	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
 	if timeoutErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
 	}
 
 	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
-	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr)
+	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, true)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
 	}
+
+	handleCliStep(reporter.FINISH, "Runtime installed successfully", nil, false)
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
@@ -865,7 +864,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	// check whether the runtime exists
 	if !opts.SkipChecks {
 		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
-		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err)
+		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, true)
 		if err != nil {
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
 			return err
@@ -882,7 +881,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
-	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err)
+	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, true)
 	if err != nil {
 		if !opts.Force {
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
@@ -891,7 +890,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
-	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err)
+	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, true)
 	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
@@ -901,7 +900,9 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime '%s'", opts.RuntimeName)
-	handleCliStep(reporter.UninstallStepCompleteRuntimeUninstallation, uninstallDoneStr, nil)
+	handleCliStep(reporter.UninstallStepCompleteRuntimeUninstallation, uninstallDoneStr, nil, true)
+
+	handleCliStep(reporter.FINISH, "Runtime uninstalled successfully", nil, false)
 
 	return nil
 }
@@ -944,6 +945,8 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
 
 			err := ensureRuntimeName(ctx, args, &runtimeName)
 			if err != nil {
@@ -1004,6 +1007,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinitions, "Downloading runtime definition", err, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
@@ -1013,11 +1017,13 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	}
 
 	r, fs, err := opts.CloneOpts.GetRepo(ctx)
+	handleCliStep(reporter.UpgradeStepGetRepo, "Getting repository", err, false)
 	if err != nil {
 		return err
 	}
 
 	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
+	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Loading runtime definition", err, false)
 	if err != nil {
 		return fmt.Errorf("failed to load current runtime definition: %w", err)
 	}
@@ -1027,21 +1033,29 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	}
 
 	newComponents, err := curRt.Upgrade(fs, newRt, opts.CommonConfig)
+	handleCliStep(reporter.UpgradeStepUpgradeRuntime, "Upgrading runtime", err, false)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
 
 	log.G(ctx).Info("Pushing new runtime definition")
-	if err := apu.PushWithMessage(ctx, r, fmt.Sprintf("Upgraded to %s", newRt.Spec.Version)); err != nil {
+	err = apu.PushWithMessage(ctx, r, fmt.Sprintf("Upgraded to %s", newRt.Spec.Version))
+	handleCliStep(reporter.UpgradeStepPushRuntimeDefinition, "Pushing new runtime definition", err, false)
+	if err != nil {
 		return err
 	}
 
 	for _, component := range newComponents {
-		log.G(ctx).Infof("Creating app '%s'", component.Name)
-		if err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
+		infoStr := fmt.Sprintf("Creating app '%s'", component.Name)
+		log.G(ctx).Infof(infoStr)
+		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
+		handleCliStep(reporter.UpgradeStepCreateApp, infoStr, err, false)
+		if err != nil {
 			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
 		}
 	}
+
+	handleCliStep(reporter.FINISH, "Runtime upgrade finished sucessfully", err, false)
 
 	return nil
 }
@@ -1541,7 +1555,7 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
-func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error, r reporter.AnalyticsReporter) {
+func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error) {
 	if *err != nil {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", (*err).Error())
@@ -1562,7 +1576,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	printSummaryToUser()
 }
 
-func handleCliStep(step reporter.CliStep, message string, err error) {
+func handleCliStep(step reporter.CliStep, message string, err error, appendToLog bool) {
 	r := reporter.G()
 	status := reporter.SUCCESS
 	if err != nil {
@@ -1576,7 +1590,9 @@ func handleCliStep(step reporter.CliStep, message string, err error) {
 		Err:         err,
 	})
 
-	appendLogToSummary(message, err)
+	if appendToLog {
+		appendLogToSummary(message, err)
+	}
 }
 
 func appendLogToSummary(message string, err error) {
@@ -1608,5 +1624,12 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType) {
 		log.G().Debug("Failed to get user from context")
 		return
 	}
+
+	url := cfConfig.GetCurrentContext().URL
+	if url != store.Get().DefaultAPI {
+		log.G().Debug("Not reporting for local env")
+		return
+	}
+
 	reporter.Init(user, flow)
 }

@@ -78,8 +78,18 @@ const (
 	UninstallStepDeleteRuntimeFromPlatform     CliStep = "uninstall.delete-runtime-from-platform"
 	UninstallStepCompleteRuntimeUninstallation CliStep = "uninstall.complete-runtime-uninstall"
 
+	// Upgrade
+	UpgradeStepDownloadRuntimeDefinitions CliStep = "upgrade.download-runtime-definitions"
+	UpgradeStepGetRepo                    CliStep = "upgrade.get-repo"
+	UpgradeStepLoadRuntimeDefinition      CliStep = "upgrade.load-runtime-definition"
+	UpgradeStepUpgradeRuntime             CliStep = "upgrade.upgrade-runtime"
+	UpgradeStepPushRuntimeDefinition      CliStep = "upgrade.push-runtime-definition"
+	UpgradeStepCreateApp                  CliStep = "upgrade.create-app"
+
 	// General
 	SIGNAL_TERMINATION CliStep = "signal-termination"
+	START              CliStep = "start"
+	FINISH             CliStep = "finish"
 
 	SUCCESS  CliStepStatus = "SUCCESS"
 	FAILURE  CliStepStatus = "FAILURE"
@@ -87,6 +97,7 @@ const (
 
 	InstallFlow   FlowType = "installation"
 	UninstallFlow FlowType = "uninstallation"
+	UpgradeFlow   FlowType = "upgrade"
 )
 
 // G returns the global reporter
@@ -112,6 +123,14 @@ func Init(user *codefresh.User, flow FlowType) {
 		accountId:   account.ID,
 		accountName: account.Name,
 	}
+
+	// Report that a flow has started
+	ar.ReportStep(CliStepData{
+		Step:        START,
+		Status:      SUCCESS,
+		Description: "Start",
+		Err:         nil,
+	})
 }
 
 func (r *segmentAnalyticsReporter) ReportStep(data CliStepData) {
