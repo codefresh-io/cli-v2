@@ -324,13 +324,6 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 }
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	if store.Get().Silent {
-		if opts.IngressClass == "" {
-			log.G(ctx).Fatal("must enter an ingressClass name to --ingress-class")
-		}
-		return nil
-	}
-
 	fmt.Print("Fetching nginx ingress classes info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
@@ -340,10 +333,22 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	var ingressClassNames []string
+	var isValidClass bool
 	for _, ic := range ingressClassList.Items {
 		if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "ingress-nginx" {
 			ingressClassNames = append(ingressClassNames, ic.Name)
+			if opts.IngressClass == ic.Name {
+				isValidClass = true
+			}
 		}
+	}
+
+	if opts.IngressClass != "" { //if user provided ingress class by flag
+		if isValidClass { 
+			return nil
+		}
+		// TODO add docs link 
+		return fmt.Errorf("ingress class '%s' is invalid. ingress class should be of type nginx. for more information: ", opts.IngressClass)
 	}
 
 	if len(ingressClassNames) == 0 { //TODO add docs link
