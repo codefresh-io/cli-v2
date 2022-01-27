@@ -324,6 +324,10 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 }
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
+	if store.Get().BypassIngressClassCheck {
+		return nil
+	}
+	
 	fmt.Print("Fetching nginx ingress classes info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
