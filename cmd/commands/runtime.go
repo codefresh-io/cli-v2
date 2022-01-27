@@ -644,7 +644,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		return fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+		return fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing. for more information: %s", store.Get().DownloadCliLink)
 	}
 
 	if err := checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory); err != nil {
