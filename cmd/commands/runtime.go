@@ -1542,7 +1542,7 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error, r reporter.AnalyticsReporter) {
 	if *err != nil {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
-		log.G(ctx).Warn("installation failed, performing installation rollback")
+		log.G(ctx).Warn(fmt.Sprintf("installation failed due to error : %s, performing installation rollback", *err))
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout:     store.Get().WaitTimeout,
