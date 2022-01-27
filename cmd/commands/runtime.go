@@ -341,7 +341,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 
 	var ingressClassNames []string
 	for _, ic := range ingressClassList.Items {
-		if ic.ObjectMeta.Labels["app.kubernetes.io/instance"] == "ingress-nginx" {
+		if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "ingress-nginx" {
 			ingressClassNames = append(ingressClassNames, ic.Name)
 		}
 	}
