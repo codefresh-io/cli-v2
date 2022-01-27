@@ -55,7 +55,7 @@ type (
 )
 
 const (
-	cliEvent string = "cli-runtime-operations"
+	cliEvent string = "csdp-cli"
 
 	// Install
 	InstallStepPreChecks                   CliStep = "install.pre-installation-checks"
