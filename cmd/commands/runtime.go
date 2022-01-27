@@ -73,6 +73,7 @@ type (
 		RuntimeToken         string
 		RuntimeStoreIV       string
 		IngressHost          string
+		IngressClass         string
 		Insecure             bool
 		InstallDemoResources bool
 		Version              *semver.Version
@@ -201,6 +202,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
+	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "ingress-nginx", "The ingress class name (default: ingress-nginx)")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
@@ -264,6 +266,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
+	if err := ensureIngressClass(cmd.Context(), opts); err != nil {
+		return err
+	}
+
 	if err := askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources); err != nil {
 		return err
 	}
@@ -312,6 +318,16 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
+	// if store.Get().Silent {
+	// 	return nil
+	// }
+
+	getIngressClassFromUserSelect(ctx, opts.KubeFactory, &opts.IngressClass)
 
 	return nil
 }

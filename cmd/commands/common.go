@@ -28,11 +28,13 @@ import (
 	"time"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/manifoldco/promptui"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
@@ -208,6 +210,49 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 
 		*runtimeName = result
 	}
+	return nil
+}
+
+func getIngressClassFromUserSelect(ctx context.Context, f kube.Factory, ingressClass *string) error {
+	fmt.Print("fetching ingress class info from cluster...")
+
+	cs := f.KubernetesClientSetOrDie()
+	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get ingressClass list from cluster: %w", err)
+	}
+
+	if len(ingressClassList.Items) == 0 {
+		return fmt.Errorf("No ingressClasses were found. please install an ingress class on your cluster before installing a runtime")
+	}
+
+	//map labels to names and show user
+	ingressClassLabels := make([]string, len(ingressClassList.Items))
+	ingressClassNames := make([]string, len(ingressClassList.Items))
+	for index, ic := range ingressClassList.Items {
+		ingressClassLabels[index] = ic.ObjectMeta.Labels["app.kubernetes.io/name"]
+		ingressClassNames[index] = ic.Name
+	}
+
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect ingressClass%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     ingressClassLabels,
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	*ingressClass = result
+
 	return nil
 }
 
