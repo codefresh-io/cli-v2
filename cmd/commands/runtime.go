@@ -364,12 +364,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return nil
 	}
 
-	err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
-	if err != nil {
-		return err
+	if !store.Get().Silent {
+		return getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
 	}
 
-	return nil
+	return fmt.Errorf("please provide an ingress class name with --ingress-class")
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {

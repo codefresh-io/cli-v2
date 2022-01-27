@@ -15,7 +15,6 @@
 package util
 
 import (
-	"github.com/codefresh-io/cli-v2/pkg/store"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -82,7 +81,7 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 		},
 	}
 
-	if !store.Get().BypassIngressClassCheck {
+	if opts.IngressClassName != "" {
 		ingress.Spec.IngressClassName = &opts.IngressClassName
 	}
 
