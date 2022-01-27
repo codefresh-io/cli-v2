@@ -71,12 +71,14 @@ const (
 	InstallStepCreateMarketplaceGitsource  CliStep = "install.create-marketplace-gitsource"
 	InstallStepCompleteRuntimeInstallation CliStep = "install.complete-runtime-installation"
 	InstallStepCreateDefaultGitIntegration CliStep = "install.create-default-git-integration"
+	InstallStepFinish                      CliStep = "install.finish"
 
 	// Uninstall
 	UninstallStepCheckRuntimeExists            CliStep = "uninstall.check-runtime-exists"
 	UninstallStepUninstallRepo                 CliStep = "uninstall.uninstall-repo"
 	UninstallStepDeleteRuntimeFromPlatform     CliStep = "uninstall.delete-runtime-from-platform"
 	UninstallStepCompleteRuntimeUninstallation CliStep = "uninstall.complete-runtime-uninstall"
+	UninstallStepFinish                        CliStep = "uninstall.finish"
 
 	// Upgrade
 	UpgradeStepDownloadRuntimeDefinitions CliStep = "upgrade.download-runtime-definitions"
@@ -85,11 +87,11 @@ const (
 	UpgradeStepUpgradeRuntime             CliStep = "upgrade.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition      CliStep = "upgrade.push-runtime-definition"
 	UpgradeStepCreateApp                  CliStep = "upgrade.create-app"
+	UpgradeStepFinish                     CliStep = "upgrade.finish"
 
 	// General
 	SIGNAL_TERMINATION CliStep = "signal-termination"
 	START              CliStep = "start"
-	FINISH             CliStep = "finish"
 
 	SUCCESS  CliStepStatus = "SUCCESS"
 	FAILURE  CliStepStatus = "FAILURE"

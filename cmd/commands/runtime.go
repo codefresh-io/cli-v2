@@ -498,7 +498,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
 	}
 
-	handleCliStep(reporter.FINISH, "Runtime installed successfully", nil, false)
+	handleCliStep(reporter.InstallStepFinish, "Runtime installed successfully", nil, false)
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
@@ -902,7 +902,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime '%s'", opts.RuntimeName)
 	handleCliStep(reporter.UninstallStepCompleteRuntimeUninstallation, uninstallDoneStr, nil, true)
 
-	handleCliStep(reporter.FINISH, "Runtime uninstalled successfully", nil, false)
+	handleCliStep(reporter.UninstallStepFinish, "Runtime uninstalled successfully", nil, false)
 
 	return nil
 }
@@ -1055,7 +1055,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		}
 	}
 
-	handleCliStep(reporter.FINISH, "Runtime upgrade finished sucessfully", err, false)
+	handleCliStep(reporter.UpgradeStepFinish, "Runtime upgrade finished sucessfully", err, false)
 
 	return nil
 }
@@ -1626,6 +1626,7 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType) {
 	}
 
 	url := cfConfig.GetCurrentContext().URL
+
 	if url != store.Get().DefaultAPI {
 		log.G().Debug("Not reporting for local env")
 		return
