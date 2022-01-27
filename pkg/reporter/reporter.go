@@ -96,7 +96,7 @@ const (
 	UninstallStepPreCheckEnsureRuntimeName     CliStep = "uninstall.pre-check.step.ensure-runtime-name"
 	UninstallStepPreCheckRuntimeNameValidation CliStep = "uninstall.pre-check.step.runtime-name-validation"
 	UninstallStepPreCheckEnsureRuntimeRepo     CliStep = "uninstall.pre-check.step.ensure-runtime-repo"
-	UninstallStepPreCheckEnsureGitToken        CliStep = "uinstall.pre-check.step.ensure-git-token"
+	UninstallStepPreCheckEnsureGitToken        CliStep = "uninstall.pre-check.step.ensure-git-token"
 	UninstallPhasePreCheckFinish               CliStep = "uninstall.pre-check.phase.finish"
 	UninstallPhaseStart                        CliStep = "uninstall.run.phase.start"
 	UninstallStepCheckRuntimeExists            CliStep = "uninstall.run.step.check-runtime-exists"
@@ -118,7 +118,7 @@ const (
 	UpgradeStepUpgradeRuntime              CliStep = "upgrade.run.step.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition       CliStep = "upgrade.run.step.push-runtime-definition"
 	UpgradeStepCreateApp                   CliStep = "upgrade.run.step.create-app"
-	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.start"
+	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.finish"
 
 	// General
 	SIGNAL_TERMINATION CliStep = "signal-termination"

@@ -92,6 +92,7 @@ type (
 		SkipChecks  bool
 		Force       bool
 		FastExit    bool
+		kubeContext string
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -199,7 +200,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := RunRuntimeInstall(cmd.Context(), &installationOpts)
-			handleCliStep(reporter.InstallPhaseFinish, "Runtime installation phase", nil, false)
+			handleCliStep(reporter.InstallPhaseFinish, "Runtime installation phase finished", err, false)
 			return err
 		},
 	}
@@ -318,28 +319,28 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	return nil
 }
 
-func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, kubeContextName string, cloneOpts *git.CloneOptions, runtimeName string) error {
+func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUninstallOptions) error {
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, false)
 
-	err := getKubeContextNameFromUserSelect(cmd, &kubeContextName)
+	err := getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureRuntimeName(cmd.Context(), args, &runtimeName)
+	err = ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureRepo(cmd, runtimeName, cloneOpts, true)
+	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureGitToken(cmd, cloneOpts)
+	err = ensureGitToken(cmd, opts.CloneOpts)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -857,14 +858,8 @@ func RunRuntimeList(ctx context.Context) error {
 
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
-		kubeContextName string
-		runtimeName     string
-		skipChecks      bool
-		f               kube.Factory
-		cloneOpts       *git.CloneOptions
-		force           bool
-		fastExit        bool
-		finalParameters map[string]string
+		uninstallationOpts RuntimeUninstallOptions
+		finalParameters    map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -886,18 +881,23 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			if len(args) > 0 {
+				uninstallationOpts.RuntimeName = args[0]
+			}
+
 			createAnalyticsReporter(ctx, reporter.UninstallFlow)
 
-			err := runtimeUninstallCommandPreRunHandler(cmd, args, kubeContextName, cloneOpts, runtimeName)
+			err := runtimeUninstallCommandPreRunHandler(cmd, args, &uninstallationOpts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
 				return fmt.Errorf("pre installation error: %w", err)
 			}
 
 			finalParameters = map[string]string{
-				"Kube context":   kubeContextName,
-				"Runtime name":   runtimeName,
-				"Repository URL": cloneOpts.Repo,
+				"Kube context":   uninstallationOpts.kubeContext,
+				"Runtime name":   uninstallationOpts.RuntimeName,
+				"Repository URL": uninstallationOpts.CloneOpts.Repo,
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
@@ -905,32 +905,32 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 
-			cloneOpts.Parse()
+			uninstallationOpts.CloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-				RuntimeName: runtimeName,
+				RuntimeName: uninstallationOpts.RuntimeName,
 				Timeout:     store.Get().WaitTimeout,
-				CloneOpts:   cloneOpts,
-				KubeFactory: f,
-				SkipChecks:  skipChecks,
-				Force:       force,
-				FastExit:    fastExit,
+				CloneOpts:   uninstallationOpts.CloneOpts,
+				KubeFactory: uninstallationOpts.KubeFactory,
+				SkipChecks:  uninstallationOpts.SkipChecks,
+				Force:       uninstallationOpts.Force,
+				FastExit:    uninstallationOpts.FastExit,
 			})
 			handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished", err, true)
 			return err
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
+	cmd.Flags().BoolVar(&uninstallationOpts.SkipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
-	cmd.Flags().BoolVar(&force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
-	cmd.Flags().BoolVar(&fastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
+	cmd.Flags().BoolVar(&uninstallationOpts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
+	cmd.Flags().BoolVar(&uninstallationOpts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 
-	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
-	f = kube.AddFlags(cmd.Flags())
+	uninstallationOpts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	uninstallationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -1066,7 +1066,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 				},
 			})
-			handleCliStep(reporter.UpgradePhaseFinish, "Runtime upgrade phase", nil, false)
+			handleCliStep(reporter.UpgradePhaseFinish, "Runtime upgrade phase finished", err, false)
 			return err
 		},
 	}
