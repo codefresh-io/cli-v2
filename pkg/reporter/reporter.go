@@ -93,9 +93,10 @@ const (
 	SIGNAL_TERMINATION CliStep = "signal-termination"
 	START              CliStep = "start"
 
-	SUCCESS  CliStepStatus = "SUCCESS"
-	FAILURE  CliStepStatus = "FAILURE"
-	CANCELED CliStepStatus = "CANCELED"
+	SUCCESS           CliStepStatus = "SUCCESS"
+	FAILURE           CliStepStatus = "FAILURE"
+	CANCELED          CliStepStatus = "CANCELED"
+	ABRUPTLY_CANCELED CliStepStatus = "ABRUPTLY_CANCELED"
 
 	InstallFlow   FlowType = "installation"
 	UninstallFlow FlowType = "uninstallation"
