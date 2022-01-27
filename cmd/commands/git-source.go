@@ -142,7 +142,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			}
 
 			if ingressClass == "" {
-				log.G(ctx).Fatal("must enter a valid value to --ingress-class")
+				log.G(ctx).Fatal("must enter a valid ingressClass name to --ingress-class")
 			}
 
 			err := ensureRepo(cmd, args[0], insCloneOpts, true)

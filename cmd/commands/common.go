@@ -28,13 +28,11 @@ import (
 	"time"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/manifoldco/promptui"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
@@ -115,21 +113,32 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 
 func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
-	if cloneOpts.Repo == "" {
-		if fromAPI {
-			runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
-			if err != nil {
-				return fmt.Errorf("failed getting runtime repo information: %w", err)
-			}
-			if runtimeData.Repo != nil {
-				die(cmd.Flags().Set("repo", *runtimeData.Repo))
-				return nil
-			}
+	if cloneOpts.Repo != "" {
+		return nil
+	}
+
+	if fromAPI {
+		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
-		if !store.Get().Silent {
-			return getRepoFromUserInput(cmd)
+		if runtimeData.Repo != nil {
+			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+			return nil
 		}
 	}
+
+	if !store.Get().Silent {
+		err := getRepoFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
+	}
+
+	if cloneOpts.Repo == "" {
+		return fmt.Errorf("must enter a valid installation repository URL")
+	}
+
 	return nil
 }
 
@@ -213,26 +222,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 	return nil
 }
 
-func getIngressClassFromUserSelect(ctx context.Context, f kube.Factory, ingressClass *string) error {
-	fmt.Print("fetching ingress class info from cluster...")
-
-	cs := f.KubernetesClientSetOrDie()
-	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get ingressClass list from cluster: %w", err)
-	}
-
-	if len(ingressClassList.Items) == 0 {
-		return fmt.Errorf("No ingressClasses were found. please install an ingress class on your cluster before installing a runtime")
-	}
-
-	ingressNameToLabel := make(map[string]string)
-	ingressClassNames := make([]string, len(ingressClassList.Items))
-	for index, ic := range ingressClassList.Items {
-		ingressNameToLabel[ic.Name] = ic.ObjectMeta.Labels["app.kubernetes.io/name"]
-		ingressClassNames[index] = ic.Name
-	}
-
+func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []string, ingressClass *string) error {
 	templates := &promptui.SelectTemplates{
 		Selected: "{{ . | yellow }} ",
 	}
@@ -250,10 +240,6 @@ func getIngressClassFromUserSelect(ctx context.Context, f kube.Factory, ingressC
 		return fmt.Errorf("Prompt error: %w", err)
 	}
 
-	if ingressNameToLabel[result] != "ingress-nginx" {
-		log.G(ctx).Fatal("ingress classes that are not nginx are not supported. please install nginx ingress and try again")
-	}
-	
 	*ingressClass = result
 
 	return nil

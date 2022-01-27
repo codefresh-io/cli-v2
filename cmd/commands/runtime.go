@@ -254,6 +254,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return fmt.Errorf("%w", err)
 	}
 
+	if err := ensureIngressClass(cmd.Context(), opts); err != nil {
+		return err
+	}
+
 	if err := ensureRepo(cmd, opts.RuntimeName, opts.InsCloneOpts, false); err != nil {
 		return err
 	}
@@ -263,10 +267,6 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if err := ensureIngressHost(cmd, opts); err != nil {
-		return err
-	}
-
-	if err := ensureIngressClass(cmd.Context(), opts); err != nil {
 		return err
 	}
 
@@ -325,12 +325,40 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if store.Get().Silent {
 		if opts.IngressClass == "" {
-			log.G(ctx).Fatal("must enter a valid value to --ingress-class")
+			log.G(ctx).Fatal("must enter an ingressClass name to --ingress-class")
 		}
 		return nil
 	}
 
-	getIngressClassFromUserSelect(ctx, opts.KubeFactory, &opts.IngressClass)
+	fmt.Print("Fetching nginx ingress classes info from cluster...\n")
+
+	cs := opts.KubeFactory.KubernetesClientSetOrDie()
+	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get ingressClass list from your cluster: %w", err)
+	}
+
+	var ingressClassNames []string
+	for _, ic := range ingressClassList.Items {
+		if ic.ObjectMeta.Labels["app.kubernetes.io/instance"] == "ingress-nginx" {
+			ingressClassNames = append(ingressClassNames, ic.Name)
+		}
+	}
+
+	if len(ingressClassNames) == 0 { //TODO add docs link
+		return fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime")
+	}
+
+	if len(ingressClassNames) == 1 {
+		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
+		opts.IngressClass = ingressClassNames[0]
+		return nil
+	}
+
+	err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
