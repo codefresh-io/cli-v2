@@ -351,12 +351,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		if isValidClass { 
 			return nil
 		}
-		// TODO add docs link 
-		return fmt.Errorf("ingress class '%s' is invalid. ingress class should be of type nginx. for more information: ", opts.IngressClass)
+		return fmt.Errorf("ingress class '%s' is invalid. ingress class should be of type nginx. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
 	}
 
-	if len(ingressClassNames) == 0 { //TODO add docs link
-		return fmt.Errorf("no ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime")
+	if len(ingressClassNames) == 0 {
+		return fmt.Errorf("no ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime. see instructions at: %s", store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 1 {
