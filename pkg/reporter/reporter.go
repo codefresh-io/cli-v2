@@ -122,7 +122,6 @@ const (
 
 	// General
 	SIGNAL_TERMINATION CliStep = "signal-termination"
-	START              CliStep = "start"
 
 	SUCCESS           CliStepStatus = "SUCCESS"
 	FAILURE           CliStepStatus = "FAILURE"
