@@ -324,12 +324,11 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 }
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	fmt.Printf("****************BypassIngressClassCheck: %v", store.Get().BypassIngressClassCheck)
 	if store.Get().BypassIngressClassCheck {
 		return nil
 	}
 	
-	fmt.Print("Fetching nginx ingress classes info from your cluster...\n")
+	fmt.Print("Retrieving ingress class info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
@@ -352,11 +351,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		if isValidClass { 
 			return nil
 		}
-		return fmt.Errorf("ingress class '%s' is invalid. ingress class should be of type nginx. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
+		return fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 0 {
-		return fmt.Errorf("no ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime. see instructions at: %s", store.Get().RequirementsLink)
+		return fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime. see instructions at: %s", store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 1 {
@@ -369,7 +368,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
 	}
 
-	return fmt.Errorf("please provide an ingress class name with --ingress-class")
+	return fmt.Errorf("Please add the --ingress-class flag and define its value")
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
