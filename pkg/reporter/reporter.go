@@ -27,7 +27,7 @@ var ar AnalyticsReporter = &noopAnalyticsReporter{}
 type (
 	AnalyticsReporter interface {
 		ReportStep(CliStepData)
-		Close()
+		Close(step CliStepStatus, err error)
 	}
 
 	CliStepData struct {
@@ -122,6 +122,7 @@ const (
 
 	// General
 	SIGNAL_TERMINATION CliStep = "signal-termination"
+	FINISH             CliStep = "run.finish"
 
 	SUCCESS           CliStepStatus = "SUCCESS"
 	FAILURE           CliStepStatus = "FAILURE"
@@ -184,7 +185,23 @@ func (r *segmentAnalyticsReporter) ReportStep(data CliStepData) {
 	}
 }
 
-func (r *segmentAnalyticsReporter) Close() {
+func (r *segmentAnalyticsReporter) Close(status CliStepStatus, err error) {
+	if status == "" {
+		status = SUCCESS
+		if err != nil {
+			status = FAILURE
+		}
+	}
+
+	log.G().Infof("Closing with status %s", status)
+
+	r.ReportStep(CliStepData{
+		Step:        FINISH,
+		Status:      status,
+		Description: "Finished",
+		Err:         err,
+	})
+
 	if err := r.client.Close(); err != nil {
 		log.G().Debugf("Failed to close segment client: %w", err)
 	}
@@ -194,5 +211,5 @@ func (r *noopAnalyticsReporter) ReportStep(_ CliStepData) {
 	// If no segmentWriteKey is provided this reporter will be used instead.
 }
 
-func (r *noopAnalyticsReporter) Close() {
+func (r *noopAnalyticsReporter) Close(_ CliStepStatus, _ error) {
 }

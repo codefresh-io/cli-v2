@@ -59,8 +59,7 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 				reportCancel(reporter.CANCELED)
 				cancel()
 			} else {
-				reportCancel(reporter.ABRUPTLY_CANCELED)
-				reporter.G().Close()
+				reporter.G().Close(reporter.ABRUPTLY_CANCELED, nil)
 				log.G(ctx).Printf("forcing exit")
 				os.Exit(1)
 			}
