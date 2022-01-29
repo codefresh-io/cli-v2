@@ -82,7 +82,7 @@ const (
 	InstallStepBootstrapRepo                          CliStep = "install.run.step.bootstrap-repo"
 	InstallStepCreateProject                          CliStep = "install.run.step.create-project"
 	InstallStepCreateConfigMap                        CliStep = "install.run.step.create-codefresh-cm"
-	InstallStepCreateComponent                        CliStep = "install.run.step.create-component"
+	InstallStepCreateComponents                       CliStep = "install.run.step.create-components"
 	InstallStepInstallComponenets                     CliStep = "install.run.step.install-components"
 	InstallStepCreateGitsource                        CliStep = "install.run.step.create-gitsource"
 	InstallStepCreateMarketplaceGitsource             CliStep = "install.run.step.create-marketplace-gitsource"

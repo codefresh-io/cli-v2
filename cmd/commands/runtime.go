@@ -518,9 +518,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
 	}
 
-	var infoStr string
 	for _, component := range rt.Spec.Components {
-		infoStr = fmt.Sprintf("Creating component '%s'", component.Name)
+		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
@@ -529,8 +528,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
+	handleCliStep(reporter.InstallStepCreateComponents, "Creating components", err, true)
 	if err != nil {
-		handleCliStep(reporter.InstallStepCreateComponents, infoStr, err, true)
 		return err
 	}
 
