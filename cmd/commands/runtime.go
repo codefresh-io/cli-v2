@@ -178,13 +178,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				installationOpts.RuntimeName = args[0]
-			}
-
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow)
 
-			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
+			err := runtimeInstallCommandPreRunHandler(cmd, args, &installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
 				return fmt.Errorf("Pre installation error: %w", err)
@@ -236,7 +232,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	return cmd
 }
 
-func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeInstallOptions) error {
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, false)
 
 	if opts.versionStr != "" {
@@ -248,14 +244,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		opts.Version = version
 	}
 
-	var err error
-	if opts.RuntimeName == "" {
-		if !store.Get().Silent {
-			err = getRuntimeNameFromUserInput(&opts.RuntimeName)
-		} else {
-			err = fmt.Errorf("must enter a runtime name")
-		}
-	}
+	err := ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
 	handleCliStep(reporter.InstallStepPreCheckGetRuntimeName, "Getting runtime name", err, false)
 	if err != nil {
 		return err
@@ -335,7 +324,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
 
-	if err := ensureGitIntegrationCreationOpts(opts); err != nil {
+	if err := ensureGitIntegrationOpts(opts); err != nil {
 		return err
 	}
 
@@ -1699,7 +1688,7 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	return nil
 }
 
-func ensureGitIntegrationCreationOpts(opts *RuntimeInstallOptions) error {
+func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
 	if opts.InsCloneOpts.Provider == "" {
 		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
@@ -1711,6 +1700,10 @@ func ensureGitIntegrationCreationOpts(opts *RuntimeInstallOptions) error {
 		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
+	}
+
+	if opts.GitIntegrationRegistrationOpts.Token == "" {
+		return fmt.Errorf("Git personal access token is missing")
 	}
 
 	return nil
