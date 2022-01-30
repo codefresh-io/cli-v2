@@ -261,19 +261,11 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	isValid, err := IsValidName(opts.RuntimeName)
-	var errMsg string
-	if err != nil {
-		errMsg = "failed to check the validity of the runtime name"
-	} else if !isValid {
-		errMsg = "runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars"
-	}
-
-	if errMsg != "" {
-		handleCliStep(reporter.InstallStepPreCheckRuntimeNameValidation, "Validating runtime name", fmt.Errorf(errMsg), false)
-		log.G(cmd.Context()).Fatal(errMsg)
-	}
+	err = validateRuntimeName(opts.RuntimeName)
 	handleCliStep(reporter.InstallStepPreCheckRuntimeNameValidation, "Validating runtime name", err, false)
+	if err != nil {
+		log.G(cmd.Context()).Fatal(fmt.Errorf("%w", err))
+	}
 
 	err = getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, false)
@@ -311,12 +303,6 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressHost(cmd, opts)
-	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, false)
-	if err != nil {
-		return err
-	}
-
 	err = askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
 	handleCliStep(reporter.InstallStepPreCheckShouldInstallDemoResources, "Asking user is demo resources should be installed", err, false)
 	if err != nil {
@@ -335,7 +321,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
 
-	if err := ensureGitIntegrationCreationOpts(opts); err != nil {
+	if err := ensureGitIntegrationOpts(opts); err != nil {
 		return err
 	}
 
@@ -1699,7 +1685,7 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	return nil
 }
 
-func ensureGitIntegrationCreationOpts(opts *RuntimeInstallOptions) error {
+func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
 	if opts.InsCloneOpts.Provider == "" {
 		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
@@ -1711,6 +1697,10 @@ func ensureGitIntegrationCreationOpts(opts *RuntimeInstallOptions) error {
 		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
+	}
+
+	if opts.GitIntegrationRegistrationOpts.Token == "" {
+		return fmt.Errorf("git personal access token is missing")
 	}
 
 	return nil
@@ -1821,4 +1811,16 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType) {
 	}
 
 	reporter.Init(user, flow)
+}
+
+func validateRuntimeName(runtime string) error {
+	var err error
+	isValid, err := IsValidName(runtime)
+	if err != nil {
+		err = fmt.Errorf("failed to check the validity of the runtime name: %w", err)
+	} else if !isValid {
+		err = fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+	}
+
+	return err
 }
