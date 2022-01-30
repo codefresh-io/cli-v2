@@ -191,7 +191,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
-				"IngressClass":              installationOpts.IngressClass,
+				"Ingress class":              installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -390,7 +390,9 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	log.G(cmd.Context()).Info("Validating ingress host...")
+	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
+
+	log.G(cmd.Context()).Info("Validating ingress host")
 
 	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
 	if err != nil {
