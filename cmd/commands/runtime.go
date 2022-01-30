@@ -410,7 +410,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return nil
 	}
 
-	fmt.Print("Retrieving ingress class info from your cluster...\n")
+	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})

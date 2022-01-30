@@ -357,7 +357,8 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 }
 
 func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
-	fmt.Print("Retrieving ingress controller info from your cluster...\n")
+	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
+	
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressController, err := cs.CoreV1().Services(opts.IngressNamespace).Get(ctx, opts.IngressController, metav1.GetOptions{})
 	if err != nil {
