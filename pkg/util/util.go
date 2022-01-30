@@ -54,17 +54,12 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 		for {
 			s := <-sig
 			cancels++
-			reporter.G().ReportStep(reporter.CliStepData{
-				Step:        reporter.SIGNAL_TERMINATION,
-				Status:      reporter.CANCELED,
-				Description: "Cancelled by an external signal",
-				Err:         nil,
-			})
 			if cancels == 1 {
 				log.G(ctx).Printf("got signal: %s", s)
+				reportCancel(reporter.CANCELED)
 				cancel()
 			} else {
-				reporter.G().Close()
+				reporter.G().Close(reporter.ABRUPTLY_CANCELED, nil)
 				log.G(ctx).Printf("forcing exit")
 				os.Exit(1)
 			}
@@ -178,4 +173,13 @@ func CurrentServer() (string, error) {
 
 func DecorateErrorWithDocsLink(err error) error {
 	return fmt.Errorf("%s\nfor more information: %s", err.Error(), store.Get().DocsLink)
+}
+
+func reportCancel(status reporter.CliStepStatus) {
+	reporter.G().ReportStep(reporter.CliStepData{
+		Step:        reporter.SIGNAL_TERMINATION,
+		Status:      status,
+		Description: "Cancelled by an external signal",
+		Err:         nil,
+	})
 }

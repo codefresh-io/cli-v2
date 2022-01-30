@@ -42,8 +42,9 @@ func main() {
 	// configure autopilot logger
 	apu.ConfigureLoggerOrDie(c)
 
-	if err := c.ExecuteContext(ctx); err != nil {
-		reporter.G().Close()
+	err := c.ExecuteContext(ctx)
+	reporter.G().Close("", err)
+	if err != nil {
 		log.G(ctx).Fatal(err)
 	}
 }
