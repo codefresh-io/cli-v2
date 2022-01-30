@@ -28,11 +28,12 @@ type (
 	}
 
 	CreateIngressOptions struct {
-		Name        string
-		Namespace   string
-		Annotations map[string]string
-		Host        string
-		Paths       []IngressPath
+		Name             string
+		Namespace        string
+		IngressClassName string
+		Annotations      map[string]string
+		Host             string
+		Paths            []IngressPath
 	}
 )
 
@@ -78,6 +79,10 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 				},
 			},
 		},
+	}
+
+	if opts.IngressClassName != "" {
+		ingress.Spec.IngressClassName = &opts.IngressClassName
 	}
 
 	if opts.Annotations != nil {

@@ -113,21 +113,32 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 
 func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
-	if cloneOpts.Repo == "" {
-		if fromAPI {
-			runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
-			if err != nil {
-				return fmt.Errorf("failed getting runtime repo information: %w", err)
-			}
-			if runtimeData.Repo != nil {
-				die(cmd.Flags().Set("repo", *runtimeData.Repo))
-				return nil
-			}
+	if cloneOpts.Repo != "" {
+		return nil
+	}
+
+	if fromAPI {
+		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
-		if !store.Get().Silent {
-			return getRepoFromUserInput(cmd)
+		if runtimeData.Repo != nil {
+			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+			return nil
 		}
 	}
+
+	if !store.Get().Silent {
+		err := getRepoFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
+	}
+
+	if cloneOpts.Repo == "" {
+		return fmt.Errorf("must enter a valid installation repository URL")
+	}
+
 	return nil
 }
 
@@ -208,6 +219,29 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 
 		*runtimeName = result
 	}
+	return nil
+}
+
+func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []string, ingressClass *string) error {
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect ingressClass%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     ingressClassNames,
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	*ingressClass = result
+
 	return nil
 }
 

@@ -63,6 +63,7 @@ const (
 	InstallStepPreCheckGetRuntimeName                 CliStep = "install.pre-check.step.get-runtime-name"
 	InstallStepPreCheckRuntimeNameValidation          CliStep = "install.pre-check.step.runtime-name-validation"
 	InstallStepPreCheckGetKubeContext                 CliStep = "install.pre-check.step.get-kube-context"
+	InstallStepPreCheckEnsureIngressClass             CliStep = "install.pre-check.step.ensure-ingress-class"
 	InstallStepPreCheckEnsureRuntimeRepo              CliStep = "install.pre-check.step.ensure-runtime-repo"
 	InstallStepPreCheckEnsureGitToken                 CliStep = "install.pre-check.step.ensure-git-token"
 	InstallStepPreCheckEnsureIngressHost              CliStep = "install.pre-check.step.ensure-ingress-host"

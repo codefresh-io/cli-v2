@@ -124,6 +124,8 @@ type Store struct {
 	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
 	WorkflowResourceName                 string
+	RequirementsLink                     string
+	DownloadCliLink                      string
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
@@ -213,6 +215,8 @@ func init() {
 	s.RolloutResourceName = "rollouts"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
 	s.SegmentWriteKey = segmentWriteKey
+	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
+	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	initVersion()
 }
 

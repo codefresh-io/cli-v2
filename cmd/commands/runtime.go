@@ -73,6 +73,7 @@ type (
 		RuntimeToken         string
 		RuntimeStoreIV       string
 		IngressHost          string
+		IngressClass         string
 		Insecure             bool
 		InstallDemoResources bool
 		Version              *semver.Version
@@ -189,6 +190,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
+				"IngressClass":              installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -206,6 +208,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
+	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
@@ -271,6 +274,12 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
+	}
+
+	err = ensureIngressClass(cmd.Context(), opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, false)
+	if err != nil {
+		return err
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.InsCloneOpts, false)
@@ -395,6 +404,54 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	}
 
 	return nil
+}
+
+func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
+	if store.Get().BypassIngressClassCheck {
+		return nil
+	}
+	
+	fmt.Print("Retrieving ingress class info from your cluster...\n")
+
+	cs := opts.KubeFactory.KubernetesClientSetOrDie()
+	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get ingressClass list from your cluster: %w", err)
+	}
+
+	var ingressClassNames []string
+	var isValidClass bool
+	for _, ic := range ingressClassList.Items {
+		if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "ingress-nginx" {
+			ingressClassNames = append(ingressClassNames, ic.Name)
+			if opts.IngressClass == ic.Name {
+				isValidClass = true
+			}
+		}
+	}
+
+	if opts.IngressClass != "" { //if user provided ingress class by flag
+		if isValidClass { 
+			return nil
+		}
+		return fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
+	}
+
+	if len(ingressClassNames) == 0 {
+		return fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime. see instructions at: %s", store.Get().RequirementsLink)
+	}
+
+	if len(ingressClassNames) == 1 {
+		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
+		opts.IngressClass = ingressClassNames[0]
+		return nil
+	}
+
+	if !store.Get().Silent {
+		return getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+	}
+
+	return fmt.Errorf("Please add the --ingress-class flag and define its value")
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -547,6 +604,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
 		IngressHost:         opts.IngressHost,
+		IngressClass:        opts.IngressClass,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, true)
 	if err != nil {
@@ -611,7 +669,7 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	if opts.IngressHost != "" {
-		if err = createWorkflowsIngress(ctx, opts.InsCloneOpts, rt); err != nil {
+		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
 	}
@@ -674,7 +732,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing. for more information: %s", store.Get().DownloadCliLink)
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, false)
 	if err != nil {
@@ -1160,16 +1218,17 @@ func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtim
 	return apu.PushWithMessage(ctx, r, "Persisted runtime data")
 }
 
-func createWorkflowsIngress(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
-	r, fs, err := cloneOpts.GetRepo(ctx)
+func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name:      rt.Name + store.Get().WorkflowsIngressName,
-		Namespace: rt.Namespace,
+		Name:             rt.Name + store.Get().WorkflowsIngressName,
+		Namespace:        rt.Namespace,
+		IngressClassName: opts.IngressClass,
 		Annotations: map[string]string{
 			"ingress.kubernetes.io/protocol":               "https",
 			"ingress.kubernetes.io/rewrite-target":         "/$2",
@@ -1254,8 +1313,9 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if opts.IngressHost != "" {
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-			Name:      rt.Name + store.Get().AppProxyIngressName,
-			Namespace: rt.Namespace,
+			Name:             rt.Name + store.Get().AppProxyIngressName,
+			Namespace:        rt.Namespace,
+			IngressClassName: opts.IngressClass,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),
