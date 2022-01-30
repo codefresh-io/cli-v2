@@ -522,10 +522,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		handleCliStep(reporter.InstallStepCreateComponent, infoStr, err, true)
 		if err != nil {
-			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
+			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
+			break
 		}
+	}
+
+	handleCliStep(reporter.InstallStepCreateComponents, "Creating components", err, true)
+	if err != nil {
+		return err
 	}
 
 	err = installComponents(ctx, opts, rt)
