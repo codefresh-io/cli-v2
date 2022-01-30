@@ -392,7 +392,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	}
 
 	log.G(cmd.Context()).Info("Validating ingress host...")
-	
+
 	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
 	if err != nil {
 		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
@@ -428,7 +428,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	for _, ic := range ingressClassList.Items {
 		if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "ingress-nginx" {
 			ingressClassNames = append(ingressClassNames, ic.Name)
-			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", ic.ObjectMeta.Labels["app.kubernetes.io/instance"])
+			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", getControllerName(ic.Spec.Controller))
 			if opts.IngressClass == ic.Name {
 				isValidClass = true
 			}

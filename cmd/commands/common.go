@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -79,6 +80,11 @@ func presetRequiredFlags(cmd *cobra.Command) {
 
 func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
+}
+
+func getControllerName(s string) string {
+	split := strings.Split(s, "/")
+	return split[1]
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
@@ -358,7 +364,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
-	
+
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressController, err := cs.CoreV1().Services(opts.IngressNamespace).Get(ctx, opts.IngressController, metav1.GetOptions{})
 	if err != nil {
