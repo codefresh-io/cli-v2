@@ -276,7 +276,9 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := ensureIngressClass(cmd.Context(), opts); err != nil {
+	err = ensureIngressClass(cmd.Context(), opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, false)
+	if err != nil {
 		return err
 	}
 
