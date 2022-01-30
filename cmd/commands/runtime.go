@@ -81,6 +81,7 @@ type (
 		GsCloneOpts          *git.CloneOptions
 		InsCloneOpts         *git.CloneOptions
 		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
+		GitPAT               string
 		KubeFactory          kube.Factory
 		CommonConfig         *runtime.CommonConfig
 		versionStr           string
@@ -191,7 +192,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
-				"Ingress class":              installationOpts.IngressClass,
+				"Ingress class":             installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -297,6 +298,18 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	err = ensureGitToken(cmd, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
+	if err != nil {
+		return err
+	}
+
+	err = ensureGitPAT(cmd, opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, false)
+	if err != nil {
+		return err
+	}
+
+	err = ensureIngressHost(cmd, opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, false)
 	if err != nil {
 		return err
 	}

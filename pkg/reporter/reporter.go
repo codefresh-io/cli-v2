@@ -66,6 +66,7 @@ const (
 	InstallStepPreCheckEnsureIngressClass             CliStep = "install.pre-check.step.ensure-ingress-class"
 	InstallStepPreCheckEnsureRuntimeRepo              CliStep = "install.pre-check.step.ensure-runtime-repo"
 	InstallStepPreCheckEnsureGitToken                 CliStep = "install.pre-check.step.ensure-git-token"
+	InstallStepPreCheckEnsureGitPAT                   CliStep = "install.pre-check.step.ensure-git-personal-access-token"
 	InstallStepPreCheckEnsureIngressHost              CliStep = "install.pre-check.step.ensure-ingress-host"
 	InstallStepPreCheckShouldInstallDemoResources     CliStep = "install.pre-check.step.should-install-demo-resources"
 	InstallPhasePreCheckFinish                        CliStep = "install.pre-check.phase.finish"
