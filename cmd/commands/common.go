@@ -260,7 +260,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return getGitPATFromUserInput(cmd, opts)
 	}
 
-	opts.GitPAT, err = cmd.Flags().GetString("git-token")
+	opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
 	return err
 }
 
@@ -281,7 +281,7 @@ func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) err
 			return fmt.Errorf("%w", err)
 		}
 	}
-	opts.GitPAT = gitPAT
+	opts.GitIntegrationRegistrationOpts.Token = gitPAT
 
 	return nil
 }

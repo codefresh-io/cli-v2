@@ -304,7 +304,7 @@ func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
 			EventBusName: store.Get().EventBusName,
 			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
 				store.Get().CronExampleEventName: {
-					Interval: "5m",
+					Interval: "12h",
 				},
 			},
 		},

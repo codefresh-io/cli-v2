@@ -90,6 +90,7 @@ const (
 	InstallStepCreateMarketplaceGitsource             CliStep = "install.run.step.create-marketplace-gitsource"
 	InstallStepCompleteRuntimeInstallation            CliStep = "install.run.step.complete-runtime-installation"
 	InstallStepCreateDefaultGitIntegration            CliStep = "install.run.step.create-default-git-integration"
+	InstallStepRegisterToDefaultGitIntegration        CliStep = "install.run.step.register-to-default-git-integration"
 	InstallPhaseFinish                                CliStep = "install.run.phase.finish"
 
 	// Uninstall

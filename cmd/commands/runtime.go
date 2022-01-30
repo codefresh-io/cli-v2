@@ -69,23 +69,23 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName          string
-		RuntimeToken         string
-		RuntimeStoreIV       string
-		IngressHost          string
-		IngressClass         string
-		IngressController    string
-		Insecure             bool
-		InstallDemoResources bool
-		Version              *semver.Version
-		GsCloneOpts          *git.CloneOptions
-		InsCloneOpts         *git.CloneOptions
-		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
-		GitPAT               string
-		KubeFactory          kube.Factory
-		CommonConfig         *runtime.CommonConfig
-		versionStr           string
-		kubeContext          string
+		RuntimeName                    string
+		RuntimeToken                   string
+		RuntimeStoreIV                 string
+		IngressHost                    string
+		IngressClass                   string
+		IngressController              string
+		Insecure                       bool
+		InstallDemoResources           bool
+		Version                        *semver.Version
+		GsCloneOpts                    *git.CloneOptions
+		InsCloneOpts                   *git.CloneOptions
+		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
+		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
+		KubeFactory                    kube.Factory
+		CommonConfig                   *runtime.CommonConfig
+		versionStr                     string
+		kubeContext                    string
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -150,11 +150,14 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		gitIntegrationOpts = apmodel.AddGitIntegrationArgs{
+		gitIntegrationCreationOpts = apmodel.AddGitIntegrationArgs{
 			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
 		}
-		installationOpts = RuntimeInstallOptions{GitIntegrationOpts: &gitIntegrationOpts}
-		finalParameters  map[string]string
+		installationOpts = RuntimeInstallOptions{
+			GitIntegrationCreationOpts:     &gitIntegrationCreationOpts,
+			GitIntegrationRegistrationOpts: &apmodel.RegisterToGitIntegrationArgs{},
+		}
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -214,7 +217,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
-	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
+	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
@@ -332,7 +335,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
 
-	if err := ensureGitIntegrationOpts(opts); err != nil {
+	if err := ensureGitIntegrationCreationOpts(opts); err != nil {
 		return err
 	}
 
@@ -663,10 +666,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
 	}
 
-	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
+	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
 	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, true)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
+	}
+
+	gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, true)
+	if gitIntgErr != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
@@ -687,6 +696,18 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 	}
 
 	log.G(ctx).Info("Added default git integration")
+
+	return nil
+}
+
+func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1678,16 +1699,16 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 	return nil
 }
 
-func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
+func ensureGitIntegrationCreationOpts(opts *RuntimeInstallOptions) error {
 	var err error
 	if opts.InsCloneOpts.Provider == "" {
-		if opts.GitIntegrationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
+		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
 			return err
 		}
 	}
 
-	if opts.GitIntegrationOpts.APIURL == "" {
-		if opts.GitIntegrationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationOpts.Provider); err != nil {
+	if opts.GitIntegrationCreationOpts.APIURL == "" {
+		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
 	}
