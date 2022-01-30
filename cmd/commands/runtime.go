@@ -75,7 +75,6 @@ type (
 		IngressHost          string
 		IngressClass         string
 		IngressController    string
-		IngressNamespace     string
 		Insecure             bool
 		InstallDemoResources bool
 		Version              *semver.Version
@@ -419,8 +418,6 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	if err != nil {
 		return fmt.Errorf("failed to get ingressClass list from your cluster: %w", err)
 	}
-
-	opts.IngressNamespace = "ingress-nginx"
 
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]string)

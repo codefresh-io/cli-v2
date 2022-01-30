@@ -366,12 +366,21 @@ func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions)
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
-	ingressController, err := cs.CoreV1().Services(opts.IngressNamespace).Get(ctx, opts.IngressController, metav1.GetOptions{})
+	ServicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
-	opts.IngressHost = fmt.Sprintf("https://%s", ingressController.Status.LoadBalancer.Ingress[0].Hostname)
+	for _, s := range ServicesList.Items {
+		if s.ObjectMeta.Name == opts.IngressController {
+			opts.IngressHost = fmt.Sprintf("https://%s", s.Status.LoadBalancer.Ingress[0].Hostname)
+			break
+		}
+	}
+
+	if opts.IngressController == "" {
+		return fmt.Errorf("failed to fetch ingress host from the cluster. please make sure you have a nginx ingress controller installed properly")
+	}
 
 	return nil
 }
