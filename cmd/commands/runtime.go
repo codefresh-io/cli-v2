@@ -74,6 +74,7 @@ type (
 		RuntimeStoreIV       string
 		IngressHost          string
 		IngressClass         string
+		IngressController    string
 		Insecure             bool
 		InstallDemoResources bool
 		Version              *semver.Version
@@ -190,7 +191,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
-				"IngressClass":              installationOpts.IngressClass,
+				"Ingress class":              installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -225,8 +226,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
-	util.Die(cmd.MarkFlagRequired("ingress-host"))
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
+	util.Die(cmd.Flags().MarkHidden("ingress-host"))
 
 	return cmd
 }
@@ -282,6 +283,12 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
+	err = ensureIngressHost(cmd, opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, false)
+	if err != nil {
+		return err
+	}
+
 	err = ensureRepo(cmd, opts.RuntimeName, opts.InsCloneOpts, false)
 	handleCliStep(reporter.InstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, false)
 	if err != nil {
@@ -290,12 +297,6 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	err = ensureGitToken(cmd, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
-	if err != nil {
-		return err
-	}
-
-	err = ensureIngressHost(cmd, opts)
-	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, false)
 	if err != nil {
 		return err
 	}
@@ -381,16 +382,17 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, clone
 }
 
 func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	if err := getIngressHostFromUserInput(cmd, &opts.IngressHost); err != nil {
+	if opts.IngressHost != "" { // ingress host provided by hidden flag (for our tests)
+		return nil
+	}
+
+	if err := getIngressHostFromCluster(cmd.Context(), opts); err != nil {
 		return err
 	}
 
-	isValid, err := IsValidIngressHost(opts.IngressHost)
-	if err != nil {
-		log.G(cmd.Context()).Fatal("failed to check the validity of the ingress host")
-	} else if !isValid {
-		log.G(cmd.Context()).Fatal("ingress host must begin with a protocol http:// or https://")
-	}
+	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
+
+	log.G(cmd.Context()).Info("Validating ingress host")
 
 	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
 	if err != nil {
@@ -410,8 +412,8 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	if store.Get().BypassIngressClassCheck {
 		return nil
 	}
-	
-	fmt.Print("Retrieving ingress class info from your cluster...\n")
+
+	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
@@ -420,10 +422,12 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	var ingressClassNames []string
+	ingressClassNameToController := make(map[string]string)
 	var isValidClass bool
 	for _, ic := range ingressClassList.Items {
 		if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "ingress-nginx" {
 			ingressClassNames = append(ingressClassNames, ic.Name)
+			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", getControllerName(ic.Spec.Controller))
 			if opts.IngressClass == ic.Name {
 				isValidClass = true
 			}
@@ -431,7 +435,8 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	if opts.IngressClass != "" { //if user provided ingress class by flag
-		if isValidClass { 
+		if isValidClass {
+			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
 		return fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
@@ -444,11 +449,18 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	if len(ingressClassNames) == 1 {
 		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
 		opts.IngressClass = ingressClassNames[0]
+		opts.IngressController = ingressClassNameToController[opts.IngressClass]
 		return nil
 	}
 
 	if !store.Get().Silent {
-		return getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+		err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+		if err != nil {
+			return err
+		}
+
+		opts.IngressController = ingressClassNameToController[opts.IngressClass]
+		return nil
 	}
 
 	return fmt.Errorf("Please add the --ingress-class flag and define its value")

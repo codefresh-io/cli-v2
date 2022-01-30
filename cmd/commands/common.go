@@ -33,6 +33,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/manifoldco/promptui"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
@@ -81,8 +82,9 @@ func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func IsValidIngressHost(ingress string) (bool, error) {
-	return regexp.MatchString(`^(http|https)://`, ingress)
+func getControllerName(s string) string {
+	split := strings.Split(s, "/")
+	return split[1]
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
@@ -360,44 +362,31 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 	return nil
 }
 
-func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
-	if ingressHost != nil && *ingressHost != "" {
-		*ingressHost = strings.TrimSpace(*ingressHost)
-		return nil
-	}
+func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
-	if store.Get().Silent {
-		return fmt.Errorf("missing ingress host")
-	}
-
-	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host (required)",
-	}
-
-	ingressHostInput, err := ingressHostPrompt.Run()
+	cs := opts.KubeFactory.KubernetesClientSetOrDie()
+	ServicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("Prompt error: %w", err)
+		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
-	ingressHostInput = strings.TrimSpace(ingressHostInput)
-	if ingressHostInput == "" {
-		return fmt.Errorf("missing ingress host")
+	for _, s := range ServicesList.Items {
+		if s.ObjectMeta.Name == opts.IngressController {
+			opts.IngressHost = fmt.Sprintf("https://%s", s.Status.LoadBalancer.Ingress[0].Hostname)
+			break
+		}
 	}
 
-	die(cmd.Flags().Set("ingress-host", ingressHostInput))
-	*ingressHost = ingressHostInput
+	if opts.IngressController == "" {
+		return fmt.Errorf("failed to fetch ingress host from the cluster. please make sure you have a nginx ingress controller installed properly")
+	}
 
 	return nil
 }
 
 func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
 	var err error
-	match, _ := regexp.MatchString(`^http://`, ingress)
-	if match { //if user provided http ingress
-		log.G(ctx).Warn("The ingress host uses an insecure protocol. The browser may block subsequent runtime requests from the UI unless explicitly approved.")
-
-		return true, nil
-	}
 
 	res, err := http.Get(ingress)
 
@@ -459,7 +448,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 		Selected: "{{ . | yellow }} ",
 	}
 
-	log.G(ctx).Warnf("The provided ingressHost does not have a valid certificate.")
+	log.G(ctx).Warnf("The ingress host does not have a valid certificate.")
 	labelStr := fmt.Sprintf("%vDo you wish to continue the installation with insecure ingress host mode?%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
