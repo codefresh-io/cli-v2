@@ -1673,7 +1673,7 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
-	if opts.InsCloneOpts.Provider == "" {
+	if opts.GitIntegrationOpts.Provider == "" {
 		if opts.GitIntegrationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
 			return err
 		}
