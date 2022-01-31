@@ -556,6 +556,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CloneOptions:    opts.InsCloneOpts,
 		Insecure:        opts.Insecure,
 		KubeContextName: opts.kubeContext,
+		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 		},
