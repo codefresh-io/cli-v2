@@ -17,7 +17,11 @@ func VerifyGitHubTokenScope(token string) (bool, error) {
 
 	defer resp.Body.Close()
 
-	scopes := strings.Split(resp.Header["X-Oauth-Scopes"][0], ", ")
+	rawScopes := resp.Header["X-Oauth-Scopes"]
+	var scopes []string
+	if len(rawScopes) > 0 {
+		scopes = strings.Split(rawScopes[0], ", ")
+	}
 	var repo bool
 	var adminRepoHook bool
 
