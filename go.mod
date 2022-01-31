@@ -17,7 +17,6 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.1
 	github.com/gobuffalo/packr v1.30.1
-	github.com/google/go-github/v29 v29.0.2
 	github.com/google/uuid v1.1.2
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
@@ -30,7 +29,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	gopkg.in/segmentio/analytics-go.v3 v3.1.0
 	k8s.io/api v0.21.3
 	k8s.io/apimachinery v0.21.1
