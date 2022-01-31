@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func VerifyTokenScope(token string) (bool, error) {
+func VerifyGitHubTokenScope(token string) (bool, error) {
 	req, _ := http.NewRequest("HEAD", "https://api.github.com/", nil)
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 

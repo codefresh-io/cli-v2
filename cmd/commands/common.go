@@ -249,6 +249,19 @@ func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []stri
 	return nil
 }
 
+func inferProviderFromRepo(repo string) (string, error) {
+	const suggest = "make sure the installation repository you have provided is at github or gitlab"
+
+	if strings.Contains(repo, "github.com") {
+		return "github", nil
+	}
+	if strings.Contains(repo, "gitlab.com") {
+		return "gitlab", nil
+	}
+
+	return "", fmt.Errorf("failed to infer git provider from repo url: %s. %s", repo, suggest)
+}
+
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
@@ -257,7 +270,9 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		}
 	}
 
-	verified, err := cfgit.VerifyTokenScope(cloneOpts.Auth.Password)
+	verifier := cfgit.GetTokenVerifier(cloneOpts.Provider)
+
+	verified, err := verifier(cloneOpts.Auth.Password)
 	if err != nil {
 		return fmt.Errorf("failed to verify git token: %w", err)
 	}

@@ -295,6 +295,12 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
+	opts.InsCloneOpts.Provider, err = inferProviderFromRepo(opts.InsCloneOpts.Repo)
+	handleCliStep(reporter.InstallStepPreCheckInferProviderFromRepo, "Inferring git provider from repo", err, false)
+	if err != nil {
+		return err
+	}
+
 	err = ensureGitToken(cmd, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
@@ -316,9 +322,9 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 	}
 
-	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
-
+	opts.InsCloneOpts.Parse()
+	
 	if err := ensureGitIntegrationOpts(opts); err != nil {
 		return err
 	}
