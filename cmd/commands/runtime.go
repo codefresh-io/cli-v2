@@ -239,16 +239,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, false)
 
-	if opts.versionStr != "" {
-		version, err := semver.NewVersion(opts.versionStr)
-		handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
-		if err != nil {
-			return err
-		}
-		opts.Version = version
+	err := getVersionIfExists(opts)
+	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
+	if err != nil {
+		return err
 	}
 
-	var err error
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
 			err = getRuntimeNameFromUserInput(&opts.RuntimeName)
@@ -1036,18 +1032,19 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	handleCliStep(reporter.UninstallPhaseStart, "Uninstall phase started", nil, false)
 
 	// check whether the runtime exists
+	var err error
 	if !opts.SkipChecks {
-		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
-		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, true)
-		if err != nil {
-			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
-			return err
-		}
+		_, err = cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	}
+	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, true)
+	if err != nil {
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
+		return err
 	}
 
 	log.G(ctx).Infof("Uninstalling runtime '%s'", opts.RuntimeName)
 
-	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
@@ -1222,11 +1219,13 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		infoStr := fmt.Sprintf("Creating app '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		handleCliStep(reporter.UpgradeStepCreateApp, infoStr, err, false)
 		if err != nil {
-			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			err = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			break
 		}
 	}
+
+	handleCliStep(reporter.UpgradeStepCreateApps, "Creating apps", err, false)
 
 	return nil
 }
@@ -1823,4 +1822,18 @@ func validateRuntimeName(runtime string) error {
 	}
 
 	return err
+}
+
+func getVersionIfExists(opts *RuntimeInstallOptions) error {
+	if opts.versionStr != "" {
+		log.G().Infof("vesionStr: %s", opts.versionStr)
+		version, err := semver.NewVersion(opts.versionStr)
+		handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
+		if err != nil {
+			return err
+		}
+		opts.Version = version
+		log.G().Infof("opts.Version: %s", opts.Version)
+	}
+	return nil
 }

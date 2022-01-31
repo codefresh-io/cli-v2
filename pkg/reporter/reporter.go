@@ -120,7 +120,7 @@ const (
 	UpgradeStepLoadRuntimeDefinition       CliStep = "upgrade.run.step.load-runtime-definition"
 	UpgradeStepUpgradeRuntime              CliStep = "upgrade.run.step.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition       CliStep = "upgrade.run.step.push-runtime-definition"
-	UpgradeStepCreateApp                   CliStep = "upgrade.run.step.create-app"
+	UpgradeStepCreateApps                  CliStep = "upgrade.run.step.create-apps"
 	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.finish"
 
 	// General
