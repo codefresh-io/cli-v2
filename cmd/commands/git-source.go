@@ -116,7 +116,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
 		createRepo   bool
-		ingressClass string
 	)
 
 	cmd := &cobra.Command{
@@ -139,10 +138,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			if gsCloneOpts.Repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
-			}
-
-			if ingressClass == "" && !store.Get().BypassIngressClassCheck {
-				log.G(ctx).Fatal("must enter a valid ingressClass name to --ingress-class")
 			}
 
 			err := ensureRepo(cmd, args[0], insCloneOpts, true)
@@ -181,15 +176,11 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				GsName:              args[1],
 				RuntimeName:         args[0],
 				CreateDemoResources: false,
-				IngressClass: ingressClass,
 			})
 		},
 	}
 
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
-	cmd.Flags().StringVar(&ingressClass, "ingress-class", "", "The ingress class name")
-	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during git-source installation")
-	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{

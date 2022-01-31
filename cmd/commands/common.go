@@ -469,7 +469,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	log.G(ctx).Warnf("The ingress host does not have a valid certificate.")
-	labelStr := fmt.Sprintf("%vDo you wish to continue the installation with insecure ingress host mode?%v", CYAN, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to continue with the installation in insecure mode with this ingress host?%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
