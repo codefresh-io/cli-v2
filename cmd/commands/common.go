@@ -373,7 +373,12 @@ func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions)
 
 	for _, s := range ServicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController {
-			opts.IngressHost = fmt.Sprintf("https://%s", s.Status.LoadBalancer.Ingress[0].Hostname)
+			ingress := s.Status.LoadBalancer.Ingress[0]
+			if ingress.Hostname != "" {
+				opts.IngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
+			} else {
+				opts.IngressHost = fmt.Sprintf("https://%s", ingress.IP)
+			}
 			break
 		}
 	}
