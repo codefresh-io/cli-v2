@@ -32,6 +32,10 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	// "github.com/google/go-github/v29/github"
+	// "golang.org/x/oauth2"
+
+	// cfGithub "github.com/codefresh-io/cli-v2/pkg/git/github"
 	"github.com/manifoldco/promptui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -249,9 +253,38 @@ func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []stri
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
-		return getGitTokenFromUserInput(cmd)
+		err := getGitTokenFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
 	}
+
+	isTokenAdminScope()
+	
 	return nil
+}
+
+func isTokenAdminScope() bool {
+	
+	// ctx := context.Background()
+	// ts := oauth2.StaticTokenSource(
+	// 	&oauth2.Token{AccessToken: "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"},
+	// )
+	// tc := oauth2.NewClient(ctx, ts)
+
+	// client := github.NewClient(tc)
+
+	// auth := client.Authorizations
+	// list, res, err := auth.List(ctx, &github.ListOptions{})
+	// if err != nil {
+	// 	fmt.Print(err)
+	// }
+	// fmt.Print(list)
+	// fmt.Print(res)
+	// list all repositories for the authenticated user
+	//repos, _, err := client.Repositories.List(ctx, "", nil)
+
+	return false
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
