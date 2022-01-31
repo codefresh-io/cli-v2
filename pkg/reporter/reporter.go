@@ -66,6 +66,7 @@ const (
 	InstallStepPreCheckEnsureIngressClass             CliStep = "install.pre-check.step.ensure-ingress-class"
 	InstallStepPreCheckEnsureRuntimeRepo              CliStep = "install.pre-check.step.ensure-runtime-repo"
 	InstallStepPreCheckEnsureGitToken                 CliStep = "install.pre-check.step.ensure-git-token"
+	InstallStepPreCheckEnsureGitPAT                   CliStep = "install.pre-check.step.ensure-git-personal-access-token"
 	InstallStepPreCheckEnsureIngressHost              CliStep = "install.pre-check.step.ensure-ingress-host"
 	InstallStepPreCheckShouldInstallDemoResources     CliStep = "install.pre-check.step.should-install-demo-resources"
 	InstallPhasePreCheckFinish                        CliStep = "install.pre-check.phase.finish"
@@ -89,6 +90,7 @@ const (
 	InstallStepCreateMarketplaceGitsource             CliStep = "install.run.step.create-marketplace-gitsource"
 	InstallStepCompleteRuntimeInstallation            CliStep = "install.run.step.complete-runtime-installation"
 	InstallStepCreateDefaultGitIntegration            CliStep = "install.run.step.create-default-git-integration"
+	InstallStepRegisterToDefaultGitIntegration        CliStep = "install.run.step.register-to-default-git-integration"
 	InstallPhaseFinish                                CliStep = "install.run.phase.finish"
 
 	// Uninstall
@@ -118,7 +120,7 @@ const (
 	UpgradeStepLoadRuntimeDefinition       CliStep = "upgrade.run.step.load-runtime-definition"
 	UpgradeStepUpgradeRuntime              CliStep = "upgrade.run.step.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition       CliStep = "upgrade.run.step.push-runtime-definition"
-	UpgradeStepCreateApp                   CliStep = "upgrade.run.step.create-app"
+	UpgradeStepCreateApps                  CliStep = "upgrade.run.step.create-apps"
 	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.finish"
 
 	// General
