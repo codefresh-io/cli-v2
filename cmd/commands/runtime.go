@@ -324,7 +324,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
-	
+
 	if err := ensureGitIntegrationOpts(opts); err != nil {
 		return err
 	}
