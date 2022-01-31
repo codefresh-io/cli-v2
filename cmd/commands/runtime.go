@@ -322,8 +322,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 	}
 
-	opts.GsCloneOpts.Parse()
 	opts.InsCloneOpts.Parse()
+	opts.GsCloneOpts.Parse()
 	
 	if err := ensureGitIntegrationOpts(opts); err != nil {
 		return err
