@@ -270,8 +270,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		}
 	}
 
-	verifier := cfgit.GetTokenVerifier(cloneOpts.Provider)
-	verified, err := verifier(cmd.Context(), cloneOpts.Auth.Password)
+	verified, err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
 	if err != nil {
 		return fmt.Errorf("failed to verify git token: %w", err)
 	}

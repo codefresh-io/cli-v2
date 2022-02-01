@@ -9,6 +9,23 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 )
 
+
+var (
+	requiredGitHubScopes = []string{ "repo", "admin:repo_hook" }
+)
+
+
+func VerifyToken(ctx context.Context, provider string, token string) (bool, error) {
+	providerToVerifier := map[string]func(context.Context, string)(bool, error){}
+
+	providerToVerifier["github"] = VerifyGitHubTokenScope
+	providerToVerifier["gitlab"] = VerifyGitLabTokenScope
+
+	verifier := providerToVerifier[provider]
+
+	return verifier(ctx, token)
+}
+
 func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	log.G(ctx).Info("Verifing your git token")
 
@@ -31,10 +48,10 @@ func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	var adminRepoHook bool
 
 	for _, scope := range scopes {
-		if scope == "repo" {
+		if scope == requiredGitHubScopes[0] {
 			repo = true
 		}
-		if scope == "admin:repo_hook" {
+		if scope == requiredGitHubScopes[1] {
 			adminRepoHook = true
 		}
 	}
@@ -44,4 +61,10 @@ func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func VerifyGitLabTokenScope(ctx context.Context, token string) (bool, error) {
+	log.G(ctx).Info("Skipping token verification for gitlab")
+
+	return true, nil
 }
