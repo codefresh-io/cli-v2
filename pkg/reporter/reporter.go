@@ -65,7 +65,6 @@ const (
 	InstallStepPreCheckGetKubeContext                 CliStep = "install.pre-check.step.get-kube-context"
 	InstallStepPreCheckEnsureIngressClass             CliStep = "install.pre-check.step.ensure-ingress-class"
 	InstallStepPreCheckEnsureRuntimeRepo              CliStep = "install.pre-check.step.ensure-runtime-repo"
-	InstallStepPreCheckInferProviderFromRepo                  CliStep = "install.pre-check.step.infer-provider-from-repo"
 	InstallStepPreCheckEnsureGitToken                 CliStep = "install.pre-check.step.ensure-git-token"
 	InstallStepPreCheckEnsureGitPAT                   CliStep = "install.pre-check.step.ensure-git-personal-access-token"
 	InstallStepPreCheckEnsureIngressHost              CliStep = "install.pre-check.step.ensure-ingress-host"

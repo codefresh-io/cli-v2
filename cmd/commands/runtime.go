@@ -287,11 +287,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	opts.InsCloneOpts.Provider, err = inferProviderFromRepo(opts.InsCloneOpts.Repo)
-	handleCliStep(reporter.InstallStepPreCheckInferProviderFromRepo, "Inferring git provider from repo", err, false)
-	if err != nil {
-		return err
-	}
+	inferProviderFromRepo(opts.InsCloneOpts)
 
 	err = ensureGitToken(cmd, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
@@ -1702,7 +1698,13 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
 
-	opts.GitIntegrationCreationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
+	if opts.InsCloneOpts.Provider == "" {
+		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
+			return err
+		}
+	} else {
+		opts.GitIntegrationCreationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
+	}
 
 	if opts.GitIntegrationCreationOpts.APIURL == "" {
 		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
@@ -1715,6 +1717,19 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	}
 
 	return nil
+}
+
+func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
+	const suggest = "you can specify a git provider explicitly with --provider"
+
+	if strings.Contains(cloneURL, "github.com") {
+		return apmodel.GitProvidersGithub, nil
+	}
+	if strings.Contains(cloneURL, "gitlab.com") {
+		return apmodel.GitProvidersGitlab, nil
+	}
+
+	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
 }
 
 func inferProviderFromInsProvider(provider string) apmodel.GitProviders {
