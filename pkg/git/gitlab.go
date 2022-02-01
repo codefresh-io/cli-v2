@@ -1,9 +1,13 @@
 package git
 
-import "fmt"
+import (
+	"context"
 
-func VerifyGitLabTokenScope(token string) (bool, error) {
-	fmt.Print("Skipping token verification for gitlab")
-	
+	"github.com/codefresh-io/cli-v2/pkg/log"
+)
+
+func VerifyGitLabTokenScope(ctx context.Context, token string) (bool, error) {
+	log.G(ctx).Info("Skipping token verification for gitlab")
+
 	return true, nil
 }

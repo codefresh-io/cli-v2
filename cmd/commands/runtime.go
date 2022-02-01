@@ -445,11 +445,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
-		return fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported.", opts.IngressClass), store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 0 {
-		return fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime. see instructions at: %s", store.Get().RequirementsLink)
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime."), store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 1 {
@@ -547,7 +547,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create a new runtime: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create a new runtime: %w", err), store.Get().DocsLink)
 	}
 
 	opts.RuntimeToken = token
@@ -570,7 +570,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err), store.Get().DocsLink)
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
@@ -582,7 +582,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err), store.Get().DocsLink)
 	}
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
@@ -590,7 +590,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
 	handleCliStep(reporter.InstallStepCreateConfigMap, "Creating codefresh-cm", err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err), store.Get().DocsLink)
 	}
 
 	for _, component := range rt.Spec.Components {
@@ -598,7 +598,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
-			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
+			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err), store.Get().DocsLink)
 			break
 		}
 	}
@@ -611,7 +611,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	err = installComponents(ctx, opts, rt)
 	handleCliStep(reporter.InstallStepInstallComponenets, "Installing components", err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err), store.Get().DocsLink)
 	}
 
 	gitSrcMessage := fmt.Sprintf("Creating git source `%s`", store.Get().GitSourceName)
@@ -626,7 +626,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err), store.Get().DocsLink)
 	}
 
 	mpCloneOpts := &git.CloneOptions{
@@ -647,19 +647,19 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err), store.Get().DocsLink)
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
 	if timeoutErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr), store.Get().DocsLink)
 	}
 
 	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
 	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, true)
 	if gitIntgErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr), store.Get().DocsLink)
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
@@ -750,11 +750,11 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing. for more information: %s", store.Get().DownloadCliLink)
+		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing.")
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, false)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
 	err = checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory)

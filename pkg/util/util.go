@@ -171,8 +171,8 @@ func CurrentServer() (string, error) {
 	return server, nil
 }
 
-func DecorateErrorWithDocsLink(err error) error {
-	return fmt.Errorf("%s\nfor more information: %s", err.Error(), store.Get().DocsLink)
+func DecorateErrorWithDocsLink(err error, link string) error {
+	return fmt.Errorf("%s\nfor more information: %s", err.Error(), link)
 }
 
 func reportCancel(status reporter.CliStepStatus) {

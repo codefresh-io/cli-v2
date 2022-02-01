@@ -1,12 +1,17 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/codefresh-io/cli-v2/pkg/log"
 )
 
-func VerifyGitHubTokenScope(token string) (bool, error) {
+func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
+	log.G(ctx).Info("Verifing your git token")
+
 	req, _ := http.NewRequest("HEAD", "https://api.github.com/", nil)
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 

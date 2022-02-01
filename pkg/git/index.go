@@ -1,6 +1,8 @@
 package git
 
-func GetTokenVerifier(provider string) func(string)(bool, error) {
+import "context"
+
+func GetTokenVerifier(provider string) func(context.Context, string)(bool, error) {
 	if provider == "github" {
 		return VerifyGitHubTokenScope
 	}
@@ -8,6 +10,6 @@ func GetTokenVerifier(provider string) func(string)(bool, error) {
 	if provider == "gitlab" {
 		return VerifyGitLabTokenScope
 	}
-	
+
 	return nil
 }

@@ -271,10 +271,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	}
 
 	verifier := cfgit.GetTokenVerifier(cloneOpts.Provider)
-
-	log.G(cmd.Context()).Info("Verifing your git token")
-
-	verified, err := verifier(cloneOpts.Auth.Password)
+	verified, err := verifier(cmd.Context(), cloneOpts.Auth.Password)
 	if err != nil {
 		return fmt.Errorf("failed to verify git token: %w", err)
 	}
@@ -283,7 +280,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		return nil
 	}
 	
-	return fmt.Errorf("The provided git token is missing the required scopes: 'repo' and 'admin:repo_hook'. for more information: %s", store.Get().RequirementsLink)
+	return util.DecorateErrorWithDocsLink(fmt.Errorf("The provided git token is missing the required scopes: 'repo' and 'admin:repo_hook'"), store.Get().RequirementsLink)
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
