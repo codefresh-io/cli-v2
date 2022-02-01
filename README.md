@@ -1,6 +1,6 @@
-<p align="center"><img src="./docs/assets/cf.png" alt="Argo Logo"></p>
+<p align="center"><img src="./docs/assets/logo.svg" alt="Argo Logo"></p>
 
-# Codefresh CLI v2
+# Codefresh CLI V2
 
 [![Codefresh build status]( https://g.codefresh.io/api/badges/pipeline/codefresh-inc/golang%2Fci?type=cf-1)]( https://g.codefresh.io/public/accounts/codefresh-inc/pipelines/new/60ae2ae330acb8f9c9bace7f)
 [![codecov](https://codecov.io/gh/codefresh-io/cli-v2/branch/main/graph/badge.svg?token=IDyZNfRUfY)](https://codecov.io/gh/codefresh-io/cli-v2)
@@ -53,5 +53,3 @@ mv ./cf-* /usr/local/bin/cf
 # check the installation
 cf version
 ```
-
-## Getting Started
