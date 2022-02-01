@@ -29,7 +29,7 @@ func VerifyToken(ctx context.Context, provider string, token string) (bool, erro
 func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	log.G(ctx).Info("Verifing your git token")
 
-	req, _ := http.NewRequest("HEAD", "https://api.github.com/", nil)
+	req, _ := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 
 	resp, err := http.DefaultClient.Do(req)
