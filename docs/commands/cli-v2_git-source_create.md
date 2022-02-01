@@ -24,7 +24,6 @@ cli-v2 git-source create runtime_name git-source_name [flags]
   -t, --git-token string           Your git provider api token [GIT_TOKEN]
   -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                       help for create
-      --ingress-class string       The ingress class name
       --repo string                Repository URL [GIT_REPO]
 ```
 

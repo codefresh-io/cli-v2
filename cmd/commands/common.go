@@ -254,6 +254,38 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	return nil
 }
 
+func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	if !store.Get().Silent {
+		return getGitPATFromUserInput(cmd, opts)
+	}
+
+	opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
+	return err
+}
+
+func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	gitPATPrompt := promptui.Prompt{
+		Label: "Enter your Personal Git Access Token (leave blank to use system token. Can be changed later)",
+		Mask:  '*',
+	}
+
+	gitPAT, err := gitPATPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("prompt error: %w", err)
+	}
+
+	if gitPAT == "" {
+		gitPAT, err = cmd.Flags().GetString("git-token")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	opts.GitIntegrationRegistrationOpts.Token = gitPAT
+
+	return nil
+}
+
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Git provider api token",
@@ -454,7 +486,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	log.G(ctx).Warnf("The ingress host does not have a valid certificate.")
-	labelStr := fmt.Sprintf("%vDo you wish to continue the installation with insecure ingress host mode?%v", CYAN, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to continue with the installation in insecure mode with this ingress host?%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
