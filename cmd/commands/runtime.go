@@ -357,20 +357,22 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	return nil
 }
 
-func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions, runtimeName string) error {
+func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUpgradeOptions) error {
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, false)
 
-	err := ensureRuntimeName(cmd.Context(), args, &runtimeName)
+	err := ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	err = ensureRepo(cmd, runtimeName, cloneOpts, true)
+
+	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	err = ensureGitToken(cmd, cloneOpts)
+
+	err = ensureGitToken(cmd, opts.CloneOpts)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -1090,10 +1092,9 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		runtimeName     string
 		versionStr      string
-		cloneOpts       *git.CloneOptions
 		finalParameters map[string]string
+		opts            RuntimeUpgradeOptions
 	)
 
 	cmd := &cobra.Command{
@@ -1118,15 +1119,19 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
 
-			err := runtimeUpgradeCommandPreRunHandler(cmd, args, cloneOpts, runtimeName)
+			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
 				return fmt.Errorf("Pre installation error: %w", err)
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name":   runtimeName,
-				"Repository URL": cloneOpts.Repo,
+				"Runtime name":   opts.RuntimeName,
+				"Repository URL": opts.CloneOpts.Repo,
+			}
+
+			if versionStr != "" {
+				finalParameters["Version"] = versionStr
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
@@ -1134,38 +1139,32 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 
-			cloneOpts.Parse()
+			opts.CloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var (
-				version *semver.Version
-				err     error
-			)
+			var err error
 			ctx := cmd.Context()
 
 			if versionStr != "" {
-				version, err = semver.NewVersion(versionStr)
+				opts.Version, err = semver.NewVersion(versionStr)
 				if err != nil {
 					return err
 				}
 			}
 
-			err = RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
-				RuntimeName: runtimeName,
-				Version:     version,
-				CloneOpts:   cloneOpts,
-				CommonConfig: &runtime.CommonConfig{
-					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
-				},
-			})
+			opts.CommonConfig = &runtime.CommonConfig{
+				CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
+			}
+
+			err = RunRuntimeUpgrade(ctx, &opts)
 			handleCliStep(reporter.UpgradePhaseFinish, "Runtime upgrade phase finished", err, false)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
-	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 
 	return cmd
 }
@@ -1173,6 +1172,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	handleCliStep(reporter.UpgradePhaseStart, "Runtime upgrade phase started", nil, true)
 
+	log.G(ctx).Info("Downloading runtime definition")
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false)
 	if err != nil {
@@ -1187,12 +1187,14 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
+	log.G(ctx).Info("Cloning installation repository")
 	r, fs, err := opts.CloneOpts.GetRepo(ctx)
 	handleCliStep(reporter.UpgradeStepGetRepo, "Getting repository", err, false)
 	if err != nil {
 		return err
 	}
 
+	log.G(ctx).Info("Loading current runtime definition")
 	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
 	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Loading runtime definition", err, false)
 	if err != nil {
@@ -1200,9 +1202,14 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	}
 
 	if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
-		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
+		err = fmt.Errorf("current runtime version (%s) is greater than or equal to the specified version (%s)", curRt.Spec.Version, newRt.Spec.Version)
+	}
+	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Comparing runtime versions", err, false)
+	if err != nil {
+		return err
 	}
 
+	log.G(ctx).Infof("Upgrading runtime \"%s\" to version: v%s", opts.RuntimeName, newRt.Spec.Version)
 	newComponents, err := curRt.Upgrade(fs, newRt, opts.CommonConfig)
 	handleCliStep(reporter.UpgradeStepUpgradeRuntime, "Upgrading runtime", err, false)
 	if err != nil {
@@ -1217,8 +1224,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	}
 
 	for _, component := range newComponents {
-		infoStr := fmt.Sprintf("Creating app '%s'", component.Name)
-		log.G(ctx).Infof(infoStr)
+		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
 			err = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
@@ -1226,7 +1232,9 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		}
 	}
 
-	handleCliStep(reporter.UpgradeStepCreateApps, "Creating apps", err, false)
+	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false)
+
+	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
 
 	return nil
 }
