@@ -666,7 +666,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
 	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, true)
 	if gitIntgErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr), store.Get().DocsLink)
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
@@ -1702,7 +1702,7 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
 
-	opts.GitIntegrationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
+	opts.GitIntegrationCreationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
 
 	if opts.GitIntegrationCreationOpts.APIURL == "" {
 		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
