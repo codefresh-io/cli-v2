@@ -118,9 +118,10 @@ const (
 	UpgradeStepRunPreCheckEnsureCliVersion CliStep = "upgrade.run.step.ensure-cli-version"
 	UpgradeStepGetRepo                     CliStep = "upgrade.run.step.get-repo"
 	UpgradeStepLoadRuntimeDefinition       CliStep = "upgrade.run.step.load-runtime-definition"
+	UpgradeStepCompareRuntimeVersions      CliStep = "upgrade.run.step.compare-runtime-versions"
 	UpgradeStepUpgradeRuntime              CliStep = "upgrade.run.step.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition       CliStep = "upgrade.run.step.push-runtime-definition"
-	UpgradeStepCreateApps                  CliStep = "upgrade.run.step.create-apps"
+	UpgradeStepInstallNewComponents        CliStep = "upgrade.run.step.install-new-components"
 	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.finish"
 
 	// General
