@@ -5,5 +5,9 @@ func GetTokenVerifier(provider string) func(string)(bool, error) {
 		return VerifyGitHubTokenScope
 	}
 
+	if provider == "gitlab" {
+		return VerifyGitLabTokenScope
+	}
+	
 	return nil
 }

@@ -1673,11 +1673,8 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
-	if opts.GitIntegrationOpts.Provider == "" {
-		if opts.GitIntegrationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
-			return err
-		}
-	}
+
+	opts.GitIntegrationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
 
 	if opts.GitIntegrationOpts.APIURL == "" {
 		if opts.GitIntegrationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationOpts.Provider); err != nil {
@@ -1688,17 +1685,15 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	return nil
 }
 
-func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
-	const suggest = "you can specify a git provider explicitly with --provider"
-
-	if strings.Contains(cloneURL, "github.com") {
-		return apmodel.GitProvidersGithub, nil
+func inferProviderFromInsProvider(provider string) apmodel.GitProviders {
+	if provider == "github" {
+		return apmodel.GitProvidersGithub
 	}
-	if strings.Contains(cloneURL, "gitlab.com") {
-		return apmodel.GitProvidersGitlab, nil
+	if provider == "gitlab" {
+		return apmodel.GitProvidersGitlab
 	}
 
-	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
+	return ""
 }
 
 func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
