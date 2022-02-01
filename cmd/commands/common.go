@@ -280,7 +280,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		return nil
 	}
 	
-	return util.DecorateErrorWithDocsLink(fmt.Errorf("The provided git token is missing the required scopes: 'repo' and 'admin:repo_hook'"), store.Get().RequirementsLink)
+	return util.DecorateErrorWithDocsLink(fmt.Errorf("The provided git token is missing one or more of the required scopes: 'repo' and 'admin:repo_hook'"), store.Get().RequirementsLink)
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
