@@ -283,6 +283,38 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	return util.DecorateErrorWithDocsLink(fmt.Errorf("The provided git token is missing one or more of the required scopes: 'repo' and 'admin:repo_hook'"), store.Get().RequirementsLink)
 }
 
+func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	if !store.Get().Silent {
+		return getGitPATFromUserInput(cmd, opts)
+	}
+
+	opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
+	return err
+}
+
+func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	gitPATPrompt := promptui.Prompt{
+		Label: "Enter your Personal Git Access Token (leave blank to use system token. Can be changed later)",
+		Mask:  '*',
+	}
+
+	gitPAT, err := gitPATPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("prompt error: %w", err)
+	}
+
+	if gitPAT == "" {
+		gitPAT, err = cmd.Flags().GetString("git-token")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	opts.GitIntegrationRegistrationOpts.Token = gitPAT
+
+	return nil
+}
+
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Git provider api token",

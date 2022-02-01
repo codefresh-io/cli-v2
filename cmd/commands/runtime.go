@@ -69,22 +69,23 @@ import (
 
 type (
 	RuntimeInstallOptions struct {
-		RuntimeName          string
-		RuntimeToken         string
-		RuntimeStoreIV       string
-		IngressHost          string
-		IngressClass         string
-		IngressController    string
-		Insecure             bool
-		InstallDemoResources bool
-		Version              *semver.Version
-		GsCloneOpts          *git.CloneOptions
-		InsCloneOpts         *git.CloneOptions
-		GitIntegrationOpts   *apmodel.AddGitIntegrationArgs
-		KubeFactory          kube.Factory
-		CommonConfig         *runtime.CommonConfig
-		versionStr           string
-		kubeContext          string
+		RuntimeName                    string
+		RuntimeToken                   string
+		RuntimeStoreIV                 string
+		IngressHost                    string
+		IngressClass                   string
+		IngressController              string
+		Insecure                       bool
+		InstallDemoResources           bool
+		Version                        *semver.Version
+		GsCloneOpts                    *git.CloneOptions
+		InsCloneOpts                   *git.CloneOptions
+		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
+		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
+		KubeFactory                    kube.Factory
+		CommonConfig                   *runtime.CommonConfig
+		versionStr                     string
+		kubeContext                    string
 	}
 	RuntimeUninstallOptions struct {
 		RuntimeName string
@@ -149,11 +150,14 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		gitIntegrationOpts = apmodel.AddGitIntegrationArgs{
+		gitIntegrationCreationOpts = apmodel.AddGitIntegrationArgs{
 			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
 		}
-		installationOpts = RuntimeInstallOptions{GitIntegrationOpts: &gitIntegrationOpts}
-		finalParameters  map[string]string
+		installationOpts = RuntimeInstallOptions{
+			GitIntegrationCreationOpts:     &gitIntegrationCreationOpts,
+			GitIntegrationRegistrationOpts: &apmodel.RegisterToGitIntegrationArgs{},
+		}
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -191,7 +195,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
-				"Ingress class":              installationOpts.IngressClass,
+				"Ingress class":             installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -213,7 +217,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
-	cmd.Flags().StringVar(&gitIntegrationOpts.APIURL, "provider-api-url", "", "Git provider API url")
+	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
@@ -235,16 +239,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, false)
 
-	if opts.versionStr != "" {
-		version, err := semver.NewVersion(opts.versionStr)
-		handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
-		if err != nil {
-			return err
-		}
-		opts.Version = version
+	err := getVersionIfExists(opts)
+	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
+	if err != nil {
+		return err
 	}
 
-	var err error
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
 			err = getRuntimeNameFromUserInput(&opts.RuntimeName)
@@ -257,19 +257,11 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	isValid, err := IsValidName(opts.RuntimeName)
-	var errMsg string
-	if err != nil {
-		errMsg = "failed to check the validity of the runtime name"
-	} else if !isValid {
-		errMsg = "runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars"
-	}
-
-	if errMsg != "" {
-		handleCliStep(reporter.InstallStepPreCheckRuntimeNameValidation, "Validating runtime name", fmt.Errorf(errMsg), false)
-		log.G(cmd.Context()).Fatal(errMsg)
-	}
+	err = validateRuntimeName(opts.RuntimeName)
 	handleCliStep(reporter.InstallStepPreCheckRuntimeNameValidation, "Validating runtime name", err, false)
+	if err != nil {
+		log.G(cmd.Context()).Fatal(fmt.Errorf("%w", err))
+	}
 
 	err = getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, false)
@@ -303,6 +295,12 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	err = ensureGitToken(cmd, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
+	if err != nil {
+		return err
+	}
+
+	err = ensureGitPAT(cmd, opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, false)
 	if err != nil {
 		return err
 	}
@@ -365,20 +363,22 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	return nil
 }
 
-func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, cloneOpts *git.CloneOptions, runtimeName string) error {
+func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUpgradeOptions) error {
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, false)
 
-	err := ensureRuntimeName(cmd.Context(), args, &runtimeName)
+	err := ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	err = ensureRepo(cmd, runtimeName, cloneOpts, true)
+
+	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	err = ensureGitToken(cmd, cloneOpts)
+
+	err = ensureGitToken(cmd, opts.CloneOpts)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -564,6 +564,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CloneOptions:    opts.InsCloneOpts,
 		Insecure:        opts.Insecure,
 		KubeContextName: opts.kubeContext,
+		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 		},
@@ -656,10 +657,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr), store.Get().DocsLink)
 	}
 
-	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationOpts)
+	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
 	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, true)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr), store.Get().DocsLink)
+	}
+
+	gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, true)
+	if gitIntgErr != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
@@ -680,6 +687,18 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 	}
 
 	log.G(ctx).Info("Added default git integration")
+
+	return nil
+}
+
+func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1022,18 +1041,19 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	handleCliStep(reporter.UninstallPhaseStart, "Uninstall phase started", nil, false)
 
 	// check whether the runtime exists
+	var err error
 	if !opts.SkipChecks {
-		_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
-		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, true)
-		if err != nil {
-			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
-			return err
-		}
+		_, err = cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	}
+	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, true)
+	if err != nil {
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
+		return err
 	}
 
 	log.G(ctx).Infof("Uninstalling runtime '%s'", opts.RuntimeName)
 
-	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
 		CloneOptions: opts.CloneOpts,
@@ -1078,10 +1098,9 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		runtimeName     string
 		versionStr      string
-		cloneOpts       *git.CloneOptions
 		finalParameters map[string]string
+		opts            RuntimeUpgradeOptions
 	)
 
 	cmd := &cobra.Command{
@@ -1106,15 +1125,19 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
 
-			err := runtimeUpgradeCommandPreRunHandler(cmd, args, cloneOpts, runtimeName)
+			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
 				return fmt.Errorf("Pre installation error: %w", err)
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name":   runtimeName,
-				"Repository URL": cloneOpts.Repo,
+				"Runtime name":   opts.RuntimeName,
+				"Repository URL": opts.CloneOpts.Repo,
+			}
+
+			if versionStr != "" {
+				finalParameters["Version"] = versionStr
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
@@ -1122,38 +1145,32 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 
-			cloneOpts.Parse()
+			opts.CloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var (
-				version *semver.Version
-				err     error
-			)
+			var err error
 			ctx := cmd.Context()
 
 			if versionStr != "" {
-				version, err = semver.NewVersion(versionStr)
+				opts.Version, err = semver.NewVersion(versionStr)
 				if err != nil {
 					return err
 				}
 			}
 
-			err = RunRuntimeUpgrade(ctx, &RuntimeUpgradeOptions{
-				RuntimeName: runtimeName,
-				Version:     version,
-				CloneOpts:   cloneOpts,
-				CommonConfig: &runtime.CommonConfig{
-					CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
-				},
-			})
+			opts.CommonConfig = &runtime.CommonConfig{
+				CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
+			}
+
+			err = RunRuntimeUpgrade(ctx, &opts)
 			handleCliStep(reporter.UpgradePhaseFinish, "Runtime upgrade phase finished", err, false)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
-	cloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
 
 	return cmd
 }
@@ -1161,6 +1178,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	handleCliStep(reporter.UpgradePhaseStart, "Runtime upgrade phase started", nil, true)
 
+	log.G(ctx).Info("Downloading runtime definition")
 	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false)
 	if err != nil {
@@ -1175,12 +1193,14 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
+	log.G(ctx).Info("Cloning installation repository")
 	r, fs, err := opts.CloneOpts.GetRepo(ctx)
 	handleCliStep(reporter.UpgradeStepGetRepo, "Getting repository", err, false)
 	if err != nil {
 		return err
 	}
 
+	log.G(ctx).Info("Loading current runtime definition")
 	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
 	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Loading runtime definition", err, false)
 	if err != nil {
@@ -1188,9 +1208,14 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	}
 
 	if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
-		return fmt.Errorf("must upgrade to version > %s", curRt.Spec.Version)
+		err = fmt.Errorf("current runtime version (%s) is greater than or equal to the specified version (%s)", curRt.Spec.Version, newRt.Spec.Version)
+	}
+	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Comparing runtime versions", err, false)
+	if err != nil {
+		return err
 	}
 
+	log.G(ctx).Infof("Upgrading runtime \"%s\" to version: v%s", opts.RuntimeName, newRt.Spec.Version)
 	newComponents, err := curRt.Upgrade(fs, newRt, opts.CommonConfig)
 	handleCliStep(reporter.UpgradeStepUpgradeRuntime, "Upgrading runtime", err, false)
 	if err != nil {
@@ -1205,14 +1230,17 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	}
 
 	for _, component := range newComponents {
-		infoStr := fmt.Sprintf("Creating app '%s'", component.Name)
-		log.G(ctx).Infof(infoStr)
+		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		handleCliStep(reporter.UpgradeStepCreateApp, infoStr, err, false)
 		if err != nil {
-			return fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			err = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			break
 		}
 	}
+
+	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false)
+
+	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
 
 	return nil
 }
@@ -1676,10 +1704,14 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 
 	opts.GitIntegrationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
 
-	if opts.GitIntegrationOpts.APIURL == "" {
-		if opts.GitIntegrationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationOpts.Provider); err != nil {
+	if opts.GitIntegrationCreationOpts.APIURL == "" {
+		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
+	}
+
+	if opts.GitIntegrationRegistrationOpts.Token == "" {
+		return fmt.Errorf("git personal access token is missing")
 	}
 
 	return nil
@@ -1788,4 +1820,30 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType) {
 	}
 
 	reporter.Init(user, flow)
+}
+
+func validateRuntimeName(runtime string) error {
+	var err error
+	isValid, err := IsValidName(runtime)
+	if err != nil {
+		err = fmt.Errorf("failed to check the validity of the runtime name: %w", err)
+	} else if !isValid {
+		err = fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+	}
+
+	return err
+}
+
+func getVersionIfExists(opts *RuntimeInstallOptions) error {
+	if opts.versionStr != "" {
+		log.G().Infof("vesionStr: %s", opts.versionStr)
+		version, err := semver.NewVersion(opts.versionStr)
+		handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
+		if err != nil {
+			return err
+		}
+		opts.Version = version
+		log.G().Infof("opts.Version: %s", opts.Version)
+	}
+	return nil
 }
