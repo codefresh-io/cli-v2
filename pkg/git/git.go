@@ -16,10 +16,10 @@ var (
 
 
 func VerifyToken(ctx context.Context, provider string, token string) (bool, error) {
-	providerToVerifier := map[string]func(context.Context, string)(bool, error){}
-
-	providerToVerifier["github"] = verifyGitHubTokenScope
-	providerToVerifier["gitlab"] = verifyGitLabTokenScope
+	providerToVerifier := map[string]func(context.Context, string)(bool, error) {
+		"github": verifyGitHubTokenScope,
+		"gitlab": verifyGitLabTokenScope,
+	}
 
 	verifier := providerToVerifier[provider]
 
@@ -44,23 +44,22 @@ func verifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	if len(rawScopes) > 0 {
 		scopes = strings.Split(rawScopes[0], ", ")
 	}
-	var repo bool
-	var adminRepoHook bool
 
-	for _, scope := range scopes {
-		if scope == requiredGitHubScopes[0] {
-			repo = true
+	for _, rs := range requiredGitHubScopes {
+		var contained bool
+		for _, scope := range scopes {
+			if scope == rs {
+				contained = true
+				break
+			}
 		}
-		if scope == requiredGitHubScopes[1] {
-			adminRepoHook = true
+
+		if !contained {
+			return false, nil
 		}
 	}
 
-	if repo && adminRepoHook {
-		return true, nil
-	}
-
-	return false, nil
+	return true, nil
 }
 
 func verifyGitLabTokenScope(ctx context.Context, token string) (bool, error) {
