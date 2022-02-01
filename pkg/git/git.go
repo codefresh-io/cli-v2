@@ -18,15 +18,15 @@ var (
 func VerifyToken(ctx context.Context, provider string, token string) (bool, error) {
 	providerToVerifier := map[string]func(context.Context, string)(bool, error){}
 
-	providerToVerifier["github"] = VerifyGitHubTokenScope
-	providerToVerifier["gitlab"] = VerifyGitLabTokenScope
+	providerToVerifier["github"] = verifyGitHubTokenScope
+	providerToVerifier["gitlab"] = verifyGitLabTokenScope
 
 	verifier := providerToVerifier[provider]
 
 	return verifier(ctx, token)
 }
 
-func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
+func verifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	log.G(ctx).Info("Verifing your git token")
 
 	req, _ := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
@@ -63,7 +63,7 @@ func VerifyGitHubTokenScope(ctx context.Context, token string) (bool, error) {
 	return false, nil
 }
 
-func VerifyGitLabTokenScope(ctx context.Context, token string) (bool, error) {
+func verifyGitLabTokenScope(ctx context.Context, token string) (bool, error) {
 	log.G(ctx).Info("Skipping token verification for gitlab")
 
 	return true, nil
