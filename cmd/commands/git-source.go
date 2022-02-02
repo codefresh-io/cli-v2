@@ -89,6 +89,12 @@ type (
 		ingressHost  string
 		ingressClass string
 	}
+
+	dirConfig struct {
+		application.Config
+		Exclude string `json:"exclude"`
+		Include string `json:"include"`
+	}
 )
 
 func NewGitSourceCommand() *cobra.Command {
@@ -258,7 +264,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 }
 
 func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
-	err := createDemoWorkflowTemplate(opts.gsFs, opts.runtimeName)
+	err := createDemoWorkflowTemplate(opts.gsFs)
 	if err != nil {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
@@ -278,7 +284,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
 	}
 
-	sensor, err := createCronExampleSensor(triggers, opts.runtimeName)
+	sensor, err := createCronExampleSensor(triggers)
 	if err != nil {
 		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
 	}
@@ -311,7 +317,7 @@ func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
 	}
 }
 
-func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (*sensorsv1alpha1.Sensor, error) {
+func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alpha1.Sensor, error) {
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
 			Name:            store.Get().CronExampleDependencyName,
@@ -585,20 +591,20 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
 	}
-
-	c := &application.Config{}
-	err = fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	c := &dirConfig{}
+	fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
+	err = fs.ReadJson(fileName, c)
 	if err != nil {
-		return fmt.Errorf("failed to read the config.json of git-source: %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 	}
 
 	c.SrcPath = opts.GsCloneOpts.Path()
 	c.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
-	err = fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	err = fs.WriteJson(fileName, c)
 	if err != nil {
-		return fmt.Errorf("failed to write the updated config.json of git-source: %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 	}
 
 	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
@@ -609,7 +615,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	return nil
 }
 
-func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
+func createDemoWorkflowTemplate(gsFs fs.FS) error {
 	wfTemplate := &wfv1alpha1.WorkflowTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       wf.WorkflowTemplateKind,
