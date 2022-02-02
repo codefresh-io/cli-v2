@@ -272,7 +272,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	err = ensureIngressClass(cmd.Context(), opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, false)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(err, store.Get().RequirementsLink)
 	}
 
 	err = ensureIngressHost(cmd, opts)
@@ -424,7 +424,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get ingressClass list from your cluster: %w", err)
+		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
 	var ingressClassNames []string
@@ -445,11 +445,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("ingress Class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass), store.Get().RequirementsLink)
+		return fmt.Errorf("ingress class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
 	}
 
 	if len(ingressClassNames) == 0 {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("no ingress classes of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime."), store.Get().RequirementsLink)
+		return fmt.Errorf("no ingress classes of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime.")
 	}
 
 	if len(ingressClassNames) == 1 {
@@ -469,7 +469,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return nil
 	}
 
-	return fmt.Errorf("Please add the --ingress-class flag and define its value")
+	return fmt.Errorf("please add the --ingress-class flag and define its value")
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {

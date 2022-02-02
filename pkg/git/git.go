@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util"
 )
 
 
@@ -44,7 +43,7 @@ func VerifyToken(ctx context.Context, provider string, token string) error {
 }
 
 func verifyGitHubTokenScope(ctx context.Context, token string) error {
-	errMessage := "the provided git token is missing one or more of the required scopes:" + util.StringifyArray(requiredGitHubScopes)
+	errMessage := "the provided git token is missing one or more of the required scopes:" + strings.Join(requiredGitHubScopes, ", ")
 	
 	req, err := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
 	if err != nil {
