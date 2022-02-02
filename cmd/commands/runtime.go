@@ -441,11 +441,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported.", opts.IngressClass), store.Get().RequirementsLink)
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("ingress Class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass), store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 0 {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime."), store.Get().RequirementsLink)
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("no ingress classes of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime."), store.Get().RequirementsLink)
 	}
 
 	if len(ingressClassNames) == 1 {
@@ -1703,7 +1703,7 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 			return err
 		}
 	} else {
-		opts.GitIntegrationCreationOpts.Provider = inferProviderFromInsProvider(opts.InsCloneOpts.Provider)
+		opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(opts.InsCloneOpts.Provider))
 	}
 
 	if opts.GitIntegrationCreationOpts.APIURL == "" {
@@ -1730,17 +1730,6 @@ func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
 	}
 
 	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
-}
-
-func inferProviderFromInsProvider(provider string) apmodel.GitProviders {
-	if provider == "github" {
-		return apmodel.GitProvidersGithub
-	}
-	if provider == "gitlab" {
-		return apmodel.GitProvidersGitlab
-	}
-
-	return ""
 }
 
 func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {

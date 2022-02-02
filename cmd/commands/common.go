@@ -275,7 +275,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		return fmt.Errorf("failed to verify git token: %w", err)
 	}
 
-	log.G(cmd.Context()).Info("Token varified")
+	log.G(cmd.Context()).Info("Token verified")
 
 	return nil
 }

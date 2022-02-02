@@ -44,9 +44,13 @@ func VerifyToken(ctx context.Context, provider string, token string) error {
 }
 
 func verifyGitHubTokenScope(ctx context.Context, token string) error {
-	errMessage := "The provided git token is missing one or more of the required scopes:" + util.StringifyArray(requiredGitHubScopes)
+	errMessage := "the provided git token is missing one or more of the required scopes:" + util.StringifyArray(requiredGitHubScopes)
 	
-	req, _ := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
+	req, err := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
+	if err != nil {
+		return err
+	}
+
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 
 	resp, err := http.DefaultClient.Do(req)
