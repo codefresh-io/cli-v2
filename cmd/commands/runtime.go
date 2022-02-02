@@ -316,6 +316,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 	}
 
+	if opts.GsCloneOpts.Provider == "" {
+		opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
+	}
+
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
 
