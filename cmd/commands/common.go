@@ -32,6 +32,8 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
+
 	"github.com/manifoldco/promptui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -247,10 +249,32 @@ func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []stri
 	return nil
 }
 
+func inferProviderFromRepo(opts *git.CloneOptions) {
+	if opts.Provider != "" {
+		return
+	}
+
+	if strings.Contains(opts.Repo, "github.com") {
+		opts.Provider = "github"
+	}
+	if strings.Contains(opts.Repo, "gitlab.com") {
+		opts.Provider = "gitlab"
+	}
+}
+
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
-		return getGitTokenFromUserInput(cmd)
+		err := getGitTokenFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
 	}
+
+	err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
+	if err != nil {
+		return fmt.Errorf("failed to verify git token: %w", err)
+	}
+
 	return nil
 }
 

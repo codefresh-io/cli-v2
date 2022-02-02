@@ -187,7 +187,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
-				return fmt.Errorf("Pre installation error: %w", err)
+				return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
 			finalParameters = map[string]string{
@@ -272,7 +272,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	err = ensureIngressClass(cmd.Context(), opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, false)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(err, store.Get().RequirementsLink)
 	}
 
 	err = ensureIngressHost(cmd, opts)
@@ -286,6 +286,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	if err != nil {
 		return err
 	}
+
+	inferProviderFromRepo(opts.InsCloneOpts)
 
 	err = ensureGitToken(cmd, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
@@ -422,7 +424,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get ingressClass list from your cluster: %w", err)
+		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
 	var ingressClassNames []string
@@ -443,11 +445,11 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
-		return fmt.Errorf("Ingress Class '%s' is not supported. Only the ingress class of type NGINX is supported. for more information: %s", opts.IngressClass, store.Get().RequirementsLink)
+		return fmt.Errorf("ingress class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
 	}
 
 	if len(ingressClassNames) == 0 {
-		return fmt.Errorf("No ingressClasses of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime. see instructions at: %s", store.Get().RequirementsLink)
+		return fmt.Errorf("no ingress classes of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime.")
 	}
 
 	if len(ingressClassNames) == 1 {
@@ -467,7 +469,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return nil
 	}
 
-	return fmt.Errorf("Please add the --ingress-class flag and define its value")
+	return fmt.Errorf("please add the --ingress-class flag and define its value")
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -767,11 +769,11 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing. for more information: %s", store.Get().DownloadCliLink)
+		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing.")
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, false)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
 	err = checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory)
@@ -1699,10 +1701,13 @@ func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOp
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
+
 	if opts.InsCloneOpts.Provider == "" {
 		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
 			return err
 		}
+	} else {
+		opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(opts.InsCloneOpts.Provider))
 	}
 
 	if opts.GitIntegrationCreationOpts.APIURL == "" {
