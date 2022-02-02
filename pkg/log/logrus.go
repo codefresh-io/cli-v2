@@ -79,7 +79,7 @@ func (l *logrusAdapter) AddPFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddFlagSet(flags)
 
 	initFunc := func(cmd *cobra.Command) {
-		orgPreRun := cmd.PreRunE
+		orgPreRunE := cmd.PreRunE
 
 		cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 			switch *format {
@@ -93,9 +93,13 @@ func (l *logrusAdapter) AddPFlags(cmd *cobra.Command) {
 				return err
 			}
 
-			if orgPreRun != nil {
-				return orgPreRun(cmd, args)
+			if orgPreRunE != nil {
+				return orgPreRunE(cmd, args)
 			}
+			if cmd.PreRun != nil {
+				cmd.PreRun(cmd, args)
+			}
+
 			return nil
 		}
 	}
