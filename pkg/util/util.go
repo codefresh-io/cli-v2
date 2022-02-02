@@ -188,14 +188,3 @@ func reportCancel(status reporter.CliStepStatus) {
 	})
 }
 
-func StringifyArray(arr []string) string {
-	var str string
-
-	for _, s := range arr {
-		str = str + " " + s + "," 
-	}
-
-	str = strings.TrimRight(str, ",")
-
-	return str
-}
