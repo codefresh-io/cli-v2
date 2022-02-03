@@ -271,7 +271,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	}
 
 	if verify {
-		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
+		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
 		if err != nil {
 			return fmt.Errorf("failed to verify git token: %w", err)
 		}
@@ -282,17 +282,30 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
-	if !store.Get().Silent {
-		return getGitPATFromUserInput(cmd, opts)
+	tokenFromFlag, err := cmd.Flags().GetString("git-src-git-token")
+
+	if  tokenFromFlag == "" {
+		if !store.Get().Silent {
+			err = getGitPATFromUserInput(cmd, opts)
+			if err != nil {
+				return err
+			}
+		} else {
+			opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
+		}
 	}
 
-	opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
-	return err
+	err = cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.GitSourceToken)
+	if err != nil {
+		return err
+	}
+	
+	return nil
 }
 
 func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	gitPATPrompt := promptui.Prompt{
-		Label: "Enter your Personal Git Access Token (leave blank to use runtime token. Can be changed later)",
+		Label: "Git Source personal token (To use runtime token, leave blank)",
 		Mask:  '*',
 	}
 
