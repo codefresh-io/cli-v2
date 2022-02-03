@@ -29,10 +29,10 @@ import (
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 
 	"github.com/manifoldco/promptui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -262,7 +262,7 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 	}
 }
 
-func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
 		if err != nil {
@@ -270,9 +270,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		}
 	}
 
-	err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
-	if err != nil {
-		return fmt.Errorf("failed to verify git token: %w", err)
+	if verify {
+		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
+		if err != nil {
+			return fmt.Errorf("failed to verify git token: %w", err)
+		}
 	}
 
 	return nil
@@ -290,7 +292,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	gitPATPrompt := promptui.Prompt{
-		Label: "Enter your Personal Git Access Token (leave blank to use system token. Can be changed later)",
+		Label: "Enter your Personal Git Access Token (leave blank to use runtime token. Can be changed later)",
 		Mask:  '*',
 	}
 
