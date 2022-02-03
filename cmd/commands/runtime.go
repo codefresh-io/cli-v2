@@ -231,7 +231,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
-	util.Die(cmd.Flags().MarkHidden("ingress-host"))
 
 	return cmd
 }
@@ -272,7 +271,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	err = ensureIngressClass(cmd.Context(), opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, false)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(err, store.Get().RequirementsLink)
+		return err
 	}
 
 	err = ensureIngressHost(cmd, opts)
@@ -388,12 +387,10 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 }
 
 func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	if opts.IngressHost != "" { // ingress host provided by hidden flag (for our tests)
-		return nil
-	}
-
-	if err := getIngressHostFromCluster(cmd.Context(), opts); err != nil {
-		return err
+	if opts.IngressHost == "" { // ingress host not provided by flag
+		if err := setIngressHost(cmd.Context(), opts); err != nil {
+			return err
+		}
 	}
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)

@@ -418,7 +418,24 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 	return nil
 }
 
-func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
+func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
+	ingressHostPrompt := promptui.Prompt{
+		Label: "Ingress host",
+		Default: foundIngressHost,
+		Pointer: promptui.PipeCursor,
+	}
+
+	ingressHostInput, err := ingressHostPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	opts.IngressHost = ingressHostInput
+
+	return nil
+}
+
+func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
@@ -427,20 +444,29 @@ func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions)
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
+	var foundIngressHost string
+
 	for _, s := range ServicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController {
 			ingress := s.Status.LoadBalancer.Ingress[0]
 			if ingress.Hostname != "" {
-				opts.IngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
+				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
 			} else {
-				opts.IngressHost = fmt.Sprintf("https://%s", ingress.IP)
+				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
 			}
 			break
 		}
 	}
 
+	if store.Get().Silent {
+		log.G(ctx).Warn("Using ingress host %s", foundIngressHost)
+		opts.IngressHost = foundIngressHost
+	} else {
+		getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+	}
+
 	if opts.IngressController == "" {
-		return fmt.Errorf("failed to fetch ingress host from the cluster. please make sure you have a nginx ingress controller installed properly")
+		return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
 	}
 
 	return nil
