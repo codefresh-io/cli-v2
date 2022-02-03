@@ -476,7 +476,13 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
-	var err error
+	match, err := regexp.MatchString("http:", ingress)
+	if err != nil {
+		return false, err
+	}
+	if match {
+		return true, nil
+	}
 
 	res, err := http.Get(ingress)
 
