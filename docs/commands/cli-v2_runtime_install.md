@@ -38,6 +38,7 @@ cli-v2 runtime install [runtime_name] [flags]
   -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                       help for install
       --ingress-class string       The ingress class name
+      --ingress-host string        The ingress host
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string           If present, the namespace scope for this CLI request
       --provider string            The git provider, one of: gitea|github|gitlab
