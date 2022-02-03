@@ -34,6 +34,7 @@ require (
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	sigs.k8s.io/kustomize/api v0.8.8
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace (
