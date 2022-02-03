@@ -191,6 +191,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
+				"Codefresh context":         cfConfig.CurrentContext,
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
@@ -999,9 +1000,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Kube context":   uninstallationOpts.kubeContext,
-				"Runtime name":   uninstallationOpts.RuntimeName,
-				"Repository URL": uninstallationOpts.CloneOpts.Repo,
+				"Codefresh context": cfConfig.CurrentContext,
+				"Kube context":      uninstallationOpts.kubeContext,
+				"Runtime name":      uninstallationOpts.RuntimeName,
+				"Repository URL":    uninstallationOpts.CloneOpts.Repo,
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
@@ -1136,8 +1138,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name":   opts.RuntimeName,
-				"Repository URL": opts.CloneOpts.Repo,
+				"Codefresh context": cfConfig.CurrentContext,
+				"Runtime name":      opts.RuntimeName,
+				"Repository URL":    opts.CloneOpts.Repo,
 			}
 
 			if versionStr != "" {
