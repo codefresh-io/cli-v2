@@ -307,6 +307,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
+	if opts.GsCloneOpts.Auth.Username == "" {
+		opts.GsCloneOpts.Auth.Username = opts.InsCloneOpts.Auth.Username
+	}
+
 	if opts.GsCloneOpts.Auth.Password == "" {
 		opts.GsCloneOpts.Auth.Password = opts.InsCloneOpts.Auth.Password
 	}
