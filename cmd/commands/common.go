@@ -451,15 +451,16 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 			ingress := s.Status.LoadBalancer.Ingress[0]
 			if ingress.Hostname != "" {
 				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
+				break
 			} else {
 				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
+				break
 			}
-			break
 		}
 	}
 
 	if store.Get().Silent {
-		log.G(ctx).Warn("Using ingress host %s", foundIngressHost)
+		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
 		opts.IngressHost = foundIngressHost
 	} else {
 		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
