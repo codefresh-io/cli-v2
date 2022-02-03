@@ -447,7 +447,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var foundIngressHost string
 
 	for _, s := range ServicesList.Items {
-		if s.ObjectMeta.Name == opts.IngressController {
+		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
 			ingress := s.Status.LoadBalancer.Ingress[0]
 			if ingress.Hostname != "" {
 				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
@@ -462,7 +462,10 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		log.G(ctx).Warn("Using ingress host %s", foundIngressHost)
 		opts.IngressHost = foundIngressHost
 	} else {
-		getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		if err != nil {
+			return err
+		}
 	}
 
 	if opts.IngressController == "" {
