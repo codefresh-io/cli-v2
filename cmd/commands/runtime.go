@@ -1847,7 +1847,6 @@ func getVersionIfExists(opts *RuntimeInstallOptions) error {
 	if opts.versionStr != "" {
 		log.G().Infof("vesionStr: %s", opts.versionStr)
 		version, err := semver.NewVersion(opts.versionStr)
-		handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
 		if err != nil {
 			return err
 		}
