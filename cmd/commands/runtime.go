@@ -290,7 +290,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	inferProviderFromRepo(opts.InsCloneOpts)
 
-	err = ensureGitToken(cmd, opts.InsCloneOpts)
+	err = ensureGitToken(cmd, opts.InsCloneOpts, true)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return err
@@ -359,7 +359,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts)
+	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -383,7 +383,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts)
+	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
