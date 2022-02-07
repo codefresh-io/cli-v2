@@ -295,6 +295,9 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 			}
 		} else {
 			opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
