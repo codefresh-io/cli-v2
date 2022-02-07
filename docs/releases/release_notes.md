@@ -4,6 +4,7 @@
 * Argo Events [v1.4.0](https://github.com/argoproj/argo-events/releases/tag/v1.4.0)
 * Argo Rollouts [v1.1.0](https://github.com/argoproj/argo-rollouts/releases/tag/v1.1.0)
 * Argo Workflows [v3.1.8](https://github.com/argoproj/argo-workflows/releases/tag/v3.1.8)
+AD
 
 ### Using brew:
 ```bash
