@@ -305,7 +305,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	gitPATPrompt := promptui.Prompt{
-		Label: "Personal git token (leave blank to use runtime token)",
+		Label: "Personal git token for your user (skip to use runtime token)",
 		Mask:  '*',
 	}
 
