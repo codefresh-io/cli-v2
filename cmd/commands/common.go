@@ -283,6 +283,9 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
 	tokenFromFlag, err := cmd.Flags().GetString("personal-git-token")
+	if err != nil {
+		return err
+	}
 
 	if  tokenFromFlag == "" {
 		if !store.Get().Silent {
@@ -484,7 +487,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	if opts.IngressController == "" {
+	if opts.IngressHost == "" {
 		return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
 	}
 
