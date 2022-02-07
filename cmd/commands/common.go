@@ -29,10 +29,10 @@ import (
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 
 	"github.com/manifoldco/promptui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -262,7 +262,7 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 	}
 }
 
-func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
+func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
 		if err != nil {
@@ -270,9 +270,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
 		}
 	}
 
-	err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
-	if err != nil {
-		return fmt.Errorf("failed to verify git token: %w", err)
+	if verify {
+		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
+		if err != nil {
+			return fmt.Errorf("failed to verify git token: %w", err)
+		}
 	}
 
 	return nil
@@ -290,7 +292,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	gitPATPrompt := promptui.Prompt{
-		Label: "Enter your Personal Git Access Token (leave blank to use system token. Can be changed later)",
+		Label: "Enter your Personal Git Access Token (leave blank to use runtime token. Can be changed later)",
 		Mask:  '*',
 	}
 
@@ -418,7 +420,24 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 	return nil
 }
 
-func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
+func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
+	ingressHostPrompt := promptui.Prompt{
+		Label: "Ingress host",
+		Default: foundIngressHost,
+		Pointer: promptui.PipeCursor,
+	}
+
+	ingressHostInput, err := ingressHostPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	opts.IngressHost = ingressHostInput
+
+	return nil
+}
+
+func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
@@ -427,27 +446,46 @@ func getIngressHostFromCluster(ctx context.Context, opts *RuntimeInstallOptions)
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
+	var foundIngressHost string
+
 	for _, s := range ServicesList.Items {
-		if s.ObjectMeta.Name == opts.IngressController {
+		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
 			ingress := s.Status.LoadBalancer.Ingress[0]
 			if ingress.Hostname != "" {
-				opts.IngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
+				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
+				break
 			} else {
-				opts.IngressHost = fmt.Sprintf("https://%s", ingress.IP)
+				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
+				break
 			}
-			break
+		}
+	}
+
+	if store.Get().Silent {
+		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
+		opts.IngressHost = foundIngressHost
+	} else {
+		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		if err != nil {
+			return err
 		}
 	}
 
 	if opts.IngressController == "" {
-		return fmt.Errorf("failed to fetch ingress host from the cluster. please make sure you have a nginx ingress controller installed properly")
+		return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
 	}
 
 	return nil
 }
 
 func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
-	var err error
+	match, err := regexp.MatchString("http:", ingress)
+	if err != nil {
+		return false, err
+	}
+	if match {
+		return true, nil
+	}
 
 	res, err := http.Get(ingress)
 

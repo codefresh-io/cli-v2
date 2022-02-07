@@ -191,6 +191,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
+				"Codefresh context":         cfConfig.CurrentContext,
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
@@ -231,7 +232,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
-	util.Die(cmd.Flags().MarkHidden("ingress-host"))
 
 	return cmd
 }
@@ -272,7 +272,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	err = ensureIngressClass(cmd.Context(), opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, false)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(err, store.Get().RequirementsLink)
+		return err
 	}
 
 	err = ensureIngressHost(cmd, opts)
@@ -289,7 +289,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	inferProviderFromRepo(opts.InsCloneOpts)
 
-	err = ensureGitToken(cmd, opts.InsCloneOpts)
+	err = ensureGitToken(cmd, opts.InsCloneOpts, true)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return err
@@ -305,6 +305,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	handleCliStep(reporter.InstallStepPreCheckShouldInstallDemoResources, "Asking user is demo resources should be installed", err, false)
 	if err != nil {
 		return err
+	}
+
+	if opts.GsCloneOpts.Auth.Username == "" {
+		opts.GsCloneOpts.Auth.Username = opts.InsCloneOpts.Auth.Username
 	}
 
 	if opts.GsCloneOpts.Auth.Password == "" {
@@ -354,7 +358,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts)
+	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -378,7 +382,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return fmt.Errorf("%w", err)
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts)
+	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -388,12 +392,10 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 }
 
 func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	if opts.IngressHost != "" { // ingress host provided by hidden flag (for our tests)
-		return nil
-	}
-
-	if err := getIngressHostFromCluster(cmd.Context(), opts); err != nil {
-		return err
+	if opts.IngressHost == "" { // ingress host not provided by flag
+		if err := setIngressHost(cmd.Context(), opts); err != nil {
+			return err
+		}
 	}
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
@@ -995,9 +997,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Kube context":   uninstallationOpts.kubeContext,
-				"Runtime name":   uninstallationOpts.RuntimeName,
-				"Repository URL": uninstallationOpts.CloneOpts.Repo,
+				"Codefresh context": cfConfig.CurrentContext,
+				"Kube context":      uninstallationOpts.kubeContext,
+				"Runtime name":      uninstallationOpts.RuntimeName,
+				"Repository URL":    uninstallationOpts.CloneOpts.Repo,
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
@@ -1132,8 +1135,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Runtime name":   opts.RuntimeName,
-				"Repository URL": opts.CloneOpts.Repo,
+				"Codefresh context": cfConfig.CurrentContext,
+				"Runtime name":      opts.RuntimeName,
+				"Repository URL":    opts.CloneOpts.Repo,
 			}
 
 			if versionStr != "" {
@@ -1846,7 +1850,6 @@ func getVersionIfExists(opts *RuntimeInstallOptions) error {
 	if opts.versionStr != "" {
 		log.G().Infof("vesionStr: %s", opts.versionStr)
 		version, err := semver.NewVersion(opts.versionStr)
-		handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, false)
 		if err != nil {
 			return err
 		}
