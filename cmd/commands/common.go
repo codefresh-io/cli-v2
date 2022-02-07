@@ -295,7 +295,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	err = cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.GitSourceToken)
+	err = cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
 	if err != nil {
 		return err
 	}

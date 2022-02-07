@@ -26,8 +26,8 @@ import (
 type TokenTypes string
 
 const (
-	RuntimeToken TokenTypes = "RuntimeToken"
-	GitSourceToken TokenTypes = "GitSourceToken"
+	RuntimeToken TokenTypes = "runtime token"
+	PersonalToken TokenTypes = "personal token"
 )
 
 var (
@@ -36,7 +36,7 @@ var (
 	
 	typeToGitHubScopes = map[TokenTypes][]string {
 		RuntimeToken: requiredGitHubRuntimeScopes,
-		GitSourceToken: requiredGitHubGitSourceScopes,
+		PersonalToken: requiredGitHubGitSourceScopes,
 	}
 )
 
