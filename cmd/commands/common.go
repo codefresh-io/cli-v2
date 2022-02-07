@@ -282,7 +282,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
-	tokenFromFlag, err := cmd.Flags().GetString("git-src-git-token")
+	tokenFromFlag, err := cmd.Flags().GetString("personal-git-token")
 
 	if  tokenFromFlag == "" {
 		if !store.Get().Silent {
