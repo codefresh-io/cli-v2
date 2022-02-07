@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package store
 
 import (
@@ -39,13 +25,14 @@ import (
 var s Store
 
 var (
-	binaryName    = "cli-v2"
-	version       = "v99.99.99"
-	buildDate     = ""
-	gitCommit     = ""
-	maxDefVersion = "1.0.0"
-	RuntimeDefURL = "manifests/runtime.yaml"
-	ArgoAgentURL  = "manifests/argo-agent/agent.yaml"
+	binaryName      = "cli-v2"
+	version         = "v99.99.99"
+	buildDate       = ""
+	gitCommit       = ""
+	segmentWriteKey = ""
+	maxDefVersion   = "1.0.0"
+	RuntimeDefURL   = "manifests/runtime.yaml"
+	ArgoAgentURL    = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
@@ -128,6 +115,8 @@ type Store struct {
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
 	Silent                               bool
+	InsecureIngressHost                  bool
+	BypassIngressClassCheck              bool
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
@@ -135,10 +124,13 @@ type Store struct {
 	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
 	WorkflowResourceName                 string
+	RequirementsLink                     string
+	DownloadCliLink                      string
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
 	AnalysisRunResourceName             string
+	SegmentWriteKey                      string
 }
 
 // Get returns the global store
@@ -224,6 +216,9 @@ func init() {
 	s.RolloutResourceName = "rollouts"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
 	s.AnalysisRunResourceName = "analysisruns"
+	s.SegmentWriteKey = segmentWriteKey
+	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
+	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	initVersion()
 }
 

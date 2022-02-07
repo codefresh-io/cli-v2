@@ -37,6 +37,7 @@ cli-v2 runtime install [runtime_name] [flags]
   -t, --git-token string           Your git provider api token [GIT_TOKEN]
   -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                       help for install
+      --ingress-class string       The ingress class name
       --ingress-host string        The ingress host
       --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string           If present, the namespace scope for this CLI request
@@ -53,6 +54,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --auth-context string        Run the next command using a specific authentication context
       --cfconfig string            Custom path for authentication contexts config file (default "/home/user")
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
+      --insecure-ingress-host      Disable certificate validation of ingress host (default: false)
       --request-timeout duration   Request timeout (default 30s)
       --silent                     Disables the command wizard
 ```

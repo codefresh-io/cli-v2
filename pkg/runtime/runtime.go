@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package runtime
 
 import (
@@ -138,13 +124,13 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 func Load(fs fs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
 	if err := fs.ReadYamls(filename, cm); err != nil {
-		return nil, fmt.Errorf("failed to load runtime from '%s': %w", filename, err)
+		return nil, fmt.Errorf("failed to load runtime from \"%s\": %w", filename, err)
 	}
 
 	data := cm.Data["runtime"]
 	runtime := &Runtime{}
 	if err := yaml.Unmarshal([]byte(data), runtime); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal runtime from '%s': %w", filename, err)
+		return nil, fmt.Errorf("failed to unmarshal runtime from \"%s\": %w", filename, err)
 	}
 
 	for i := range runtime.Spec.Components {
@@ -210,13 +196,13 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	for _, newComponent := range newRt.Components {
 		curComponent := r.component(newComponent.Name)
 		if curComponent != nil {
-			log.G().Infof("Upgrading '%s'", newComponent.Name)
+			log.G().Infof("Upgrading \"%s\"", newComponent.Name)
 			baseDir := fs.Join(apstore.Default.AppsDir, curComponent.Name, apstore.Default.BaseDir)
 			if err := updateKustomization(fs, baseDir, curComponent.URL, newComponent.URL); err != nil {
-				return nil, fmt.Errorf("failed to upgrade app '%s': %w", curComponent.Name, err)
+				return nil, fmt.Errorf("failed to upgrade app \"%s\": %w", curComponent.Name, err)
 			}
 		} else {
-			log.G().Debugf("marking '%s' to be created later", newComponent.Name)
+			log.G().Debugf("marking \"%s\" to be created later", newComponent.Name)
 			newComponents = append(newComponents, newComponent)
 		}
 	}
@@ -224,7 +210,7 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	for _, curComponent := range r.Components {
 		newComponent := newRt.component(curComponent.Name)
 		if newComponent == nil {
-			log.G().Infof("Deleting '%s'", curComponent.Name)
+			log.G().Infof("Deleting \"%s\"", curComponent.Name)
 			if err := curComponent.delete(fs); err != nil {
 				return nil, fmt.Errorf("failed to delete app '%s': %w", curComponent.Name, err)
 			}

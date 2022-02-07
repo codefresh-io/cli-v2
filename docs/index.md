@@ -1,4 +1,4 @@
-<p align="center"><img src="./assets/cf.png" alt="Argo Logo"></p>
+<p align="center"><img src="./assets/logo.svg" alt="Argo Logo"></p>
 
 [![Codefresh build status]( https://g.codefresh.io/api/badges/pipeline/codefresh-inc/cli-v2%2Frelease?type=cf-1)]( https://g.codefresh.io/public/accounts/codefresh-inc/pipelines/new/60881f8199c9564ef31aac61)
 [![codecov](https://codecov.io/gh/codefresh-io/cli-v2/branch/main/graph/badge.svg?token=IDyZNfRUfY)](https://codecov.io/gh/codefresh-io/cli-v2)

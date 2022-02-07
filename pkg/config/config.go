@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package config
 
 import (
@@ -49,6 +35,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 )
@@ -92,6 +79,7 @@ type AuthContext struct {
 	Beta           bool   `mapstructure:"beta" json:"beta"`
 	OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
+	config         *Config
 }
 
 func AddFlags(f *pflag.FlagSet) *Config {
@@ -100,6 +88,7 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	f.StringVar(&conf.path, "cfconfig", defaultPath, "Custom path for authentication contexts config file")
 	f.StringVar(&conf.contextOverride, "auth-context", "", "Run the next command using a specific authentication context")
 	f.BoolVar(&conf.insecure, "insecure", false, "Disable certificate validation for TLS connections (e.g. to g.codefresh.io)")
+	f.BoolVar(&store.Get().InsecureIngressHost, "insecure-ingress-host", false, "Disable certificate validation of ingress host (default: false)")
 	f.DurationVar(&conf.requestTimeout, "request-timeout", defaultRequestTimeout, "Request timeout")
 
 	return conf
@@ -138,6 +127,10 @@ func (c *Config) Load(cmd *cobra.Command, args []string) error {
 
 	if err := viper.Unmarshal(c); err != nil {
 		return err
+	}
+
+	for _, v := range c.Contexts {
+		v.config = c
 	}
 
 	c.validate()
@@ -206,11 +199,12 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	}
 
 	authCtx := &AuthContext{
-		Name:  name,
-		URL:   url,
-		Token: token,
-		Type:  "APIKey",
-		Beta:  false,
+		Name:   name,
+		URL:    url,
+		Token:  token,
+		Type:   "APIKey",
+		Beta:   false,
+		config: c,
 	}
 
 	// validate new context
@@ -331,4 +325,8 @@ func init() {
 		log.G().WithError(err).Fatal("failed to get user home directory")
 	}
 	defaultPath = homedir
+}
+
+func (a *AuthContext) GetUser(ctx context.Context) (*codefresh.User, error) {
+	return a.config.clientForContext(a).Users().GetCurrent(ctx)
 }

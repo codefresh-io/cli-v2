@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package log
 
 import (
@@ -76,31 +62,49 @@ func GetLogrusEntry(l Logger) (*logrus.Entry, error) {
 	return adpt.Entry, nil
 }
 
+func initCommands(cmds []*cobra.Command, initFunc func(*cobra.Command)) {
+	for _, cmd := range cmds {
+		initFunc(cmd)
+		if cmd.HasSubCommands() {
+			initCommands(cmd.Commands(), initFunc)
+		}
+	}
+}
+
 func (l *logrusAdapter) AddPFlags(cmd *cobra.Command) {
 	flags := pflag.NewFlagSet("logrus", pflag.ContinueOnError)
 	flags.StringVar(&l.c.Level, "log-level", l.c.Level, `set the log level, e.g. "debug", "info", "warn", "error"`)
 	format := flags.String("log-format", defaultFormatter, `set the log format: "text", "json"`)
 
 	cmd.PersistentFlags().AddFlagSet(flags)
-	orgPreRun := cmd.PersistentPreRunE
 
-	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		switch *format {
-		case string(FormatterJSON), string(FormatterText):
-			l.c.Format = LogrusFormatter(*format)
-		default:
-			return fmt.Errorf("invalid log format: %s", *format)
-		}
+	initFunc := func(cmd *cobra.Command) {
+		orgPreRunE := cmd.PreRunE
 
-		if err := l.configure(flags); err != nil {
-			return err
-		}
+		cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+			switch *format {
+			case string(FormatterJSON), string(FormatterText):
+				l.c.Format = LogrusFormatter(*format)
+			default:
+				return fmt.Errorf("invalid log format: %s", *format)
+			}
 
-		if orgPreRun != nil {
-			return orgPreRun(cmd, args)
+			if err := l.configure(flags); err != nil {
+				return err
+			}
+
+			if orgPreRunE != nil {
+				return orgPreRunE(cmd, args)
+			}
+			if cmd.PreRun != nil {
+				cmd.PreRun(cmd, args)
+			}
+
+			return nil
 		}
-		return nil
 	}
+
+	cobra.OnInitialize(func() { initCommands(cmd.Commands(), initFunc) })
 
 	cmdutil.LogFormat = *format
 	cmdutil.LogLevel = l.c.Level

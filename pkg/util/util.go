@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package util
 
 import (
@@ -38,10 +24,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
-	"github.com/briandowns/spinner"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -69,8 +56,10 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 			cancels++
 			if cancels == 1 {
 				log.G(ctx).Printf("got signal: %s", s)
+				reportCancel(reporter.CANCELED)
 				cancel()
 			} else {
+				reporter.G().Close(reporter.ABRUPTLY_CANCELED, nil)
 				log.G(ctx).Printf("forcing exit")
 				os.Exit(1)
 			}
@@ -182,6 +171,20 @@ func CurrentServer() (string, error) {
 	return server, nil
 }
 
-func DecorateErrorWithDocsLink(err error) error {
-	return fmt.Errorf("%s\nfor more information: %s", err.Error(), store.Get().DocsLink)
+func DecorateErrorWithDocsLink(err error, link ...string) error {
+	if len(link) == 0 {
+		return fmt.Errorf("%s\nfor more information: %s", err.Error(), store.Get().DocsLink)
+	}
+
+	return fmt.Errorf("%s\nfor more information: %s", err.Error(), link[0])
 }
+
+func reportCancel(status reporter.CliStepStatus) {
+	reporter.G().ReportStep(reporter.CliStepData{
+		Step:        reporter.SIGNAL_TERMINATION,
+		Status:      status,
+		Description: "Cancelled by an external signal",
+		Err:         nil,
+	})
+}
+

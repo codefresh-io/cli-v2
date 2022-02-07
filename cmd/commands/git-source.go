@@ -11,21 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package commands
 
 import (
@@ -73,7 +58,8 @@ type (
 		CreateDemoResources bool
 		Exclude             string
 		Include             string
-		IngressHost		 	string
+		IngressHost         string
+		IngressClass        string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -97,10 +83,17 @@ type (
 	}
 
 	gitSourceGithubExampleOptions struct {
-		runtimeName string
-		gsCloneOpts *git.CloneOptions
-		gsFs        fs.FS
-		ingressHost string
+		runtimeName  string
+		gsCloneOpts  *git.CloneOptions
+		gsFs         fs.FS
+		ingressHost  string
+		ingressClass string
+	}
+
+	dirConfig struct {
+		application.Config
+		Exclude string `json:"exclude"`
+		Include string `json:"include"`
 	}
 )
 
@@ -109,6 +102,7 @@ func NewGitSourceCommand() *cobra.Command {
 		Use:               "git-source",
 		Short:             "Manage git-sources of Codefresh runtimes",
 		PersistentPreRunE: cfConfig.RequireAuthentication,
+		Args:              cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 			exit(1)
@@ -248,10 +242,11 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 		}
 
 		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
-			runtimeName: opts.RuntimeName,
-			gsCloneOpts: opts.GsCloneOpts,
-			gsFs:        gsFs,
-			ingressHost: opts.IngressHost,
+			runtimeName:  opts.RuntimeName,
+			gsCloneOpts:  opts.GsCloneOpts,
+			gsFs:         gsFs,
+			ingressHost:  opts.IngressHost,
+			ingressClass: opts.IngressClass,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -269,7 +264,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 }
 
 func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
-	err := createDemoWorkflowTemplate(opts.gsFs, opts.runtimeName)
+	err := createDemoWorkflowTemplate(opts.gsFs)
 	if err != nil {
 		return fmt.Errorf("failed to create demo workflowTemplate: %w", err)
 	}
@@ -289,7 +284,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create cron example trigger. Error: %w", err)
 	}
 
-	sensor, err := createCronExampleSensor(triggers, opts.runtimeName)
+	sensor, err := createCronExampleSensor(triggers)
 	if err != nil {
 		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
 	}
@@ -322,7 +317,7 @@ func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
 	}
 }
 
-func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger, runtimeName string) (*sensorsv1alpha1.Sensor, error) {
+func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alpha1.Sensor, error) {
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
 			Name:            store.Get().CronExampleDependencyName,
@@ -596,20 +591,20 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
 	}
-
-	c := &application.Config{}
-	err = fs.ReadJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	c := &dirConfig{}
+	fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
+	err = fs.ReadJson(fileName, c)
 	if err != nil {
-		return fmt.Errorf("failed to read the config.json of git-source: %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 	}
 
 	c.SrcPath = opts.GsCloneOpts.Path()
 	c.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
-	err = fs.WriteJson(fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config.json"), c)
+	err = fs.WriteJson(fileName, c)
 	if err != nil {
-		return fmt.Errorf("failed to write the updated config.json of git-source: %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 	}
 
 	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
@@ -620,7 +615,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	return nil
 }
 
-func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
+func createDemoWorkflowTemplate(gsFs fs.FS) error {
 	wfTemplate := &wfv1alpha1.WorkflowTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       wf.WorkflowTemplateKind,
@@ -662,7 +657,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS, runtimeName string) error {
 
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	// Create an ingress that will manage external access to the github eventsource service
-	ingress := createGithubExampleIngress()
+	ingress := createGithubExampleIngress(opts.ingressClass)
 	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 	if err != nil {
@@ -689,9 +684,10 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress() *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string) *netv1.Ingress {
 	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
-		Name: store.Get().CodefreshDeliveryPipelines,
+		Name:             store.Get().CodefreshDeliveryPipelines,
+		IngressClassName: ingressClass,
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        store.Get().GithubExampleEventSourceEndpointPath,
@@ -699,7 +695,7 @@ func createGithubExampleIngress() *netv1.Ingress {
 				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
 			},
-		},	})
+		}})
 }
 
 func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {

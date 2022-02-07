@@ -12,36 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package commands
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	_ "embed"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
 	"github.com/manifoldco/promptui"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
@@ -90,6 +84,11 @@ func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
+func getControllerName(s string) string {
+	split := strings.Split(s, "/")
+	return split[1]
+}
+
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
 		templates := &promptui.SelectTemplates{
@@ -118,21 +117,32 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 
 func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
-	if cloneOpts.Repo == "" {
-		if fromAPI {
-			runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
-			if err != nil {
-				return fmt.Errorf("failed getting runtime repo information: %w", err)
-			}
-			if runtimeData.Repo != nil {
-				die(cmd.Flags().Set("repo", *runtimeData.Repo))
-				return nil
-			}
+	if cloneOpts.Repo != "" {
+		return nil
+	}
+
+	if fromAPI {
+		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
-		if !store.Get().Silent {
-			return getRepoFromUserInput(cmd)
+		if runtimeData.Repo != nil {
+			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+			return nil
 		}
 	}
+
+	if !store.Get().Silent {
+		err := getRepoFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
+	}
+
+	if cloneOpts.Repo == "" {
+		return fmt.Errorf("must enter a valid installation repository URL")
+	}
+
 	return nil
 }
 
@@ -216,10 +226,89 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 	return nil
 }
 
-func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions) error {
-	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
-		return getGitTokenFromUserInput(cmd)
+func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []string, ingressClass *string) error {
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
 	}
+
+	labelStr := fmt.Sprintf("%vSelect ingressClass%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     ingressClassNames,
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	*ingressClass = result
+
+	return nil
+}
+
+func inferProviderFromRepo(opts *git.CloneOptions) {
+	if opts.Provider != "" {
+		return
+	}
+
+	if strings.Contains(opts.Repo, "github.com") {
+		opts.Provider = "github"
+	}
+	if strings.Contains(opts.Repo, "gitlab.com") {
+		opts.Provider = "gitlab"
+	}
+}
+
+func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
+	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
+		err := getGitTokenFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
+	}
+
+	if verify {
+		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password)
+		if err != nil {
+			return fmt.Errorf("failed to verify git token: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	if !store.Get().Silent {
+		return getGitPATFromUserInput(cmd, opts)
+	}
+
+	opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
+	return err
+}
+
+func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	gitPATPrompt := promptui.Prompt{
+		Label: "Enter your Personal Git Access Token (leave blank to use runtime token. Can be changed later)",
+		Mask:  '*',
+	}
+
+	gitPAT, err := gitPATPrompt.Run()
+	if err != nil {
+		return fmt.Errorf("prompt error: %w", err)
+	}
+
+	if gitPAT == "" {
+		gitPAT, err = cmd.Flags().GetString("git-token")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	opts.GitIntegrationRegistrationOpts.Token = gitPAT
+
 	return nil
 }
 
@@ -331,18 +420,11 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 	return nil
 }
 
-func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error {
-	if ingressHost != nil && *ingressHost != "" {
-		*ingressHost = strings.TrimSpace(*ingressHost)
-		return nil
-	}
-
-	if store.Get().Silent {
-		return fmt.Errorf("missing ingress host")
-	}
-
+func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
 	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host (required)",
+		Label: "Ingress host",
+		Default: foundIngressHost,
+		Pointer: promptui.PipeCursor,
 	}
 
 	ingressHostInput, err := ingressHostPrompt.Run()
@@ -350,13 +432,139 @@ func getIngressHostFromUserInput(cmd *cobra.Command, ingressHost *string) error 
 		return fmt.Errorf("Prompt error: %w", err)
 	}
 
-	ingressHostInput = strings.TrimSpace(ingressHostInput)
-	if ingressHostInput == "" {
-		return fmt.Errorf("missing ingress host")
+	opts.IngressHost = ingressHostInput
+
+	return nil
+}
+
+func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
+
+	cs := opts.KubeFactory.KubernetesClientSetOrDie()
+	ServicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
-	die(cmd.Flags().Set("ingress-host", ingressHostInput))
-	*ingressHost = ingressHostInput
+	var foundIngressHost string
 
+	for _, s := range ServicesList.Items {
+		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
+			ingress := s.Status.LoadBalancer.Ingress[0]
+			if ingress.Hostname != "" {
+				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
+				break
+			} else {
+				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
+				break
+			}
+		}
+	}
+
+	if store.Get().Silent {
+		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
+		opts.IngressHost = foundIngressHost
+	} else {
+		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.IngressController == "" {
+		return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
+	}
+
+	return nil
+}
+
+func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
+	match, err := regexp.MatchString("http:", ingress)
+	if err != nil {
+		return false, err
+	}
+	if match {
+		return true, nil
+	}
+
+	res, err := http.Get(ingress)
+
+	if err == nil {
+		res.Body.Close()
+		return true, nil
+	}
+
+	urlErr, ok := err.(*url.Error)
+	if !ok {
+		return false, err
+	}
+	_, ok1 := urlErr.Err.(x509.CertificateInvalidError)
+	_, ok2 := urlErr.Err.(x509.SystemRootsError)
+	_, ok3 := urlErr.Err.(x509.UnknownAuthorityError)
+	_, ok4 := urlErr.Err.(x509.ConstraintViolationError)
+	_, ok5 := urlErr.Err.(x509.HostnameError)
+
+	certErr := ok1 || ok2 || ok3 || ok4 || ok5
+	if !certErr {
+		return false, fmt.Errorf("failed with non-certificate error: %w", err)
+	}
+
+	insecureOk := checkIngressHostWithInsecure(ingress)
+	if !insecureOk {
+		return false, fmt.Errorf("insecure call failed: %w", err)
+	}
+
+	return false, nil
+}
+
+func checkIngressHostWithInsecure(ingress string) bool {
+	httpClient := &http.Client{}
+	httpClient.Timeout = 10 * time.Second
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	httpClient.Transport = customTransport
+	req, err := http.NewRequest("GET", ingress, nil)
+	if err != nil {
+		return false
+	}
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	res.Body.Close()
+	return true
+}
+
+func askUserIfToProceedWithInsecure(ctx context.Context) error {
+	if store.Get().InsecureIngressHost {
+		return nil
+	}
+	if store.Get().Silent {
+		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
+	}
+
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	log.G(ctx).Warnf("The ingress host does not have a valid certificate.")
+	labelStr := fmt.Sprintf("%vDo you wish to continue with the installation in insecure mode with this ingress host?%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     []string{"Yes", "Cancel installation"},
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("Prompt error: %w", err)
+	}
+
+	if result == "Yes" {
+		store.Get().InsecureIngressHost = true
+	} else {
+		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
+	}
 	return nil
 }

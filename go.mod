@@ -9,22 +9,27 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.1.2
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
+	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/briandowns/spinner v1.16.0
-	github.com/codefresh-io/go-sdk v0.37.4
+	github.com/codefresh-io/go-sdk v0.37.6
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.1
 	github.com/gobuffalo/packr v1.30.1
+	github.com/google/uuid v1.1.2
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/manifoldco/promptui v0.8.0
+	github.com/segmentio/backo-go v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
+	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	gopkg.in/segmentio/analytics-go.v3 v3.1.0
 	k8s.io/api v0.21.3
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
