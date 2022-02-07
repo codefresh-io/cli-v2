@@ -68,7 +68,6 @@ const (
 	InstallStepPreCheckEnsureGitToken                 CliStep = "install.pre-check.step.ensure-git-token"
 	InstallStepPreCheckEnsureGitPAT                   CliStep = "install.pre-check.step.ensure-git-personal-access-token"
 	InstallStepPreCheckEnsureIngressHost              CliStep = "install.pre-check.step.ensure-ingress-host"
-	InstallStepPreCheckShouldInstallDemoResources     CliStep = "install.pre-check.step.should-install-demo-resources"
 	InstallPhasePreCheckFinish                        CliStep = "install.pre-check.phase.finish"
 	InstallPhaseRunPreCheckStart                      CliStep = "install.run.pre-check.phase.start"
 	InstallStepRunPreCheckDownloadRuntimeDefinition   CliStep = "install.run.pre-check.step.download-runtime-definition"

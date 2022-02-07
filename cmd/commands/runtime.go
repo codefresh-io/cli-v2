@@ -249,7 +249,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
-			err = getRuntimeNameFromUserInput(&opts.RuntimeName)
+			getRuntimeNameFromUserInput(&opts.RuntimeName)
 		} else {
 			err = fmt.Errorf("must enter a runtime name")
 		}
@@ -303,11 +303,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
-	handleCliStep(reporter.InstallStepPreCheckShouldInstallDemoResources, "Asking user is demo resources should be installed", err, false)
-	if err != nil {
-		return err
-	}
+	askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
 
 	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
 	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
@@ -453,10 +449,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	if !store.Get().Silent {
-		err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
-		if err != nil {
-			return err
-		}
+		getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
 
 		opts.IngressController = ingressClassNameToController[opts.IngressClass]
 		return nil
