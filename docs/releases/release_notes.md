@@ -1,6 +1,6 @@
 ### Installed Applications:
 
--   Argo CD [v2.1.5](https://github.com/codefresh-io/argo-cd/releases/tag/v2.1.3)
+-   Argo CD [v2.1.10](https://github.com/argoproj/argo-cd/releases/tag/v2.1.10)
     -   Argo CD ApplicationSet Controller [v0.2.0](https://github.com/argoproj-labs/applicationset/releases/tag/v0.2.0)
 -   Argo Events [v1.5.5](https://github.com/argoproj/argo-events/releases/tag/v1.4.0)
 -   Argo Rollouts [v1.1.0](https://github.com/argoproj/argo-rollouts/releases/tag/v1.1.0)
@@ -8,7 +8,7 @@
 
 ### Security Fixes:
 
-- Argo CD [GHSA-63qx-x74g-jcr7](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7)
+- Argo CD [GHSA-63qx-x74g-jcr7](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7) fixed in [v2.1.10](https://github.com/argoproj/argo-cd/releases/tag/v2.1.10)
 
 ### Using brew:
 
