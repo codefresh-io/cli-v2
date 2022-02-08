@@ -288,10 +288,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
-	tokenFromFlag, err := cmd.Flags().GetString("personal-git-token")
-	if err != nil {
-		return err
-	}
+	tokenFromFlag := opts.GitIntegrationRegistrationOpts.Token
 
 	if  tokenFromFlag == "" {
 		if !store.Get().Silent {
@@ -300,7 +297,8 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 				return err
 			}
 		} else {
-			opts.GitIntegrationRegistrationOpts.Token, err = cmd.Flags().GetString("git-token")
+			log.G(cmd.Context()).Info("Using runtime token as personal user token")
+			opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
 			if err != nil {
 				return err
 			}
