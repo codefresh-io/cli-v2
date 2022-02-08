@@ -317,37 +317,6 @@ func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[s
 	if err != nil {
 		return nil, err
 	}
-
-	_, targetPort := nestedMapLookup(crd, "spec", "service", "ports")
-	if targetPort != nil {
-		for _, value := range targetPort["ports"].([]interface{}) {
-			if rec, ok := value.(map[string]interface{}); ok {
-				_, targetPort := nestedMapLookup(rec, "targetPort")
-				if targetPort != nil {
-					delete(targetPort, "targetPort")
-				}
-			}
-		}
-	}
-
-	_, templates := nestedMapLookup(crd, "spec", "templates")
-	if templates != nil {
-		for _, value := range templates["templates"].([]interface{}) {
-			if rec, ok := value.(map[string]interface{}); ok {
-				containerArrVals, containerArr := nestedMapLookup(rec, "container")
-				if containerArr != nil && containerArrVals != nil {
-					delete(containerArr, "metadata")
-					delete(containerArr, "outputs")
-				}
-				containerVals, container := nestedMapLookup(rec, "container", "name")
-				if container != nil && containerVals != nil {
-					delete(container, "name")
-					delete(container, "resources")
-				}
-			}
-		}
-	}
-
 	deleteRedundandedGeneralFields(crd)
 
 	return crd, nil
