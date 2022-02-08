@@ -20,13 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/runtime"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
-	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
+	"encoding/json"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -41,14 +35,19 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	billyUtils "github.com/go-git/go-billy/v5/util"
+	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/runtime"
+	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/pkg/util"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
+	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/yaml"
 )
 
 type (
@@ -232,7 +231,6 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
-
 	if len(fi) == 0 {
 		err = createCronExamplePipeline(&gitSourceCronExampleOptions{
 			runtimeName: opts.RuntimeName,
@@ -275,14 +273,15 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleSensorFileName)
 
 	eventSource := createCronExampleEventSource()
+	eventSourceRedundanded, ok := cleanUpRedundantFieldsFromCalendarEventSource(&eventSource)
+	if ok {
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSourceRedundanded)
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	}
 
-	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of eventsource. Error: %w", err)
-	}
-	err = cleanUpRedundantFields(eventSourceFilePath, opts.gsCloneOpts.FS, eventSource)
-	if err != nil {
-		return fmt.Errorf("failed to clean up redundant fields of eventSource. Error: %w", err)
 	}
 
 	trigger, err := createCronExampleTrigger()
@@ -296,41 +295,45 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
 	}
 
-	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	sensorRedundanded, ok := cleanUpRedundantFieldsFromCalendarSensor(&sensor)
+	if ok {
+		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensorRedundanded)
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of cron example sensor. Error: %w", err)
 	}
 
-	err = cleanUpRedundantFields(sensorFilePath, opts.gsCloneOpts.FS, sensor)
-	if err != nil {
-		return fmt.Errorf("failed to clean up redundant fields of eventSource. Error: %w", err)
-	}
-
 	return nil
 }
+func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[string]interface{}, bool) {
 
-func cleanUpRedundantFields(filename string, gsFs fs.FS, o ...interface{}) error {
-
-	type obj = map[string]interface{}
-
-	data, err := gsFs.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read  cron example eventSorce yaml file. Error: %w", err)
-	}
 	crd := make(map[string]interface{})
-	err = yaml.Unmarshal(data, &crd)
+
+	data, err := json.Marshal(ingress)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal eventSorce yaml file. Error: %w", err)
+		return nil, false
 	}
 
-	//Delete redunded fields from calendar eventSource
-	_, schedule := nestedMapLookup(crd, "spec", "calendar", "example-with-interval", "schedule")
-
-	if schedule != nil {
-		deleteIfExistsFromMap(schedule, "schedule")
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, false
 	}
 
-	//Delete redunded fields from workflow-template
+	_, targetPort := nestedMapLookup(crd, "spec", "service", "ports")
+	if targetPort != nil {
+		for _, value := range targetPort["ports"].([]interface{}) {
+			if rec, ok := value.(map[string]interface{}); ok {
+				_, targetPort := nestedMapLookup(rec, "targetPort")
+				if targetPort != nil {
+					deleteIfExistsFromMap(targetPort, "targetPort")
+				}
+			}
+		}
+	}
+
 	_, templates := nestedMapLookup(crd, "spec", "templates")
 	if templates != nil {
 		for _, value := range templates["templates"].([]interface{}) {
@@ -349,12 +352,129 @@ func cleanUpRedundantFields(filename string, gsFs fs.FS, o ...interface{}) error
 		}
 	}
 
-	//Delete redunded fields from sensor
+	deleteIfExistsFromMap(crd, "status")
+	metadata := crd["metadata"].(map[string]interface{})
+	deleteIfExistsFromMap(metadata, "creationTimestamp")
+
+	return crd, true
+
+}
+
+func cleanUpRedundantFieldsFromCalendarEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, bool) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(eventSource)
+	if err != nil {
+		return nil, false
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, false
+	}
+
+	_, schedule := nestedMapLookup(crd, "spec", "calendar", "example-with-interval", "schedule")
+
+	if schedule != nil {
+		deleteIfExistsFromMap(schedule, "schedule")
+	}
+
+	deleteIfExistsFromMap(crd, "status")
+	metadata := crd["metadata"].(map[string]interface{})
+	deleteIfExistsFromMap(metadata, "creationTimestamp")
+
+	return crd, true
+
+}
+
+func cleanUpRedundantFieldsFromTemplWorkflow(eventSource *wfv1alpha1.WorkflowTemplate) (map[string]interface{}, bool) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(eventSource)
+	if err != nil {
+		return nil, false
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, false
+	}
+
+	_, templates := nestedMapLookup(crd, "spec", "templates")
+	if templates != nil {
+		for _, value := range templates["templates"].([]interface{}) {
+			if rec, ok := value.(map[string]interface{}); ok {
+				containerArrVals, containerArr := nestedMapLookup(rec, "container")
+				if containerArr != nil && containerArrVals != nil {
+					deleteIfExistsFromMap(containerArr, "metadata")
+					deleteIfExistsFromMap(containerArr, "outputs")
+				}
+				containerVals, container := nestedMapLookup(rec, "container", "name")
+				if container != nil && containerVals != nil {
+					deleteIfExistsFromMap(container, "name")
+					deleteIfExistsFromMap(container, "resources")
+				}
+			}
+		}
+	}
+	metadata := crd["metadata"].(map[string]interface{})
+	deleteIfExistsFromMap(metadata, "creationTimestamp")
+
+	return crd, true
+
+}
+
+func cleanUpRedundantFieldsFromGithubEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, bool) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(eventSource)
+	if err != nil {
+		return nil, false
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, false
+	}
+
+	_, targetPort := nestedMapLookup(crd, "spec", "service", "ports")
+	if targetPort != nil {
+		for _, value := range targetPort["ports"].([]interface{}) {
+			if rec, ok := value.(map[string]interface{}); ok {
+				_, targetPort := nestedMapLookup(rec, "targetPort")
+				if targetPort != nil {
+					deleteIfExistsFromMap(targetPort, "targetPort")
+				}
+			}
+		}
+	}
+
 	_, githup := nestedMapLookup(crd, "spec", "github", "push", "id")
 	if githup != nil {
 		deleteIfExistsFromMap(githup, "id")
 		deleteIfExistsFromMap(githup, "owner")
 		deleteIfExistsFromMap(githup, "repository")
+	}
+
+	deleteIfExistsFromMap(crd, "status")
+	metadata := crd["metadata"].(map[string]interface{})
+	deleteIfExistsFromMap(metadata, "creationTimestamp")
+
+	return crd, true
+
+}
+
+func cleanUpRedundantFieldsFromGithubSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, bool) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(sensor)
+	if err != nil {
+		return nil, false
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, false
 	}
 
 	//Delete redunded fields from sensor
@@ -384,34 +504,63 @@ func cleanUpRedundantFields(filename string, gsFs fs.FS, o ...interface{}) error
 		}
 
 	}
-	//Delete redunded fields from eventSource
-	_, targetPort := nestedMapLookup(crd, "spec", "service", "ports")
-	if targetPort != nil {
-		for _, value := range targetPort["ports"].([]interface{}) {
+
+	deleteIfExistsFromMap(crd, "status")
+	metadata := crd["metadata"].(map[string]interface{})
+	deleteIfExistsFromMap(metadata, "creationTimestamp")
+
+	return crd, true
+
+}
+
+func cleanUpRedundantFieldsFromCalendarSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, bool) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(sensor)
+	if err != nil {
+		return nil, false
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, false
+	}
+
+	_, triggers := nestedMapLookup(crd, "spec", "triggers")
+	if triggers != nil {
+		for _, value := range triggers["triggers"].([]interface{}) {
 			if rec, ok := value.(map[string]interface{}); ok {
-				_, targetPort := nestedMapLookup(rec, "targetPort")
-				if targetPort != nil {
-					deleteIfExistsFromMap(targetPort, "targetPort")
+				containerArrVals, containerArr := nestedMapLookup(rec, "template")
+				if containerArr != nil && containerArrVals != nil {
+					deleteIfExistsFromMap(containerArr, "metadata")
+					deleteIfExistsFromMap(containerArr, "outputs")
+				}
+				_, container := nestedMapLookup(rec, "template", "argoWorkflow")
+				if container != nil {
+					deleteIfExistsFromMap(container, "name")
+					deleteIfExistsFromMap(container, "resources")
+				}
+				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
+				if resource != nil {
+					deleteIfExistsFromMap(resource, "status")
+				}
+				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
+				if metadata != nil {
+					deleteIfExistsFromMap(metadata, "creationTimestamp")
 				}
 			}
 		}
+
 	}
 
 	deleteIfExistsFromMap(crd, "status")
-	metadata := crd["metadata"].(obj)
+	metadata := crd["metadata"].(map[string]interface{})
 	deleteIfExistsFromMap(metadata, "creationTimestamp")
 
-	data, err = yaml.Marshal(crd)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cleaned up eventSorce yaml file. Error: %w", err)
-	}
-	err = billyUtils.WriteFile(gsFs, filename, data, 0666)
-	if err != nil {
-		return fmt.Errorf("failed to write cleaned up eventSorce yaml file. Error: %w", err)
-	}
-	return nil
+	return crd, true
 
 }
+
 func deleteIfExistsFromMap(m map[string]interface{}, key string) {
 	_, ok := m[key]
 	if ok {
@@ -791,50 +940,67 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 		},
 	}
 
-	err := gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
+	var err error
+
+	wfRedundanded, ok := cleanUpRedundantFieldsFromTemplWorkflow(wfTemplate)
+	if ok {
+		err = gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfRedundanded)
+	} else {
+		err = gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
+	}
+
 	if err != nil {
 		return err
 	}
-	_ = cleanUpRedundantFields(store.Get().CronExampleWfTemplateFileName, gsFs, wfTemplate)
 	return err
 }
 
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	// Create an ingress that will manage external access to the github eventsource service
+	var err error
 	ingress := createGithubExampleIngress(opts.ingressClass)
 	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
-	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+
+	ingressRedundanded, ok := cleanUpRedundantFieldsFromIngressGithubYaml(&ingress)
+	if ok {
+		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingressRedundanded)
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
-	}
-	err = cleanUpRedundantFields(ingressFilePath, opts.gsCloneOpts.FS, ingress)
-	if err != nil {
-		return fmt.Errorf("failed to clean up redundant fields of githup ingress YAML. Error: %w", err)
 	}
 
 	// Create a github eventsource that will listen to push events in the git source repo
 	gsRepoURL := opts.gsCloneOpts.URL()
 	eventSource := createGithubExampleEventSource(gsRepoURL, opts.ingressHost)
 	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
-	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+
+	eventSourceRedundanded, ok := cleanUpRedundantFieldsFromGithubEventSource(&eventSource)
+	if ok {
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSourceRedundanded)
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of secret. Error: %w", err)
-	}
-	err = cleanUpRedundantFields(eventSourceFilePath, opts.gsCloneOpts.FS, eventSource)
-	if err != nil {
-		return fmt.Errorf("failed to clean up redundant fields of github eventSource YAML. Error: %w", err)
 	}
 
 	// Create a sensor that will listen to the events published by the github eventsource, and trigger workflows
 	sensor := createGithubExampleSensor()
 	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleSensorFileName)
-	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+
+	sensorRedunded, ok := cleanUpRedundantFieldsFromGithubSensor(&sensor)
+	if ok {
+		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensorRedunded)
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of github example sensor. Error: %w", err)
-	}
-	err = cleanUpRedundantFields(sensorFilePath, opts.gsCloneOpts.FS, sensor)
-	if err != nil {
-		return fmt.Errorf("failed to clean up redundant fields of githup sensor YAML. Error: %w", err)
 	}
 	return nil
 }
