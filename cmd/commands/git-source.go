@@ -273,14 +273,13 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleSensorFileName)
 
 	eventSource := createCronExampleEventSource()
-	err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
-	/* 	eventSourceRedundanded, err := cleanUpRedundantFieldsFromCalendarEventSource(&eventSource)
-	   	if err != nil {
-	   		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
+	eventSourceRedundanded, err := cleanUpRedundantFieldsFromCalendarEventSource(&eventSource)
+	if err != nil {
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 
-	   	} else {
-	   		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSourceRedundanded)
-	   	} */
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSourceRedundanded)
+	}
 
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of eventsource. Error: %w", err)
@@ -296,15 +295,15 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
 	}
-	err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
-	/* 	sensorRedundanded, err := cleanUpRedundantFieldsFromCalendarSensor(&sensor)
-	   	if err != nil {
 
-	   		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+	sensorRedundanded, err := cleanUpRedundantFieldsFromCalendarSensor(&sensor)
+	if err != nil {
 
-	   	} else {
-	   		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensorRedundanded)
-	   	} */
+		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
+
+	} else {
+		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensorRedundanded)
+	}
 
 	if err != nil {
 		return fmt.Errorf("failed to write yaml of cron example sensor. Error: %w", err)
