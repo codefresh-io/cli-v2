@@ -310,15 +310,8 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 }
 func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[string]interface{}, bool) {
 
-	crd := make(map[string]interface{})
-
-	data, err := json.Marshal(ingress)
-	if err != nil {
-		return nil, false
-	}
-
-	err = json.Unmarshal(data, &crd)
-	if err != nil {
+	crd, err := unMarshalCustomObject(ingress)
+	if !err {
 		return nil, false
 	}
 
@@ -352,51 +345,56 @@ func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[s
 		}
 	}
 
-	delete(crd, "status")
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
+	deleteRedundandedGeneralFields(crd)
 
 	return crd, true
 
 }
 
 func cleanUpRedundantFieldsFromCalendarEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, bool) {
-	crd := make(map[string]interface{})
 
-	data, err := json.Marshal(eventSource)
-	if err != nil {
+	crd, err := unMarshalCustomObject(eventSource)
+	if !err {
 		return nil, false
 	}
-
-	err = json.Unmarshal(data, &crd)
-	if err != nil {
-		return nil, false
-	}
-
 	_, schedule := nestedMapLookup(crd, "spec", "calendar", "example-with-interval", "schedule")
 
 	if schedule != nil {
 		delete(schedule, "schedule")
 	}
 
-	delete(crd, "status")
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
+	deleteRedundandedGeneralFields(crd)
 
 	return crd, true
 
 }
 
-func cleanUpRedundantFieldsFromTemplWorkflow(eventSource *wfv1alpha1.WorkflowTemplate) (map[string]interface{}, bool) {
+func unMarshalCustomObject(obj interface{}) (map[string]interface{}, bool) {
+
 	crd := make(map[string]interface{})
 
-	data, err := json.Marshal(eventSource)
+	data, err := json.Marshal(obj)
 	if err != nil {
 		return nil, false
 	}
 
 	err = json.Unmarshal(data, &crd)
 	if err != nil {
+		return nil, false
+	}
+	return crd, true
+}
+
+func deleteRedundandedGeneralFields(crd map[string]interface{}) {
+	delete(crd, "status")
+	metadata := crd["metadata"].(map[string]interface{})
+	delete(metadata, "creationTimestamp")
+
+}
+
+func cleanUpRedundantFieldsFromTemplWorkflow(eventSource *wfv1alpha1.WorkflowTemplate) (map[string]interface{}, bool) {
+	crd, err := unMarshalCustomObject(eventSource)
+	if !err {
 		return nil, false
 	}
 
@@ -417,23 +415,15 @@ func cleanUpRedundantFieldsFromTemplWorkflow(eventSource *wfv1alpha1.WorkflowTem
 			}
 		}
 	}
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
+	deleteRedundandedGeneralFields(crd)
 
 	return crd, true
 
 }
 
 func cleanUpRedundantFieldsFromGithubEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, bool) {
-	crd := make(map[string]interface{})
-
-	data, err := json.Marshal(eventSource)
-	if err != nil {
-		return nil, false
-	}
-
-	err = json.Unmarshal(data, &crd)
-	if err != nil {
+	crd, err := unMarshalCustomObject(eventSource)
+	if !err {
 		return nil, false
 	}
 
@@ -456,24 +446,15 @@ func cleanUpRedundantFieldsFromGithubEventSource(eventSource **eventsourcev1alph
 		delete(githup, "repository")
 	}
 
-	delete(crd, "status")
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
+	deleteRedundandedGeneralFields(crd)
 
 	return crd, true
 
 }
 
 func cleanUpRedundantFieldsFromGithubSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, bool) {
-	crd := make(map[string]interface{})
-
-	data, err := json.Marshal(sensor)
-	if err != nil {
-		return nil, false
-	}
-
-	err = json.Unmarshal(data, &crd)
-	if err != nil {
+	crd, err := unMarshalCustomObject(sensor)
+	if !err {
 		return nil, false
 	}
 
@@ -505,24 +486,15 @@ func cleanUpRedundantFieldsFromGithubSensor(sensor **sensorsv1alpha1.Sensor) (ma
 
 	}
 
-	delete(crd, "status")
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
+	deleteRedundandedGeneralFields(crd)
 
 	return crd, true
 
 }
 
 func cleanUpRedundantFieldsFromCalendarSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, bool) {
-	crd := make(map[string]interface{})
-
-	data, err := json.Marshal(sensor)
-	if err != nil {
-		return nil, false
-	}
-
-	err = json.Unmarshal(data, &crd)
-	if err != nil {
+	crd, err := unMarshalCustomObject(sensor)
+	if !err {
 		return nil, false
 	}
 
@@ -553,9 +525,7 @@ func cleanUpRedundantFieldsFromCalendarSensor(sensor **sensorsv1alpha1.Sensor) (
 
 	}
 
-	delete(crd, "status")
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
+	deleteRedundandedGeneralFields(crd)
 
 	return crd, true
 
