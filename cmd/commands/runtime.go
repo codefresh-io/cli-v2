@@ -668,8 +668,14 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 		return fmt.Errorf("failed to build app-proxy client: %w", err)
 	}
 
+	errInstructions := util.Doc(fmt.Sprintf(
+		"you can try to create it manually by running:\n\n	<BIN> integration git add --provider %s --api-url %s\n",
+		strings.ToLower(opts.Provider.String()),
+		opts.APIURL,
+	))
+
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		return err
+		return fmt.Errorf("%w\n%s", err, errInstructions)
 	}
 
 	log.G(ctx).Info("Added default git integration")
