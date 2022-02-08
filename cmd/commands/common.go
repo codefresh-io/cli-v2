@@ -89,7 +89,7 @@ func getControllerName(s string) string {
 	return split[1]
 }
 
-func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) {
+func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
 		templates := &promptui.SelectTemplates{
 			Selected: "{{ . | yellow }} ",
@@ -105,13 +105,15 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) {
 
 		_, result, err := prompt.Run()
 		if err != nil {
-			log.G().Fatalf("prompt error: %s", err.Error())
+			return err
 		}
 
 		if result == "No" {
 			*sampleInstall = false
 		}
 	}
+
+	return nil
 }
 
 func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
@@ -132,7 +134,10 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 	}
 
 	if !store.Get().Silent {
-		getRepoFromUserInput(cmd)
+		err := getRepoFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
 	}
 
 	if cloneOpts.Repo == "" {
@@ -142,15 +147,18 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 	return nil
 }
 
-func getRepoFromUserInput(cmd *cobra.Command) {
+func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
+
 	die(cmd.Flags().Set("repo", repoInput))
+
+	return nil
 }
 
 func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string) error {
@@ -168,17 +176,21 @@ func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string) 
 	return nil
 }
 
-func getRuntimeNameFromUserInput(runtimeName *string) {
+func getRuntimeNameFromUserInput(runtimeName *string) error {
 	runtimeNamePrompt := promptui.Prompt{
 		Label:   "Runtime name",
 		Default: "codefresh",
 		Pointer: promptui.PipeCursor,
 	}
+
 	runtimeNameInput, err := runtimeNamePrompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
+
 	*runtimeName = runtimeNameInput
+
+	return nil
 }
 
 func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) error {
@@ -212,7 +224,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 
 		_, result, err := prompt.Run()
 		if err != nil {
-			log.G().Fatalf("prompt error: %s", err.Error())
+			return err
 		}
 
 		*runtimeName = result
@@ -220,7 +232,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 	return nil
 }
 
-func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []string, ingressClass *string) {
+func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []string, ingressClass *string) error {
 	templates := &promptui.SelectTemplates{
 		Selected: "{{ . | yellow }} ",
 	}
@@ -235,10 +247,12 @@ func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []stri
 
 	_, result, err := prompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
 
 	*ingressClass = result
+
+	return nil
 }
 
 func inferProviderFromRepo(opts *git.CloneOptions) {
@@ -256,7 +270,10 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
-		getGitTokenFromUserInput(cmd)
+		err := getGitTokenFromUserInput(cmd)
+		if err != nil {
+			return err
+		}
 	}
 
 	if verify {
@@ -301,7 +318,7 @@ func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) err
 
 	gitPAT, err := gitPATPrompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
 
 	if gitPAT == "" {
@@ -315,16 +332,19 @@ func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func getGitTokenFromUserInput(cmd *cobra.Command) {
+func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
 		Label: "Runtime git api token",
 		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
+
 	die(cmd.Flags().Set("git-token", gitTokenInput))
+
+	return nil
 }
 
 func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) error {
@@ -363,7 +383,7 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 
 	_, result, err := prompt.Run()
 	if err != nil {
-		return false, fmt.Errorf("Prompt error: %w", err)
+		return false, err
 	}
 
 	if result == "Yes" {
@@ -411,7 +431,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 	index, _, err := prompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
 
 	result := contextsIndex[index]
@@ -422,7 +442,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 	return nil
 }
 
-func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) {
+func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
 	ingressHostPrompt := promptui.Prompt{
 		Label: "Ingress host",
 		Default: foundIngressHost,
@@ -431,10 +451,12 @@ func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOption
 
 	ingressHostInput, err := ingressHostPrompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
 
 	opts.IngressHost = ingressHostInput
+
+	return nil
 }
 
 func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -465,7 +487,10 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
 		opts.IngressHost = foundIngressHost
 	} else {
-		getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		if err != nil {
+			return err
+		}
 	}
 
 	if opts.IngressHost == "" {
@@ -555,7 +580,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 
 	_, result, err := prompt.Run()
 	if err != nil {
-		log.G().Fatalf("prompt error: %s", err.Error())
+		return err
 	}
 
 	if result == "Yes" {

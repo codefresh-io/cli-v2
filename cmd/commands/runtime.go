@@ -187,7 +187,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
-				return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
+				if err.Error() != "^C" {
+					return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
+				}
+				return err
 			}
 
 			finalParameters = map[string]string{
@@ -249,7 +252,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
-			getRuntimeNameFromUserInput(&opts.RuntimeName)
+			err = getRuntimeNameFromUserInput(&opts.RuntimeName)
 		} else {
 			err = fmt.Errorf("must enter a runtime name")
 		}
@@ -303,7 +306,11 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
+	err = askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
+	handleCliStep(reporter.InstallStepPreCheckShouldInstallDemoResources, "Asking user is demo resources should be installed", err, false)
+	if err != nil {
+		return err
+	}
 
 	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
 	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
@@ -449,7 +456,10 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	if !store.Get().Silent {
-		getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+		err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+		if err != nil {
+			return err
+		}
 
 		opts.IngressController = ingressClassNameToController[opts.IngressClass]
 		return nil
