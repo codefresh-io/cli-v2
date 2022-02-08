@@ -656,12 +656,15 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 }
 
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
-	// Create an ingress that will manage external access to the github eventsource service
-	ingress := createGithubExampleIngress(opts.ingressClass)
-	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
-	err := opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
-	if err != nil {
-		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
+	var err error
+	if !store.Get().SkipIngress {
+		// Create an ingress that will manage external access to the github eventsource service
+		ingress := createGithubExampleIngress(opts.ingressClass)
+		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
+		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+		if err != nil {
+			return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
+		}
 	}
 
 	// Create a github eventsource that will listen to push events in the git source repo

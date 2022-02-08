@@ -220,6 +220,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
+	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Cancels the creation of an ingress resource")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
@@ -700,7 +701,7 @@ func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apm
 
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
-	if opts.IngressHost != "" {
+	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1354,7 +1355,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		},
 	})
 
-	if opts.IngressHost != "" {
+	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 			Name:             rt.Name + store.Get().AppProxyIngressName,
 			Namespace:        rt.Namespace,

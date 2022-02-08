@@ -117,6 +117,7 @@ type Store struct {
 	Silent                               bool
 	InsecureIngressHost                  bool
 	BypassIngressClassCheck              bool
+	SkipIngress                          bool
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
