@@ -290,12 +290,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	err = cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
-	if err != nil {
-		return err
-	}
-	
-	return nil
+	return cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
 }
 
 func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
