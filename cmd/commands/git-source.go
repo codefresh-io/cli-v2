@@ -328,7 +328,7 @@ func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[s
 			if rec, ok := value.(map[string]interface{}); ok {
 				_, targetPort := nestedMapLookup(rec, "targetPort")
 				if targetPort != nil {
-					deleteIfExistsFromMap(targetPort, "targetPort")
+					delete(targetPort, "targetPort")
 				}
 			}
 		}
@@ -340,21 +340,21 @@ func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[s
 			if rec, ok := value.(map[string]interface{}); ok {
 				containerArrVals, containerArr := nestedMapLookup(rec, "container")
 				if containerArr != nil && containerArrVals != nil {
-					deleteIfExistsFromMap(containerArr, "metadata")
-					deleteIfExistsFromMap(containerArr, "outputs")
+					delete(containerArr, "metadata")
+					delete(containerArr, "outputs")
 				}
 				containerVals, container := nestedMapLookup(rec, "container", "name")
 				if container != nil && containerVals != nil {
-					deleteIfExistsFromMap(container, "name")
-					deleteIfExistsFromMap(container, "resources")
+					delete(container, "name")
+					delete(container, "resources")
 				}
 			}
 		}
 	}
 
-	deleteIfExistsFromMap(crd, "status")
+	delete(crd, "status")
 	metadata := crd["metadata"].(map[string]interface{})
-	deleteIfExistsFromMap(metadata, "creationTimestamp")
+	delete(metadata, "creationTimestamp")
 
 	return crd, true
 
@@ -376,12 +376,12 @@ func cleanUpRedundantFieldsFromCalendarEventSource(eventSource **eventsourcev1al
 	_, schedule := nestedMapLookup(crd, "spec", "calendar", "example-with-interval", "schedule")
 
 	if schedule != nil {
-		deleteIfExistsFromMap(schedule, "schedule")
+		delete(schedule, "schedule")
 	}
 
-	deleteIfExistsFromMap(crd, "status")
+	delete(crd, "status")
 	metadata := crd["metadata"].(map[string]interface{})
-	deleteIfExistsFromMap(metadata, "creationTimestamp")
+	delete(metadata, "creationTimestamp")
 
 	return crd, true
 
@@ -406,19 +406,19 @@ func cleanUpRedundantFieldsFromTemplWorkflow(eventSource *wfv1alpha1.WorkflowTem
 			if rec, ok := value.(map[string]interface{}); ok {
 				containerArrVals, containerArr := nestedMapLookup(rec, "container")
 				if containerArr != nil && containerArrVals != nil {
-					deleteIfExistsFromMap(containerArr, "metadata")
-					deleteIfExistsFromMap(containerArr, "outputs")
+					delete(containerArr, "metadata")
+					delete(containerArr, "outputs")
 				}
 				containerVals, container := nestedMapLookup(rec, "container", "name")
 				if container != nil && containerVals != nil {
-					deleteIfExistsFromMap(container, "name")
-					deleteIfExistsFromMap(container, "resources")
+					delete(container, "name")
+					delete(container, "resources")
 				}
 			}
 		}
 	}
 	metadata := crd["metadata"].(map[string]interface{})
-	deleteIfExistsFromMap(metadata, "creationTimestamp")
+	delete(metadata, "creationTimestamp")
 
 	return crd, true
 
@@ -443,7 +443,7 @@ func cleanUpRedundantFieldsFromGithubEventSource(eventSource **eventsourcev1alph
 			if rec, ok := value.(map[string]interface{}); ok {
 				_, targetPort := nestedMapLookup(rec, "targetPort")
 				if targetPort != nil {
-					deleteIfExistsFromMap(targetPort, "targetPort")
+					delete(targetPort, "targetPort")
 				}
 			}
 		}
@@ -451,14 +451,14 @@ func cleanUpRedundantFieldsFromGithubEventSource(eventSource **eventsourcev1alph
 
 	_, githup := nestedMapLookup(crd, "spec", "github", "push", "id")
 	if githup != nil {
-		deleteIfExistsFromMap(githup, "id")
-		deleteIfExistsFromMap(githup, "owner")
-		deleteIfExistsFromMap(githup, "repository")
+		delete(githup, "id")
+		delete(githup, "owner")
+		delete(githup, "repository")
 	}
 
-	deleteIfExistsFromMap(crd, "status")
+	delete(crd, "status")
 	metadata := crd["metadata"].(map[string]interface{})
-	deleteIfExistsFromMap(metadata, "creationTimestamp")
+	delete(metadata, "creationTimestamp")
 
 	return crd, true
 
@@ -484,30 +484,30 @@ func cleanUpRedundantFieldsFromGithubSensor(sensor **sensorsv1alpha1.Sensor) (ma
 			if rec, ok := value.(map[string]interface{}); ok {
 				containerArrVals, containerArr := nestedMapLookup(rec, "template")
 				if containerArr != nil && containerArrVals != nil {
-					deleteIfExistsFromMap(containerArr, "metadata")
-					deleteIfExistsFromMap(containerArr, "outputs")
+					delete(containerArr, "metadata")
+					delete(containerArr, "outputs")
 				}
 				_, container := nestedMapLookup(rec, "template", "argoWorkflow")
 				if container != nil {
-					deleteIfExistsFromMap(container, "name")
-					deleteIfExistsFromMap(container, "resources")
+					delete(container, "name")
+					delete(container, "resources")
 				}
 				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
 				if resource != nil {
-					deleteIfExistsFromMap(resource, "status")
+					delete(resource, "status")
 				}
 				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
 				if metadata != nil {
-					deleteIfExistsFromMap(metadata, "creationTimestamp")
+					delete(metadata, "creationTimestamp")
 				}
 			}
 		}
 
 	}
 
-	deleteIfExistsFromMap(crd, "status")
+	delete(crd, "status")
 	metadata := crd["metadata"].(map[string]interface{})
-	deleteIfExistsFromMap(metadata, "creationTimestamp")
+	delete(metadata, "creationTimestamp")
 
 	return crd, true
 
@@ -532,40 +532,33 @@ func cleanUpRedundantFieldsFromCalendarSensor(sensor **sensorsv1alpha1.Sensor) (
 			if rec, ok := value.(map[string]interface{}); ok {
 				containerArrVals, containerArr := nestedMapLookup(rec, "template")
 				if containerArr != nil && containerArrVals != nil {
-					deleteIfExistsFromMap(containerArr, "metadata")
-					deleteIfExistsFromMap(containerArr, "outputs")
+					delete(containerArr, "metadata")
+					delete(containerArr, "outputs")
 				}
 				_, container := nestedMapLookup(rec, "template", "argoWorkflow")
 				if container != nil {
-					deleteIfExistsFromMap(container, "name")
-					deleteIfExistsFromMap(container, "resources")
+					delete(container, "name")
+					delete(container, "resources")
 				}
 				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
 				if resource != nil {
-					deleteIfExistsFromMap(resource, "status")
+					delete(resource, "status")
 				}
 				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
 				if metadata != nil {
-					deleteIfExistsFromMap(metadata, "creationTimestamp")
+					delete(metadata, "creationTimestamp")
 				}
 			}
 		}
 
 	}
 
-	deleteIfExistsFromMap(crd, "status")
+	delete(crd, "status")
 	metadata := crd["metadata"].(map[string]interface{})
-	deleteIfExistsFromMap(metadata, "creationTimestamp")
+	delete(metadata, "creationTimestamp")
 
 	return crd, true
 
-}
-
-func deleteIfExistsFromMap(m map[string]interface{}, key string) {
-	_, ok := m[key]
-	if ok {
-		delete(m, key)
-	}
 }
 
 func nestedMapLookup(m map[string]interface{}, ks ...string) (rval interface{}, mm map[string]interface{}) {
