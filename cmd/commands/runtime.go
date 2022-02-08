@@ -312,11 +312,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
-	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
-	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
-	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
-	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
+	initializeGitSourceCloneOpts(opts)
 
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
@@ -1857,4 +1853,12 @@ func getVersionIfExists(opts *RuntimeInstallOptions) error {
 		log.G().Infof("opts.Version: %s", opts.Version)
 	}
 	return nil
+}
+
+func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
+	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
+	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
+	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
+	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
+	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }
