@@ -215,6 +215,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
+	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
@@ -224,11 +225,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
 	})
-	installationOpts.GsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		Prefix:           "git-src",
-		Optional:         true,
+
+	installationOpts.GsCloneOpts = &git.CloneOptions{
+		FS: fs.Create(memfs.New()),
 		CreateIfNotExist: true,
-	})
+	}
+
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
@@ -307,22 +309,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if opts.GsCloneOpts.Auth.Username == "" {
-		opts.GsCloneOpts.Auth.Username = opts.InsCloneOpts.Auth.Username
-	}
-
-	if opts.GsCloneOpts.Auth.Password == "" {
-		opts.GsCloneOpts.Auth.Password = opts.InsCloneOpts.Auth.Password
-	}
-
-	if opts.GsCloneOpts.Repo == "" {
-		host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
-		opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
-	}
-
-	if opts.GsCloneOpts.Provider == "" {
-		opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
-	}
+	initializeGitSourceCloneOpts(opts)
 
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
@@ -1863,4 +1850,12 @@ func getVersionIfExists(opts *RuntimeInstallOptions) error {
 		log.G().Infof("opts.Version: %s", opts.Version)
 	}
 	return nil
+}
+
+func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
+	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
+	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
+	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
+	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
+	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }
