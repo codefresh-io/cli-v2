@@ -128,9 +128,7 @@ const (
 	Info    summaryLogLevels = "Info"
 )
 
-var (
-	summaryArr []summaryLog
-)
+var summaryArr []summaryLog
 
 func NewRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
