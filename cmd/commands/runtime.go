@@ -783,6 +783,12 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
+	err = kubeutil.TestNetwork(ctx, opts.KubeFactory)
+	handleCliStep(reporter.InstallStepRunPreCheckTestNetwork, "Testing the network", err, false)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("network testing failed: %v ", err))
+	}
+
 	err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, false)
 	if err != nil {

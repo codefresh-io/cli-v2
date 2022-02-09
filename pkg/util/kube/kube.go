@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	authv1 "k8s.io/api/authorization/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -201,4 +202,59 @@ func testNode(n v1.Node, req validationRequest) []string {
 	}
 
 	return result
+}
+
+func TestNetwork(ctx context.Context, kubeFactory kube.Factory) error {
+	jobName := "network-tester"
+	image := "https://hub.docker.com/codefresh/cf-venona-network-tester"
+	env := []v1.EnvVar{
+		{
+			Name: "URL",
+			Value: "https://g.codefresh.io",
+		},
+	}
+
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("cannot create kubernetes clientset: %v ", err)
+	}
+
+	err = launchJob(ctx, client, "default", &jobName, &image, env, 0)
+	
+	return nil
+}
+
+func launchJob(ctx context.Context, client kubernetes.Interface, namespace string, jobName *string, image *string, env []v1.EnvVar, backOffLimit int32) error {
+	jobs := client.BatchV1().Jobs(namespace)
+
+	jobSpec := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *jobName,
+			Namespace: namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  *jobName,
+							Image: *image,
+							Env:   env,
+						},
+					},
+					RestartPolicy: v1.RestartPolicyNever,
+				},
+			},
+			BackoffLimit: &backOffLimit,
+		},
+	}
+
+	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to create K8s job '%s' : %w", *jobName, err)
+	}
+
+	fmt.Printf("Job '%s' was created succesfully", *jobName)
+
+	return nil
 }
