@@ -15,6 +15,7 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -63,6 +64,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	kustid "sigs.k8s.io/kustomize/api/resid"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 )
@@ -227,7 +229,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 
 	installationOpts.GsCloneOpts = &git.CloneOptions{
-		FS: fs.Create(memfs.New()),
+		FS:               fs.Create(memfs.New()),
 		CreateIfNotExist: true,
 	}
 
@@ -783,7 +785,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
-	err = kubeutil.TestNetwork(ctx, opts.KubeFactory)
+	err = testNetwork(ctx, opts.KubeFactory)
 	handleCliStep(reporter.InstallStepRunPreCheckTestNetwork, "Testing the network", err, false)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("network testing failed: %v ", err))
@@ -1864,4 +1866,126 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
 	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
+}
+
+func testNetwork(ctx context.Context, kubeFactory kube.Factory) error {
+	const networkTestsTimeout = 120 * time.Second
+	var testerPodName string
+
+	env := []v1.EnvVar{
+		{
+			Name:  "URLS",
+			Value: "https://g.codefresh.io",
+		},
+		{
+			Name:  "IN_CLUSTER",
+			Value: "1",
+		},
+	}
+
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("fail to create kubernetes client: %w", err)
+	}
+
+	err = kubeutil.LaunchJob(kubeutil.LaunchJobOptions{
+		Ctx:           ctx,
+		Client:        client,
+		Namespace:     store.Get().DefaultNamespace,
+		JobName:       &store.Get().NetworkTesterName,
+		Image:         &store.Get().NetworkTesterImage,
+		Env:           env,
+		RestartPolicy: v1.RestartPolicyNever,
+		BackOffLimit:  0,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer client.BatchV1().Jobs(store.Get().DefaultNamespace).Delete(ctx, store.Get().NetworkTesterName, metav1.DeleteOptions{})
+
+	log.G(ctx).Info("Running network tests...")
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	var podLastState *v1.Pod
+	timeoutChan := time.After(networkTestsTimeout)
+
+Loop:
+	for {
+		select {
+		case <-ticker.C:
+			log.G(ctx).Debug("Waiting for network tester to finish")
+
+			if testerPodName == "" {
+				testerPodName, err = getTesterPodName(ctx, client)
+				if err != nil {
+					return err
+				}
+			}
+
+			pod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, testerPodName, metav1.GetOptions{})
+			if err != nil {
+				if statusError, errIsStatusError := err.(*kerrors.StatusError); errIsStatusError {
+					if statusError.ErrStatus.Reason == metav1.StatusReasonNotFound {
+						log.G(ctx).Debug("Network tester pod not found")
+					}
+				}
+			}
+			if len(pod.Status.ContainerStatuses) == 0 {
+				log.G(ctx).Debug("Network tester pod: creating container")
+				continue
+			}
+			if pod.Status.ContainerStatuses[0].State.Running != nil {
+				log.G(ctx).Debug("Network tester pod: running")
+			}
+			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+				log.G(ctx).Debug("Network tester pod: waiting")
+			}
+			if pod.Status.ContainerStatuses[0].State.Terminated != nil {
+				log.G(ctx).Debug("Network tester pod: terminated")
+				podLastState = pod
+				break Loop
+			}
+		case <-timeoutChan:
+			return fmt.Errorf("Network tests timeout reached!")
+		}
+	}
+
+	req := client.CoreV1().Pods(store.Get().DefaultNamespace).GetLogs(testerPodName, &v1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get network-tester pod logs: %w", err)
+	}
+	defer podLogs.Close()
+
+	logsBuf := new(bytes.Buffer)
+	_, err = io.Copy(logsBuf, podLogs)
+	if err != nil {
+		return fmt.Errorf("Failed to read network-tester pod logs: %w", err)
+	}
+	logs := strings.Trim(logsBuf.String(), "\n")
+	log.G(ctx).Debug(logs)
+
+	if podLastState.Status.ContainerStatuses[0].State.Terminated.ExitCode != 0 {
+		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
+		return fmt.Errorf("Network tests failed with: %s", terminationMessage)
+	}
+
+	return nil
+}
+
+func getTesterPodName(ctx context.Context, client kubernetes.Interface) (string, error) {
+	pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get pods from cluster: %w", err)
+	}
+
+	for _, pod := range pods.Items {
+		if pod.ObjectMeta.GenerateName == store.Get().NetworkTesterGenerateName {
+			return pod.ObjectMeta.Name, nil
+		}
+	}
+
+	return "", nil
 }

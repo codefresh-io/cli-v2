@@ -42,6 +42,17 @@ type (
 		memorySize string
 		rbac       []rbacValidation
 	}
+
+	LaunchJobOptions struct {
+		Ctx           context.Context
+		Client        kubernetes.Interface
+		Namespace     string
+		JobName       *string
+		Image         *string
+		Env           []v1.EnvVar
+		RestartPolicy v1.RestartPolicy
+		BackOffLimit  int32
+	}
 )
 
 func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
@@ -204,57 +215,35 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func TestNetwork(ctx context.Context, kubeFactory kube.Factory) error {
-	jobName := "network-tester"
-	image := "https://hub.docker.com/codefresh/cf-venona-network-tester"
-	env := []v1.EnvVar{
-		{
-			Name: "URL",
-			Value: "https://g.codefresh.io",
-		},
-	}
-
-	client, err := kubeFactory.KubernetesClientSet()
-	if err != nil {
-		return fmt.Errorf("cannot create kubernetes clientset: %v ", err)
-	}
-
-	err = launchJob(ctx, client, "default", &jobName, &image, env, 0)
-	
-	return nil
-}
-
-func launchJob(ctx context.Context, client kubernetes.Interface, namespace string, jobName *string, image *string, env []v1.EnvVar, backOffLimit int32) error {
-	jobs := client.BatchV1().Jobs(namespace)
+func LaunchJob(opts LaunchJobOptions) error {
+	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
 
 	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      *jobName,
-			Namespace: namespace,
+			Name:      *opts.JobName,
+			Namespace: opts.Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  *jobName,
-							Image: *image,
-							Env:   env,
+							Name:  *opts.JobName,
+							Image: *opts.Image,
+							Env:   opts.Env,
 						},
 					},
-					RestartPolicy: v1.RestartPolicyNever,
+					RestartPolicy: opts.RestartPolicy,
 				},
 			},
-			BackoffLimit: &backOffLimit,
+			BackoffLimit: &opts.BackOffLimit,
 		},
 	}
 
-	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
+	_, err := jobs.Create(opts.Ctx, jobSpec, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to create K8s job '%s' : %w", *jobName, err)
+		return fmt.Errorf("Failed to create K8s job '%s' : %w", *opts.JobName, err)
 	}
-
-	fmt.Printf("Job '%s' was created succesfully", *jobName)
 
 	return nil
 }
