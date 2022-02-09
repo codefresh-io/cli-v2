@@ -274,6 +274,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 
 	eventSource := createCronExampleEventSource()
 	eventSourceRedundanded, err := cleanUpRedundantFieldsFromCalendarEventSource(&eventSource)
+
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 
@@ -297,6 +298,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	}
 
 	sensorRedundanded, err := cleanUpRedundantFieldsFromCalendarSensor(&sensor)
+
 	if err != nil {
 
 		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
@@ -370,23 +372,6 @@ func cleanUpRedundantFieldsFromWorkflowTemplate(eventSource *wfv1alpha1.Workflow
 		return nil, err
 	}
 
-	_, templates := nestedMapLookup(crd, "spec", "templates")
-	if templates != nil {
-		for _, value := range templates["templates"].([]interface{}) {
-			if rec, ok := value.(map[string]interface{}); ok {
-				containerArrVals, containerArr := nestedMapLookup(rec, "container")
-				if containerArr != nil && containerArrVals != nil {
-					delete(containerArr, "metadata")
-					delete(containerArr, "outputs")
-				}
-				containerVals, container := nestedMapLookup(rec, "container", "name")
-				if container != nil && containerVals != nil {
-					delete(container, "name")
-					delete(container, "resources")
-				}
-			}
-		}
-	}
 	deleteRedundandedGeneralFields(crd)
 
 	return crd, nil
@@ -435,16 +420,7 @@ func cleanUpRedundantFieldsFromGithubSensor(sensor **sensorsv1alpha1.Sensor) (ma
 	if triggers != nil {
 		for _, value := range triggers["triggers"].([]interface{}) {
 			if rec, ok := value.(map[string]interface{}); ok {
-				containerArrVals, containerArr := nestedMapLookup(rec, "template")
-				if containerArr != nil && containerArrVals != nil {
-					delete(containerArr, "metadata")
-					delete(containerArr, "outputs")
-				}
-				_, container := nestedMapLookup(rec, "template", "argoWorkflow")
-				if container != nil {
-					delete(container, "name")
-					delete(container, "resources")
-				}
+
 				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
 				if resource != nil {
 					delete(resource, "status")
@@ -474,16 +450,7 @@ func cleanUpRedundantFieldsFromCalendarSensor(sensor **sensorsv1alpha1.Sensor) (
 	if triggers != nil {
 		for _, value := range triggers["triggers"].([]interface{}) {
 			if rec, ok := value.(map[string]interface{}); ok {
-				containerArrVals, containerArr := nestedMapLookup(rec, "template")
-				if containerArr != nil && containerArrVals != nil {
-					delete(containerArr, "metadata")
-					delete(containerArr, "outputs")
-				}
-				_, container := nestedMapLookup(rec, "template", "argoWorkflow")
-				if container != nil {
-					delete(container, "name")
-					delete(container, "resources")
-				}
+
 				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
 				if resource != nil {
 					delete(resource, "status")
@@ -878,6 +845,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 	var err error
 
 	wfRedundanded, err := cleanUpRedundantFieldsFromWorkflowTemplate(wfTemplate)
+
 	if err != nil {
 		err = gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
 	} else {
@@ -897,6 +865,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
 	ingressRedundanded, err := cleanUpRedundantFieldsFromIngressGithubYaml(&ingress)
+
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 
@@ -914,6 +883,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
 
 	eventSourceRedundanded, err := cleanUpRedundantFieldsFromGithubEventSource(&eventSource)
+
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
 
@@ -930,6 +900,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleSensorFileName)
 
 	sensorRedunded, err := cleanUpRedundantFieldsFromGithubSensor(&sensor)
+
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
 	} else {
