@@ -79,6 +79,7 @@ type (
 		IngressController              string
 		Insecure                       bool
 		InstallDemoResources           bool
+		SkipNetworkTest                bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -220,6 +221,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
+	cmd.Flags().BoolVar(&installationOpts.SkipNetworkTest, "skip-network-test", false, "Skips the cluster's network check")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
@@ -785,10 +787,12 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
-	err = testNetwork(ctx, opts.KubeFactory)
-	handleCliStep(reporter.InstallStepRunPreCheckTestNetwork, "Testing the network", err, false)
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("network testing failed: %v ", err))
+	if !opts.SkipNetworkTest {
+		err = testNetwork(ctx, opts.KubeFactory)
+		handleCliStep(reporter.InstallStepRunPreCheckTestNetwork, "Testing the network", err, false)
+		if err != nil {
+			return fmt.Errorf(fmt.Sprintf("network testing failed: %v ", err))
+		}
 	}
 
 	err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
@@ -1971,6 +1975,8 @@ Loop:
 		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
 		return fmt.Errorf("Network tests failed with: %s", terminationMessage)
 	}
+
+	log.G(ctx).Info("Network tests completed successfully")
 
 	return nil
 }
