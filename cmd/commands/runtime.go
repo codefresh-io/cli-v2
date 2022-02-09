@@ -128,7 +128,9 @@ const (
 	Info    summaryLogLevels = "Info"
 )
 
-var summaryArr []summaryLog
+var (
+	summaryArr []summaryLog
+)
 
 func NewRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -757,6 +759,11 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+	networkTestEnvVars := map[string]string{
+		"URLS":       "https://g.codefresh.io",
+		"IN_CLUSTER": "1",
+	}
+
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, false)
@@ -788,7 +795,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if !opts.SkipNetworkTest {
-		err = testNetwork(ctx, opts.KubeFactory)
+		err = testNetwork(ctx, opts.KubeFactory, networkTestEnvVars)
 		handleCliStep(reporter.InstallStepRunPreCheckTestNetwork, "Testing the network", err, false)
 		if err != nil {
 			return fmt.Errorf(fmt.Sprintf("network testing failed: %v ", err))
@@ -1872,20 +1879,11 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }
 
-func testNetwork(ctx context.Context, kubeFactory kube.Factory) error {
+func testNetwork(ctx context.Context, kubeFactory kube.Factory, envVars map[string]string) error {
 	const networkTestsTimeout = 120 * time.Second
 	var testerPodName string
 
-	env := []v1.EnvVar{
-		{
-			Name:  "URLS",
-			Value: "https://g.codefresh.io",
-		},
-		{
-			Name:  "IN_CLUSTER",
-			Value: "1",
-		},
-	}
+	env := prepareEnvVars(envVars)
 
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
@@ -1908,7 +1906,7 @@ func testNetwork(ctx context.Context, kubeFactory kube.Factory) error {
 
 	defer client.BatchV1().Jobs(store.Get().DefaultNamespace).Delete(ctx, store.Get().NetworkTesterName, metav1.DeleteOptions{})
 
-	log.G(ctx).Info("Running network tests...")
+	log.G(ctx).Info("Running network test...")
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -1952,7 +1950,7 @@ Loop:
 				break Loop
 			}
 		case <-timeoutChan:
-			return fmt.Errorf("Network tests timeout reached!")
+			return fmt.Errorf("Network test timeout reached!")
 		}
 	}
 
@@ -1973,12 +1971,25 @@ Loop:
 
 	if podLastState.Status.ContainerStatuses[0].State.Terminated.ExitCode != 0 {
 		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
-		return fmt.Errorf("Network tests failed with: %s", terminationMessage)
+		return fmt.Errorf("Network test failed with: %s", terminationMessage)
 	}
 
-	log.G(ctx).Info("Network tests completed successfully")
+	log.G(ctx).Info("Network test finished successfully")
 
 	return nil
+}
+
+func prepareEnvVars(vars map[string]string) []v1.EnvVar {
+	var env []v1.EnvVar
+
+	for key, value := range vars {
+		env = append(env, v1.EnvVar{
+			Name:  key,
+			Value: value,
+		})
+	}
+
+	return env
 }
 
 func getTesterPodName(ctx context.Context, client kubernetes.Interface) (string, error) {
