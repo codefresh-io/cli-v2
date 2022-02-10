@@ -44,7 +44,6 @@ type (
 	}
 
 	LaunchJobOptions struct {
-		Ctx           context.Context
 		Client        kubernetes.Interface
 		Namespace     string
 		JobName       *string
@@ -215,7 +214,7 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func LaunchJob(opts LaunchJobOptions) error {
+func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
 	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
 
 	jobSpec := &batchv1.Job{
@@ -240,9 +239,9 @@ func LaunchJob(opts LaunchJobOptions) error {
 		},
 	}
 
-	_, err := jobs.Create(opts.Ctx, jobSpec, metav1.CreateOptions{})
+	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to create K8s job '%s' : %w", *opts.JobName, err)
+		return fmt.Errorf("failed to create K8s job '%s' : %w", *opts.JobName, err)
 	}
 
 	return nil

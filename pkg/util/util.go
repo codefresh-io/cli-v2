@@ -196,7 +196,7 @@ func reportCancel(status reporter.CliStepStatus) {
 	})
 }
 
-func TestNetwork(ctx context.Context, kubeFactory kube.Factory, urls string) error {
+func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls string) error {
 	const networkTestsTimeout = 120 * time.Second
 	var testerPodName string
 
@@ -208,11 +208,10 @@ func TestNetwork(ctx context.Context, kubeFactory kube.Factory, urls string) err
 
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
-		return fmt.Errorf("fail to create kubernetes client: %w", err)
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	err = kubeutil.LaunchJob(kubeutil.LaunchJobOptions{
-		Ctx:           ctx,
+	err = kubeutil.LaunchJob(ctx, kubeutil.LaunchJobOptions{
 		Client:        client,
 		Namespace:     store.Get().DefaultNamespace,
 		JobName:       &store.Get().NetworkTesterName,
@@ -276,7 +275,7 @@ Loop:
 				break Loop
 			}
 		case <-timeoutChan:
-			return fmt.Errorf("Network test timeout reached!")
+			return fmt.Errorf("network test timeout reached!")
 		}
 	}
 
@@ -338,8 +337,6 @@ func checkPodLastState(ctx context.Context, client kubernetes.Interface, name st
 		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
 		return fmt.Errorf("Network test failed with: %s", terminationMessage)
 	}
-
-	log.G(ctx).Info("Network test finished successfully")
 
 	return nil
 }
