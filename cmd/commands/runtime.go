@@ -405,7 +405,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 }
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	if store.Get().BypassIngressClassCheck {
+	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
 		return nil
 	}
 
