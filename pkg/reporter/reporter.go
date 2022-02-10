@@ -75,7 +75,7 @@ const (
 	InstallStepRunPreCheckEnsureCliVersion            CliStep = "install.run.pre-check.step.ensure-cli-version"
 	InstallStepRunPreCheckRuntimeCollision            CliStep = "install.run.pre-check.step.runtime-collision"
 	InstallStepRunPreCheckExisitingRuntimes           CliStep = "install.run.pre-check.step.existing-runtimes"
-	InstallStepRunPreCheckNetworkTest                 CliStep = "install.run.pre-check.step.network-test"
+	InstallStepRunPreCheckClusterChecks                 CliStep = "install.run.pre-check.step.cluster-checks"
 	InstallStepRunPreCheckValidateClusterRequirements CliStep = "install.run.pre-check.step.validate-cluster-requirements"
 	InstallPhaseRunPreCheckFinish                     CliStep = "install.run.pre-check.phase.finish"
 	InstallPhaseStart                                 CliStep = "install.run.phase.start"
