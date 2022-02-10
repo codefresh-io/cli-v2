@@ -228,7 +228,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 
 	installationOpts.GsCloneOpts = &git.CloneOptions{
-		FS: fs.Create(memfs.New()),
+		FS:               fs.Create(memfs.New()),
 		CreateIfNotExist: true,
 	}
 
@@ -647,20 +647,36 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
 	}
 
-	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
-	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, true)
+	var gitIntgErr error
+	var appendToLog bool
+
+	if !store.Get().SkipIngress {
+		gitIntgErr = addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
+		appendToLog = true
+	}
+	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, appendToLog)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
 	}
 
-	gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
-	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, true)
+	if !store.Get().SkipIngress {
+		gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	}
+	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, appendToLog)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
+	skipIngressInfoMsg := `To complete the installation, please configure your cluster's routing service with '/app-proxy' path, then create and register to a git integration using the commands:
+cf intg git add default --runtime <RUNTIME_NAME> --api-url <API_URL>
+cf intg git register default --runtime <RUNTIME_NAME>`
+
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
+	if store.Get().SkipIngress {
+		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
+	}
+
 	log.G(ctx).Infof(installationSuccessMsg)
 
 	return nil
@@ -1273,6 +1289,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		Name:             rt.Name + store.Get().WorkflowsIngressName,
 		Namespace:        rt.Namespace,
 		IngressClassName: opts.IngressClass,
+		Host:             opts.IngressHost,
 		Annotations: map[string]string{
 			"ingress.kubernetes.io/protocol":               "https",
 			"ingress.kubernetes.io/rewrite-target":         "/$2",
@@ -1360,6 +1377,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Name:             rt.Name + store.Get().AppProxyIngressName,
 			Namespace:        rt.Namespace,
 			IngressClassName: opts.IngressClass,
+			Host:             opts.IngressHost,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),
