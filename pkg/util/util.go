@@ -287,29 +287,7 @@ Loop:
 		}
 	}()
 	
-	req := client.CoreV1().Pods(store.Get().DefaultNamespace).GetLogs(testerPodName, &v1.PodLogOptions{})
-	podLogs, err := req.Stream(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get network-tester pod logs: %w", err)
-	}
-	defer podLogs.Close()
-
-	logsBuf := new(bytes.Buffer)
-	_, err = io.Copy(logsBuf, podLogs)
-	if err != nil {
-		return fmt.Errorf("Failed to read network-tester pod logs: %w", err)
-	}
-	logs := strings.Trim(logsBuf.String(), "\n")
-	log.G(ctx).Debug(logs)
-
-	if podLastState.Status.ContainerStatuses[0].State.Terminated.ExitCode != 0 {
-		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
-		return fmt.Errorf("Network test failed with: %s", terminationMessage)
-	}
-
-	log.G(ctx).Info("Network test finished successfully")
-
-	return nil
+	return checkPodLastState(ctx, client, testerPodName,podLastState)
 }
 
 func prepareEnvVars(vars map[string]string) []v1.EnvVar {
@@ -338,5 +316,31 @@ func getTesterPodName(ctx context.Context, client kubernetes.Interface) (string,
 	}
 
 	return "", nil
+}
+
+func checkPodLastState(ctx context.Context, client kubernetes.Interface, name string, podLastState *v1.Pod) error {
+	req := client.CoreV1().Pods(store.Get().DefaultNamespace).GetLogs(name, &v1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get network-tester pod logs: %w", err)
+	}
+	defer podLogs.Close()
+
+	logsBuf := new(bytes.Buffer)
+	_, err = io.Copy(logsBuf, podLogs)
+	if err != nil {
+		return fmt.Errorf("Failed to read network-tester pod logs: %w", err)
+	}
+	logs := strings.Trim(logsBuf.String(), "\n")
+	log.G(ctx).Debug(logs)
+
+	if podLastState.Status.ContainerStatuses[0].State.Terminated.ExitCode != 0 {
+		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
+		return fmt.Errorf("Network test failed with: %s", terminationMessage)
+	}
+
+	log.G(ctx).Info("Network test finished successfully")
+
+	return nil
 }
 
