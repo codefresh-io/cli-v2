@@ -275,6 +275,8 @@ Loop:
 		}
 	}
 
+	defer client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, testerPodName, metav1.DeleteOptions{})
+
 	req := client.CoreV1().Pods(store.Get().DefaultNamespace).GetLogs(testerPodName, &v1.PodLogOptions{})
 	podLogs, err := req.Stream(ctx)
 	if err != nil {
