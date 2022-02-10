@@ -41,7 +41,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider string             The git provider, one of: gitea|github|gitlab
       --provider-api-url string     Git provider API url
       --repo string                 Repository URL [GIT_REPO]
-      --skip-network-test           Skips the cluster's network check
+      --skip-cluster-checks         Skips the cluster's checks
       --version string              The runtime version to install (default: latest)
       --wait-timeout duration       How long to wait for the runtime components to be ready (default 8m0s)
 ```
