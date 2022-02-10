@@ -757,11 +757,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
-	networkTestEnvVars := map[string]string{
-		"URLS":       "https://g.codefresh.io",
-		"IN_CLUSTER": "1",
-	}
-
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, false)
@@ -793,7 +788,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if !opts.SkipNetworkTest {
-		err = testNetwork(ctx, opts.KubeFactory, networkTestEnvVars)
+		err = testNetwork(ctx, opts.KubeFactory, cfConfig.GetCurrentContext().URL)
 		handleCliStep(reporter.InstallStepRunPreCheckTestNetwork, "Testing the network", err, false)
 		if err != nil {
 			return fmt.Errorf(fmt.Sprintf("network testing failed: %v ", err))
@@ -1877,10 +1872,14 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }
 
-func testNetwork(ctx context.Context, kubeFactory kube.Factory, envVars map[string]string) error {
+func testNetwork(ctx context.Context, kubeFactory kube.Factory, url string) error {
 	const networkTestsTimeout = 120 * time.Second
 	var testerPodName string
 
+	envVars = map[string]string{
+		"URLS": url,
+		"IN_CLUSTER": "1",
+	}
 	env := prepareEnvVars(envVars)
 
 	client, err := kubeFactory.KubernetesClientSet()
