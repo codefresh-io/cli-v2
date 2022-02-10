@@ -196,12 +196,12 @@ func reportCancel(status reporter.CliStepStatus) {
 	})
 }
 
-func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls string) error {
+func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
 	var testerPodName string
 
 	envVars := map[string]string{
-		"URLS": urls,
+		"URLS": strings.Join(urls, ","),
 		"IN_CLUSTER": "1",
 	}
 	env := prepareEnvVars(envVars)
