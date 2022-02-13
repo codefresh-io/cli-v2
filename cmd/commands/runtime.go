@@ -72,6 +72,7 @@ type (
 		RuntimeName                    string
 		RuntimeToken                   string
 		RuntimeStoreIV                 string
+		HostName                       string
 		IngressHost                    string
 		IngressClass                   string
 		IngressController              string
@@ -612,6 +613,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
+		HostName:            opts.HostName,
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
 	})
@@ -1291,7 +1293,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		Name:             rt.Name + store.Get().WorkflowsIngressName,
 		Namespace:        rt.Namespace,
 		IngressClassName: opts.IngressClass,
-		Host:             opts.IngressHost,
+		Host:             opts.HostName,
 		Annotations: map[string]string{
 			"ingress.kubernetes.io/protocol":               "https",
 			"ingress.kubernetes.io/rewrite-target":         "/$2",
@@ -1379,7 +1381,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Name:             rt.Name + store.Get().AppProxyIngressName,
 			Namespace:        rt.Namespace,
 			IngressClassName: opts.IngressClass,
-			Host:             opts.IngressHost,
+			Host:             opts.HostName,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),

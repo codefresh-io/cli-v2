@@ -58,6 +58,7 @@ type (
 		CreateDemoResources bool
 		Exclude             string
 		Include             string
+		HostName            string
 		IngressHost         string
 		IngressClass        string
 	}
@@ -86,6 +87,7 @@ type (
 		runtimeName  string
 		gsCloneOpts  *git.CloneOptions
 		gsFs         fs.FS
+		hostName     string
 		ingressHost  string
 		ingressClass string
 	}
@@ -245,6 +247,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			runtimeName:  opts.RuntimeName,
 			gsCloneOpts:  opts.GsCloneOpts,
 			gsFs:         gsFs,
+			hostName:     opts.HostName,
 			ingressHost:  opts.IngressHost,
 			ingressClass: opts.IngressClass,
 		})
@@ -659,7 +662,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	var err error
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the github eventsource service
-		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost)
+		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName)
 		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 		if err != nil {
@@ -687,11 +690,11 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string, ingressHost string) *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string) *netv1.Ingress {
 	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,
-		Host:             ingressHost,
+		Host:             hostName,
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        store.Get().GithubExampleEventSourceEndpointPath,
