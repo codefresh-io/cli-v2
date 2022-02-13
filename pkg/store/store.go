@@ -131,6 +131,10 @@ type Store struct {
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
 	SegmentWriteKey                      string
+	DefaultNamespace                     string
+	NetworkTesterName                    string
+	NetworkTesterGenerateName            string
+	NetworkTesterImage                   string
 }
 
 // Get returns the global store
@@ -218,6 +222,11 @@ func init() {
 	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
+	s.DefaultNamespace = "default"
+	s.NetworkTesterName = "cf-network-tester"
+	s.NetworkTesterGenerateName = "cf-network-tester-"
+	s.NetworkTesterImage = "codefresh/cf-venona-network-tester:latest"
+
 	initVersion()
 }
 
