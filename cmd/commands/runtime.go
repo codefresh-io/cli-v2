@@ -78,7 +78,7 @@ type (
 		IngressController              string
 		Insecure                       bool
 		InstallDemoResources           bool
-		SkipClusterChecks                bool
+		SkipClusterChecks              bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -1662,7 +1662,6 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 	firstResourceName := resourceNames[0]
 	firstGroupName := reporterCreateOpts.group[0]
 	firstVersionName := reporterCreateOpts.version[0]
-
 
 	options = &eventsutil.CreateEventSourceOptions{
 		Name:               reporterCreateOpts.reporterName,
