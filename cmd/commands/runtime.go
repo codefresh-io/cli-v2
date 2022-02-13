@@ -732,41 +732,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	// if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-	// 	reporterName:  store.Get().ReplicaSetReporterName,
-	// 	resourceNames: []string{store.Get().ReplicaSetResourceName},
-	// 	group:         []string{"apps"},
-	// 	version:       []string{"v1"},
-	// 	saName:        store.Get().ReplicaSetReporterServiceAccount,
-	// }); err != nil {
-	// 	return fmt.Errorf("failed to create replicaset-reporter: %w", err)
-	// }
-
-	// rolloutResourceNames := []string{
-	// 	store.Get().RolloutResourceName,
-	// 	store.Get().AnalysisRunResourceName,
-	// 	store.Get().ReplicaSetResourceName,
-	// }
-
-	// rolloutGroupNames := []string{
-	// 	"argoproj.io",
-	// 	"argoproj.io",
-	// 	"apps",
-	// }
-
-	// rolloutVersionNames := []string{
-	// 	"v1alpha1",
-	// 	"v1alpha1",
-	// 	"v1",
-	// }
-
-	/*
-s.RolloutResourceNames = []string{"rollouts", "replicasets", "analysisruns"}
-	s.RolloutResourcesGroupNames = []string{"argoproj.io", "argoproj.io", "apps"}
-	s.RolloutResourcesVersionNames
-	*/
-
-
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName:  store.Get().RolloutReporterName,
 		resourceNames: store.Get().RolloutResourcesNames,
@@ -1849,6 +1814,8 @@ func handleCliStep(step reporter.CliStep, message string, err error, appendToLog
 		appendLogToSummary(message, err)
 	}
 }
+
+// TODO: replicasets are reporting v1alpha1 and argoproj.io
 
 func appendLogToSummary(message string, err error) {
 	if err != nil {
