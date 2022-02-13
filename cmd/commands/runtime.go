@@ -1814,8 +1814,6 @@ func handleCliStep(step reporter.CliStep, message string, err error, appendToLog
 	}
 }
 
-// TODO: replicasets are reporting v1alpha1 and argoproj.io
-
 func appendLogToSummary(message string, err error) {
 	if err != nil {
 		summaryArr = append(summaryArr, summaryLog{message, Failed})

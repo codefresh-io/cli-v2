@@ -217,12 +217,9 @@ func init() {
 	s.MinimumCpuRequired = "2"
 	s.ReplicaSetReporterName = "replicaset-reporter"
 	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
-	// s.ReplicaSetResourceName = ""
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
-	// s.RolloutResourceName =
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
-	// s.AnalysisRunResourceName = "analysisruns"
 	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
