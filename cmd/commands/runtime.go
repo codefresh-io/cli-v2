@@ -651,6 +651,29 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
 	}
 
+	err = createGitIntegration(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
+	skipIngressInfoMsg := `To complete the installation: 
+1. Configure your cluster's routing service with path to '/app-proxy' 
+2. Create and register Git integration using the commands:
+cf intg git add default --runtime <RUNTIME_NAME> --api-url <API_URL>
+cf intg git register default --runtime <RUNTIME_NAME>`
+
+	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
+	if store.Get().SkipIngress {
+		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
+	}
+
+	log.G(ctx).Infof(installationSuccessMsg)
+
+	return nil
+}
+
+func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var gitIntgErr error
 	var appendToLog bool
 
@@ -670,20 +693,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
 	}
-
-	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
-	skipIngressInfoMsg := `To complete the installation: 
-1. Configure your cluster's routing service with path to '/app-proxy' 
-2. Create and register Git integration using the commands:
-cf intg git add default --runtime <RUNTIME_NAME> --api-url <API_URL>
-cf intg git register default --runtime <RUNTIME_NAME>`
-
-	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
-	if store.Get().SkipIngress {
-		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
-	}
-
-	log.G(ctx).Infof(installationSuccessMsg)
 
 	return nil
 }
