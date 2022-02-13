@@ -23,14 +23,27 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 )
 
+type TokenTypes string
+
+const (
+	RuntimeToken TokenTypes = "runtime token"
+	PersonalToken TokenTypes = "personal token"
+)
 
 var (
-	requiredGitHubScopes = []string{ "repo", "admin:repo_hook" }
+	requiredGitHubRuntimeScopes = []string{ "repo", "admin:repo_hook" }
+	requiredGitHubGitSourceScopes = []string{ "repo" }
+	
+	typeToGitHubScopes = map[TokenTypes][]string {
+		RuntimeToken: requiredGitHubRuntimeScopes,
+		PersonalToken: requiredGitHubGitSourceScopes,
+	}
 )
 
 
-func VerifyToken(ctx context.Context, provider string, token string) error {
-	providerToVerifier := map[string]func(context.Context, string)error {
+
+func VerifyToken(ctx context.Context, provider string, token string, tokenType TokenTypes) error {
+	providerToVerifier := map[string]func(context.Context, string, TokenTypes)error {
 		"github": verifyGitHubTokenScope,
 	}
 
@@ -39,11 +52,11 @@ func VerifyToken(ctx context.Context, provider string, token string) error {
 		return verifyTokenScopeFallback(ctx, provider)
 	}
 
-	return verifier(ctx, token)
+	return verifier(ctx, token, tokenType)
 }
 
-func verifyGitHubTokenScope(ctx context.Context, token string) error {
-	errMessage := "the provided git token is missing one or more of the required scopes:" + strings.Join(requiredGitHubScopes, ", ")
+func verifyGitHubTokenScope(ctx context.Context, token string, tokenType TokenTypes) error {
+	errMessage := fmt.Sprintf("the provided %s is missing one or more of the required scopes: %s", tokenType, strings.Join(typeToGitHubScopes[tokenType], ", "))
 	
 	req, err := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
 	if err != nil {
@@ -65,7 +78,7 @@ func verifyGitHubTokenScope(ctx context.Context, token string) error {
 		scopes = strings.Split(rawScopes[0], ", ")
 	}
 
-	for _, rs := range requiredGitHubScopes {
+	for _, rs := range typeToGitHubScopes[tokenType] {
 		var contained bool
 		for _, scope := range scopes {
 			if scope == rs {
@@ -78,6 +91,8 @@ func verifyGitHubTokenScope(ctx context.Context, token string) error {
 			return fmt.Errorf(errMessage)
 		}
 	}
+
+	log.G(ctx).Info("Token verified")
 
 	return nil
 }

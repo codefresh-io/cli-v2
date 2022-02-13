@@ -78,6 +78,7 @@ type (
 		IngressController              string
 		Insecure                       bool
 		InstallDemoResources           bool
+		SkipClusterChecks                bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -216,8 +217,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
+	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
+	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
@@ -225,11 +228,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
 	})
-	installationOpts.GsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		Prefix:           "git-src",
-		Optional:         true,
+
+	installationOpts.GsCloneOpts = &git.CloneOptions{
+		FS:               fs.Create(memfs.New()),
 		CreateIfNotExist: true,
-	})
+	}
+
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
@@ -308,22 +312,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if opts.GsCloneOpts.Auth.Username == "" {
-		opts.GsCloneOpts.Auth.Username = opts.InsCloneOpts.Auth.Username
-	}
-
-	if opts.GsCloneOpts.Auth.Password == "" {
-		opts.GsCloneOpts.Auth.Password = opts.InsCloneOpts.Auth.Password
-	}
-
-	if opts.GsCloneOpts.Repo == "" {
-		host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
-		opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
-	}
-
-	if opts.GsCloneOpts.Provider == "" {
-		opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
-	}
+	initializeGitSourceCloneOpts(opts)
 
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
@@ -685,8 +674,14 @@ func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel
 		return fmt.Errorf("failed to build app-proxy client: %w", err)
 	}
 
+	errInstructions := util.Doc(fmt.Sprintf(
+		"you can try to create it manually by running:\n\n	<BIN> integration git add --provider %s --api-url %s\n",
+		strings.ToLower(opts.Provider.String()),
+		opts.APIURL,
+	))
+
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		return err
+		return fmt.Errorf("%w\n%s", err, errInstructions)
 	}
 
 	log.G(ctx).Info("Added default git integration")
@@ -814,6 +809,17 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, false)
 	if err != nil {
 		return fmt.Errorf("existing runtime check failed: %w", err)
+	}
+
+	if !opts.SkipClusterChecks {
+		err = util.RunNetworkTest(ctx, opts.KubeFactory, cfConfig.GetCurrentContext().URL)
+		if err != nil {
+			log.G(ctx).Info("Network test finished successfully")
+		}
+	}
+	handleCliStep(reporter.InstallStepRunPreCheckClusterChecks, "Running cluster checks", err, false)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %v ", err))
 	}
 
 	err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
@@ -1907,4 +1913,12 @@ func getVersionIfExists(opts *RuntimeInstallOptions) error {
 		log.G().Infof("opts.Version: %s", opts.Version)
 	}
 	return nil
+}
+
+func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
+	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
+	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
+	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
+	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
+	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }

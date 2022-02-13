@@ -131,9 +131,13 @@ type Store struct {
 	RolloutReporterServiceAccount        string
 	AnalysisRunResourceName              string
 	SegmentWriteKey                      string
-	RolloutResourcesNames                 []string
+	RolloutResourcesNames                []string
 	RolloutResourcesGroupNames           []string
 	RolloutResourcesVersionNames         []string
+	DefaultNamespace                     string
+	NetworkTesterName                    string
+	NetworkTesterGenerateName            string
+	NetworkTesterImage                   string
 }
 
 // Get returns the global store
@@ -225,6 +229,11 @@ func init() {
 	s.RolloutResourcesNames = []string{"rollouts", "replicasets", "analysisruns"}
 	s.RolloutResourcesGroupNames = []string{"argoproj.io", "argoproj.io", "apps"}
 	s.RolloutResourcesVersionNames = []string{"v1alpha1", "v1alpha1", "v1"}
+	s.DefaultNamespace = "default"
+	s.NetworkTesterName = "cf-network-tester"
+	s.NetworkTesterGenerateName = "cf-network-tester-"
+	s.NetworkTesterImage = "codefresh/cf-venona-network-tester:latest"
+
 	initVersion()
 }
 
