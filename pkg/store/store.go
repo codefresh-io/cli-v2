@@ -129,8 +129,11 @@ type Store struct {
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
-	AnalysisRunResourceName             string
+	AnalysisRunResourceName              string
 	SegmentWriteKey                      string
+	RolloutResourcesNames                 []string
+	RolloutResourcesGroupNames           []string
+	RolloutResourcesVersionNames         []string
 }
 
 // Get returns the global store
@@ -210,15 +213,18 @@ func init() {
 	s.MinimumCpuRequired = "2"
 	s.ReplicaSetReporterName = "replicaset-reporter"
 	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
-	s.ReplicaSetResourceName = "replicasets"
+	// s.ReplicaSetResourceName = ""
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
-	s.RolloutResourceName = "rollouts"
+	// s.RolloutResourceName =
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
-	s.AnalysisRunResourceName = "analysisruns"
+	// s.AnalysisRunResourceName = "analysisruns"
 	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
+	s.RolloutResourcesNames = []string{"rollouts", "replicasets", "analysisruns"}
+	s.RolloutResourcesGroupNames = []string{"argoproj.io", "argoproj.io", "apps"}
+	s.RolloutResourcesVersionNames = []string{"v1alpha1", "v1alpha1", "v1"}
 	initVersion()
 }
 

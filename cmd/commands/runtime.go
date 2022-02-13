@@ -108,8 +108,8 @@ type (
 	reporterCreateOptions struct {
 		reporterName  string
 		resourceNames []string
-		group         string
-		version       string
+		group         []string
+		version       []string
 		saName        string
 	}
 
@@ -483,7 +483,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	}
 
 	//  should find a more dynamic way to get these additional components
-	additionalComponents := []string{"events-reporter", "workflow-reporter", "replicaset-reporter", "rollout-reporter"}
+	additionalComponents := []string{"events-reporter", "workflow-reporter", "rollout-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
 		componentNames = append(componentNames, componentFullName)
@@ -730,32 +730,53 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 			reporterName:  store.Get().WorkflowReporterName,
 			resourceNames: []string{store.Get().WorkflowResourceName},
-			group:         argowf.Group,
-			version:       argowf.Version,
+			group:         []string{argowf.Group},
+			version:       []string{argowf.Version},
 			saName:        store.Get().CodefreshSA,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-		reporterName:  store.Get().ReplicaSetReporterName,
-		resourceNames: []string{store.Get().ReplicaSetResourceName},
-		group:         "apps",
-		version:       "v1",
-		saName:        store.Get().ReplicaSetReporterServiceAccount,
-	}); err != nil {
-		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
-	}
+	// if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+	// 	reporterName:  store.Get().ReplicaSetReporterName,
+	// 	resourceNames: []string{store.Get().ReplicaSetResourceName},
+	// 	group:         []string{"apps"},
+	// 	version:       []string{"v1"},
+	// 	saName:        store.Get().ReplicaSetReporterServiceAccount,
+	// }); err != nil {
+	// 	return fmt.Errorf("failed to create replicaset-reporter: %w", err)
+	// }
 
-	rolloutResourceNames := []string{
-		store.Get().RolloutResourceName,
-		store.Get().AnalysisRunResourceName,
-	}
+	// rolloutResourceNames := []string{
+	// 	store.Get().RolloutResourceName,
+	// 	store.Get().AnalysisRunResourceName,
+	// 	store.Get().ReplicaSetResourceName,
+	// }
+
+	// rolloutGroupNames := []string{
+	// 	"argoproj.io",
+	// 	"argoproj.io",
+	// 	"apps",
+	// }
+
+	// rolloutVersionNames := []string{
+	// 	"v1alpha1",
+	// 	"v1alpha1",
+	// 	"v1",
+	// }
+
+	/*
+s.RolloutResourceNames = []string{"rollouts", "replicasets", "analysisruns"}
+	s.RolloutResourcesGroupNames = []string{"argoproj.io", "argoproj.io", "apps"}
+	s.RolloutResourcesVersionNames
+	*/
+
+
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName:  store.Get().RolloutReporterName,
-		resourceNames: rolloutResourceNames,
-		group:         "argoproj.io",
-		version:       "v1alpha1",
+		resourceNames: store.Get().RolloutResourcesNames,
+		group:         store.Get().RolloutResourcesGroupNames,
+		version:       store.Get().RolloutResourcesVersionNames,
 		saName:        store.Get().RolloutReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
@@ -1668,6 +1689,9 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 	var options *eventsutil.CreateEventSourceOptions
 	resourceNames := reporterCreateOpts.resourceNames
 	firstResourceName := resourceNames[0]
+	firstGroupName := reporterCreateOpts.group[0]
+	firstVersionName := reporterCreateOpts.version[0]
+
 
 	options = &eventsutil.CreateEventSourceOptions{
 		Name:               reporterCreateOpts.reporterName,
@@ -1676,8 +1700,8 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 		EventBusName:       store.Get().EventBusName,
 		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
 			firstResourceName: {
-				Group:     reporterCreateOpts.group,
-				Version:   reporterCreateOpts.version,
+				Group:     firstGroupName,
+				Version:   firstVersionName,
 				Resource:  firstResourceName,
 				Namespace: namespace,
 			},
@@ -1688,8 +1712,8 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 		for i := 1; i < len(resourceNames); i++ {
 			name := resourceNames[i]
 			options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
-				Group:     reporterCreateOpts.group,
-				Version:   reporterCreateOpts.version,
+				Group:     reporterCreateOpts.group[i],
+				Version:   reporterCreateOpts.version[i],
 				Resource:  name,
 				Namespace: namespace,
 			}
