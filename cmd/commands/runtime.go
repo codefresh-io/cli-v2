@@ -49,7 +49,6 @@ import (
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	argowf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 
 	"github.com/Masterminds/semver/v3"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
@@ -106,12 +105,17 @@ type (
 		CloneOpts    *git.CloneOptions
 		CommonConfig *runtime.CommonConfig
 	}
+
+	Gvk struct {
+		resourceName string
+		group        string
+		version      string
+	}
+
 	reporterCreateOptions struct {
-		reporterName  string
-		resourceNames []string
-		group         []string
-		version       []string
-		saName        string
+		reporterName string
+		gvk          []Gvk
+		saName       string
 	}
 
 	summaryLogLevels string
@@ -721,23 +725,60 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
+	// if err = createReporter(
+	// 	ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+	// 		reporterName:  store.Get().WorkflowReporterName,
+	// 		resourceNames: []string{store.Get().WorkflowResourceName},
+	// 		group:         []string{argowf.Group},
+	// 		version:       []string{argowf.Version},
+	// 		saName:        store.Get().CodefreshSA,
+	// 	}); err != nil {
+	// 	return fmt.Errorf("failed to create workflows-reporter: %w", err)
+	// }
 	if err = createReporter(
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-			reporterName:  store.Get().WorkflowReporterName,
-			resourceNames: []string{store.Get().WorkflowResourceName},
-			group:         []string{argowf.Group},
-			version:       []string{argowf.Version},
-			saName:        store.Get().CodefreshSA,
+			reporterName: store.Get().WorkflowReporterName,
+			gvk: []Gvk{
+				{
+					resourceName: store.Get().WorkflowResourceName,
+					group:        "argoproj.io",
+					version:      "v1alpha1",
+				},
+			},
+			saName: store.Get().CodefreshSA,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
+	// if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+	// 	reporterName:  store.Get().RolloutReporterName,
+	// 	resourceNames: store.Get().RolloutResourcesNames,
+	// 	group:         store.Get().RolloutResourcesGroupNames,
+	// 	version:       store.Get().RolloutResourcesVersionNames,
+	// 	saName:        store.Get().RolloutReporterServiceAccount,
+	// }); err != nil {
+	// 	return fmt.Errorf("failed to create rollout-reporter: %w", err)
+	// }
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-		reporterName:  store.Get().RolloutReporterName,
-		resourceNames: store.Get().RolloutResourcesNames,
-		group:         store.Get().RolloutResourcesGroupNames,
-		version:       store.Get().RolloutResourcesVersionNames,
-		saName:        store.Get().RolloutReporterServiceAccount,
+		reporterName: store.Get().RolloutReporterName,
+		gvk: []Gvk{
+			{
+				resourceName: "rollouts",
+				group:        "argoproj.io",
+				version:      "v1alpha1",
+			},
+			{
+				resourceName: "replicasets",
+				group:        "apps",
+				version:      "v1",
+			},
+			{
+				resourceName: "analysisruns",
+				group:        "argoproj.io",
+				version:      "v1alpha1",
+			},
+		},
+		saName: store.Get().RolloutReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1487,7 +1528,12 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, reporterCreateOpts.resourceNames, "data.object"); err != nil {
+	var triggerNames []string
+	for _, gvk := range reporterCreateOpts.gvk {
+		triggerNames = append(triggerNames, gvk.resourceName)
+	}
+
+	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
 		return err
 	}
 
@@ -1658,35 +1704,26 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
 	var eventSource *v1alpha1.EventSource
 	var options *eventsutil.CreateEventSourceOptions
-	resourceNames := reporterCreateOpts.resourceNames
-	firstResourceName := resourceNames[0]
-	firstGroupName := reporterCreateOpts.group[0]
-	firstVersionName := reporterCreateOpts.version[0]
+
+	var resourceNames []string
+	for _, gvk := range reporterCreateOpts.gvk {
+		resourceNames = append(resourceNames, gvk.resourceName)
+	}
 
 	options = &eventsutil.CreateEventSourceOptions{
 		Name:               reporterCreateOpts.reporterName,
 		Namespace:          namespace,
 		ServiceAccountName: reporterCreateOpts.saName,
 		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			firstResourceName: {
-				Group:     firstGroupName,
-				Version:   firstVersionName,
-				Resource:  firstResourceName,
-				Namespace: namespace,
-			},
-		},
+		Resource:           map[string]eventsutil.CreateResourceEventSourceOptions{},
 	}
 
-	if len(resourceNames) > 1 {
-		for i := 1; i < len(resourceNames); i++ {
-			name := resourceNames[i]
-			options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
-				Group:     reporterCreateOpts.group[i],
-				Version:   reporterCreateOpts.version[i],
-				Resource:  name,
-				Namespace: namespace,
-			}
+	for i, name := range resourceNames {
+		options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
+			Group:     reporterCreateOpts.gvk[i].group,
+			Version:   reporterCreateOpts.gvk[i].version,
+			Resource:  reporterCreateOpts.gvk[i].resourceName,
+			Namespace: namespace,
 		}
 	}
 
