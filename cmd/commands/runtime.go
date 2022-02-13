@@ -668,7 +668,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
-	skipIngressInfoMsg := `To complete the installation, please configure your cluster's routing service with '/app-proxy' path, then create and register to a git integration using the commands:
+	skipIngressInfoMsg := `To complete the installation: 
+1. Configure your cluster's routing service with path to '/app-proxy' 
+2. Create and register Git integration using the commands:
 cf intg git add default --runtime <RUNTIME_NAME> --api-url <API_URL>
 cf intg git register default --runtime <RUNTIME_NAME>`
 
