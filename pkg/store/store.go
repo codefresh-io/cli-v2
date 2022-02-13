@@ -44,8 +44,6 @@ type Version struct {
 	Platform   string
 }
 
-
-
 type Store struct {
 	ArgoCDServerName                     string
 	ArgoCDTokenKey                       string
@@ -225,9 +223,6 @@ func init() {
 	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
-	// s.RolloutResourcesNames = []string{"rollouts", "replicasets", "analysisruns"}
-	// s.RolloutResourcesGroupNames = []string{"argoproj.io", "apps", "argoproj.io"}
-	// s.RolloutResourcesVersionNames = []string{"v1alpha1", "v1", "v1alpha1"}
 	s.DefaultNamespace = "default"
 	s.NetworkTesterName = "cf-network-tester"
 	s.NetworkTesterGenerateName = "cf-network-tester-"

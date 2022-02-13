@@ -725,16 +725,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
-	// if err = createReporter(
-	// 	ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-	// 		reporterName:  store.Get().WorkflowReporterName,
-	// 		resourceNames: []string{store.Get().WorkflowResourceName},
-	// 		group:         []string{argowf.Group},
-	// 		version:       []string{argowf.Version},
-	// 		saName:        store.Get().CodefreshSA,
-	// 	}); err != nil {
-	// 	return fmt.Errorf("failed to create workflows-reporter: %w", err)
-	// }
 	if err = createReporter(
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 			reporterName: store.Get().WorkflowReporterName,
@@ -750,15 +740,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
-	// if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-	// 	reporterName:  store.Get().RolloutReporterName,
-	// 	resourceNames: store.Get().RolloutResourcesNames,
-	// 	group:         store.Get().RolloutResourcesGroupNames,
-	// 	version:       store.Get().RolloutResourcesVersionNames,
-	// 	saName:        store.Get().RolloutReporterServiceAccount,
-	// }); err != nil {
-	// 	return fmt.Errorf("failed to create rollout-reporter: %w", err)
-	// }
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().RolloutReporterName,
 		gvk: []Gvk{
