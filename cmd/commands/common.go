@@ -492,13 +492,15 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	for _, s := range ServicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
-			ingress := s.Status.LoadBalancer.Ingress[0]
-			if ingress.Hostname != "" {
-				foundHostName = ingress.Hostname
-				break
-			} else {
-				foundHostName = ingress.IP
-				break
+			if len(s.Status.LoadBalancer.Ingress) > 0 {
+				ingress := s.Status.LoadBalancer.Ingress[0]
+				if ingress.Hostname != "" {
+					foundHostName = ingress.Hostname
+					break
+				} else {
+					foundHostName = ingress.IP
+					break
+				}
 			}
 		}
 	}
