@@ -72,6 +72,7 @@ type (
 		RuntimeName                    string
 		RuntimeToken                   string
 		RuntimeStoreIV                 string
+		HostName                       string
 		IngressHost                    string
 		IngressClass                   string
 		IngressController              string
@@ -222,6 +223,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
+	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
@@ -406,7 +408,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 }
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	if store.Get().BypassIngressClassCheck {
+	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
 		return nil
 	}
 
@@ -507,22 +509,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	handleCliStep(reporter.InstallPhaseStart, "Runtime installation phase started", nil, true)
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true)
+	rt, server, err := runtimeInstallPreparations(opts)
 	if err != nil {
-		return fmt.Errorf("failed to download runtime definition: %w", err)
+		return err
 	}
 
-	runtimeVersion := "v99.99.99"
-	if rt.Spec.Version != nil { // in dev mode
-		runtimeVersion = rt.Spec.Version.String()
-	}
-
-	server, err := util.CurrentServer()
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, true)
-	if err != nil {
-		return fmt.Errorf("failed to get current server address: %w", err)
-	}
+	runtimeVersion := rt.Spec.Version.String()
 
 	componentNames := getComponents(rt, opts)
 
@@ -585,6 +577,68 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
 	}
 
+	err = createRuntimeComponents(ctx, opts, rt)
+	if err != nil {
+		return err
+	}
+
+	err = createGitSources(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
+	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
+	if timeoutErr != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
+	}
+
+	err = createGitIntegration(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
+	skipIngressInfoMsg := fmt.Sprintf(
+	`To complete the installation: 
+1. Configure your cluster's routing service with path to '/%s' and '%s'
+2. Create and register Git integration using the commands:
+cf integration git add default --runtime %s --api-url %s
+cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`, 
+	store.Get().AppProxyIngressPath, 
+	store.Get().GithubExampleEventSourceEndpointPath, 
+	opts.RuntimeName, 
+	opts.GitIntegrationCreationOpts.APIURL,
+	opts.RuntimeName)
+
+	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
+	if store.Get().SkipIngress {
+		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
+	}
+
+	log.G(ctx).Infof(installationSuccessMsg)
+
+	return nil
+}
+
+func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, string, error) {
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to download runtime definition: %w", err)
+	}
+
+	server, err := util.CurrentServer()
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, true)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get current server address: %w", err)
+	}
+
+	return rt, server, nil
+}
+
+func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	var err error
 	for _, component := range rt.Spec.Components {
 		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
@@ -606,13 +660,18 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
 	}
 
+	return nil
+}
+
+func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gitSrcMessage := fmt.Sprintf("Creating git source `%s`", store.Get().GitSourceName)
-	err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+	err := RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		InsCloneOpts:        opts.InsCloneOpts,
 		GsCloneOpts:         opts.GsCloneOpts,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
+		HostName:            opts.HostName,
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
 	})
@@ -642,27 +701,29 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
 	}
 
-	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
-	if timeoutErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
-	}
+	return nil
+}
 
-	gitIntgErr := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
-	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, true)
+func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var gitIntgErr error
+	var appendToLog bool
+
+	if !store.Get().SkipIngress {
+		gitIntgErr = addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
+		appendToLog = true
+	}
+	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, appendToLog)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
 	}
 
-	gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
-	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, true)
+	if !store.Get().SkipIngress {
+		gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	}
+	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, appendToLog)
 	if gitIntgErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
 	}
-
-	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
-	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
-	log.G(ctx).Infof(installationSuccessMsg)
 
 	return nil
 }
@@ -702,7 +763,7 @@ func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apm
 
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
-	if opts.IngressHost != "" {
+	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1285,6 +1346,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		Name:             rt.Name + store.Get().WorkflowsIngressName,
 		Namespace:        rt.Namespace,
 		IngressClassName: opts.IngressClass,
+		Host:             opts.HostName,
 		Annotations: map[string]string{
 			"ingress.kubernetes.io/protocol":               "https",
 			"ingress.kubernetes.io/rewrite-target":         "/$2",
@@ -1367,11 +1429,12 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		},
 	})
 
-	if opts.IngressHost != "" {
+	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 			Name:             rt.Name + store.Get().AppProxyIngressName,
 			Namespace:        rt.Namespace,
 			IngressClassName: opts.IngressClass,
+			Host:             opts.HostName,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),

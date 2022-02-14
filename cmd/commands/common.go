@@ -84,6 +84,10 @@ func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
+func isValidIngressHost(ingressHost string) (bool, error) {
+	return regexp.MatchString(`^(http|https)://`, ingressHost)
+}
+
 func getControllerName(s string) string {
 	split := strings.Split(s, "/")
 	return split[1]
@@ -290,7 +294,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
 	tokenFromFlag := opts.GitIntegrationRegistrationOpts.Token
 
-	if  tokenFromFlag == "" {
+	if tokenFromFlag == "" {
 		if !store.Get().Silent {
 			err = getGitPATFromUserInput(cmd, opts)
 			if err != nil {
@@ -442,7 +446,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
 	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host",
+		Label:   "Ingress host",
 		Default: foundIngressHost,
 		Pointer: promptui.PipeCursor,
 	}
@@ -452,9 +456,26 @@ func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOption
 		return err
 	}
 
+	err = validateIngressHost(ingressHostInput)
+	if err != nil {
+		return err
+	}
+
 	opts.IngressHost = ingressHostInput
+	opts.HostName = util.ParseHostNameFromIngressHost(ingressHostInput)
 
 	return nil
+}
+
+func validateIngressHost(ingressHost string) error {
+	isValid, err := isValidIngressHost(ingressHost)
+	if err != nil {
+		err = fmt.Errorf("could not verify ingress host: %w", err)
+	} else if !isValid {
+		err = fmt.Errorf("ingress host must begin with protocol 'http://' or 'https://'")
+	}
+
+	return err
 }
 
 func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -467,22 +488,30 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	var foundIngressHost string
+	var foundHostName string
 
 	for _, s := range ServicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
-			ingress := s.Status.LoadBalancer.Ingress[0]
-			if ingress.Hostname != "" {
-				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
-				break
-			} else {
-				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
-				break
+			if len(s.Status.LoadBalancer.Ingress) > 0 {
+				ingress := s.Status.LoadBalancer.Ingress[0]
+				if ingress.Hostname != "" {
+					foundHostName = ingress.Hostname
+					break
+				} else {
+					foundHostName = ingress.IP
+					break
+				}
 			}
 		}
 	}
 
+	if foundHostName != "" {
+		foundIngressHost = fmt.Sprintf("https://%s", foundHostName)
+	}
+
 	if store.Get().Silent {
 		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
+		opts.HostName = foundHostName
 		opts.IngressHost = foundIngressHost
 	} else {
 		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)

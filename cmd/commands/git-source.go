@@ -59,6 +59,7 @@ type (
 		CreateDemoResources bool
 		Exclude             string
 		Include             string
+		HostName            string
 		IngressHost         string
 		IngressClass        string
 	}
@@ -87,6 +88,7 @@ type (
 		runtimeName  string
 		gsCloneOpts  *git.CloneOptions
 		gsFs         fs.FS
+		hostName     string
 		ingressHost  string
 		ingressClass string
 	}
@@ -245,6 +247,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			runtimeName:  opts.RuntimeName,
 			gsCloneOpts:  opts.GsCloneOpts,
 			gsFs:         gsFs,
+			hostName:     opts.HostName,
 			ingressHost:  opts.IngressHost,
 			ingressClass: opts.IngressClass,
 		})
@@ -686,22 +689,23 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 }
 
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
-	// Create an ingress that will manage external access to the github eventsource service
-	var err error
-	ingress := createGithubExampleIngress(opts.ingressClass)
-	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
+	if !store.Get().SkipIngress {
+		// Create an ingress that will manage external access to the github eventsource service
+		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName)
+		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
-	ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
+		ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
 
-	if err != nil {
-		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
+		if err != nil {
+			err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
 
-	} else {
-		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingressRedundanded)
-	}
+		} else {
+			err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingressRedundanded)
+		}
 
-	if err != nil {
-		return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to write yaml of github example ingress. Error: %w", err)
+		}
 	}
 
 	// Create a github eventsource that will listen to push events in the git source repo
@@ -740,10 +744,11 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string) *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string) *netv1.Ingress {
 	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,
+		Host:             hostName,
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        store.Get().GithubExampleEventSourceEndpointPath,
