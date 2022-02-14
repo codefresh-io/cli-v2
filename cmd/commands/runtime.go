@@ -106,7 +106,7 @@ type (
 		CommonConfig *runtime.CommonConfig
 	}
 
-	gvk struct {
+	gvr struct {
 		resourceName string
 		group        string
 		version      string
@@ -114,7 +114,7 @@ type (
 
 	reporterCreateOptions struct {
 		reporterName string
-		gvk          []gvk
+		gvr          []gvr
 		saName       string
 	}
 
@@ -728,7 +728,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createReporter(
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 			reporterName: store.Get().WorkflowReporterName,
-			gvk: []gvk{
+			gvr: []gvr{
 				{
 					resourceName: store.Get().WorkflowResourceName,
 					group:        "argoproj.io",
@@ -742,7 +742,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().RolloutReporterName,
-		gvk: []gvk{
+		gvr: []gvr{
 			{
 				resourceName: store.Get().RolloutResourceName,
 				group:        "argoproj.io",
@@ -1510,8 +1510,8 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 	}
 
 	var triggerNames []string
-	for _, gvk := range reporterCreateOpts.gvk {
-		triggerNames = append(triggerNames, gvk.resourceName)
+	for _, gvr := range reporterCreateOpts.gvr {
+		triggerNames = append(triggerNames, gvr.resourceName)
 	}
 
 	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
@@ -1687,8 +1687,8 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 	var options *eventsutil.CreateEventSourceOptions
 
 	var resourceNames []string
-	for _, gvk := range reporterCreateOpts.gvk {
-		resourceNames = append(resourceNames, gvk.resourceName)
+	for _, gvr := range reporterCreateOpts.gvr {
+		resourceNames = append(resourceNames, gvr.resourceName)
 	}
 
 	options = &eventsutil.CreateEventSourceOptions{
@@ -1701,9 +1701,9 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 
 	for i, name := range resourceNames {
 		options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
-			Group:     reporterCreateOpts.gvk[i].group,
-			Version:   reporterCreateOpts.gvk[i].version,
-			Resource:  reporterCreateOpts.gvk[i].resourceName,
+			Group:     reporterCreateOpts.gvr[i].group,
+			Version:   reporterCreateOpts.gvr[i].version,
+			Resource:  reporterCreateOpts.gvr[i].resourceName,
 			Namespace: namespace,
 		}
 	}
