@@ -603,7 +603,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 1. Configure your cluster's routing service with path to '/app-proxy' 
 2. Create and register Git integration using the commands:
 cf intg git add default --runtime <RUNTIME_NAME> --api-url <API_URL>
-cf intg git register default --runtime <RUNTIME_NAME>`
+cf intg git register default --runtime <RUNTIME_NAME>
+3. If you have chosen to install demo resources, configure a path to '/webhooks/push-git'`
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {
