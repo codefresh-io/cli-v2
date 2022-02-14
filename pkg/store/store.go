@@ -210,7 +210,7 @@ func init() {
 	s.ArgoCD = "argo-cd"
 	s.RolloutResourceName = "rollouts"
 	s.ReplicaSetResourceName = "replicasets"
-	s.ReplicaSetResourceName = "analysisruns"
+	s.AnalysisRunResourceName = "analysisruns"
 	s.MinimumMemorySizeRequired = "5000"
 	s.MinimumCpuRequired = "2"
 	s.WorkflowResourceName = "workflows"
