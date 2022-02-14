@@ -48,7 +48,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
@@ -1683,7 +1683,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 }
 
 func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
-	var eventSource *v1alpha1.EventSource
+	var eventSource *aev1alpha1.EventSource
 	var options *eventsutil.CreateEventSourceOptions
 
 	var resourceNames []string
