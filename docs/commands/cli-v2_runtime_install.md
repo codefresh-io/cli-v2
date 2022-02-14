@@ -42,6 +42,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider-api-url string     Git provider API url
       --repo string                 Repository URL [GIT_REPO]
       --skip-cluster-checks         Skips the cluster's checks
+      --skip-ingress                Cancels the creation of an ingress resource
       --version string              The runtime version to install (default: latest)
       --wait-timeout duration       How long to wait for the runtime components to be ready (default 8m0s)
 ```
