@@ -129,9 +129,6 @@ type Store struct {
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
 	SegmentWriteKey                      string
-	RolloutResourcesNames                []string
-	RolloutResourcesGroupNames           []string
-	RolloutResourcesVersionNames         []string
 	DefaultNamespace                     string
 	NetworkTesterName                    string
 	NetworkTesterGenerateName            string
