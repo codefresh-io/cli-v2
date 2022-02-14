@@ -48,7 +48,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	"github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
@@ -107,7 +107,7 @@ type (
 	}
 
 	gvk struct {
-		kind string
+		resourceName string
 		group        string
 		version      string
 	}
@@ -730,7 +730,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			reporterName: store.Get().WorkflowReporterName,
 			gvk: []gvk{
 				{
-					kind: store.Get().WorkflowResourceName,
+					resourceName: store.Get().WorkflowResourceName,
 					group:        "argoproj.io",
 					version:      "v1alpha1",
 				},
@@ -744,17 +744,17 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		reporterName: store.Get().RolloutReporterName,
 		gvk: []gvk{
 			{
-				kind: store.Get().RolloutResourceName,
+				resourceName: store.Get().RolloutResourceName,
 				group:        "argoproj.io",
 				version:      "v1alpha1",
 			},
 			{
-				kind: store.Get().ReplicaSetResourceName,
+				resourceName: store.Get().ReplicaSetResourceName,
 				group:        "apps",
 				version:      "v1",
 			},
 			{
-				kind: store.Get().AnalysisRunResourceName,
+				resourceName: store.Get().AnalysisRunResourceName,
 				group:        "argoproj.io",
 				version:      "v1alpha1",
 			},
@@ -1511,7 +1511,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 
 	var triggerNames []string
 	for _, gvk := range reporterCreateOpts.gvk {
-		triggerNames = append(triggerNames, gvk.kind)
+		triggerNames = append(triggerNames, gvk.resourceName)
 	}
 
 	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
@@ -1683,12 +1683,12 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 }
 
 func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
-	var eventSource *aev1alpha1.EventSource
+	var eventSource *v1alpha1.EventSource
 	var options *eventsutil.CreateEventSourceOptions
 
 	var resourceNames []string
 	for _, gvk := range reporterCreateOpts.gvk {
-		resourceNames = append(resourceNames, gvk.kind)
+		resourceNames = append(resourceNames, gvk.resourceName)
 	}
 
 	options = &eventsutil.CreateEventSourceOptions{
@@ -1703,7 +1703,7 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 		options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
 			Group:     reporterCreateOpts.gvk[i].group,
 			Version:   reporterCreateOpts.gvk[i].version,
-			Resource:  reporterCreateOpts.gvk[i].kind,
+			Resource:  reporterCreateOpts.gvk[i].resourceName,
 			Namespace: namespace,
 		}
 	}
