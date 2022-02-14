@@ -106,7 +106,7 @@ type (
 		CommonConfig *runtime.CommonConfig
 	}
 
-	Gvk struct {
+	gvk struct {
 		resourceName string
 		group        string
 		version      string
@@ -114,7 +114,7 @@ type (
 
 	reporterCreateOptions struct {
 		reporterName string
-		gvk          []Gvk
+		gvk          []gvk
 		saName       string
 	}
 
@@ -728,7 +728,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createReporter(
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 			reporterName: store.Get().WorkflowReporterName,
-			gvk: []Gvk{
+			gvk: []gvk{
 				{
 					resourceName: store.Get().WorkflowResourceName,
 					group:        "argoproj.io",
@@ -742,7 +742,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().RolloutReporterName,
-		gvk: []Gvk{
+		gvk: []gvk{
 			{
 				resourceName: "rollouts",
 				group:        "argoproj.io",
