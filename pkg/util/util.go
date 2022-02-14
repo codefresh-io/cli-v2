@@ -187,6 +187,11 @@ func DecorateErrorWithDocsLink(err error, link ...string) error {
 	return fmt.Errorf("%s\nfor more information: %s", err.Error(), link[0])
 }
 
+func ParseHostNameFromIngressHost(ingressHost string) string {
+	split := strings.Split(ingressHost, "//")
+	return split[1]
+}
+
 func reportCancel(status reporter.CliStepStatus) {
 	reporter.G().ReportStep(reporter.CliStepData{
 		Step:        reporter.SIGNAL_TERMINATION,

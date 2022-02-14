@@ -117,6 +117,7 @@ type Store struct {
 	Silent                               bool
 	InsecureIngressHost                  bool
 	BypassIngressClassCheck              bool
+	SkipIngress                          bool
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
@@ -222,7 +223,8 @@ func init() {
 	s.DefaultNamespace = "default"
 	s.NetworkTesterName = "cf-network-tester"
 	s.NetworkTesterGenerateName = "cf-network-tester-"
-	s.NetworkTesterImage = "codefresh/cf-venona-network-tester:latest"
+	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
+
 	initVersion()
 }
 
