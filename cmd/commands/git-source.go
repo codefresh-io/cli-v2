@@ -273,7 +273,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().CronExampleSensorFileName)
 
 	eventSource := createCronExampleEventSource()
-	eventSourceRedundanded, err := cleanUpRedundantFieldsFromCalendarEventSource(&eventSource)
+	eventSourceRedundanded, err := cleanUpFieldsCronEventSource(&eventSource)
 
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
@@ -297,7 +297,7 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 		return fmt.Errorf("failed to create cron example sensor. Error: %w", err)
 	}
 
-	sensorRedundanded, err := cleanUpRedundantFieldsFromCalendarSensor(&sensor)
+	sensorRedundanded, err := cleanUpFieldsCronSensor(&sensor)
 
 	if err != nil {
 
@@ -312,179 +312,6 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	}
 
 	return nil
-}
-func cleanUpRedundantFieldsFromIngressGithubYaml(ingress **netv1.Ingress) (map[string]interface{}, error) {
-
-	crd, err := unMarshalCustomObject(ingress)
-	if err != nil {
-		return nil, err
-	}
-	deleteRedundandedGeneralFields(crd)
-
-	return crd, nil
-
-}
-
-func cleanUpRedundantFieldsFromCalendarEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, error) {
-
-	crd, err := unMarshalCustomObject(eventSource)
-	if err != nil {
-		return nil, err
-	}
-	_, schedule := nestedMapLookup(crd, "spec", "calendar", "example-with-interval", "schedule")
-
-	if schedule != nil {
-		delete(schedule, "schedule")
-	}
-
-	deleteRedundandedGeneralFields(crd)
-
-	return crd, nil
-
-}
-
-func unMarshalCustomObject(obj interface{}) (map[string]interface{}, error) {
-
-	crd := make(map[string]interface{})
-
-	data, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(data, &crd)
-	if err != nil {
-		return nil, err
-	}
-	return crd, nil
-}
-
-func deleteRedundandedGeneralFields(crd map[string]interface{}) {
-	delete(crd, "status")
-	metadata := crd["metadata"].(map[string]interface{})
-	delete(metadata, "creationTimestamp")
-
-}
-
-func cleanUpRedundantFieldsFromWorkflowTemplate(eventSource *wfv1alpha1.WorkflowTemplate) (map[string]interface{}, error) {
-	crd, err := unMarshalCustomObject(eventSource)
-	if err != nil {
-		return nil, err
-	}
-
-	deleteRedundandedGeneralFields(crd)
-
-	return crd, nil
-
-}
-
-func cleanUpRedundantFieldsFromGithubEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, error) {
-	crd, err := unMarshalCustomObject(eventSource)
-	if err != nil {
-		return nil, err
-	}
-
-	_, targetPort := nestedMapLookup(crd, "spec", "service", "ports")
-	if targetPort != nil {
-		for _, value := range targetPort["ports"].([]interface{}) {
-			if rec, ok := value.(map[string]interface{}); ok {
-				_, targetPort := nestedMapLookup(rec, "targetPort")
-				if targetPort != nil {
-					delete(targetPort, "targetPort")
-				}
-			}
-		}
-	}
-
-	_, githup := nestedMapLookup(crd, "spec", "github", "push", "id")
-	if githup != nil {
-		delete(githup, "id")
-		delete(githup, "owner")
-		delete(githup, "repository")
-	}
-
-	deleteRedundandedGeneralFields(crd)
-
-	return crd, nil
-
-}
-
-func cleanUpRedundantFieldsFromGithubSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, error) {
-	crd, err := unMarshalCustomObject(sensor)
-	if err != nil {
-		return nil, err
-	}
-
-	//Delete redunded fields from sensor
-	_, triggers := nestedMapLookup(crd, "spec", "triggers")
-	if triggers != nil {
-		for _, value := range triggers["triggers"].([]interface{}) {
-			if rec, ok := value.(map[string]interface{}); ok {
-
-				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
-				if resource != nil {
-					delete(resource, "status")
-				}
-				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
-				if metadata != nil {
-					delete(metadata, "creationTimestamp")
-				}
-			}
-		}
-
-	}
-
-	deleteRedundandedGeneralFields(crd)
-
-	return crd, nil
-
-}
-
-func cleanUpRedundantFieldsFromCalendarSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, error) {
-	crd, err := unMarshalCustomObject(sensor)
-	if err != nil {
-		return nil, err
-	}
-
-	_, triggers := nestedMapLookup(crd, "spec", "triggers")
-	if triggers != nil {
-		for _, value := range triggers["triggers"].([]interface{}) {
-			if rec, ok := value.(map[string]interface{}); ok {
-
-				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
-				if resource != nil {
-					delete(resource, "status")
-				}
-				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
-				if metadata != nil {
-					delete(metadata, "creationTimestamp")
-				}
-			}
-		}
-
-	}
-
-	deleteRedundandedGeneralFields(crd)
-
-	return crd, nil
-
-}
-
-func nestedMapLookup(m map[string]interface{}, ks ...string) (rval interface{}, mm map[string]interface{}) {
-	var ok bool
-
-	if len(ks) == 0 {
-		return nil, nil
-	}
-	if rval, ok = m[ks[0]]; !ok {
-		return nil, nil
-	} else if len(ks) == 1 {
-		return rval, m
-	} else if m, ok = rval.(map[string]interface{}); !ok {
-		return nil, nil
-	} else {
-		return nestedMapLookup(m, ks[1:]...)
-	}
 }
 
 func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
@@ -844,7 +671,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 
 	var err error
 
-	wfRedundanded, err := cleanUpRedundantFieldsFromWorkflowTemplate(wfTemplate)
+	wfRedundanded, err := cleanUpFieldsWorkflowTemplate(wfTemplate)
 
 	if err != nil {
 		err = gsFs.WriteYamls(store.Get().CronExampleWfTemplateFileName, wfTemplate)
@@ -864,7 +691,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	ingress := createGithubExampleIngress(opts.ingressClass)
 	ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
-	ingressRedundanded, err := cleanUpRedundantFieldsFromIngressGithubYaml(&ingress)
+	ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
 
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(ingressFilePath, ingress)
@@ -882,7 +709,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	eventSource := createGithubExampleEventSource(gsRepoURL, opts.ingressHost)
 	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
 
-	eventSourceRedundanded, err := cleanUpRedundantFieldsFromGithubEventSource(&eventSource)
+	eventSourceRedundanded, err := cleanUpFieldsGithubEventSource(&eventSource)
 
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(eventSourceFilePath, eventSource)
@@ -899,7 +726,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	sensor := createGithubExampleSensor()
 	sensorFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleSensorFileName)
 
-	sensorRedunded, err := cleanUpRedundantFieldsFromGithubSensor(&sensor)
+	sensorRedunded, err := cleanUpFieldsGithubSensor(&sensor)
 
 	if err != nil {
 		err = opts.gsCloneOpts.FS.WriteYamls(sensorFilePath, sensor)
@@ -1058,4 +885,178 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 			Triggers:     triggers,
 		},
 	}
+}
+
+func cleanUpFieldsIngressGithub(ingress **netv1.Ingress) (map[string]interface{}, error) {
+
+	crd, err := unMarshalCustomObject(ingress)
+	if err != nil {
+		return nil, err
+	}
+	deleteRedundandedGeneralFields(crd)
+
+	return crd, nil
+
+}
+
+func cleanUpFieldsCronEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, error) {
+
+	crd, err := unMarshalCustomObject(eventSource)
+	if err != nil {
+		return nil, err
+	}
+	_, schedule := nestedMapLookup(crd, "spec", "calendar", "example-with-interval", "schedule")
+
+	if schedule != nil {
+		delete(schedule, "schedule")
+	}
+
+	deleteRedundandedGeneralFields(crd)
+
+	return crd, nil
+
+}
+
+func cleanUpFieldsWorkflowTemplate(eventSource *wfv1alpha1.WorkflowTemplate) (map[string]interface{}, error) {
+	crd, err := unMarshalCustomObject(eventSource)
+	if err != nil {
+		return nil, err
+	}
+
+	deleteRedundandedGeneralFields(crd)
+
+	return crd, nil
+
+}
+
+func cleanUpFieldsCronSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, error) {
+	crd, err := unMarshalCustomObject(sensor)
+	if err != nil {
+		return nil, err
+	}
+
+	_, triggers := nestedMapLookup(crd, "spec", "triggers")
+	if triggers != nil {
+		for _, value := range triggers["triggers"].([]interface{}) {
+			if rec, ok := value.(map[string]interface{}); ok {
+
+				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
+				if resource != nil {
+					delete(resource, "status")
+				}
+				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
+				if metadata != nil {
+					delete(metadata, "creationTimestamp")
+				}
+			}
+		}
+
+	}
+
+	deleteRedundandedGeneralFields(crd)
+
+	return crd, nil
+
+}
+
+func cleanUpFieldsGithubEventSource(eventSource **eventsourcev1alpha1.EventSource) (map[string]interface{}, error) {
+	crd, err := unMarshalCustomObject(eventSource)
+	if err != nil {
+		return nil, err
+	}
+
+	_, targetPort := nestedMapLookup(crd, "spec", "service", "ports")
+	if targetPort != nil {
+		for _, value := range targetPort["ports"].([]interface{}) {
+			if rec, ok := value.(map[string]interface{}); ok {
+				_, targetPort := nestedMapLookup(rec, "targetPort")
+				if targetPort != nil {
+					delete(targetPort, "targetPort")
+				}
+			}
+		}
+	}
+
+	_, githup := nestedMapLookup(crd, "spec", "github", "push", "id")
+	if githup != nil {
+		delete(githup, "id")
+		delete(githup, "owner")
+		delete(githup, "repository")
+	}
+
+	deleteRedundandedGeneralFields(crd)
+
+	return crd, nil
+
+}
+
+func cleanUpFieldsGithubSensor(sensor **sensorsv1alpha1.Sensor) (map[string]interface{}, error) {
+	crd, err := unMarshalCustomObject(sensor)
+	if err != nil {
+		return nil, err
+	}
+
+	//Delete redunded fields from sensor
+	_, triggers := nestedMapLookup(crd, "spec", "triggers")
+	if triggers != nil {
+		for _, value := range triggers["triggers"].([]interface{}) {
+			if rec, ok := value.(map[string]interface{}); ok {
+
+				_, resource := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "status")
+				if resource != nil {
+					delete(resource, "status")
+				}
+				_, metadata := nestedMapLookup(rec, "template", "argoWorkflow", "source", "resource", "metadata", "creationTimestamp")
+				if metadata != nil {
+					delete(metadata, "creationTimestamp")
+				}
+			}
+		}
+
+	}
+
+	deleteRedundandedGeneralFields(crd)
+
+	return crd, nil
+
+}
+
+func nestedMapLookup(m map[string]interface{}, ks ...string) (rval interface{}, mm map[string]interface{}) {
+	var ok bool
+
+	if len(ks) == 0 {
+		return nil, nil
+	}
+	if rval, ok = m[ks[0]]; !ok {
+		return nil, nil
+	} else if len(ks) == 1 {
+		return rval, m
+	} else if m, ok = rval.(map[string]interface{}); !ok {
+		return nil, nil
+	} else {
+		return nestedMapLookup(m, ks[1:]...)
+	}
+}
+
+func deleteRedundandedGeneralFields(crd map[string]interface{}) {
+	delete(crd, "status")
+	metadata := crd["metadata"].(map[string]interface{})
+	delete(metadata, "creationTimestamp")
+
+}
+
+func unMarshalCustomObject(obj interface{}) (map[string]interface{}, error) {
+
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, err
+	}
+	return crd, nil
 }
