@@ -84,7 +84,7 @@ func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
-func IsValidIngressHost(ingressHost string) (bool, error) {
+func isValidIngressHost(ingressHost string) (bool, error) {
 	return regexp.MatchString(`^(http|https)://`, ingressHost)
 }
 
@@ -468,10 +468,9 @@ func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOption
 }
 
 func validateIngressHost(ingressHost string) error {
-	var err error
-	isValid, err := IsValidIngressHost(ingressHost)
+	isValid, err := isValidIngressHost(ingressHost)
 	if err != nil {
-		err = fmt.Errorf("failed to check the validity of the ingress host: %w", err)
+		err = fmt.Errorf("could not verify ingress host: %w", err)
 	} else if !isValid {
 		err = fmt.Errorf("ingress host must begin with protocol 'http://' or 'https://'")
 	}
@@ -496,15 +495,15 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 			ingress := s.Status.LoadBalancer.Ingress[0]
 			if ingress.Hostname != "" {
 				foundHostName = ingress.Hostname
-				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
 				break
 			} else {
 				foundHostName = ingress.IP
-				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
 				break
 			}
 		}
 	}
+
+	foundIngressHost = fmt.Sprintf("https://%s", foundHostName)
 
 	if store.Get().Silent {
 		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
