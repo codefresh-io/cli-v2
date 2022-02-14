@@ -1,11 +1,11 @@
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
-  name: "{{ name }}"
-  namespace: "{{ namespace }}"
+    name: '{{ name }}'
+    namespace: '{{ namespace }}'
 spec:
   defVersion: 1.0.0
-  version: 0.0.228
+  version: 0.0.230
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
     - name: events

@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	authv1 "k8s.io/api/authorization/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +41,16 @@ type (
 		cpu        string
 		memorySize string
 		rbac       []rbacValidation
+	}
+
+	LaunchJobOptions struct {
+		Client        kubernetes.Interface
+		Namespace     string
+		JobName       *string
+		Image         *string
+		Env           []v1.EnvVar
+		RestartPolicy v1.RestartPolicy
+		BackOffLimit  int32
 	}
 )
 
@@ -201,4 +212,37 @@ func testNode(n v1.Node, req validationRequest) []string {
 	}
 
 	return result
+}
+
+func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
+	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
+
+	jobSpec := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *opts.JobName,
+			Namespace: opts.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  *opts.JobName,
+							Image: *opts.Image,
+							Env:   opts.Env,
+						},
+					},
+					RestartPolicy: opts.RestartPolicy,
+				},
+			},
+			BackoffLimit: &opts.BackOffLimit,
+		},
+	}
+
+	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create K8s job '%s' : %w", *opts.JobName, err)
+	}
+
+	return nil
 }

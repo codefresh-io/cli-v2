@@ -77,6 +77,7 @@ type (
 		IngressController              string
 		Insecure                       bool
 		InstallDemoResources           bool
+		SkipClusterChecks                bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -218,6 +219,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
+	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
@@ -227,7 +229,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 
 	installationOpts.GsCloneOpts = &git.CloneOptions{
-		FS: fs.Create(memfs.New()),
+		FS:               fs.Create(memfs.New()),
 		CreateIfNotExist: true,
 	}
 
@@ -781,6 +783,17 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, false)
 	if err != nil {
 		return fmt.Errorf("existing runtime check failed: %w", err)
+	}
+
+	if !opts.SkipClusterChecks {
+		err = util.RunNetworkTest(ctx, opts.KubeFactory, cfConfig.GetCurrentContext().URL)
+		if err != nil {
+			log.G(ctx).Info("Network test finished successfully")
+		}
+	}
+	handleCliStep(reporter.InstallStepRunPreCheckClusterChecks, "Running cluster checks", err, false)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %v ", err))
 	}
 
 	err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
