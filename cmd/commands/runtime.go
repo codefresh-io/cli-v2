@@ -744,17 +744,17 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		reporterName: store.Get().RolloutReporterName,
 		gvk: []gvk{
 			{
-				resourceName: "rollouts",
+				resourceName: store.Get().RolloutResourceName,
 				group:        "argoproj.io",
 				version:      "v1alpha1",
 			},
 			{
-				resourceName: "replicasets",
+				resourceName: store.Get().ReplicaSetResourceName,
 				group:        "apps",
 				version:      "v1",
 			},
 			{
-				resourceName: "analysisruns",
+				resourceName: store.Get().AnalysisRunResourceName,
 				group:        "argoproj.io",
 				version:      "v1alpha1",
 			},

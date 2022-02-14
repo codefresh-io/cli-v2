@@ -120,16 +120,14 @@ type Store struct {
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
-	ReplicaSetReporterName               string
-	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
+	AnalysisRunResourceName              string
 	WorkflowResourceName                 string
 	RequirementsLink                     string
 	DownloadCliLink                      string
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
-	AnalysisRunResourceName              string
 	SegmentWriteKey                      string
 	RolloutResourcesNames                []string
 	RolloutResourcesGroupNames           []string
@@ -213,10 +211,11 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
+	s.RolloutResourceName = "rollouts"
+	s.ReplicaSetResourceName = "replicasets"
+	s.ReplicaSetResourceName = "analysisruns"
 	s.MinimumMemorySizeRequired = "5000"
 	s.MinimumCpuRequired = "2"
-	s.ReplicaSetReporterName = "replicaset-reporter"
-	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
