@@ -599,12 +599,17 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
-	skipIngressInfoMsg := `To complete the installation: 
-1. Configure your cluster's routing service with path to '/app-proxy' 
+	skipIngressInfoMsg := fmt.Sprintf(
+	`To complete the installation: 
+1. Configure your cluster's routing service with path to '/%s' and '%s'
 2. Create and register Git integration using the commands:
-cf intg git add default --runtime <RUNTIME_NAME> --api-url <API_URL>
-cf intg git register default --runtime <RUNTIME_NAME>
-3. If you have chosen to install demo resources, configure a path to '/webhooks/push-git'`
+cf integration git add default --runtime %s --api-url %s
+cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`, 
+	store.Get().AppProxyIngressPath, 
+	store.Get().GithubExampleEventSourceEndpointPath, 
+	opts.RuntimeName, 
+	opts.GitIntegrationCreationOpts.APIURL,
+	opts.RuntimeName)
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {

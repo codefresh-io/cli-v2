@@ -503,7 +503,9 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	foundIngressHost = fmt.Sprintf("https://%s", foundHostName)
+	if foundHostName != "" {
+		foundIngressHost = fmt.Sprintf("https://%s", foundHostName)
+	}
 
 	if store.Get().Silent {
 		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)

@@ -225,7 +225,7 @@ func init() {
 	s.DefaultNamespace = "default"
 	s.NetworkTesterName = "cf-network-tester"
 	s.NetworkTesterGenerateName = "cf-network-tester-"
-	s.NetworkTesterImage = "codefresh/cf-venona-network-tester:latest"
+	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 
 	initVersion()
 }
