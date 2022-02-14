@@ -515,10 +515,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	runtimeVersion := "v99.99.99"
-	if rt.Spec.Version != nil { // in dev mode
-		runtimeVersion = rt.Spec.Version.String()
-	}
+	runtimeVersion := rt.Spec.Version.String()
 
 	server, err := util.CurrentServer()
 	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, true)
