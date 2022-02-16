@@ -136,6 +136,7 @@ type Store struct {
 	NetworkTesterGenerateName            string
 	NetworkTesterImage                   string
 	MinKubeVersion                       string
+	MaxKubeVersion                       string
 }
 
 // Get returns the global store
@@ -228,6 +229,7 @@ func init() {
 	s.NetworkTesterGenerateName = "cf-network-tester-"
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
+	s.MaxKubeVersion = "v1.21.9"
 
 	initVersion()
 }
