@@ -848,7 +848,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 
 	if !opts.SkipClusterChecks {
 		err = util.RunNetworkTest(ctx, opts.KubeFactory, cfConfig.GetCurrentContext().URL)
-		if err != nil {
+		if err == nil {
 			log.G(ctx).Info("Network test finished successfully")
 		}
 	}
