@@ -291,47 +291,12 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 }
 
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	var err error
-	tokenFromFlag := opts.GitIntegrationRegistrationOpts.Token
-
-	if tokenFromFlag == "" {
-		if !store.Get().Silent {
-			err = getGitPATFromUserInput(cmd, opts)
-			if err != nil {
-				return err
-			}
-		} else {
-			log.G(cmd.Context()).Info("Using runtime token as personal user token")
-			opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-			if err != nil {
-				return err
-			}
-		}
+	if opts.GitIntegrationRegistrationOpts.Token == "" {
+		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
+		log.G(cmd.Context()).Info("PAT has been set for your user. PAT may be updated from user settings")
 	}
 
 	return cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
-}
-
-func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	gitPATPrompt := promptui.Prompt{
-		Label: "Personal git token for your user (skip to use runtime token)",
-		Mask:  '*',
-	}
-
-	gitPAT, err := gitPATPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	if gitPAT == "" {
-		gitPAT, err = cmd.Flags().GetString("git-token")
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-	opts.GitIntegrationRegistrationOpts.Token = gitPAT
-
-	return nil
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
