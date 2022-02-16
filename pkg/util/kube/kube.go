@@ -61,12 +61,12 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
-		return fmt.Errorf("cannot create kubernetes clientset: %v ", err)
+		return fmt.Errorf("cannot create kubernetes clientset: %w", err)
 	}
 
 	kubeVersion, err := client.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("failed to check the cluster's version: %v", err)
+		return fmt.Errorf("failed to check the cluster's version: %w", err)
 	}
 
 	delta := version.CompareKubeAwareVersionStrings(store.Get().MinKubeVersion, kubeVersion.String())
