@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -60,7 +61,18 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
-		return fmt.Errorf("cannot create kubernetes clientset: %v ", err)
+		return fmt.Errorf("cannot create kubernetes clientset: %w", err)
+	}
+
+	kubeVersion, err := client.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to check the cluster's version: %w", err)
+	}
+
+	delta := version.CompareKubeAwareVersionStrings(store.Get().MinKubeVersion, kubeVersion.String())
+
+	if delta < 0 {
+		return fmt.Errorf("%s: cluster's server version must be %s or higher", requirementsValidationErrorMessage, store.Get().MinKubeVersion)
 	}
 
 	req := validationRequest{
