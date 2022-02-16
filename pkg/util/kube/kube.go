@@ -69,10 +69,11 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return fmt.Errorf("failed to check the cluster's version: %w", err)
 	}
 
-	delta := version.CompareKubeAwareVersionStrings(store.Get().MinKubeVersion, kubeVersion.String())
-
-	if delta < 0 {
-		return fmt.Errorf("%s: cluster's server version must be %s or higher", requirementsValidationErrorMessage, store.Get().MinKubeVersion)
+	minDelta := version.CompareKubeAwareVersionStrings(store.Get().MinKubeVersion, kubeVersion.String())
+	maxDelta := version.CompareKubeAwareVersionStrings(store.Get().MaxKubeVersion, kubeVersion.String())
+	fmt.Print(maxDelta)
+	if minDelta < 0 || maxDelta > 0 {
+		return fmt.Errorf("%s: cluster's server version must be between %s and %s", requirementsValidationErrorMessage, store.Get().MinKubeVersion, store.Get().MaxKubeVersion)
 	}
 
 	req := validationRequest{
