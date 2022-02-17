@@ -462,7 +462,6 @@ func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOption
 	}
 
 	opts.IngressHost = ingressHostInput
-	opts.HostName = util.ParseHostNameFromIngressHost(ingressHostInput)
 
 	return nil
 }
@@ -511,7 +510,6 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	if store.Get().Silent {
 		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
-		opts.HostName = foundHostName
 		opts.IngressHost = foundIngressHost
 	} else {
 		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
