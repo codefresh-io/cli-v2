@@ -23,7 +23,11 @@ cf version
 
 ```bash
 # download and extract the binary
+<<<<<<< HEAD
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.231/cf-linux-amd64.tar.gz | tar zx
+=======
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.235/cf-linux-amd64.tar.gz | tar zx
+>>>>>>> f28588717802fd50b99faf36567289df234851b2
 
 # move the binary to your $PATH
 mv ./cf-linux-amd64 /usr/local/bin/cf
@@ -36,7 +40,11 @@ cf version
 
 ```bash
 # download and extract the binary
+<<<<<<< HEAD
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.231/cf-darwin-amd64.tar.gz | tar zx
+=======
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.235/cf-darwin-amd64.tar.gz | tar zx
+>>>>>>> f28588717802fd50b99faf36567289df234851b2
 
 # move the binary to your $PATH
 mv ./cf-darwin-amd64 /usr/local/bin/cf

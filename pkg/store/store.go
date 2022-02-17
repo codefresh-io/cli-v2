@@ -117,6 +117,7 @@ type Store struct {
 	Silent                               bool
 	InsecureIngressHost                  bool
 	BypassIngressClassCheck              bool
+	SkipIngress                          bool
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
@@ -134,6 +135,9 @@ type Store struct {
 	NetworkTesterName                    string
 	NetworkTesterGenerateName            string
 	NetworkTesterImage                   string
+	MinKubeVersion                       string
+	MaxKubeVersion                       string
+	PlaceholderGsRepoFilename            string
 }
 
 // Get returns the global store
@@ -224,7 +228,10 @@ func init() {
 	s.DefaultNamespace = "default"
 	s.NetworkTesterName = "cf-network-tester"
 	s.NetworkTesterGenerateName = "cf-network-tester-"
-	s.NetworkTesterImage = "codefresh/cf-venona-network-tester:latest"
+	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
+	s.MinKubeVersion = "v1.18.0"
+	s.MaxKubeVersion = "v1.21.9"
+	s.PlaceholderGsRepoFilename = "placeholder.yaml"
 
 	initVersion()
 }
