@@ -231,14 +231,14 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	defer func() {
 		deferErr := client.BatchV1().Jobs(store.Get().DefaultNamespace).Delete(ctx, store.Get().NetworkTesterName, metav1.DeleteOptions{})
 		if deferErr != nil {
-			log.G(ctx).Error("fail to delete job resource '%s': %s", store.Get().NetworkTesterName, deferErr.Error())
+			log.G(ctx).Errorf("fail to delete job resource '%s': %s", store.Get().NetworkTesterName, deferErr.Error())
 		}
 	}()
 
 	defer func(name *string) {
 		deferErr := client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, *name, metav1.DeleteOptions{})
 		if deferErr != nil {
-			log.G(ctx).Error("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
+			log.G(ctx).Errorf("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
 		}
 	}(&testerPodName)
 
