@@ -278,7 +278,7 @@ func createEmptyDefaultGitSourceRepoIfNeeded(ctx context.Context, opts *GitSourc
 	}
 
 	if len(fi) == 0 {
-		if err = gsFs.WriteYamls(store.Get().PlaceholderGsRepoFilename); err != nil {
+		if err = gsFs.WriteYamls(store.Get().PlaceholderGsRepoFilename, []byte{}); err != nil {
 			return fmt.Errorf("failed to write placeholder file to the default git-source repo. Err: %w", err)
 		}
 	}

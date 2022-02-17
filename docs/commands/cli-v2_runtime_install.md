@@ -29,7 +29,7 @@ cli-v2 runtime install [runtime_name] [flags]
 
 ```
       --context string              The name of the kubeconfig context to use
-      --demo-resources              Installs demo resources (default: true) (default true)
+      --demo-resources              Installs demo resources (default: true)
   -t, --git-token string            Your git provider api token [GIT_TOKEN]
   -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                        help for install
