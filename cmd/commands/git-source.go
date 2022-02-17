@@ -279,11 +279,11 @@ func createEmptyDefaultGitSourceRepoIfNeeded(ctx context.Context, opts *GitSourc
 	}
 
 	if len(fi) == 0 {
-		if 	err = billyUtils.WriteFile(gsFs, gsFs.Join(opts.GsCloneOpts.Path(), "DUMMY"), []byte{}, 0666); err != nil {
+		if 	err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
 			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
 		}
 
-		commitMsg := fmt.Sprintf("Created placeholder in %s Directory", opts.GsCloneOpts.Path())
+		commitMsg := fmt.Sprintf("Created a placeholder file in %s Directory", opts.GsCloneOpts.Path())
 
 		log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
