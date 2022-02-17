@@ -42,6 +42,7 @@ import (
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -278,16 +279,15 @@ func createEmptyDefaultGitSourceRepoIfNeeded(ctx context.Context, opts *GitSourc
 	}
 
 	if len(fi) == 0 {
-		if err = gsFs.WriteYamls(store.Get().PlaceholderGsRepoFilename, []byte{}); err != nil {
-			return fmt.Errorf("failed to write placeholder file to the default git-source repo. Err: %w", err)
+		if 	err = billyUtils.WriteFile(gsFs, gsFs.Join(opts.GsCloneOpts.Path(), "DUMMY"), []byte{}, 0666); err != nil {
+			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
 		}
 
 		commitMsg := fmt.Sprintf("Created placeholder in %s Directory", opts.GsCloneOpts.Path())
 
-		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
-		
+		log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
-			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+			return fmt.Errorf("failed to push placeholder file to git-source repo: %w", err)
 		}
 	}
 
