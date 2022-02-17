@@ -30,7 +30,7 @@ var (
 	buildDate       = ""
 	gitCommit       = ""
 	segmentWriteKey = ""
-	maxDefVersion   = "1.0.0"
+	maxDefVersion   = "1.0.1"
 	RuntimeDefURL   = "manifests/runtime.yaml"
 	ArgoAgentURL    = "manifests/argo-agent/agent.yaml"
 )
