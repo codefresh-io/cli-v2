@@ -211,11 +211,11 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	if opts.CreateDemoResources {
 		if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create git source demo resources: %w", err)
+			return fmt.Errorf("failed to create git-source demo resources: %w", err)
 		}
 	} else {
-		if err := createEmptyDefaultGitSourceRepoIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create git source demo resources: %w", err)
+		if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
+			return fmt.Errorf("failed to create a git-source placeholder: %w", err)
 		}
 	}
 
@@ -272,7 +272,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 	return nil
 }
 
-func createEmptyDefaultGitSourceRepoIfNeeded(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
+func createPlaceholderIfNeeded(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
