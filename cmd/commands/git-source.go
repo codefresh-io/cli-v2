@@ -277,12 +277,13 @@ func createEmptyDefaultGitSourceRepoIfNeeded(ctx context.Context, opts *GitSourc
 	}
 
 	if len(fi) == 0 {
-		err = gsFs.WriteYamls(store.Get().PlaceholderGsRepoFilename)
+		if err = gsFs.WriteYamls(store.Get().PlaceholderGsRepoFilename); err != nil {
+			return fmt.Errorf("failed to write placeholder file to the default git-source repo. Err: %w", err)
+		}
 	}
 
 	return nil
 }
-
 
 func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 	err := createDemoWorkflowTemplate(opts.gsFs)
