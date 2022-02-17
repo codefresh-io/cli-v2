@@ -121,9 +121,8 @@ type Store struct {
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
-	ReplicaSetReporterName               string
-	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
+	AnalysisRunResourceName              string
 	WorkflowResourceName                 string
 	RequirementsLink                     string
 	DownloadCliLink                      string
@@ -213,14 +212,13 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
+	s.RolloutResourceName = "rollouts"
+	s.ReplicaSetResourceName = "replicasets"
+	s.AnalysisRunResourceName = "analysisruns"
 	s.MinimumMemorySizeRequired = "5000"
 	s.MinimumCpuRequired = "2"
-	s.ReplicaSetReporterName = "replicaset-reporter"
-	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
-	s.ReplicaSetResourceName = "replicasets"
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
-	s.RolloutResourceName = "rollouts"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
 	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
