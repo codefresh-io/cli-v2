@@ -236,6 +236,13 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 		}
 	}()
 
+	defer func(name *string) {
+		deferErr := client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, *name, metav1.DeleteOptions{})
+		if deferErr != nil {
+			log.G(ctx).Error("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
+		}
+	}(&testerPodName)
+
 	log.G(ctx).Info("Running network test...")
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -283,15 +290,8 @@ Loop:
 			return fmt.Errorf("network test timeout reached!")
 		}
 	}
-
-	defer func() {
-		deferErr := client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, testerPodName, metav1.DeleteOptions{})
-		if deferErr != nil {
-			log.G(ctx).Error("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
-		}
-	}()
 	
-	return checkPodLastState(ctx, client, testerPodName,podLastState)
+	return checkPodLastState(ctx, client, testerPodName, podLastState)
 }
 
 func prepareEnvVars(vars map[string]string) []v1.EnvVar {

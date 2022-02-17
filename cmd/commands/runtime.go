@@ -861,7 +861,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 
 	if !opts.SkipClusterChecks {
 		err = util.RunNetworkTest(ctx, opts.KubeFactory, cfConfig.GetCurrentContext().URL)
-		if err != nil {
+		if err == nil {
 			log.G(ctx).Info("Network test finished successfully")
 		}
 	}
@@ -870,7 +870,9 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %v ", err))
 	}
 
-	err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
+	if !opts.SkipClusterChecks {
+		err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
+	}
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, false)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
