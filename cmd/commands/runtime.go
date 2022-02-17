@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -387,6 +388,20 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		if err := setIngressHost(cmd.Context(), opts); err != nil {
 			return err
 		}
+	}
+
+	parsed, err := url.Parse(opts.IngressHost)
+	if err != nil {
+		return err
+	}
+
+	isIP, err := util.IsIP(parsed.Host)
+	if err != nil {
+		return err
+	}
+
+	if !isIP {
+		opts.HostName = parsed.Host
 	}
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)

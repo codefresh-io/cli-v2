@@ -187,11 +187,6 @@ func DecorateErrorWithDocsLink(err error, link ...string) error {
 	return fmt.Errorf("%s\nfor more information: %s", err.Error(), link[0])
 }
 
-func ParseHostNameFromIngressHost(ingressHost string) string {
-	split := strings.Split(ingressHost, "//")
-	return split[1]
-}
-
 func reportCancel(status reporter.CliStepStatus) {
 	reporter.G().ReportStep(reporter.CliStepData{
 		Step:        reporter.SIGNAL_TERMINATION,
@@ -199,6 +194,10 @@ func reportCancel(status reporter.CliStepStatus) {
 		Description: "Cancelled by an external signal",
 		Err:         nil,
 	})
+}
+
+func IsIP(s string) (bool, error) {
+	return regexp.MatchString(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`, s)
 }
 
 func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
