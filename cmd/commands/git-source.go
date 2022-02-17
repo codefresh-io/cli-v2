@@ -262,6 +262,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
 
 		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
+		
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
 			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
 		}
