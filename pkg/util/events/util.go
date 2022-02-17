@@ -161,8 +161,8 @@ func CreateResourceEventSource(opts *CreateResourceEventSourceOptions) *eventsou
 			eventsourcev1alpha1.DELETE,
 		},
 		GroupVersionResource: metav1.GroupVersionResource{
-			Group:    opts.Group,   //"argoproj.io",
-			Version:  opts.Version, //"v1alpha1",
+			Group:    opts.Group,
+			Version:  opts.Version,
 			Resource: opts.Resource,
 		},
 		Namespace: opts.Namespace,

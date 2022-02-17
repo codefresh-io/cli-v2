@@ -49,7 +49,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argowf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
+	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
@@ -79,7 +79,7 @@ type (
 		IngressController              string
 		Insecure                       bool
 		InstallDemoResources           bool
-		SkipClusterChecks                bool
+		SkipClusterChecks              bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -107,11 +107,16 @@ type (
 		CloneOpts    *git.CloneOptions
 		CommonConfig *runtime.CommonConfig
 	}
-	reporterCreateOptions struct {
-		reporterName string
+
+	gvr struct {
 		resourceName string
 		group        string
 		version      string
+	}
+
+	reporterCreateOptions struct {
+		reporterName string
+		gvr          []gvr
 		saName       string
 	}
 
@@ -488,7 +493,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	}
 
 	//  should find a more dynamic way to get these additional components
-	additionalComponents := []string{"events-reporter", "workflow-reporter", "replicaset-reporter", "rollout-reporter"}
+	additionalComponents := []string{"events-reporter", "workflow-reporter", "rollout-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
 		componentNames = append(componentNames, componentFullName)
@@ -799,30 +804,38 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if err = createReporter(
 		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 			reporterName: store.Get().WorkflowReporterName,
-			resourceName: store.Get().WorkflowResourceName,
-			group:        argowf.Group,
-			version:      argowf.Version,
-			saName:       store.Get().CodefreshSA,
+			gvr: []gvr{
+				{
+					resourceName: store.Get().WorkflowResourceName,
+					group:        "argoproj.io",
+					version:      "v1alpha1",
+				},
+			},
+			saName: store.Get().CodefreshSA,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
 
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-		reporterName: store.Get().ReplicaSetReporterName,
-		resourceName: store.Get().ReplicaSetResourceName,
-		group:        "apps",
-		version:      "v1",
-		saName:       store.Get().ReplicaSetReporterServiceAccount,
-	}); err != nil {
-		return fmt.Errorf("failed to create replicaset-reporter: %w", err)
-	}
-
-	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().RolloutReporterName,
-		resourceName: store.Get().RolloutResourceName,
-		group:        "argoproj.io",
-		version:      "v1alpha1",
-		saName:       store.Get().RolloutReporterServiceAccount,
+		gvr: []gvr{
+			{
+				resourceName: store.Get().RolloutResourceName,
+				group:        "argoproj.io",
+				version:      "v1alpha1",
+			},
+			{
+				resourceName: store.Get().ReplicaSetResourceName,
+				group:        "apps",
+				version:      "v1",
+			},
+			{
+				resourceName: store.Get().AnalysisRunResourceName,
+				group:        "argoproj.io",
+				version:      "v1alpha1",
+			},
+		},
+		saName: store.Get().RolloutReporterServiceAccount,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1516,7 +1529,8 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return err
 	}
 
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, "events", "data"); err != nil {
+	eventsReporterTriggers := []string{"events"}
+	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
 		return err
 	}
 
@@ -1575,7 +1589,12 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, reporterCreateOpts.resourceName, "data.object"); err != nil {
+	var triggerNames []string
+	for _, gvr := range reporterCreateOpts.gvr {
+		triggerNames = append(triggerNames, gvr.resourceName)
+	}
+
+	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
 		return err
 	}
 
@@ -1744,31 +1763,44 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 }
 
 func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
-	eventSource := eventsutil.CreateEventSource(&eventsutil.CreateEventSourceOptions{
+	var eventSource *aev1alpha1.EventSource
+	var options *eventsutil.CreateEventSourceOptions
+
+	var resourceNames []string
+	for _, gvr := range reporterCreateOpts.gvr {
+		resourceNames = append(resourceNames, gvr.resourceName)
+	}
+
+	options = &eventsutil.CreateEventSourceOptions{
 		Name:               reporterCreateOpts.reporterName,
 		Namespace:          namespace,
 		ServiceAccountName: reporterCreateOpts.saName,
 		EventBusName:       store.Get().EventBusName,
-		Resource: map[string]eventsutil.CreateResourceEventSourceOptions{
-			reporterCreateOpts.resourceName: {
-				Group:     reporterCreateOpts.group,
-				Version:   reporterCreateOpts.version,
-				Resource:  reporterCreateOpts.resourceName,
-				Namespace: namespace,
-			},
-		},
-	})
+		Resource:           map[string]eventsutil.CreateResourceEventSourceOptions{},
+	}
+
+	for i, name := range resourceNames {
+		options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
+			Group:     reporterCreateOpts.gvr[i].group,
+			Version:   reporterCreateOpts.gvr[i].version,
+			Resource:  reporterCreateOpts.gvr[i].resourceName,
+			Namespace: namespace,
+		}
+	}
+
+	eventSource = eventsutil.CreateEventSource(options)
+
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName, trigger, dataKey string) error {
+func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, triggers []string, dataKey string) error {
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
 		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
-		Triggers:        []string{trigger},
+		Triggers:        triggers,
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)

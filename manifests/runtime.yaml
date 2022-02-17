@@ -1,11 +1,11 @@
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
-    name: '{{ name }}'
-    namespace: '{{ namespace }}'
+  name: "{{ name }}"
+  namespace: "{{ namespace }}"
 spec:
   defVersion: 1.0.0
-  version: 0.0.236
+  version: 0.0.238
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
     - name: events
@@ -18,9 +18,6 @@ spec:
     - name: workflows
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
-    - name: argocd-agent
-      type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-agent
     - name: app-proxy
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/app-proxy
