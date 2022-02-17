@@ -281,6 +281,14 @@ func createEmptyDefaultGitSourceRepoIfNeeded(ctx context.Context, opts *GitSourc
 		if err = gsFs.WriteYamls(store.Get().PlaceholderGsRepoFilename, []byte{}); err != nil {
 			return fmt.Errorf("failed to write placeholder file to the default git-source repo. Err: %w", err)
 		}
+
+		commitMsg := fmt.Sprintf("Created placeholder in %s Directory", opts.GsCloneOpts.Path())
+
+		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
+		
+		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+		}
 	}
 
 	return nil
