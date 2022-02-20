@@ -17,10 +17,12 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/juju/ansiterm"
 
 	"github.com/spf13/cobra"
@@ -79,30 +81,51 @@ func RunComponentList(ctx context.Context, runtimeName string) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tHEALTH STATUS\tSYNC STATUS\tVERSION")
+
+	if err := printComponents(tb, components); err != nil {
+		return err
+	}
+
+	return tb.Flush()
+}
+
+func printComponents(w io.Writer, components []model.Component) error {
+	_, err := fmt.Fprintln(w, "NAME\tHEALTH STATUS\tSYNC STATUS\tVERSION")
 	if err != nil {
 		return err
 	}
 
 	for _, c := range components {
-		name := c.Metadata.Name
-		healthStatus := "N/A"
-		syncStatus := c.Self.Status.SyncStatus.String()
-		version := c.Version
-
-		if c.Self.Status.HealthStatus != nil {
-			healthStatus = c.Self.Status.HealthStatus.String()
-		}
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\n",
-			name,
-			healthStatus,
-			syncStatus,
-			version,
-		)
-		if err != nil {
+		if err := printComponent(w, c); err != nil {
 			return err
 		}
 	}
 
-	return tb.Flush()
+	return nil
+}
+
+func printComponent(w io.Writer, c model.Component) error {
+	name := c.Metadata.Name
+	healthStatus := "N/A"
+	syncStatus := "N/A"
+	version := c.Version
+
+	if c.Self != nil {
+		if c.Self.Status != nil {
+			syncStatus = c.Self.Status.SyncStatus.String()
+		}
+
+		if c.Self.Status.HealthStatus != nil {
+			healthStatus = c.Self.Status.HealthStatus.String()
+		}
+	}
+
+	_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		name,
+		healthStatus,
+		syncStatus,
+		version,
+	)
+
+	return err
 }

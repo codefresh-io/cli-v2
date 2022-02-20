@@ -24,6 +24,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -32,7 +33,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	argodashboardutil "github.com/codefresh-io/cli-v2/pkg/util/argo-agent"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
@@ -57,6 +57,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
+	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -620,16 +621,19 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	skipIngressInfoMsg := fmt.Sprintf(
-	`To complete the installation: 
+		`To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and '%s'
 2. Create and register Git integration using the commands:
-cf integration git add default --runtime %s --api-url %s
-cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`, 
-	store.Get().AppProxyIngressPath, 
-	store.Get().GithubExampleEventSourceEndpointPath, 
-	opts.RuntimeName, 
-	opts.GitIntegrationCreationOpts.APIURL,
-	opts.RuntimeName)
+
+	cf integration git add default --runtime %s --api-url %s
+
+	cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
+`,
+		store.Get().AppProxyIngressPath,
+		store.Get().GithubExampleEventSourceEndpointPath,
+		opts.RuntimeName,
+		opts.GitIntegrationCreationOpts.APIURL,
+		opts.RuntimeName)
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {
@@ -793,10 +797,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
 	}
 
-	if err = createCodefreshArgoAgentReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
-		return fmt.Errorf("failed to create argocd-agent-reporter: %w", err)
-	}
-
 	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
@@ -949,13 +949,108 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return fmt.Errorf("runtime '%s' already exists", runtime)
 }
 
+func printComponentsState(ctx context.Context, runtime string) error {
+	components := map[string]model.Component{}
+	lock := sync.Mutex{}
+
+	curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
+	if err != nil {
+		return err
+	}
+
+	for _, c := range curComponents {
+		components[c.Metadata.Name] = c
+	}
+
+	// refresh components state
+	go func() {
+		t := time.NewTicker(3 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+
+			curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
+			if err != nil {
+				log.G(ctx).WithError(err).Error("failed to refresh components state")
+				return
+			}
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			for _, c := range curComponents {
+				components[c.Metadata.Name] = c
+			}
+		}
+	}()
+
+	checkers := make([]checklist.Checker, len(curComponents))
+	for i, c := range curComponents {
+		name := c.Metadata.Name
+		checkers[i] = func(ctx context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
+			lock.Lock()
+			defer lock.Unlock()
+			return getComponentChecklistState(components[name])
+		}
+	}
+
+	cl := checklist.NewCheckList(
+		checklist.NewTerminalWriter(os.Stdout),
+		checklist.ListItemInfo{"NAME", "HEALTH STATUS", "SYNC STATUS", "VERSION"},
+		checkers,
+		&checklist.CheckListOptions{},
+	)
+
+	if err := cl.Start(ctx); err != nil && ctx.Err() == nil {
+		return err
+	}
+
+	return nil
+}
+
+func getComponentChecklistState(c model.Component) (checklist.ListItemState, checklist.ListItemInfo) {
+	state := checklist.Waiting
+	name := c.Metadata.Name
+	version := "N/A"
+	syncStatus := "N/A"
+	healthStatus := "N/A"
+
+	if c.Version != "" {
+		version = c.Version
+	}
+
+	if c.Self != nil && c.Self.Status != nil {
+		syncStatus = string(c.Self.Status.SyncStatus)
+
+		if c.Self.Status.HealthStatus != nil {
+			healthStatus = string(*c.Self.Status.HealthStatus)
+		}
+	}
+
+	if healthStatus == string(model.HealthStatusHealthy) && syncStatus == string(model.SyncStatusSynced) {
+		state = checklist.Ready
+	}
+
+	return state, []string{name, healthStatus, syncStatus, version}
+}
+
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
 	maxRetries := 180 // up to 30 min
-	waitMsg := "Waiting for the runtime installation to complete"
-	stop := util.WithSpinner(ctx, waitMsg)
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
-	defer stop()
+	subCtx, cancel := context.WithCancel(ctx)
+
+	log.G().Info("Waiting for the runtime installation to complete...")
+
+	go func() {
+		if err := printComponentsState(subCtx, runtimeName); err != nil {
+			log.G(ctx).WithError(err).Error("failed to print components state")
+		}
+	}()
+	defer cancel()
 
 	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
@@ -1539,32 +1634,6 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 	return apu.PushWithMessage(ctx, r, "Created Codefresh Event Reporter")
 }
 
-func createCodefreshArgoAgentReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	argoAgentCFTokenSecret, err := getArgoCDAgentTokenSecret(ctx, cfConfig.GetCurrentContext().Token, opts.RuntimeName)
-	if err != nil {
-		return fmt.Errorf("failed to create argocd token secret: %w", err)
-	}
-
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(argoAgentCFTokenSecret)); err != nil {
-		return fmt.Errorf("failed to create codefresh token: %w", err)
-	}
-
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().ArgoCDAgentReporterName, "base")
-
-	r, _, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := createCodefreshArgoDashboardAgent(ctx, resPath, cloneOpts, rt); err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Pushing ArgoCD Agent manifests")
-
-	return apu.PushWithMessage(ctx, r, "Created ArgoCD Agent Reporter")
-}
-
 func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
@@ -1804,21 +1873,6 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 		TriggerDestKey:  dataKey,
 	})
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
-}
-
-func createCodefreshArgoDashboardAgent(ctx context.Context, path string, cloneOpts *git.CloneOptions, rt *runtime.Runtime) error {
-	_, fs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	kust := argodashboardutil.CreateAgentResourceKustomize(&argodashboardutil.CreateAgentOptions{Namespace: rt.Namespace, Name: rt.Name})
-
-	if err = kustutil.WriteKustomization(fs, &kust, path); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
