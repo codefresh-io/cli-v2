@@ -440,11 +440,19 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
+	supportedAppNames := []string{"ingress-nginx", "nginx-ingress"}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]string)
 	var isValidClass bool
 	for _, ic := range ingressClassList.Items {
-		if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "ingress-nginx" {
+		var supported bool
+		for _, appName := range supportedAppNames {
+			if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == appName {
+				supported = true
+				break
+			}
+		}
+		if supported  {
 			ingressClassNames = append(ingressClassNames, ic.Name)
 			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", getControllerName(ic.Spec.Controller))
 			if opts.IngressClass == ic.Name {
