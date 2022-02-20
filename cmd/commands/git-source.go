@@ -42,6 +42,7 @@ import (
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -210,7 +211,11 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	if opts.CreateDemoResources {
 		if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create git source demo resources: %w", err)
+			return fmt.Errorf("failed to create git-source demo resources: %w", err)
+		}
+	} else {
+		if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
+			return fmt.Errorf("failed to create a git-source placeholder: %w", err)
 		}
 	}
 
@@ -223,6 +228,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
+	
 	log.G(ctx).Infof("Successfully created git-source: '%s'", opts.GsName)
 
 	return nil
@@ -258,8 +264,31 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
 
 		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
+		
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
 			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func createPlaceholderIfNeeded(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
+	fi, err := gsFs.ReadDir(".")
+	if err != nil {
+		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
+	}
+
+	if len(fi) == 0 {
+		if 	err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
+			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
+		}
+
+		commitMsg := fmt.Sprintf("Created a placeholder file in %s Directory", opts.GsCloneOpts.Path())
+
+		log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
+		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+			return fmt.Errorf("failed to push placeholder file to git-source repo: %w", err)
 		}
 	}
 
