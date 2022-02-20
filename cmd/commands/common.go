@@ -293,7 +293,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		log.G(cmd.Context()).Info("PAT has been set for your user. PAT may be updated from user settings")
+		currentUser, err := cfConfig.NewClient().Users().GetCurrent(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("failed to fetch username from platform: %w", err)
+		}
+		log.G(cmd.Context()).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
 	}
 
 	return cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
