@@ -92,7 +92,7 @@ func verifyGitHubTokenScope(ctx context.Context, token string, tokenType TokenTy
 		}
 	}
 
-	log.G(ctx).Info("Token verified")
+	log.G(ctx).Infof("%s verified", tokenType)
 
 	return nil
 }
