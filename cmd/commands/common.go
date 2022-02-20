@@ -295,7 +295,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
 		currentUser, err := cfConfig.NewClient().Users().GetCurrent(cmd.Context())
 		if err != nil {
-			return fmt.Errorf("failed to fetch username from platform: %w", err)
+			return fmt.Errorf("failed to retrieve username from platform: %w", err)
 		}
 		log.G(cmd.Context()).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
 	}
