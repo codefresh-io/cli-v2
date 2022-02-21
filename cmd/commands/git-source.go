@@ -786,6 +786,7 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
 			},
 		}})
+	//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
 }
 
 func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {

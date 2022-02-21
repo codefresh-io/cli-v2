@@ -80,6 +80,7 @@ type (
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
+		EnterpriseNginx                bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -452,7 +453,8 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 				break
 			}
 		}
-		if supported  {
+		if supported {
+			opts.EnterpriseNginx = (ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "nginx-ingress")
 			ingressClassNames = append(ingressClassNames, ic.Name)
 			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", getControllerName(ic.Spec.Controller))
 			if opts.IngressClass == ic.Name {
@@ -628,16 +630,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	skipIngressInfoMsg := fmt.Sprintf(
-	`To complete the installation: 
+		`To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and '%s'
 2. Create and register Git integration using the commands:
 cf integration git add default --runtime %s --api-url %s
-cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`, 
-	store.Get().AppProxyIngressPath, 
-	store.Get().GithubExampleEventSourceEndpointPath, 
-	opts.RuntimeName, 
-	opts.GitIntegrationCreationOpts.APIURL,
-	opts.RuntimeName)
+cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`,
+		store.Get().AppProxyIngressPath,
+		store.Get().GithubExampleEventSourceEndpointPath,
+		opts.RuntimeName,
+		opts.GitIntegrationCreationOpts.APIURL,
+		opts.RuntimeName)
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {
@@ -791,6 +793,12 @@ func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apm
 
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
+
+	//if nginx enterprise, create master ingress resource, all other resources will be minions
+	if opts.EnterpriseNginx {
+		//create master ingress resource
+	}
+
 	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
@@ -1400,6 +1408,9 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 			},
 		},
 	})
+
+	//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
+
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
 	}
@@ -1482,6 +1493,9 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				},
 			},
 		})
+		
+		//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
+
 		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 			return err
 		}
