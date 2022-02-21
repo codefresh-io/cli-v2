@@ -78,7 +78,7 @@ type (
 		IngressClass                   string
 		IngressController              string
 		Insecure                       bool
-		InstallDemoResources           bool
+		SkipDemoResources              bool
 		SkipClusterChecks              bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
@@ -225,7 +225,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
-	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
+	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "skip-demo-resources", false, "Skips installation of demo resources (default: false)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
@@ -313,7 +313,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
+	err = askUserIfToInstallDemoResources(cmd, &opts.SkipDemoResources)
 	handleCliStep(reporter.InstallStepPreCheckShouldInstallDemoResources, "Asking user is demo resources should be installed", err, false)
 	if err != nil {
 		return err
@@ -620,16 +620,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	skipIngressInfoMsg := fmt.Sprintf(
-	`To complete the installation: 
+		`To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and '%s'
 2. Create and register Git integration using the commands:
 cf integration git add default --runtime %s --api-url %s
-cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`, 
-	store.Get().AppProxyIngressPath, 
-	store.Get().GithubExampleEventSourceEndpointPath, 
-	opts.RuntimeName, 
-	opts.GitIntegrationCreationOpts.APIURL,
-	opts.RuntimeName)
+cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`,
+		store.Get().AppProxyIngressPath,
+		store.Get().GithubExampleEventSourceEndpointPath,
+		opts.RuntimeName,
+		opts.GitIntegrationCreationOpts.APIURL,
+		opts.RuntimeName)
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {
