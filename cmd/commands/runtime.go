@@ -205,7 +205,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
-				"Installing demo resources": strconv.FormatBool(installationOpts.SkipDemoResources),
+				"Installing demo resources": strconv.FormatBool(!installationOpts.SkipDemoResources),
 			}
 
 			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
