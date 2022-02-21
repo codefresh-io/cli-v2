@@ -84,6 +84,10 @@ func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
 }
 
+func isValidIngressHost(ingressHost string) (bool, error) {
+	return regexp.MatchString(`^(http|https)://`, ingressHost)
+}
+
 func getControllerName(s string) string {
 	split := strings.Split(s, "/")
 	return split[1]
@@ -287,47 +291,16 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 }
 
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	var err error
-	tokenFromFlag := opts.GitIntegrationRegistrationOpts.Token
-
-	if  tokenFromFlag == "" {
-		if !store.Get().Silent {
-			err = getGitPATFromUserInput(cmd, opts)
-			if err != nil {
-				return err
-			}
-		} else {
-			log.G(cmd.Context()).Info("Using runtime token as personal user token")
-			opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-			if err != nil {
-				return err
-			}
+	if opts.GitIntegrationRegistrationOpts.Token == "" {
+		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
+		currentUser, err := cfConfig.NewClient().Users().GetCurrent(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("failed to retrieve username from platform: %w", err)
 		}
+		log.G(cmd.Context()).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
 	}
 
 	return cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
-}
-
-func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	gitPATPrompt := promptui.Prompt{
-		Label: "Personal git token for your user (skip to use runtime token)",
-		Mask:  '*',
-	}
-
-	gitPAT, err := gitPATPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	if gitPAT == "" {
-		gitPAT, err = cmd.Flags().GetString("git-token")
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-	opts.GitIntegrationRegistrationOpts.Token = gitPAT
-
-	return nil
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
@@ -442,7 +415,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
 	ingressHostPrompt := promptui.Prompt{
-		Label: "Ingress host",
+		Label:   "Ingress host",
 		Default: foundIngressHost,
 		Pointer: promptui.PipeCursor,
 	}
@@ -452,9 +425,25 @@ func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOption
 		return err
 	}
 
+	err = validateIngressHost(ingressHostInput)
+	if err != nil {
+		return err
+	}
+
 	opts.IngressHost = ingressHostInput
 
 	return nil
+}
+
+func validateIngressHost(ingressHost string) error {
+	isValid, err := isValidIngressHost(ingressHost)
+	if err != nil {
+		err = fmt.Errorf("could not verify ingress host: %w", err)
+	} else if !isValid {
+		err = fmt.Errorf("ingress host must begin with protocol 'http://' or 'https://'")
+	}
+
+	return err
 }
 
 func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -467,18 +456,25 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	var foundIngressHost string
+	var foundHostName string
 
 	for _, s := range ServicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
-			ingress := s.Status.LoadBalancer.Ingress[0]
-			if ingress.Hostname != "" {
-				foundIngressHost = fmt.Sprintf("https://%s", ingress.Hostname)
-				break
-			} else {
-				foundIngressHost = fmt.Sprintf("https://%s", ingress.IP)
-				break
+			if len(s.Status.LoadBalancer.Ingress) > 0 {
+				ingress := s.Status.LoadBalancer.Ingress[0]
+				if ingress.Hostname != "" {
+					foundHostName = ingress.Hostname
+					break
+				} else {
+					foundHostName = ingress.IP
+					break
+				}
 			}
 		}
+	}
+
+	if foundHostName != "" {
+		foundIngressHost = fmt.Sprintf("https://%s", foundHostName)
 	}
 
 	if store.Get().Silent {

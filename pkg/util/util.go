@@ -196,6 +196,10 @@ func reportCancel(status reporter.CliStepStatus) {
 	})
 }
 
+func IsIP(s string) (bool, error) {
+	return regexp.MatchString(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`, s)
+}
+
 func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
 	var testerPodName string
@@ -227,9 +231,16 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	defer func() {
 		deferErr := client.BatchV1().Jobs(store.Get().DefaultNamespace).Delete(ctx, store.Get().NetworkTesterName, metav1.DeleteOptions{})
 		if deferErr != nil {
-			log.G(ctx).Error("fail to delete job resource '%s': %s", store.Get().NetworkTesterName, deferErr.Error())
+			log.G(ctx).Errorf("fail to delete job resource '%s': %s", store.Get().NetworkTesterName, deferErr.Error())
 		}
 	}()
+
+	defer func(name *string) {
+		deferErr := client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, *name, metav1.DeleteOptions{})
+		if deferErr != nil {
+			log.G(ctx).Errorf("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
+		}
+	}(&testerPodName)
 
 	log.G(ctx).Info("Running network test...")
 
@@ -278,15 +289,8 @@ Loop:
 			return fmt.Errorf("network test timeout reached!")
 		}
 	}
-
-	defer func() {
-		deferErr := client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, testerPodName, metav1.DeleteOptions{})
-		if deferErr != nil {
-			log.G(ctx).Error("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
-		}
-	}()
 	
-	return checkPodLastState(ctx, client, testerPodName,podLastState)
+	return checkPodLastState(ctx, client, testerPodName, podLastState)
 }
 
 func prepareEnvVars(vars map[string]string) []v1.EnvVar {
