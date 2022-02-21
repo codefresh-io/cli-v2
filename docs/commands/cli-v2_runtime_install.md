@@ -29,7 +29,6 @@ cli-v2 runtime install [runtime_name] [flags]
 
 ```
       --context string              The name of the kubeconfig context to use
-      --demo-resources              Skips installation of demo resources (default: false)
   -t, --git-token string            Your git provider api token [GIT_TOKEN]
   -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                        help for install
@@ -42,6 +41,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider-api-url string     Git provider API url
       --repo string                 Repository URL [GIT_REPO]
       --skip-cluster-checks         Skips the cluster's checks
+      --skip-demo-resources         Skips installation of demo resources (default: false)
       --skip-ingress                Skips the creation of ingress resources
       --version string              The runtime version to install (default: latest)
       --wait-timeout duration       How long to wait for the runtime components to be ready (default 8m0s)

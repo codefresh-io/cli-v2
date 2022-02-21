@@ -205,7 +205,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
-				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
+				"Installing demo resources": strconv.FormatBool(installationOpts.SkipDemoResources),
 			}
 
 			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
@@ -225,7 +225,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
-	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "skip-demo-resources", false, "Skips installation of demo resources (default: false)")
+	cmd.Flags().BoolVar(&installationOpts.SkipDemoResources, "skip-demo-resources", false, "Skips installation of demo resources (default: false)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
@@ -690,7 +690,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GsCloneOpts:         opts.GsCloneOpts,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: opts.InstallDemoResources,
+		CreateDemoResources: !opts.SkipDemoResources,
 		HostName:            opts.HostName,
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
