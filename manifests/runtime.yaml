@@ -20,4 +20,4 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
     - name: app-proxy
       type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/app-proxy
+      url: manifests/app-proxy

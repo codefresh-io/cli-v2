@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -39,6 +40,7 @@ import (
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	"github.com/manifoldco/promptui"
 
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -81,6 +83,7 @@ type (
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
+		DisableRollback                bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -196,6 +199,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
+				if errors.Is(err, promptui.ErrInterrupt) {
+					return fmt.Errorf("installation canceled by user")
+				}
+				fmt.Println(err.Error())
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
@@ -210,7 +217,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 
 			return nil
@@ -228,6 +235,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
+	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
@@ -273,13 +281,13 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	err = validateRuntimeName(opts.RuntimeName)
 	handleCliStep(reporter.InstallStepPreCheckRuntimeNameValidation, "Validating runtime name", err, false)
 	if err != nil {
-		log.G(cmd.Context()).Fatal(fmt.Errorf("%w", err))
+		return err
 	}
 
 	err = getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	err = ensureIngressClass(cmd.Context(), opts)
@@ -341,25 +349,25 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	err := getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	err = ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return nil
@@ -371,19 +379,19 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	err := ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, false)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return nil
@@ -522,6 +530,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+
 	err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true)
 	if err != nil {
@@ -539,7 +548,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	defer postInstallationHandler(ctx, opts, &err)
+	shouldRollback := opts.DisableRollback
+
+	defer func() {
+		// will rollback if err is not nil and it is safe to do so
+		postInstallationHandler(ctx, opts, err, shouldRollback)
+	}()
 
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:    opts.RuntimeName,
@@ -613,6 +627,10 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if timeoutErr != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
 	}
+
+	// if we got to this point the runtime was installed successfully
+	// thus we shall not perform a rollback after this point.
+	shouldRollback = false
 
 	err = createGitIntegration(ctx, opts)
 	if err != nil {
@@ -688,7 +706,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 }
 
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
-	gitSrcMessage := fmt.Sprintf("Creating git source `%s`", store.Get().GitSourceName)
+	gitSrcMessage := fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
 	err := RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		InsCloneOpts:        opts.InsCloneOpts,
 		GsCloneOpts:         opts.GsCloneOpts,
@@ -701,7 +719,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().GitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().GitSourceName, err))
 	}
 
 	mpCloneOpts := &git.CloneOptions{
@@ -964,7 +982,7 @@ func printComponentsState(ctx context.Context, runtime string) error {
 
 	// refresh components state
 	go func() {
-		t := time.NewTicker(3 * time.Second)
+		t := time.NewTicker(2 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
@@ -973,17 +991,16 @@ func printComponentsState(ctx context.Context, runtime string) error {
 			}
 
 			curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
-			if err != nil {
+			if err != nil && ctx.Err() == nil {
 				log.G(ctx).WithError(err).Error("failed to refresh components state")
-				return
+				continue
 			}
 
 			lock.Lock()
-			defer lock.Unlock()
-
 			for _, c := range curComponents {
 				components[c.Metadata.Name] = c
 			}
+			lock.Unlock()
 		}
 	}()
 
@@ -999,7 +1016,7 @@ func printComponentsState(ctx context.Context, runtime string) error {
 
 	cl := checklist.NewCheckList(
 		checklist.NewTerminalWriter(os.Stdout),
-		checklist.ListItemInfo{"NAME", "HEALTH STATUS", "SYNC STATUS", "VERSION"},
+		checklist.ListItemInfo{"COMPONENT", "HEALTH STATUS", "SYNC STATUS", "VERSION", "ERRORS"},
 		checkers,
 		&checklist.CheckListOptions{},
 	)
@@ -1013,10 +1030,11 @@ func printComponentsState(ctx context.Context, runtime string) error {
 
 func getComponentChecklistState(c model.Component) (checklist.ListItemState, checklist.ListItemInfo) {
 	state := checklist.Waiting
-	name := c.Metadata.Name
+	name := strings.TrimPrefix(c.Metadata.Runtime, c.Metadata.Name)
 	version := "N/A"
 	syncStatus := "N/A"
 	healthStatus := "N/A"
+	errs := ""
 
 	if c.Version != "" {
 		version = c.Version
@@ -1028,13 +1046,23 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 		if c.Self.Status.HealthStatus != nil {
 			healthStatus = string(*c.Self.Status.HealthStatus)
 		}
+
+		if len(c.Self.Errors) > 0 {
+			// use the first sync error due to lack of space
+			for _, err := range c.Self.Errors {
+				se, ok := err.(model.SyncError)
+				if ok {
+					errs = se.Message
+				}
+			}
+		}
 	}
 
 	if healthStatus == string(model.HealthStatusHealthy) && syncStatus == string(model.SyncStatusSynced) {
 		state = checklist.Ready
 	}
 
-	return state, []string{name, healthStatus, syncStatus, version}
+	return state, []string{name, healthStatus, syncStatus, version, errs}
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
@@ -1052,9 +1080,19 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 	}()
 	defer cancel()
 
-	for triesLeft := maxRetries; triesLeft > 0; triesLeft, _ = triesLeft-1, <-ticker.C {
+	for triesLeft := maxRetries; triesLeft > 0; triesLeft-- {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+
 		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 		if err != nil {
+			if err == ctx.Err() {
+				return ctx.Err()
+			}
+
 			log.G(ctx).Warnf("retrying the call to graphql API. Error: %s", err.Error())
 		} else if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			return nil
@@ -1197,7 +1235,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 
 			uninstallationOpts.CloneOpts.Parse()
@@ -1338,7 +1376,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 
 			opts.CloneOpts.Parse()
@@ -1596,12 +1634,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
 
-	argoAgentCFTokenSecret, err := getArgoCDAgentTokenSecret(ctx, cfConfig.GetCurrentContext().Token, opts.RuntimeName)
-	if err != nil {
-		return fmt.Errorf("failed to create argocd token secret: %w", err)
-	}
-
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret, argoAgentCFTokenSecret)); err != nil {
+	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
@@ -1734,22 +1767,6 @@ func getArgoCDTokenSecret(ctx context.Context, namespace string, insecure bool) 
 		},
 		Data: map[string][]byte{
 			store.Get().ArgoCDTokenKey: []byte(token),
-		},
-	})
-}
-
-func getArgoCDAgentTokenSecret(ctx context.Context, token string, namespace string) ([]byte, error) {
-	return yaml.Marshal(&v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Get().ArgoCDAgentCFTokenSecret,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			store.Get().ArgoCDAgentCFTokenKey: []byte(token),
 		},
 	})
 }
@@ -1925,10 +1942,10 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
-func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err *error) {
-	if *err != nil {
+func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err error, shouldRollback bool) {
+	if err != nil && shouldRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
-		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", (*err).Error())
+		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout:     store.Get().WaitTimeout,

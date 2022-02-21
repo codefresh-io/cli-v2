@@ -19,9 +19,8 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.1.2
 	github.com/juju/ansiterm v0.0.0-20210929141451-8b71cc96ebdc
-	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/manifoldco/promptui v0.8.0
-	github.com/rkrmr33/checklist v0.0.1 // indirect
+	github.com/rkrmr33/checklist v0.0.1
 	github.com/segmentio/backo-go v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
@@ -40,6 +39,7 @@ require (
 replace (
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
+	github.com/codefresh-io/go-sdk => ../go-sdk
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1
