@@ -114,6 +114,16 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	runtime.Name = name
 	runtime.Namespace = name
 	runtime.Spec.devMode = devMode
+
+	runtimeVersionDevMode, err := semver.NewVersion("v99.99.99")
+	if err != nil {
+		return nil, err
+	}
+	
+	if runtime.Spec.devMode {
+		runtime.Spec.Version = runtimeVersionDevMode
+	}
+
 	for i := range runtime.Spec.Components {
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
 	}
