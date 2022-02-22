@@ -28,23 +28,23 @@ cli-v2 runtime install [runtime_name] [flags]
 ### Options
 
 ```
-      --context string             The name of the kubeconfig context to use
-      --demo-resources             Installs demo resources (default: true) (default true)
-      --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
-      --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
-      --git-src-provider string    The git provider, one of: gitea|github|gitlab
-      --git-src-repo string        Repository URL [GIT_SRC_GIT_REPO]
-  -t, --git-token string           Your git provider api token [GIT_TOKEN]
-  -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
-  -h, --help                       help for install
-      --ingress-host string        The ingress host
-      --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string           If present, the namespace scope for this CLI request
-      --provider string            The git provider, one of: gitea|github|gitlab
-      --provider-api-url string    Git provider API url
-      --repo string                Repository URL [GIT_REPO]
-      --version string             The runtime version to install (default: latest)
-      --wait-timeout duration      How long to wait for the runtime components to be ready (default 8m0s)
+      --context string              The name of the kubeconfig context to use
+      --demo-resources              Installs demo resources (default: true) (default true)
+  -t, --git-token string            Your git provider api token [GIT_TOKEN]
+  -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
+  -h, --help                        help for install
+      --ingress-class string        The ingress class name
+      --ingress-host string         The ingress host
+      --kubeconfig string           Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string            If present, the namespace scope for this CLI request
+      --personal-git-token string   The Personal git token for your user
+      --provider string             The git provider, one of: gitea|github|gitlab
+      --provider-api-url string     Git provider API url
+      --repo string                 Repository URL [GIT_REPO]
+      --skip-cluster-checks         Skips the cluster's checks
+      --skip-ingress                Skips the creation of ingress resources
+      --version string              The runtime version to install (default: latest)
+      --wait-timeout duration       How long to wait for the runtime components to be ready (default 8m0s)
 ```
 
 ### Options inherited from parent commands
@@ -53,6 +53,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --auth-context string        Run the next command using a specific authentication context
       --cfconfig string            Custom path for authentication contexts config file (default "/home/user")
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
+      --insecure-ingress-host      Disable certificate validation of ingress host (default: false)
       --request-timeout duration   Request timeout (default 30s)
       --silent                     Disables the command wizard
 ```

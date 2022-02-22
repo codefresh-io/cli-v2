@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package kube
 
 import (
@@ -36,9 +22,11 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	authv1 "k8s.io/api/authorization/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -55,6 +43,16 @@ type (
 		memorySize string
 		rbac       []rbacValidation
 	}
+
+	LaunchJobOptions struct {
+		Client        kubernetes.Interface
+		Namespace     string
+		JobName       *string
+		Image         *string
+		Env           []v1.EnvVar
+		RestartPolicy v1.RestartPolicy
+		BackOffLimit  int32
+	}
 )
 
 func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
@@ -63,7 +61,19 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 
 	client, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
-		return fmt.Errorf("cannot create kubernetes clientset: %v ", err)
+		return fmt.Errorf("cannot create kubernetes clientset: %w", err)
+	}
+
+	kubeVersion, err := client.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to check the cluster's version: %w", err)
+	}
+
+	minDelta := version.CompareKubeAwareVersionStrings(store.Get().MinKubeVersion, kubeVersion.String())
+	maxDelta := version.CompareKubeAwareVersionStrings(store.Get().MaxKubeVersion, kubeVersion.String())
+
+	if minDelta < 0 || maxDelta > 0 {
+		return fmt.Errorf("%s: cluster's server version must be between %s and %s", requirementsValidationErrorMessage, store.Get().MinKubeVersion, store.Get().MaxKubeVersion)
 	}
 
 	req := validationRequest{
@@ -215,4 +225,37 @@ func testNode(n v1.Node, req validationRequest) []string {
 	}
 
 	return result
+}
+
+func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
+	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
+
+	jobSpec := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *opts.JobName,
+			Namespace: opts.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  *opts.JobName,
+							Image: *opts.Image,
+							Env:   opts.Env,
+						},
+					},
+					RestartPolicy: opts.RestartPolicy,
+				},
+			},
+			BackoffLimit: &opts.BackOffLimit,
+		},
+	}
+
+	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create K8s job '%s' : %w", *opts.JobName, err)
+	}
+
+	return nil
 }

@@ -12,20 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2021 The Codefresh Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package store
 
 import (
@@ -39,13 +25,14 @@ import (
 var s Store
 
 var (
-	binaryName    = "cli-v2"
-	version       = "v99.99.99"
-	buildDate     = ""
-	gitCommit     = ""
-	maxDefVersion = "1.0.0"
-	RuntimeDefURL = "manifests/runtime.yaml"
-	ArgoAgentURL  = "manifests/argo-agent/agent.yaml"
+	binaryName      = "cli-v2"
+	version         = "v99.99.99"
+	buildDate       = ""
+	gitCommit       = ""
+	segmentWriteKey = ""
+	maxDefVersion   = "1.0.1"
+	RuntimeDefURL   = "manifests/runtime.yaml"
+	ArgoAgentURL    = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
@@ -93,7 +80,7 @@ type Store struct {
 	AppProxyIngressPath                  string
 	AppProxyServicePort                  int32
 	AppProxyServiceName                  string
-	DocsLink							 string
+	DocsLink                             string
 	LabelKeyCFType                       string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
@@ -128,16 +115,27 @@ type Store struct {
 	GithubAccessTokenSecretKey           string
 	ArgoCD                               string
 	Silent                               bool
+	InsecureIngressHost                  bool
+	BypassIngressClassCheck              bool
+	SkipIngress                          bool
 	MinimumMemorySizeRequired            string
 	MinimumCpuRequired                   string
 	MinimumLocalDiskSizeRequired         string
-	ReplicaSetReporterName               string
-	ReplicaSetReporterServiceAccount     string
 	ReplicaSetResourceName               string
+	AnalysisRunResourceName              string
 	WorkflowResourceName                 string
+	RequirementsLink                     string
+	DownloadCliLink                      string
 	RolloutReporterName                  string
 	RolloutResourceName                  string
 	RolloutReporterServiceAccount        string
+	SegmentWriteKey                      string
+	DefaultNamespace                     string
+	NetworkTesterName                    string
+	NetworkTesterGenerateName            string
+	NetworkTesterImage                   string
+	MinKubeVersion                       string
+	MaxKubeVersion                       string
 }
 
 // Get returns the global store
@@ -213,15 +211,24 @@ func init() {
 	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
 	s.GithubAccessTokenSecretKey = "git_token"
 	s.ArgoCD = "argo-cd"
+	s.RolloutResourceName = "rollouts"
+	s.ReplicaSetResourceName = "replicasets"
+	s.AnalysisRunResourceName = "analysisruns"
 	s.MinimumMemorySizeRequired = "5000"
 	s.MinimumCpuRequired = "2"
-	s.ReplicaSetReporterName = "replicaset-reporter"
-	s.ReplicaSetReporterServiceAccount = "replicaset-reporter-sa"
-	s.ReplicaSetResourceName = "replicasets"
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
-	s.RolloutResourceName = "rollouts"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
+	s.SegmentWriteKey = segmentWriteKey
+	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
+	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
+	s.DefaultNamespace = "default"
+	s.NetworkTesterName = "cf-network-tester"
+	s.NetworkTesterGenerateName = "cf-network-tester-"
+	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
+	s.MinKubeVersion = "v1.18.0"
+	s.MaxKubeVersion = "v1.21.9"
+
 	initVersion()
 }
 

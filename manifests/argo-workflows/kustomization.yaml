@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://github.com/codefresh-io/argo-workflows/releases/download/v3.2.4-cap-CR-6798/install.yaml
+  - https://github.com/codefresh-io/argo-workflows/releases/download/v3.2.6-cap-CR-8697/install.yaml
 
 patches:
   # reset the crbs to `subject.namespace: default`, so that argo-cd will later change them to the actual ns
@@ -23,6 +23,26 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/args/-
         value: --auth-mode=server
+
+patchesStrategicMerge:
+    - |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: workflow-controller-configmap
+        data:
+          # Fields reference can be found here: https://argoproj.github.io/argo-workflows/workflow-controller-configmap.yaml
+          workflowDefaults: |
+            spec:
+              ttlStrategy:
+                secondsAfterCompletion: 86400
+                secondsAfterSuccess: 86400
+                secondsAfterFailure: 86400
+              podGC:
+                strategy: OnWorkflowCompletion
+                labelSelector:
+                  matchLabels:
+                    should-be-deleted: "true"
 
 configMapGenerator:
   - name: workflow-controller-configmap
