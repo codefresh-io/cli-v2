@@ -94,7 +94,7 @@ func getControllerName(s string) string {
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
-	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
+	if !store.Get().Silent && !cmd.Flags().Changed("demo-resources") {
 		templates := &promptui.SelectTemplates{
 			Selected: "{{ . | yellow }} ",
 		}
@@ -108,6 +108,7 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 		}
 
 		_, result, err := prompt.Run()
+		
 		if err != nil {
 			return err
 		}
