@@ -108,6 +108,7 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 		}
 
 		_, result, err := prompt.Run()
+		
 		if err != nil {
 			return err
 		}
