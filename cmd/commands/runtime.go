@@ -705,7 +705,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 }
 
 func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOptions) error {
-	if !store.Get().SkipIngress {
+	if store.Get().SkipIngress {
 		return nil
 	}
 
