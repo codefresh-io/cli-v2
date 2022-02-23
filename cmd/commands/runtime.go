@@ -629,11 +629,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
-	if timeoutErr != nil {
-		installationFailedMsg := fmt.Sprintf("failed to wait for runtime sync: %s", timeoutErr.Error())
-		summaryArr = append(summaryArr, summaryLog{installationFailedMsg, Failed})
-	}
+	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Wait for runtime sync", timeoutErr, true)
 
 	// if we got to this point the runtime was installed successfully
 	// thus we shall not perform a rollback after this point.
@@ -665,11 +661,12 @@ To complete the installation:
 		}
 	}
 
-	if timeoutErr == nil {
-		installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
-		summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
+	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
+	if timeoutErr != nil {
+		installationSuccessMsg = fmt.Sprintf("Runtime \"%s\" installed with some issues", opts.RuntimeName)
 	}
 
+	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	return timeoutErr
 }
 
