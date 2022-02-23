@@ -1058,6 +1058,7 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 				se, ok := err.(model.SyncError)
 				if ok && se.Level == model.ErrorLevelsError {
 					errs = se.Message
+					state = checklist.Error
 				}
 			}
 		}
