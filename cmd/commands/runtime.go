@@ -473,7 +473,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
-		return fmt.Errorf("ingress class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
+		return fmt.Errorf("ingress class \"%s\" is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
 	}
 
 	if len(ingressClassNames) == 0 {
@@ -580,7 +580,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
-	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
+	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier:    rt.Spec.FullSpecifier(),
 		Namespace:       opts.RuntimeName,
@@ -645,7 +645,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
 To complete the installation: 
-1. Configure your cluster's routing service with path to '/%s' and '%s'
+1. Configure your cluster's routing service with path to '/%s' and \"%s\"
 2. Create and register Git integration using the commands:
 
 <BIN> integration git add default --runtime %s --api-url %s
@@ -666,7 +666,7 @@ To complete the installation:
 	}
 
 	if timeoutErr == nil {
-		installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
+		installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
 		summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	}
 
@@ -692,11 +692,11 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	for _, component := range rt.Spec.Components {
-		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
+		infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
-			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
+			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
 			break
 		}
 	}
@@ -750,7 +750,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s': %w", store.Get().MarketplaceGitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
 	}
 
 	return nil
@@ -942,7 +942,7 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 			return nil // no collision
 		}
 
-		return fmt.Errorf("failed to get cluster-role-binding '%s': %w", store.Get().ArgoCDServerName, err)
+		return fmt.Errorf("failed to get cluster-role-binding \"%s\": %w", store.Get().ArgoCDServerName, err)
 	}
 
 	log.G(ctx).Debug("argocd cluster-role-binding found")
@@ -962,10 +962,10 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 			return nil // no collision
 		}
 
-		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
+		return fmt.Errorf("failed to get deployment \"%s\": %w", store.Get().ArgoCDServerName, err)
 	}
 
-	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you can uninstall it by running '%s runtime uninstall %s --skip-checks --force'", subjNamespace, store.Get().BinaryName, subjNamespace)
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace \"%s\", you can uninstall it by running '%s runtime uninstall %s --skip-checks --force'", subjNamespace, store.Get().BinaryName, subjNamespace)
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
@@ -978,7 +978,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 		return fmt.Errorf("failed to get runtime: %w", err)
 	}
 
-	return fmt.Errorf("runtime '%s' already exists", runtime)
+	return fmt.Errorf("runtime \"%s\" already exists", runtime)
 }
 
 func printComponentsState(ctx context.Context, runtime string) error {
@@ -1304,7 +1304,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	log.G(ctx).Infof("Uninstalling runtime '%s' - this process may take a few minutes...", opts.RuntimeName)
+	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
@@ -1332,20 +1332,20 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		cfConfig.GetCurrentContext().DefaultRuntime = ""
 	}
 
-	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime '%s'", opts.RuntimeName)
+	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)
 	appendLogToSummary(uninstallDoneStr, nil)
 
 	return nil
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
+	log.G(ctx).Infof("Deleting runtime \"%s\" from the platform", opts.RuntimeName)
 	_, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
-	log.G(ctx).Infof("Successfully deleted runtime '%s' from the platform", opts.RuntimeName)
+	log.G(ctx).Infof("Successfully deleted runtime \"%s\" from the platform", opts.RuntimeName)
 	return nil
 }
 
@@ -1488,7 +1488,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
-			err = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
 			break
 		}
 	}

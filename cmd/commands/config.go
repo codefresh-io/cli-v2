@@ -92,7 +92,7 @@ func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) er
 	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
 		return err
 	}
-	log.G().Infof("New context created: '%s'", context)
+	log.G().Infof("New context created: \"%s\"", context)
 	return RunConfigUseContext(ctx, context)
 }
 
