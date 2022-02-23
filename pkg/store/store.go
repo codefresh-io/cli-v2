@@ -231,7 +231,7 @@ func init() {
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
 	s.MaxKubeVersion = "v1.21.9"
-	s.CFInternalApps = []string{"marketplace-git-source"}
+	s.CFInternalGitSources = []string{"marketplace-git-source"}
 
 	initVersion()
 }
