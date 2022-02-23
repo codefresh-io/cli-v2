@@ -77,10 +77,10 @@ type (
 		IngressHost                    string
 		IngressClass                   string
 		IngressController              string
+		IngressControllerType          string
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
-		EnterpriseNginx                bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -441,20 +441,19 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedAppNames := []string{"ingress-nginx", "nginx-ingress"}
+	supportedControllers := []string{"k8s.io/ingress-nginx", "nginx.org/ingress-controller"}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]string)
 	var isValidClass bool
 	for _, ic := range ingressClassList.Items {
 		var supported bool
-		for _, appName := range supportedAppNames {
-			if ic.ObjectMeta.Labels["app.kubernetes.io/name"] == appName {
+		for _, controller := range supportedControllers {
+			if ic.Spec.Controller == controller {
 				supported = true
 				break
 			}
 		}
 		if supported {
-			opts.EnterpriseNginx = (ic.ObjectMeta.Labels["app.kubernetes.io/name"] == "nginx-ingress")
 			ingressClassNames = append(ingressClassNames, ic.Name)
 			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", getControllerName(ic.Spec.Controller))
 			if opts.IngressClass == ic.Name {
@@ -795,9 +794,9 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	var err error
 
 	//if nginx enterprise, create master ingress resource, all other resources will be minions
-	if opts.EnterpriseNginx {
+	//if opts.EnterpriseNginx {
 		//create master ingress resource
-	}
+	//}
 
 	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
@@ -1493,7 +1492,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				},
 			},
 		})
-		
+
 		//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
 
 		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
