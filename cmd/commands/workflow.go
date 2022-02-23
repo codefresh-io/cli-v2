@@ -47,18 +47,17 @@ func NewWorkflowCommand() *cobra.Command {
 
 func NewWorkflowGetCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get [uid]",
+		Use:   "get UID",
+		Args:  cobra.MaximumNArgs(1),
 		Short: "Get a workflow under a specific uid",
 		Example: util.Doc(`
 			<BIN> workflow get 0732b138-b74c-4a5e-b065-e23e6da0803d
 		`),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			if len(args) < 1 {
-				log.G(cmd.Context()).Fatal("must enter uid")
-			}
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			if len(args) < 1 {
+				return fmt.Errorf("must enter uid")
+			}
 
 			return RunWorkflowGet(ctx, args[0])
 		},
@@ -77,6 +76,7 @@ func NewWorkflowListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all the workflows",
+		Args:  cobra.NoArgs,
 		Example: util.Doc(`
 			<BIN> workflows list
 

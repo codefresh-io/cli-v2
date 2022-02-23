@@ -205,7 +205,7 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	var testerPodName string
 
 	envVars := map[string]string{
-		"URLS": strings.Join(urls, ","),
+		"URLS":       strings.Join(urls, ","),
 		"IN_CLUSTER": "1",
 	}
 	env := prepareEnvVars(envVars)
@@ -289,7 +289,7 @@ Loop:
 			return fmt.Errorf("network test timeout reached!")
 		}
 	}
-	
+
 	return checkPodLastState(ctx, client, testerPodName, podLastState)
 }
 
@@ -344,4 +344,3 @@ func checkPodLastState(ctx context.Context, client kubernetes.Interface, name st
 
 	return nil
 }
-

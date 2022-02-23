@@ -3,7 +3,7 @@
 Upgrade a Codefresh runtime
 
 ```
-cli-v2 runtime upgrade [runtime_name] [flags]
+cli-v2 runtime upgrade [RUNTIME_NAME] [flags]
 ```
 
 ### Examples
