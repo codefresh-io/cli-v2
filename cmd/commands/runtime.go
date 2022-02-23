@@ -890,7 +890,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckClusterChecks, "Running cluster checks", err, false)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %v ", err))
+		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %w ", err))
 	}
 
 	return nil
