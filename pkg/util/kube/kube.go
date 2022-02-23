@@ -201,7 +201,7 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	pod, err := RunPod(ctx, client, RunPodOptions{
+	pod, err := runPod(ctx, client, RunPodOptions{
 		Namespace:    store.Get().DefaultNamespace,
 		GenerateName: store.Get().NetworkTesterName,
 		Image:        store.Get().NetworkTesterImage,
@@ -254,7 +254,7 @@ Loop:
 				break Loop
 			}
 		case <-timeoutChan:
-			return fmt.Errorf("network test timeout reached!")
+			return fmt.Errorf("network test timeout reached")
 		}
 	}
 
@@ -276,15 +276,15 @@ func prepareEnvVars(vars map[string]string) []v1.EnvVar {
 func checkPodLastState(ctx context.Context, client kubernetes.Interface, pod *v1.Pod) error {
 	terminated := pod.Status.ContainerStatuses[0].State.Terminated
 	if terminated.ExitCode != 0 {
-		logs, err := GetPodLogs(ctx, client, pod.Namespace, pod.Name)
+		logs, err := getPodLogs(ctx, client, pod.Namespace, pod.Name)
 		if err != nil {
-			log.G(ctx).Errorf("Failed getting logs from network-tester pod: $s", err.Error())
+			log.G(ctx).Errorf("failed getting logs from network-tester pod: $s", err.Error())
 		} else {
 			log.G(ctx).Error(logs)
 		}
 
 		terminationMessage := strings.Trim(terminated.Message, "\n")
-		return fmt.Errorf("Network test failed with: %s", terminationMessage)
+		return fmt.Errorf("network test failed with: %s", terminationMessage)
 	}
 
 	return nil
@@ -347,7 +347,7 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func RunPod(ctx context.Context, client kubernetes.Interface, opts RunPodOptions) (*v1.Pod, error) {
+func runPod(ctx context.Context, client kubernetes.Interface, opts RunPodOptions) (*v1.Pod, error) {
 	podSpec := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    opts.Namespace,
@@ -367,18 +367,18 @@ func RunPod(ctx context.Context, client kubernetes.Interface, opts RunPodOptions
 	return client.CoreV1().Pods(opts.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
 }
 
-func GetPodLogs(ctx context.Context, client kubernetes.Interface, namespace, name string) (string, error) {
+func getPodLogs(ctx context.Context, client kubernetes.Interface, namespace, name string) (string, error) {
 	req := client.CoreV1().Pods(namespace).GetLogs(name, &v1.PodLogOptions{})
 	podLogs, err := req.Stream(ctx)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get network-tester pod logs: %w", err)
+		return "", fmt.Errorf("failed to get network-tester pod logs: %w", err)
 	}
 	defer podLogs.Close()
 
 	logsBuf := new(bytes.Buffer)
 	_, err = io.Copy(logsBuf, podLogs)
 	if err != nil {
-		return "", fmt.Errorf("Failed to read network-tester pod logs: %w", err)
+		return "", fmt.Errorf("failed to read network-tester pod logs: %w", err)
 	}
 
 	return strings.Trim(logsBuf.String(), "\n"), nil
