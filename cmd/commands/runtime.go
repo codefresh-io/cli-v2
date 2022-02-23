@@ -77,7 +77,7 @@ type (
 		IngressHost                    string
 		IngressClass                   string
 		IngressController              string
-		IngressControllerType          string
+		IngressControllerType          ingressControllerType
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
@@ -126,12 +126,22 @@ type (
 		message string
 		level   summaryLogLevels
 	}
+
+	ingressControllerType string
+
+	ingressController struct {
+		Name string
+		Type ingressControllerType
+	}
 )
 
 const (
 	Success summaryLogLevels = "Success"
 	Failed  summaryLogLevels = "Failed"
 	Info    summaryLogLevels = "Info"
+
+	NginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
+	NginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
 )
 
 var summaryArr []summaryLog
@@ -196,7 +206,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
-				return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
+				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
 			finalParameters = map[string]string{
@@ -441,57 +451,55 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []string{"k8s.io/ingress-nginx", "nginx.org/ingress-controller"}
+	supportedControllers := []ingressControllerType{NginxCommunity, NginxEnterprise}
 	var ingressClassNames []string
-	ingressClassNameToController := make(map[string]string)
+	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
+
 	for _, ic := range ingressClassList.Items {
-		var supported bool
 		for _, controller := range supportedControllers {
-			if ic.Spec.Controller == controller {
-				supported = true
+			if ic.Spec.Controller == string(controller) {
+				ingressClassNames = append(ingressClassNames, ic.Name)
+				ingressClassNameToController[ic.Name] = ingressController{
+					Name: fmt.Sprintf("%s-ingress-controller", ic.Name),
+					Type: controller,
+				}
+				
+				if opts.IngressClass == ic.Name { //if ingress class provided via flag
+					isValidClass = true
+				}
 				break
 			}
 		}
-		if supported {
-			ingressClassNames = append(ingressClassNames, ic.Name)
-			ingressClassNameToController[ic.Name] = fmt.Sprintf("%s-controller", getControllerName(ic.Spec.Controller))
-			if opts.IngressClass == ic.Name {
-				isValidClass = true
-			}
-		}
 	}
 
-	if opts.IngressClass != "" { //if user provided ingress class by flag
+	if opts.IngressClass != "" { //if ingress class provided via flag
 		if isValidClass {
-			opts.IngressController = ingressClassNameToController[opts.IngressClass]
-			return nil
+			opts.IngressController = ingressClassNameToController[opts.IngressClass].Name
+			opts.IngressControllerType = ingressClassNameToController[opts.IngressClass].Type
+		} else {
+			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
 		}
-		return fmt.Errorf("ingress class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
-	}
-
-	if len(ingressClassNames) == 0 {
-		return fmt.Errorf("no ingress classes of type nginx were found. please install a nginx ingress controller on your cluster before installing a runtime.")
-	}
-
-	if len(ingressClassNames) == 1 {
+	} else if len(ingressClassNames) == 0 {
+		return fmt.Errorf("no ingress classes of the supported types were found")
+	} else if len(ingressClassNames) == 1 {
 		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
 		opts.IngressClass = ingressClassNames[0]
-		opts.IngressController = ingressClassNameToController[opts.IngressClass]
-		return nil
-	}
-
-	if !store.Get().Silent {
-		err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
-		if err != nil {
-			return err
+	} else if len(ingressClassNames) > 1 {
+		if !store.Get().Silent {
+			err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("there are multiple ingress controllers on your cluster, please add the --ingress-class flag and define its value")
 		}
-
-		opts.IngressController = ingressClassNameToController[opts.IngressClass]
-		return nil
 	}
 
-	return fmt.Errorf("please add the --ingress-class flag and define its value")
+	opts.IngressController = ingressClassNameToController[opts.IngressClass].Name
+	opts.IngressControllerType = ingressClassNameToController[opts.IngressClass].Type
+
+	return nil
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -795,7 +803,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	//if nginx enterprise, create master ingress resource, all other resources will be minions
 	//if opts.EnterpriseNginx {
-		//create master ingress resource
+	//create master ingress resource
 	//}
 
 	if opts.IngressHost != "" && !store.Get().SkipIngress {
@@ -870,7 +878,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing.")
+		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, false)
 	if err != nil {
@@ -1243,7 +1251,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre installation checks", err, false)
 			if err != nil {
-				return fmt.Errorf("Pre installation error: %w", err)
+				return fmt.Errorf("pre installation error: %w", err)
 			}
 
 			finalParameters = map[string]string{
