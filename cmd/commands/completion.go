@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	
+
 	"github.com/spf13/cobra"
 )
 
@@ -26,13 +26,13 @@ func NewCompletionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generates shell completion script.",
-		Args: cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(1),
 		Long: util.Doc(`Generates shell completion script for your shell environment
 
 Example:
 
 	source <(<BIN> completion bash)
-`,
+`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch args[0] {
 			case "bash":
