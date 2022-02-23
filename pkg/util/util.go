@@ -15,10 +15,8 @@
 package util
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"regexp"
@@ -214,29 +212,17 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	job, err := kubeutil.LaunchJob(ctx, kubeutil.LaunchJobOptions{
-		Client:        client,
-		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().NetworkTesterName,
-		Image:         &store.Get().NetworkTesterImage,
-		Env:           env,
-		RestartPolicy: v1.RestartPolicyNever,
-		BackOffLimit:  0,
+	pod, err := kubeutil.RunPod(ctx, client, kubeutil.RunPodOptions{
+		Namespace:    store.Get().DefaultNamespace,
+		GenerateName: store.Get().NetworkTesterName,
+		Image:        store.Get().NetworkTesterImage,
+		Env:          env,
 	})
 	if err != nil {
 		return err
 	}
-
-	controllerUid := job.GetLabels()["controller-uid"]
 	defer func() {
-		err := client.BatchV1().Jobs(store.Get().DefaultNamespace).Delete(ctx, store.Get().NetworkTesterName, metav1.DeleteOptions{})
-		if err != nil {
-			log.G(ctx).Errorf("fail to delete job resource '%s': %s", store.Get().NetworkTesterName, err.Error())
-		}
-
-		err = client.CoreV1().Pods(store.Get().DefaultNamespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
-			LabelSelector: "controller-uid=" + controllerUid,
-		})
+		err = client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
 		if err != nil {
 			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
 		}
@@ -254,36 +240,28 @@ Loop:
 		select {
 		case <-ticker.C:
 			log.G(ctx).Debug("Waiting for network tester to finish")
-			pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{
-				LabelSelector: "controller-uid=" + controllerUid,
-			})
+			currentPod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
 
-			if len(pods.Items) == 0 {
-				log.G(ctx).Debug("Network tester pod: waiting for pod")
-				continue
-			}
-
-			pod := pods.Items[0]
-
-			if len(pod.Status.ContainerStatuses) == 0 {
+			if len(currentPod.Status.ContainerStatuses) == 0 {
 				log.G(ctx).Debug("Network tester pod: creating container")
 				continue
 			}
 
-			if pod.Status.ContainerStatuses[0].State.Running != nil {
+			state := currentPod.Status.ContainerStatuses[0].State
+			if state.Running != nil {
 				log.G(ctx).Debug("Network tester pod: running")
 			}
 
-			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+			if state.Waiting != nil {
 				log.G(ctx).Debug("Network tester pod: waiting")
 			}
 
-			if pod.Status.ContainerStatuses[0].State.Terminated != nil {
+			if state.Terminated != nil {
 				log.G(ctx).Debug("Network tester pod: terminated")
-				podLastState = &pod
+				podLastState = currentPod
 				break Loop
 			}
 		case <-timeoutChan:
@@ -309,7 +287,7 @@ func prepareEnvVars(vars map[string]string) []v1.EnvVar {
 func checkPodLastState(ctx context.Context, client kubernetes.Interface, pod *v1.Pod) error {
 	terminated := pod.Status.ContainerStatuses[0].State.Terminated
 	if terminated.ExitCode != 0 {
-		logs, err := getPodLogs(ctx, client, pod)
+		logs, err := kubeutil.GetPodLogs(ctx, client, pod.Namespace, pod.Name)
 		if err != nil {
 			log.G(ctx).Errorf("Failed getting logs from network-tester pod: $s", err.Error())
 		} else {
@@ -321,21 +299,4 @@ func checkPodLastState(ctx context.Context, client kubernetes.Interface, pod *v1
 	}
 
 	return nil
-}
-
-func getPodLogs(ctx context.Context, client kubernetes.Interface, pod *v1.Pod) (string, error) {
-	req := client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{})
-	podLogs, err := req.Stream(ctx)
-	if err != nil {
-		return "", fmt.Errorf("Failed to get network-tester pod logs: %w", err)
-	}
-	defer podLogs.Close()
-
-	logsBuf := new(bytes.Buffer)
-	_, err = io.Copy(logsBuf, podLogs)
-	if err != nil {
-		return "", fmt.Errorf("Failed to read network-tester pod logs: %w", err)
-	}
-
-	return strings.Trim(logsBuf.String(), "\n"), nil
 }

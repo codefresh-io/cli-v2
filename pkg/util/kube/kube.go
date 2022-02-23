@@ -15,14 +15,15 @@
 package kube
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	authv1 "k8s.io/api/authorization/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +53,13 @@ type (
 		Env           []v1.EnvVar
 		RestartPolicy v1.RestartPolicy
 		BackOffLimit  int32
+	}
+
+	RunPodOptions struct {
+		Namespace    string
+		GenerateName string
+		Image        string
+		Env          []v1.EnvVar
 	}
 )
 
@@ -227,30 +235,39 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func LaunchJob(ctx context.Context, opts LaunchJobOptions) (*batchv1.Job, error) {
-	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
-
-	jobSpec := &batchv1.Job{
+func RunPod(ctx context.Context, client kubernetes.Interface, opts RunPodOptions) (*v1.Pod, error) {
+	podSpec := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      *opts.JobName,
-			Namespace: opts.Namespace,
+			Namespace:    opts.Namespace,
+			GenerateName: opts.GenerateName,
 		},
-		Spec: batchv1.JobSpec{
-			Template: v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:  *opts.JobName,
-							Image: *opts.Image,
-							Env:   opts.Env,
-						},
-					},
-					RestartPolicy: opts.RestartPolicy,
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  opts.GenerateName,
+					Image: opts.Image,
+					Env:   opts.Env,
 				},
 			},
-			BackoffLimit: &opts.BackOffLimit,
 		},
 	}
 
-	return jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
+	return client.CoreV1().Pods(opts.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
+}
+
+func GetPodLogs(ctx context.Context, client kubernetes.Interface, namespace, name string) (string, error) {
+	req := client.CoreV1().Pods(namespace).GetLogs(name, &v1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get network-tester pod logs: %w", err)
+	}
+	defer podLogs.Close()
+
+	logsBuf := new(bytes.Buffer)
+	_, err = io.Copy(logsBuf, podLogs)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read network-tester pod logs: %w", err)
+	}
+
+	return strings.Trim(logsBuf.String(), "\n"), nil
 }
