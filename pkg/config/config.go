@@ -54,7 +54,7 @@ var (
 	ErrContextDoesNotExist = func(context string) error {
 		return fmt.Errorf(
 			util.Doc(
-				fmt.Sprintf("%s: current context '%s' does not exist in config file. run '<BIN> config create-context' to create one.", ErrInvalidConfig, context),
+				fmt.Sprintf("%s: current context \"%s\" does not exist in config file. run '<BIN> config create-context' to create one.", ErrInvalidConfig, context),
 			),
 		)
 	}
@@ -195,7 +195,7 @@ func (c *Config) UseContext(ctx context.Context, name string) error {
 
 func (c *Config) CreateContext(ctx context.Context, name, token, url string) error {
 	if _, exists := c.Contexts[name]; exists {
-		return fmt.Errorf("authentication context with the name '%s' already exists", name)
+		return fmt.Errorf("authentication context with the name \"%s\" already exists", name)
 	}
 
 	authCtx := &AuthContext{
@@ -211,7 +211,7 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	client := c.clientForContext(authCtx)
 	usr, err := client.Users().GetCurrent(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create '%s' with the provided options: %w", name, err)
+		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
 	authCtx.OnPrem = isAdminUser(usr)
 
@@ -301,12 +301,12 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 func (c *Config) validate() {
 	if c.contextOverride != "" {
 		if _, ok := c.Contexts[c.contextOverride]; !ok {
-			log.G().Fatalf("%s: selected context '%s' does not exist in config file", ErrInvalidConfig, c.contextOverride)
+			log.G().Fatalf("%s: selected context \"%s\" does not exist in config file", ErrInvalidConfig, c.contextOverride)
 		}
 	}
 
 	if _, ok := c.Contexts[c.CurrentContext]; !ok && c.CurrentContext != "" {
-		log.G().Fatalf("%s: current context '%s' does not exist in config file", ErrInvalidConfig, c.CurrentContext)
+		log.G().Fatalf("%s: current context \"%s\" does not exist in config file", ErrInvalidConfig, c.CurrentContext)
 	}
 }
 

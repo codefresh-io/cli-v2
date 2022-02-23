@@ -440,7 +440,7 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 func parseGitProvider(provider string) (model.GitProviders, error) {
 	p, ok := gitProvidersByName[provider]
 	if !ok {
-		return model.GitProviders(""), fmt.Errorf("provider '%s' is not a valid provider name", provider)
+		return model.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
 	}
 	return p, nil
 }
