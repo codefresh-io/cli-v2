@@ -344,24 +344,3 @@ func checkPodLastState(ctx context.Context, client kubernetes.Interface, name st
 
 	return nil
 }
-
-type CleanWriter interface {
-	io.Writer
-	// Clean cleans the screen
-	Clean()
-}
-
-type cleanWriter struct {
-	io.Writer
-}
-
-func NewCleanWriter(w io.Writer) CleanWriter {
-	return &cleanWriter{
-		Writer: w,
-	}
-}
-
-func (w *cleanWriter) Clean() {
-	fmt.Fprint(w, "\033[H\033[2J")
-	fmt.Fprint(w, "\033[0;0H")
-}
