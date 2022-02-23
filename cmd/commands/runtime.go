@@ -879,7 +879,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, false)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
+		return fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
 	}
 
 	if !opts.SkipClusterChecks {
@@ -890,7 +890,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckClusterChecks, "Running cluster checks", err, false)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %w ", err))
+		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
 
 	return nil
