@@ -137,7 +137,7 @@ type Store struct {
 	NetworkTesterImage                   string
 	MinKubeVersion                       string
 	MaxKubeVersion                       string
-	CFInternalApps                       []string
+	CFInternalGitSources                 []string
 }
 
 // Get returns the global store

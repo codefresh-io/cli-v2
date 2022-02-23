@@ -226,7 +226,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		URL:  opts.GsCloneOpts.Repo,
 	}
 
-	_, isInternal := Find(store.Get().CFInternalApps, appDef.Name)  
+	_, isInternal := Find(store.Get().CFInternalGitSources, appDef.Name)  
 	appDef.IsInternal = strconv.FormatBool(isInternal)
 
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
