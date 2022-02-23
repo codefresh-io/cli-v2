@@ -17,6 +17,8 @@ package commands
 import (
 	"os"
 
+	"github.com/codefresh-io/cli-v2/pkg/util"
+	
 	"github.com/spf13/cobra"
 )
 
@@ -24,31 +26,28 @@ func NewCompletionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generates shell completion script.",
-		Long: `Generates shell completion script for your shell environment
+		Args: cobra.ExactArgs(1),
+		Long: util.Doc(`Generates shell completion script for your shell environment
 
 Example:
 
-	source <(cf completion bash)
+	source <(<BIN> completion bash)
 `,
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				cmd.Help()
-				os.Exit(0)
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
 			switch args[0] {
 			case "bash":
-				cmd.Root().GenBashCompletion(os.Stdout)
+				return cmd.Root().GenBashCompletion(os.Stdout)
 			case "zsh":
-				cmd.Root().GenZshCompletion(os.Stdout)
+				return cmd.Root().GenZshCompletion(os.Stdout)
 			case "fish":
-				cmd.Root().GenFishCompletion(os.Stdout, true)
+				return cmd.Root().GenFishCompletion(os.Stdout, true)
 			case "powershell":
-				cmd.Root().GenPowerShellCompletion(os.Stdout)
+				return cmd.Root().GenPowerShellCompletion(os.Stdout)
 			default:
-				cmd.Help()
+				return cmd.Help()
 			}
 		},
 	}
-	return cmd
 
+	return cmd
 }
