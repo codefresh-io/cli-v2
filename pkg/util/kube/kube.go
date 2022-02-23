@@ -60,7 +60,7 @@ type (
 	}
 )
 
-func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string, contextUrl string) error {
 	requirementsValidationErrorMessage := "cluster does not meet minimum requirements"
 	var specificErrorMessages []string
 
@@ -172,10 +172,17 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
+	err = runNetworkTest(ctx, kubeFactory, contextUrl)
+	if err != nil {
+		return fmt.Errorf("cluster network tests failed: %w ", err)
+	}
+	
+	log.G(ctx).Info("Network test finished successfully")
+
 	return nil
 }
 
-func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
+func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
 	var testerPodName string
 
