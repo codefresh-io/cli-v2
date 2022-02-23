@@ -63,6 +63,7 @@ type (
 		HostName            string
 		IngressHost         string
 		IngressClass        string
+		Minion              bool
 	}
 
 	GitSourceDeleteOptions struct {
@@ -92,6 +93,7 @@ type (
 		hostName     string
 		ingressHost  string
 		ingressClass string
+		minion       bool
 	}
 
 	dirConfig struct {
@@ -228,7 +230,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
-	
+
 	log.G(ctx).Infof("Successfully created git-source: '%s'", opts.GsName)
 
 	return nil
@@ -256,6 +258,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			hostName:     opts.HostName,
 			ingressHost:  opts.IngressHost,
 			ingressClass: opts.IngressClass,
+			minion:       opts.Minion,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -264,7 +267,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
 
 		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
-		
+
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
 			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
 		}
@@ -280,7 +283,7 @@ func createPlaceholderIfNeeded(ctx context.Context, opts *GitSourceCreateOptions
 	}
 
 	if len(fi) == 0 {
-		if 	err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
+		if err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
 			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
 		}
 
@@ -720,7 +723,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the github eventsource service
-		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName)
+		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName, opts.minion)
 		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
 		ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
@@ -773,8 +776,8 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string) *netv1.Ingress {
-	return ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, minion bool) *netv1.Ingress {
+	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,
 		Host:             hostName,
@@ -785,8 +788,15 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
 			},
-		}})
-	//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
+		}}
+
+	if minion {
+		ingressOptions.Annotations = map[string]string{
+			"nginx.org/mergeable-ingress-type": "minion",
+		}
+	}
+
+	return ingressutil.CreateIngress(&ingressOptions)
 }
 
 func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {

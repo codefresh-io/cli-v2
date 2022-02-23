@@ -464,7 +464,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 					Name: fmt.Sprintf("%s-ingress-controller", ic.Name),
 					Type: controller,
 				}
-				
+
 				if opts.IngressClass == ic.Name { //if ingress class provided via flag
 					isValidClass = true
 				}
@@ -688,6 +688,13 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
+	if opts.IngressControllerType == NginxEnterprise {
+		err := createMasterIngressResource(ctx, opts)
+		if err != nil {
+			return fmt.Errorf("failed to create master ingress resource: %w", err)
+		}
+	}
+
 	err = installComponents(ctx, opts, rt)
 	handleCliStep(reporter.InstallStepInstallComponenets, "Installing components", err, true)
 	if err != nil {
@@ -695,6 +702,48 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 	}
 
 	return nil
+}
+
+func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOptions) error {
+	if !store.Get().SkipIngress {
+		return nil
+	}
+
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	overlaysDir := apstore.Default.AppsDir
+
+	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
+	if err != nil {
+		return err
+	}
+
+	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+		Name:             opts.RuntimeName + store.Get().MasterIngressName,
+		Namespace:        opts.RuntimeName,
+		IngressClassName: opts.IngressClass,
+		Host:             opts.HostName,
+		Annotations: map[string]string{
+			"nginx.org/mergeable-ingress-type": "master",
+		},
+	})
+
+	if err = fs.WriteYamls(fs.Join(overlaysDir, "master-ingress.yaml"), ingress); err != nil {
+		return err
+	}
+
+	kust.Resources = append(kust.Resources, "master-ingress.yaml")
+
+	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing master ingress manifest")
+
+	return apu.PushWithMessage(ctx, r, "Created master ingress resource")
 }
 
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -708,6 +757,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		HostName:            opts.HostName,
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
+		Minion:              (opts.IngressControllerType == NginxEnterprise),
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, true)
 	if err != nil {
@@ -798,12 +848,7 @@ func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apm
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
-	//if nginx enterprise, create master ingress resource, all other resources will be minions
-	//if opts.EnterpriseNginx {
-	//create master ingress resource
-	//}
-
-	if opts.IngressHost != "" && !store.Get().SkipIngress {
+	if !store.Get().SkipIngress {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1392,7 +1437,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	}
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
-	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             rt.Name + store.Get().WorkflowsIngressName,
 		Namespace:        rt.Namespace,
 		IngressClassName: opts.IngressClass,
@@ -1411,9 +1456,13 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 				ServicePort: store.Get().ArgoWFServicePort,
 			},
 		},
-	})
+	}
 
-	//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
+	if opts.IngressControllerType == NginxEnterprise {
+		ingressOptions.Annotations["nginx.org/mergeable-ingress-type"] = "minion"
+	}
+
+	ingress := ingressutil.CreateIngress(&ingressOptions)
 
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
@@ -1482,8 +1531,8 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		},
 	})
 
-	if opts.IngressHost != "" && !store.Get().SkipIngress {
-		ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+	if !store.Get().SkipIngress {
+		ingressOptions := ingressutil.CreateIngressOptions{
 			Name:             rt.Name + store.Get().AppProxyIngressName,
 			Namespace:        rt.Namespace,
 			IngressClassName: opts.IngressClass,
@@ -1496,9 +1545,15 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 					ServicePort: store.Get().AppProxyServicePort,
 				},
 			},
-		})
+		}
 
-		//if enterprise nginx, add minion annotation nginx.org/mergeable-ingress-type: "minion"
+		if opts.IngressControllerType == NginxEnterprise {
+			ingressOptions.Annotations = map[string]string{
+				"nginx.org/mergeable-ingress-type": "minion",
+			}
+		}
+
+		ingress := ingressutil.CreateIngress(&ingressOptions)
 
 		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 			return err
