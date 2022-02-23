@@ -667,7 +667,7 @@ To complete the installation:
 	}
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
-	return timeoutErr
+	return nil
 }
 
 func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, string, error) {
@@ -1083,7 +1083,7 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
-	maxRetries := 180 // up to 30 min
+	maxRetries := 48 // up to 8 min
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	subCtx, cancel := context.WithCancel(ctx)
