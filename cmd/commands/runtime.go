@@ -626,40 +626,38 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
 	if timeoutErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
+		installationFailedMsg := fmt.Sprintf("failed to wait for runtime sync: %s", timeoutErr.Error())
+		summaryArr = append(summaryArr, summaryLog{installationFailedMsg, Failed})
 	}
 
 	// if we got to this point the runtime was installed successfully
 	// thus we shall not perform a rollback after this point.
 	shouldRollback = false
 
-	err = createGitIntegration(ctx, opts)
-	if err != nil {
-		return err
-	}
-
-	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
-	skipIngressInfoMsg := fmt.Sprintf(
-		`To complete the installation: 
-1. Configure your cluster's routing service with path to '/%s' and '%s'
-2. Create and register Git integration using the commands:
-
-	cf integration git add default --runtime %s --api-url %s
-
-	cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
-`,
-		store.Get().AppProxyIngressPath,
-		store.Get().GithubExampleEventSourceEndpointPath,
-		opts.RuntimeName,
-		opts.GitIntegrationCreationOpts.APIURL,
-		opts.RuntimeName)
-
-	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {
+		skipIngressInfoMsg := fmt.Sprintf(
+			`To complete the installation: 
+		1. Configure your cluster's routing service with path to '/%s' and '%s'
+		2. Create and register Git integration using the commands:
+		cf integration git add default --runtime %s --api-url %s
+		cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`,
+			store.Get().AppProxyIngressPath,
+			store.Get().GithubExampleEventSourceEndpointPath,
+			opts.RuntimeName,
+			opts.GitIntegrationCreationOpts.APIURL,
+			opts.RuntimeName)
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
+	} else {
+		gitIntegrationErr := createGitIntegration(ctx, opts)
+		if gitIntegrationErr != nil {
+			return gitIntegrationErr
+		}
 	}
 
-	log.G(ctx).Infof(installationSuccessMsg)
+	if timeoutErr != nil {
+		installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
+		summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
+	}
 
 	return nil
 }
@@ -748,24 +746,16 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
-	var gitIntgErr error
-	var appendToLog bool
-
-	if !store.Get().SkipIngress {
-		gitIntgErr = addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
-		appendToLog = true
-	}
-	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, appendToLog)
-	if gitIntgErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
+	err := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
+	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", err, true)
+	if err != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", err))
 	}
 
-	if !store.Get().SkipIngress {
-		gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
-	}
-	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, appendToLog)
-	if gitIntgErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
+	err = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", err, true)
+	if err != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", err))
 	}
 
 	return nil
