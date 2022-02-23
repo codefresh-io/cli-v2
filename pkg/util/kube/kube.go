@@ -227,7 +227,7 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
+func LaunchJob(ctx context.Context, opts LaunchJobOptions) (*batchv1.Job, error) {
 	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
 
 	jobSpec := &batchv1.Job{
@@ -252,10 +252,5 @@ func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
 		},
 	}
 
-	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to create K8s job '%s' : %w", *opts.JobName, err)
-	}
-
-	return nil
+	return jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
 }

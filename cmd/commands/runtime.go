@@ -412,11 +412,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	isIP, err := util.IsIP(parsed.Host)
-	if err != nil {
-		return err
-	}
-
+	isIP := util.IsIP(parsed.Host)
 	if !isIP {
 		opts.HostName, _, err = net.SplitHostPort(parsed.Host)
 		if err != nil {
