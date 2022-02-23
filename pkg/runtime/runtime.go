@@ -70,7 +70,7 @@ type (
 		Type string `json:"type"`
 		URL  string `json:"url"`
 		Wait bool   `json:"wait"`
-		IsInternal bool `json:"isInternal"` // TODO:
+		IsInternal string `json:"isInternal"` // TODO:
 	}
 )
 
