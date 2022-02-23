@@ -208,8 +208,9 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 		Env:          env,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to run tester pod: %w", err)
 	}
+
 	defer func() {
 		err = client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
 		if err != nil {
@@ -231,7 +232,7 @@ Loop:
 			log.G(ctx).Debug("Waiting for network tester to finish")
 			currentPod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get tester pod: %w", err)
 			}
 
 			if len(currentPod.Status.ContainerStatuses) == 0 {
