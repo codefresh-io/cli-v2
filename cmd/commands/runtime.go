@@ -155,6 +155,7 @@ func NewRuntimeCommand() *cobra.Command {
 	cmd.AddCommand(NewRuntimeListCommand())
 	cmd.AddCommand(NewRuntimeUninstallCommand())
 	cmd.AddCommand(NewRuntimeUpgradeCommand())
+
 	cmd.PersistentFlags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
 
 	return cmd
@@ -1108,8 +1109,9 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 
 func NewRuntimeListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "list [runtime_name]",
+		Use:     "list",
 		Aliases: []string{"ls"},
+		Args:    cobra.NoArgs,
 		Short:   "List all Codefresh runtimes",
 		Example: util.Doc(`<BIN> runtime list`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -1199,8 +1201,9 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "uninstall [runtime_name]",
+		Use:   "uninstall [RUNTIME_NAME]",
 		Short: "Uninstall a Codefresh runtime",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:
@@ -1341,8 +1344,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "upgrade [runtime_name]",
+		Use:   "upgrade [RUNTIME_NAME]",
 		Short: "Upgrade a Codefresh runtime",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 # To run this command you need to create a personal access token for your git provider
 # and provide it using:

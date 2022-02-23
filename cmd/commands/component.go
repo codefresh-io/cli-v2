@@ -49,8 +49,9 @@ func NewComponentCommand() *cobra.Command {
 
 func NewComponentListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [runtime_name]",
+		Use:   "list RUNTIME_NAME",
 		Short: "List all the components under a specific runtime",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 			<BIN> component list runtime_name
 		`),
