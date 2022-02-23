@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
@@ -38,6 +39,7 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/manifoldco/promptui"
@@ -416,7 +418,14 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	}
 
 	if !isIP {
-		opts.HostName = parsed.Host
+		opts.HostName, _, err = net.SplitHostPort(parsed.Host)
+		if err != nil {
+			if err.Error() == fmt.Sprintf("address %s: missing port in address", parsed.Host) {
+				opts.HostName = parsed.Host
+			} else {
+				return err
+			}
+		}
 	}
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
@@ -635,17 +644,23 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	shouldRollback = false
 
 	if store.Get().SkipIngress {
-		skipIngressInfoMsg := fmt.Sprintf(
-			`To complete the installation: 
-		1. Configure your cluster's routing service with path to '/%s' and '%s'
-		2. Create and register Git integration using the commands:
-		cf integration git add default --runtime %s --api-url %s
-		cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`,
+		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, true)
+		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped-", err, true)
+
+		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
+To complete the installation: 
+1. Configure your cluster's routing service with path to '/%s' and '%s'
+2. Create and register Git integration using the commands:
+
+<BIN> integration git add default --runtime %s --api-url %s
+
+<BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
+`,
 			store.Get().AppProxyIngressPath,
 			store.Get().GithubExampleEventSourceEndpointPath,
 			opts.RuntimeName,
 			opts.GitIntegrationCreationOpts.APIURL,
-			opts.RuntimeName)
+			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {
 		gitIntegrationErr := createGitIntegration(ctx, opts)
@@ -654,12 +669,12 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	if timeoutErr != nil {
+	if timeoutErr == nil {
 		installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 		summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	}
 
-	return nil
+	return timeoutErr
 }
 
 func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, string, error) {
@@ -739,20 +754,25 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s': %w", store.Get().MarketplaceGitSourceName, err))
 	}
 
 	return nil
 }
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
-	err := addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+
+	err = addDefaultGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
 	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", err))
 	}
 
-	err = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	err = registerUserToGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
 	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", err))
@@ -761,34 +781,45 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 	return nil
 }
 
-func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
-	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
-	}
-
-	errInstructions := util.Doc(fmt.Sprintf(
-		"you can try to create it manually by running:\n\n	<BIN> integration git add --provider %s --api-url %s\n",
-		strings.ToLower(opts.Provider.String()),
-		opts.APIURL,
-	))
-
+func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		return fmt.Errorf("%w\n%s", err, errInstructions)
+		command := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
+			runtime,
+			strings.ToLower(opts.Provider.String()),
+			opts.APIURL,
+		))
+		return fmt.Errorf(`
+%w
+you can try to create it manually by running:
+
+%s
+`,
+			err,
+			command,
+		)
 	}
 
 	log.G(ctx).Info("Added default git integration")
-
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
-	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
-	}
+func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
-		return err
+		command := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git register default --runtime %s --token %s",
+			runtime,
+			opts.Token,
+		))
+		return fmt.Errorf(`
+%w
+you can try to create it manually by running:
+
+%s
+`,
+			err,
+			command,
+		)
 	}
 
 	return nil
@@ -885,21 +916,17 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 
 	if !opts.SkipClusterChecks {
 		err = util.RunNetworkTest(ctx, opts.KubeFactory, cfConfig.GetCurrentContext().URL)
-		if err == nil {
-			log.G(ctx).Info("Network test finished successfully")
+		handleCliStep(reporter.InstallStepRunPreCheckClusterChecks, "Running cluster checks", err, false)
+		if err != nil {
+			return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %v ", err))
 		}
-	}
-	handleCliStep(reporter.InstallStepRunPreCheckClusterChecks, "Running cluster checks", err, false)
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("cluster network tests failed: %v ", err))
-	}
 
-	if !opts.SkipClusterChecks {
+		log.G(ctx).Info("Network test finished successfully")
 		err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName)
-	}
-	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, false)
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
+		handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, false)
+		if err != nil {
+			return fmt.Errorf(fmt.Sprintf("validation of minimum cluster requirements failed: %v ", err))
+		}
 	}
 
 	return nil
@@ -1103,7 +1130,7 @@ func NewRuntimeListCommand() *cobra.Command {
 		Aliases: []string{"ls"},
 		Args:    cobra.NoArgs,
 		Short:   "List all Codefresh runtimes",
-		Example: util.Doc(`<BIN> runtime list`),
+		Example: util.Doc("<BIN> runtime list"),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return nil
 		},
