@@ -11,7 +11,7 @@ require (
 	github.com/argoproj/argo-workflows/v3 v3.1.6
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/briandowns/spinner v1.16.0
-	github.com/codefresh-io/go-sdk v0.37.6
+	github.com/codefresh-io/go-sdk v0.37.8
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -20,7 +20,8 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/juju/ansiterm v0.0.0-20210929141451-8b71cc96ebdc
 	github.com/manifoldco/promptui v0.8.0
-	github.com/rkrmr33/checklist v0.0.1
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/rkrmr33/checklist v0.0.3
 	github.com/segmentio/backo-go v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
@@ -39,7 +40,6 @@ require (
 replace (
 	github.com/argoproj/argo-events => github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb
-	github.com/codefresh-io/go-sdk => ../go-sdk
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1

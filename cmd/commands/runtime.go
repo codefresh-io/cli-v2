@@ -1014,11 +1014,16 @@ func printComponentsState(ctx context.Context, runtime string) error {
 		}
 	}
 
+	log.G().Info("Waiting for the runtime installation to complete...")
+
 	cl := checklist.NewCheckList(
-		checklist.NewTerminalWriter(os.Stdout),
+		os.Stdout,
 		checklist.ListItemInfo{"COMPONENT", "HEALTH STATUS", "SYNC STATUS", "VERSION", "ERRORS"},
 		checkers,
-		&checklist.CheckListOptions{},
+		&checklist.CheckListOptions{
+			Interval:     1 * time.Second,
+			WaitAllReady: true,
+		},
 	)
 
 	if err := cl.Start(ctx); err != nil && ctx.Err() == nil {
@@ -1030,7 +1035,7 @@ func printComponentsState(ctx context.Context, runtime string) error {
 
 func getComponentChecklistState(c model.Component) (checklist.ListItemState, checklist.ListItemInfo) {
 	state := checklist.Waiting
-	name := strings.TrimPrefix(c.Metadata.Runtime, c.Metadata.Name)
+	name := strings.TrimPrefix(c.Metadata.Name, fmt.Sprintf("%s-", c.Metadata.Runtime))
 	version := "N/A"
 	syncStatus := "N/A"
 	healthStatus := "N/A"
@@ -1051,7 +1056,7 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 			// use the first sync error due to lack of space
 			for _, err := range c.Self.Errors {
 				se, ok := err.(model.SyncError)
-				if ok {
+				if ok && se.Level == model.ErrorLevelsError {
 					errs = se.Message
 				}
 			}
@@ -1070,8 +1075,6 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	subCtx, cancel := context.WithCancel(ctx)
-
-	log.G().Info("Waiting for the runtime installation to complete...")
 
 	go func() {
 		if err := printComponentsState(subCtx, runtimeName); err != nil {
@@ -1093,7 +1096,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 				return ctx.Err()
 			}
 
-			log.G(ctx).Warnf("retrying the call to graphql API. Error: %s", err.Error())
+			log.G(ctx).Debugf("retrying the call to graphql API. Error: %s", err.Error())
 		} else if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			return nil
 		}
