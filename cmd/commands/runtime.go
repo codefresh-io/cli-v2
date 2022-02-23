@@ -203,7 +203,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				if errors.Is(err, promptui.ErrInterrupt) {
 					return fmt.Errorf("installation canceled by user")
 				}
-				fmt.Println(err.Error())
+
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
