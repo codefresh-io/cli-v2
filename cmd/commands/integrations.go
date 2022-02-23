@@ -66,8 +66,6 @@ func NewIntegrationCommand() *cobra.Command {
 
 	cmd.AddCommand(NewGitIntegrationCommand(&client))
 
-	cmd.Hidden = true // hide this command for now
-
 	return cmd
 }
 
@@ -75,6 +73,7 @@ func NewGitIntegrationCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git",
 		Short: "Manage your git integrations",
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 			exit(1)
@@ -102,6 +101,7 @@ func NewGitIntegrationListCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List your git integrations",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := verifyOutputFormat(format, allowedFormats...); err != nil {
 				return err
@@ -159,6 +159,7 @@ func NewGitIntegrationGetCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get [NAME]",
 		Short: "Retrieve a git integration",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				integration = &args[0]
@@ -196,6 +197,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [NAME]",
 		Short: "Add a new git integration",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
@@ -246,6 +248,7 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit [NAME]",
 		Short: "Edit a git integration",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				opts.Name = &args[0]
@@ -282,6 +285,7 @@ func NewGitIntegrationRemoveCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove NAME",
 		Short: "Remove a git integration",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing integration name")
@@ -312,6 +316,7 @@ func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "register [NAME]",
 		Short: "Register to a git integrations",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				opts.Name = &args[0]
@@ -349,6 +354,7 @@ func NewGitIntegrationDeregisterCommand(client *sdk.AppProxyAPI) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "deregister [NAME]",
 		Short: "Deregister user from a git integrations",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				integration = &args[0]

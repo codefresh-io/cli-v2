@@ -3,7 +3,7 @@
 Uninstall a Codefresh runtime
 
 ```
-cli-v2 runtime uninstall [runtime_name] [flags]
+cli-v2 runtime uninstall [RUNTIME_NAME] [flags]
 ```
 
 ### Examples

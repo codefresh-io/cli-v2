@@ -32,7 +32,6 @@ var (
 	segmentWriteKey = ""
 	maxDefVersion   = "1.0.1"
 	RuntimeDefURL   = "manifests/runtime.yaml"
-	ArgoAgentURL    = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
@@ -48,9 +47,6 @@ type Store struct {
 	ArgoCDServerName                     string
 	ArgoCDTokenKey                       string
 	ArgoCDTokenSecret                    string
-	ArgoCDAgentCFTokenKey                string
-	ArgoCDAgentCFTokenSecret             string
-	ArgoCDAgentSA                        string
 	ArgoWFServiceName                    string
 	ArgoWFServicePort                    int32
 	BinaryName                           string
@@ -72,7 +68,6 @@ type Store struct {
 	EventBusName                         string
 	EventReportingEndpoint               string
 	EventsReporterName                   string
-	ArgoCDAgentReporterName              string
 	GitSourceName                        string
 	WorkflowsIngressName                 string
 	WorkflowsIngressPath                 string
@@ -157,10 +152,6 @@ func init() {
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
-	s.ArgoCDAgentCFTokenKey = "token"
-	s.ArgoCDAgentCFTokenSecret = "cf-argocd-agent"
-	s.ArgoCDAgentReporterName = "argocd-agent"
-	s.ArgoCDAgentSA = "argocd-agent"
 	s.CFTokenSecretKey = "token"
 	s.CFStoreIVSecretKey = "encryptionIV"
 	s.CodefreshCM = "codefresh-cm"

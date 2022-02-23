@@ -3,14 +3,14 @@
 edit a git-source of a runtime
 
 ```
-cli-v2 git-source edit runtime_name git-source_name [flags]
+cli-v2 git-source edit RUNTIME_NAME GITSOURCE_NAME [flags]
 ```
 
 ### Examples
 
 ```
 
-            cli-v2 git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name/my-workflow
+            cli-v2 git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
         
 ```
 
