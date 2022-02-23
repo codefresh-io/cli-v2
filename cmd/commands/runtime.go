@@ -451,7 +451,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{NginxCommunity, NginxEnterprise}
+	supportedControllers := []ingressControllerType{ NginxCommunity, NginxEnterprise }
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
@@ -461,7 +461,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			if ic.Spec.Controller == string(controller) {
 				ingressClassNames = append(ingressClassNames, ic.Name)
 				ingressClassNameToController[ic.Name] = ingressController{
-					Name: fmt.Sprintf("%s-ingress-controller", ic.Name),
+					Name: getIngressControllerName(controller, ic.Name),
 					Type: controller,
 				}
 
@@ -497,6 +497,17 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	opts.IngressControllerType = ingressClassNameToController[opts.IngressClass].Type
 
 	return nil
+}
+
+func getIngressControllerName(controllerType ingressControllerType, className string) string {
+	switch controllerType {
+	case NginxCommunity:
+		return fmt.Sprintf("%s-controller", string(NginxCommunity))
+	case NginxEnterprise:
+		return fmt.Sprintf("%s-ingress-controller", className)
+	}
+
+	return ""
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
