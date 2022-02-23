@@ -40,6 +40,7 @@ var (
 	spinnerCharSet    = spinner.CharSets[26]
 	spinnerDuration   = time.Millisecond * 500
 	appsetFieldRegexp = regexp.MustCompile(`[\./]`)
+	ipRegexp          = regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`)
 )
 
 // ContextWithCancelOnSignals returns a context that is canceled when one of the specified signals
@@ -188,6 +189,6 @@ func reportCancel(status reporter.CliStepStatus) {
 	})
 }
 
-func IsIP(s string) (bool, error) {
-	return regexp.MatchString(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`, s)
+func IsIP(s string) bool {
+	return ipRegexp.MatchString(s)
 }

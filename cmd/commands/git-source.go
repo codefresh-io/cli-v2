@@ -230,7 +230,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
-	log.G(ctx).Infof("Successfully created git-source: '%s'", opts.GsName)
+	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
 
 	return nil
 }
@@ -656,7 +656,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
-	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source '%s'", opts.GsName)); err != nil {
+	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
 		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 	}
 

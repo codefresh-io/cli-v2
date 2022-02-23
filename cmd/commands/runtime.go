@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
@@ -38,6 +39,7 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/manifoldco/promptui"
@@ -410,13 +412,16 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	isIP, err := util.IsIP(parsed.Host)
-	if err != nil {
-		return err
-	}
-
+	isIP := util.IsIP(parsed.Host)
 	if !isIP {
-		opts.HostName = parsed.Host
+		opts.HostName, _, err = net.SplitHostPort(parsed.Host)
+		if err != nil {
+			if err.Error() == fmt.Sprintf("address %s: missing port in address", parsed.Host) {
+				opts.HostName = parsed.Host
+			} else {
+				return err
+			}
+		}
 	}
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
@@ -468,7 +473,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 			opts.IngressController = ingressClassNameToController[opts.IngressClass]
 			return nil
 		}
-		return fmt.Errorf("ingress class '%s' is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
+		return fmt.Errorf("ingress class \"%s\" is not supported. only the ingress class of type nginx is supported.", opts.IngressClass)
 	}
 
 	if len(ingressClassNames) == 0 {
@@ -575,7 +580,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
-	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime '%s'", opts.RuntimeName)
+	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier:    rt.Spec.FullSpecifier(),
 		Namespace:       opts.RuntimeName,
@@ -624,43 +629,44 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Completing runtime installation", timeoutErr, true)
-	if timeoutErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to complete installation: %w", timeoutErr))
-	}
+	handleCliStep(reporter.InstallStepCompleteRuntimeInstallation, "Wait for runtime sync", timeoutErr, true)
 
 	// if we got to this point the runtime was installed successfully
 	// thus we shall not perform a rollback after this point.
 	shouldRollback = false
 
-	err = createGitIntegration(ctx, opts)
-	if err != nil {
-		return err
-	}
+	if store.Get().SkipIngress {
+		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, true)
+		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped-", err, true)
 
-	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
-	skipIngressInfoMsg := fmt.Sprintf(
-		`To complete the installation: 
-1. Configure your cluster's routing service with path to '/%s' and '%s'
+		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
+To complete the installation: 
+1. Configure your cluster's routing service with path to '/%s' and \"%s\"
 2. Create and register Git integration using the commands:
 
-	cf integration git add default --runtime %s --api-url %s
+<BIN> integration git add default --runtime %s --api-url %s
 
-	cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
+<BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
 `,
-		store.Get().AppProxyIngressPath,
-		store.Get().GithubExampleEventSourceEndpointPath,
-		opts.RuntimeName,
-		opts.GitIntegrationCreationOpts.APIURL,
-		opts.RuntimeName)
-
-	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
-	if store.Get().SkipIngress {
+			store.Get().AppProxyIngressPath,
+			store.Get().GithubExampleEventSourceEndpointPath,
+			opts.RuntimeName,
+			opts.GitIntegrationCreationOpts.APIURL,
+			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
+	} else {
+		gitIntegrationErr := createGitIntegration(ctx, opts)
+		if gitIntegrationErr != nil {
+			return gitIntegrationErr
+		}
 	}
 
-	log.G(ctx).Infof(installationSuccessMsg)
+	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
+	if timeoutErr != nil {
+		installationSuccessMsg = fmt.Sprintf("Runtime \"%s\" installed with some issues", opts.RuntimeName)
+	}
 
+	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	return nil
 }
 
@@ -683,11 +689,11 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 	for _, component := range rt.Spec.Components {
-		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
+		infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
 		log.G(ctx).Infof(infoStr)
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
-			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
+			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
 			break
 		}
 	}
@@ -741,64 +747,72 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create `%s`: %w", store.Get().MarketplaceGitSourceName, err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
 	}
 
 	return nil
 }
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
-	var gitIntgErr error
-	var appendToLog bool
-
-	if !store.Get().SkipIngress {
-		gitIntgErr = addDefaultGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationCreationOpts)
-		appendToLog = true
-	}
-	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", gitIntgErr, appendToLog)
-	if gitIntgErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", gitIntgErr))
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
 	}
 
-	if !store.Get().SkipIngress {
-		gitIntgErr = registerUserToGitIntegration(ctx, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	err = addDefaultGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
+	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", err, true)
+	if err != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", err))
 	}
-	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", gitIntgErr, appendToLog)
-	if gitIntgErr != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", gitIntgErr))
+
+	err = registerUserToGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", err, true)
+	if err != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", err))
 	}
 
 	return nil
 }
 
-func addDefaultGitIntegration(ctx context.Context, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
-	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
-	}
-
-	errInstructions := util.Doc(fmt.Sprintf(
-		"you can try to create it manually by running:\n\n	<BIN> integration git add --provider %s --api-url %s\n",
-		strings.ToLower(opts.Provider.String()),
-		opts.APIURL,
-	))
-
+func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		return fmt.Errorf("%w\n%s", err, errInstructions)
+		command := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
+			runtime,
+			strings.ToLower(opts.Provider.String()),
+			opts.APIURL,
+		))
+		return fmt.Errorf(`
+%w
+you can try to create it manually by running:
+
+%s
+`,
+			err,
+			command,
+		)
 	}
 
 	log.G(ctx).Info("Added default git integration")
-
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtime, store.Get().InsecureIngressHost)
-	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
-	}
+func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
-		return err
+		command := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git register default --runtime %s --token %s",
+			runtime,
+			opts.Token,
+		))
+		return fmt.Errorf(`
+%w
+you can try to create it manually by running:
+
+%s
+`,
+			err,
+			command,
+		)
 	}
 
 	return nil
@@ -918,7 +932,7 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 			return nil // no collision
 		}
 
-		return fmt.Errorf("failed to get cluster-role-binding '%s': %w", store.Get().ArgoCDServerName, err)
+		return fmt.Errorf("failed to get cluster-role-binding \"%s\": %w", store.Get().ArgoCDServerName, err)
 	}
 
 	log.G(ctx).Debug("argocd cluster-role-binding found")
@@ -938,10 +952,10 @@ func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Facto
 			return nil // no collision
 		}
 
-		return fmt.Errorf("failed to get deployment '%s': %w", store.Get().ArgoCDServerName, err)
+		return fmt.Errorf("failed to get deployment \"%s\": %w", store.Get().ArgoCDServerName, err)
 	}
 
-	return fmt.Errorf("argo-cd is already installed on this cluster in namespace '%s', you can uninstall it by running '%s runtime uninstall %s --skip-checks --force'", subjNamespace, store.Get().BinaryName, subjNamespace)
+	return fmt.Errorf("argo-cd is already installed on this cluster in namespace \"%s\", you can uninstall it by running '%s runtime uninstall %s --skip-checks --force'", subjNamespace, store.Get().BinaryName, subjNamespace)
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
@@ -954,7 +968,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 		return fmt.Errorf("failed to get runtime: %w", err)
 	}
 
-	return fmt.Errorf("runtime '%s' already exists", runtime)
+	return fmt.Errorf("runtime \"%s\" already exists", runtime)
 }
 
 func printComponentsState(ctx context.Context, runtime string) error {
@@ -1062,7 +1076,7 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 }
 
 func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) error {
-	maxRetries := 180 // up to 30 min
+	maxRetries := 48 // up to 8 min
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	subCtx, cancel := context.WithCancel(ctx)
@@ -1102,7 +1116,7 @@ func NewRuntimeListCommand() *cobra.Command {
 		Aliases: []string{"ls"},
 		Args:    cobra.NoArgs,
 		Short:   "List all Codefresh runtimes",
-		Example: util.Doc(`<BIN> runtime list`),
+		Example: util.Doc("<BIN> runtime list"),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return nil
 		},
@@ -1280,7 +1294,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	log.G(ctx).Infof("Uninstalling runtime '%s' - this process may take a few minutes...", opts.RuntimeName)
+	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
@@ -1308,20 +1322,20 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		cfConfig.GetCurrentContext().DefaultRuntime = ""
 	}
 
-	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime '%s'", opts.RuntimeName)
+	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)
 	appendLogToSummary(uninstallDoneStr, nil)
 
 	return nil
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	log.G(ctx).Infof("Deleting runtime '%s' from the platform", opts.RuntimeName)
+	log.G(ctx).Infof("Deleting runtime \"%s\" from the platform", opts.RuntimeName)
 	_, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
-	log.G(ctx).Infof("Successfully deleted runtime '%s' from the platform", opts.RuntimeName)
+	log.G(ctx).Infof("Successfully deleted runtime \"%s\" from the platform", opts.RuntimeName)
 	return nil
 }
 
@@ -1464,7 +1478,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
-			err = fmt.Errorf("failed to create '%s' application: %w", component.Name, err)
+			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
 			break
 		}
 	}

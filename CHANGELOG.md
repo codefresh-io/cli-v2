@@ -1,3 +1,4 @@
 # Changelog:
 
-* updated to cap-app-proxy:0.0.27 (fix [CR-9420](https://codefresh-io.atlassian.net/browse/CR-9420))
+* Create git integration and user PAT even when installation check times out
+* Replace pre-install network check Job with a simple Pod

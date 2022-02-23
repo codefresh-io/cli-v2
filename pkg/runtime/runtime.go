@@ -119,7 +119,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if runtime.Spec.devMode {
 		runtime.Spec.Version = runtimeVersionDevMode
 	}
@@ -222,7 +222,7 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 		if newComponent == nil {
 			log.G().Infof("Deleting \"%s\"", curComponent.Name)
 			if err := curComponent.delete(fs); err != nil {
-				return nil, fmt.Errorf("failed to delete app '%s': %w", curComponent.Name, err)
+				return nil, fmt.Errorf("failed to delete app \"%s\": %w", curComponent.Name, err)
 			}
 		}
 	}
