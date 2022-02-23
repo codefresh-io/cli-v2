@@ -1,9 +1,9 @@
 ## cli-v2 git-source create
 
-add a new git-source to an existing runtime
+Adds a new git-source to an existing runtime
 
 ```
-cli-v2 git-source create runtime_name git-source_name [flags]
+cli-v2 git-source create RUNTIME_NAME GITSOURCE_NAME [flags]
 ```
 
 ### Examples

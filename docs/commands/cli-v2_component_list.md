@@ -3,7 +3,7 @@
 List all the components under a specific runtime
 
 ```
-cli-v2 component list [runtime_name] [flags]
+cli-v2 component list RUNTIME_NAME [flags]
 ```
 
 ### Examples
