@@ -51,6 +51,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
@@ -1293,6 +1294,8 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime '%s' - this process may take a few minutes...", opts.RuntimeName)
 
+	go printApplicationsState(ctx, opts.RuntimeName, opts.KubeFactory)
+
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
@@ -1321,6 +1324,84 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime '%s'", opts.RuntimeName)
 	appendLogToSummary(uninstallDoneStr, nil)
+
+	return nil
+}
+
+func printApplicationsState(ctx context.Context, runtime string, f kube.Factory) error {
+	apps := map[string]*argocdv1alpha1.Application{}
+	lock := sync.Mutex{}
+
+	rc, err := f.ToRESTConfig()
+	if err != nil {
+		return err
+	}
+
+	cs, err := argocdv1alpha1cs.NewForConfig(rc)
+	if err != nil {
+		return err
+	}
+
+	appIf := cs.ArgoprojV1alpha1().Applications(runtime)
+
+	curApps, err := appIf.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, a := range curApps.Items {
+		apps[a.Name] = a
+	}
+
+	// refresh components state
+	go func() {
+		t := time.NewTicker(2 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+
+			curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
+			if err != nil && ctx.Err() == nil {
+				log.G(ctx).WithError(err).Error("failed to refresh components state")
+				continue
+			}
+
+			lock.Lock()
+			for _, c := range curComponents {
+				components[c.Metadata.Name] = c
+			}
+			lock.Unlock()
+		}
+	}()
+
+	checkers := make([]checklist.Checker, len(curComponents))
+	for i, c := range curComponents {
+		name := c.Metadata.Name
+		checkers[i] = func(ctx context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
+			lock.Lock()
+			defer lock.Unlock()
+			return getComponentChecklistState(components[name])
+		}
+	}
+
+	log.G().Info("Waiting for the runtime installation to complete...")
+
+	cl := checklist.NewCheckList(
+		os.Stdout,
+		checklist.ListItemInfo{"COMPONENT", "HEALTH STATUS", "SYNC STATUS", "VERSION", "ERRORS"},
+		checkers,
+		&checklist.CheckListOptions{
+			Interval:     1 * time.Second,
+			WaitAllReady: true,
+		},
+	)
+
+	if err := cl.Start(ctx); err != nil && ctx.Err() == nil {
+		return err
+	}
 
 	return nil
 }
