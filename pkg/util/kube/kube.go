@@ -171,116 +171,12 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
-	err = runNetworkTest(ctx, kubeFactory, contextUrl)
+	err = util.RunNetworkTest(ctx, kubeFactory, contextUrl)
 	if err != nil {
 		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
 	
 	log.G(ctx).Info("Network test finished successfully")
-
-	return nil
-}
-
-func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
-	const networkTestsTimeout = 120 * time.Second
-
-	envVars := map[string]string{
-		"URLS":       strings.Join(urls, ","),
-		"IN_CLUSTER": "1",
-	}
-	env := prepareEnvVars(envVars)
-
-	client, err := kubeFactory.KubernetesClientSet()
-	if err != nil {
-		return fmt.Errorf("failed to create kubernetes client: %w", err)
-	}
-
-	pod, err := runPod(ctx, client, RunPodOptions{
-		Namespace:    store.Get().DefaultNamespace,
-		GenerateName: store.Get().NetworkTesterName,
-		Image:        store.Get().NetworkTesterImage,
-		Env:          env,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to run tester pod: %w", err)
-	}
-
-	defer func() {
-		err = client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
-		if err != nil {
-			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
-		}
-	}()
-
-	log.G(ctx).Info("Running network test...")
-
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	var podLastState *v1.Pod
-	timeoutChan := time.After(networkTestsTimeout)
-
-Loop:
-	for {
-		select {
-		case <-ticker.C:
-			log.G(ctx).Debug("Waiting for network tester to finish")
-			currentPod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to get tester pod: %w", err)
-			}
-
-			if len(currentPod.Status.ContainerStatuses) == 0 {
-				log.G(ctx).Debug("Network tester pod: creating container")
-				continue
-			}
-
-			state := currentPod.Status.ContainerStatuses[0].State
-			if state.Running != nil {
-				log.G(ctx).Debug("Network tester pod: running")
-			}
-
-			if state.Waiting != nil {
-				log.G(ctx).Debug("Network tester pod: waiting")
-			}
-
-			if state.Terminated != nil {
-				log.G(ctx).Debug("Network tester pod: terminated")
-				podLastState = currentPod
-				break Loop
-			}
-		case <-timeoutChan:
-			return fmt.Errorf("network test timeout reached")
-		}
-	}
-
-	return checkPodLastState(ctx, client, podLastState)
-}
-
-func prepareEnvVars(vars map[string]string) []v1.EnvVar {
-	var env []v1.EnvVar
-	for key, value := range vars {
-		env = append(env, v1.EnvVar{
-			Name:  key,
-			Value: value,
-		})
-	}
-
-	return env
-}
-
-func checkPodLastState(ctx context.Context, client kubernetes.Interface, pod *v1.Pod) error {
-	terminated := pod.Status.ContainerStatuses[0].State.Terminated
-	if terminated.ExitCode != 0 {
-		logs, err := getPodLogs(ctx, client, pod.Namespace, pod.Name)
-		if err != nil {
-			log.G(ctx).Errorf("failed getting logs from network-tester pod: $s", err.Error())
-		} else {
-			log.G(ctx).Error(logs)
-		}
-
-		terminationMessage := strings.Trim(terminated.Message, "\n")
-		return fmt.Errorf("network test failed with: %s", terminationMessage)
-	}
 
 	return nil
 }
