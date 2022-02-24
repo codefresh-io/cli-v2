@@ -480,7 +480,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
-		nameWithoutRuntimePrefix := strings.Replace(name, fmt.Sprintf("%s-", runtimeName), "", 1)
+		nameWithoutRuntimePrefix := strings.TrimPrefix(name, fmt.Sprintf("%s-", runtimeName))
 		if util.StringIndexOf(store.Get().CFInternalGitSources, nameWithoutRuntimePrefix) > -1 && !includeInternal {
 			continue
 		}

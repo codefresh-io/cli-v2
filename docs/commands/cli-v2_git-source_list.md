@@ -16,7 +16,7 @@ cli-v2 git-source list my-runtime
 
 ```
   -h, --help               help for list
-      --include-internal   If true, will include the Codefresh-internal git-sources
+      --include-internal   If true, will include the Codefresh internal git-sources
 ```
 
 ### Options inherited from parent commands

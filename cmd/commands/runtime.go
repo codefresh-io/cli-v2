@@ -853,7 +853,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				},
 			},
 			saName:     store.Get().CodefreshSA,
-			IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowReporterName) > -1,
+			IsInternal: true,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
@@ -878,7 +878,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		},
 		saName:     store.Get().RolloutReporterServiceAccount,
-		IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutReporterName) > -1,
+		IsInternal: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1665,7 +1665,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Name:       store.Get().EventsReporterName,
 		Type:       application.AppTypeDirectory,
 		URL:        cloneOpts.URL() + "/" + resPath,
-		IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().EventsReporterName) > -1,
+		IsInternal: true,
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
