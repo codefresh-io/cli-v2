@@ -608,7 +608,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
-			// store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
+			store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
 		},
 	})
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, true)
@@ -853,7 +853,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				},
 			},
 			saName: store.Get().CodefreshSA,
-			IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowResourceName) > -1),
+			IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowReporterName) > -1),
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
@@ -878,7 +878,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		},
 		saName: store.Get().RolloutReporterServiceAccount,
-		IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutResourceName) > -1),
+		IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutReporterName) > -1),
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
