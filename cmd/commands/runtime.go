@@ -607,7 +607,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CloneOpts:   opts.InsCloneOpts,
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
-			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
+			store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 			store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
 		},
 	})
@@ -852,7 +852,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 					version:      "v1alpha1",
 				},
 			},
-			saName: store.Get().CodefreshSA,
+			saName:     store.Get().CodefreshSA,
 			IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowReporterName) > -1,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
@@ -877,7 +877,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				version:      "v1alpha1",
 			},
 		},
-		saName: store.Get().RolloutReporterServiceAccount,
+		saName:     store.Get().RolloutReporterServiceAccount,
 		IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutReporterName) > -1,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
@@ -1486,6 +1486,7 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
+		component.IsInternal = true
 		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
 			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
@@ -1661,9 +1662,9 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
-		Name: store.Get().EventsReporterName,
-		Type: application.AppTypeDirectory,
-		URL:  cloneOpts.URL() + "/" + resPath,
+		Name:       store.Get().EventsReporterName,
+		Type:       application.AppTypeDirectory,
+		URL:        cloneOpts.URL() + "/" + resPath,
 		IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().EventsReporterName) > -1,
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
