@@ -176,8 +176,8 @@ github.com/argoproj-labs/argocd-autopilot v0.2.27 h1:mENBxlfLV1waksrScxPlWEoIg9b
 github.com/argoproj-labs/argocd-autopilot v0.2.27/go.mod h1:GjkycwSEKpDJaxHMz0gfIclRIdmHiSW7p9U2mR+We6Q=
 github.com/argoproj/argo-cd/v2 v2.1.0-rc2/go.mod h1:a21F1IEszRrCLvXXYc1sML3mjlMN3pp6rpDxy+7E0os=
 github.com/argoproj/argo-cd/v2 v2.1.0/go.mod h1:/e8fSyHanaAHLR5YsIIWfCGujTN452K6L7DaYep5KRU=
-github.com/argoproj/argo-cd/v2 v2.1.2 h1:Ls+nJQJ7HWHeg9AKtFeeUCQTsSFvzDpbZq+ALxHL680=
-github.com/argoproj/argo-cd/v2 v2.1.2/go.mod h1:JpFTdXbIG3k6HM790Ykqezciulr7tgmWko3snxcPUzE=
+github.com/argoproj/argo-cd/v2 v2.1.9 h1:D9YnPQq4xDec2Awm8ANjioEuRfJcjtdlrsQRmVR7l1s=
+github.com/argoproj/argo-cd/v2 v2.1.9/go.mod h1:mf570payhUhM0DQaTB5ugAwcrgGBqhgHCtRtj6WWTeQ=
 github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d h1:pHQHwk2PO3BShSCUwTgqBxIciPPzBkWAv/TuVYeWML0=
 github.com/argoproj/argo-events v0.17.1-0.20210615165534-d403c441bc1d/go.mod h1:wI5A0U3Wj9ZvfPn3ioL18Dz29+7aibtlyU9pS0Ry+bg=
 github.com/argoproj/argo-workflows/v3 v3.1.6 h1:axha5XDjvJ7zjtUg/Zq+4KGyglFA5HPhQPGl4nnsGAA=
@@ -186,8 +186,9 @@ github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb h1:zwnkwh
 github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb/go.mod h1:EdFe8qIOqsmbyxRhtIydU4BUeyZ4VTsY6R3XVQhU9LA=
 github.com/argoproj/pkg v0.9.0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/argoproj/pkg v0.9.1/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
-github.com/argoproj/pkg v0.10.1 h1:B7y7IqEFKNaNGg82U0COeVe/V5uj4Dum027yFe5DxRU=
 github.com/argoproj/pkg v0.10.1/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
+github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=
+github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=

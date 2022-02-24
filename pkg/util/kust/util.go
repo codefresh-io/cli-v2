@@ -27,7 +27,7 @@ func ReadKustomization(fs fs.FS, directory string) (*kusttypes.Kustomization, er
 	fileName := fs.Join(directory, KUSTOMOZATION_FILE_NAME)
 	kust := &kusttypes.Kustomization{}
 	if err := fs.ReadYamls(fileName, kust); err != nil {
-		return nil, fmt.Errorf("failed reading kustomization from '%s': %w", fileName, err)
+		return nil, fmt.Errorf("failed reading kustomization from \"%s\": %w", fileName, err)
 	}
 
 	return kust, nil
@@ -47,7 +47,7 @@ func ReplaceResource(kust *kusttypes.Kustomization, fromURL, toURL string) error
 		if len(kust.Resources) == 1 {
 			kust.Resources[0] = toURL
 		} else {
-			return fmt.Errorf("base kustomization does not contain expected resource '%s'", fromURL)
+			return fmt.Errorf("base kustomization does not contain expected resource \"%s\"", fromURL)
 		}
 	}
 
