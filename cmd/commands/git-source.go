@@ -453,7 +453,7 @@ func NewGitSourceListCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&includeInternal, "include-internal", false, "If true, will include the Codefresh-internal git-sources")
+	cmd.Flags().BoolVar(&includeInternal, "include-internal", false, "If true, will include the Codefresh internal git-sources")
 
 	return cmd
 }
