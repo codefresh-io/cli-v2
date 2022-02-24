@@ -55,6 +55,7 @@ func NewPipelineGetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get --runtime <runtime> --namespace <namespace> --name <name>",
 		Short: "Get a pipeline under a specific runtime and namespace",
+		Args:  cobra.NoArgs,
 		Example: util.Doc(`
 			<BIN> pipeline --runtime runtime_name --namespace namespace --name pipeline_name
 
@@ -88,6 +89,7 @@ func NewPipelineListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all the pipelines",
+		Args:  cobra.NoArgs,
 		Example: util.Doc(`
 			<BIN> pipelines list
 

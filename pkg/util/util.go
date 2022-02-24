@@ -15,10 +15,8 @@
 package util
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"regexp"
@@ -35,7 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -48,6 +45,7 @@ var (
 	spinnerCharSet    = spinner.CharSets[26]
 	spinnerDuration   = time.Millisecond * 500
 	appsetFieldRegexp = regexp.MustCompile(`[\./]`)
+	ipRegexp          = regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`)
 )
 
 // ContextWithCancelOnSignals returns a context that is canceled when one of the specified signals
@@ -196,16 +194,15 @@ func reportCancel(status reporter.CliStepStatus) {
 	})
 }
 
-func IsIP(s string) (bool, error) {
-	return regexp.MatchString(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`, s)
+func IsIP(s string) bool {
+	return ipRegexp.MatchString(s)
 }
 
 func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
-	var testerPodName string
 
 	envVars := map[string]string{
-		"URLS": strings.Join(urls, ","),
+		"URLS":       strings.Join(urls, ","),
 		"IN_CLUSTER": "1",
 	}
 	env := prepareEnvVars(envVars)
@@ -215,32 +212,21 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	err = kubeutil.LaunchJob(ctx, kubeutil.LaunchJobOptions{
-		Client:        client,
-		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().NetworkTesterName,
-		Image:         &store.Get().NetworkTesterImage,
-		Env:           env,
-		RestartPolicy: v1.RestartPolicyNever,
-		BackOffLimit:  0,
+	pod, err := kubeutil.RunPod(ctx, client, kubeutil.RunPodOptions{
+		Namespace:    store.Get().DefaultNamespace,
+		GenerateName: store.Get().NetworkTesterName,
+		Image:        store.Get().NetworkTesterImage,
+		Env:          env,
 	})
 	if err != nil {
 		return err
 	}
-
 	defer func() {
-		deferErr := client.BatchV1().Jobs(store.Get().DefaultNamespace).Delete(ctx, store.Get().NetworkTesterName, metav1.DeleteOptions{})
-		if deferErr != nil {
-			log.G(ctx).Errorf("fail to delete job resource '%s': %s", store.Get().NetworkTesterName, deferErr.Error())
+		err = client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
+		if err != nil {
+			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
 		}
 	}()
-
-	defer func(name *string) {
-		deferErr := client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, *name, metav1.DeleteOptions{})
-		if deferErr != nil {
-			log.G(ctx).Errorf("fail to delete tester pod '%s': %s", testerPodName, deferErr.Error())
-		}
-	}(&testerPodName)
 
 	log.G(ctx).Info("Running network test...")
 
@@ -254,48 +240,40 @@ Loop:
 		select {
 		case <-ticker.C:
 			log.G(ctx).Debug("Waiting for network tester to finish")
-
-			if testerPodName == "" {
-				testerPodName, err = getTesterPodName(ctx, client)
-				if err != nil {
-					return err
-				}
-			}
-
-			pod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, testerPodName, metav1.GetOptions{})
+			currentPod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
 			if err != nil {
-				if statusError, errIsStatusError := err.(*kerrors.StatusError); errIsStatusError {
-					if statusError.ErrStatus.Reason == metav1.StatusReasonNotFound {
-						log.G(ctx).Debug("Network tester pod not found")
-					}
-				}
+				return err
 			}
-			if len(pod.Status.ContainerStatuses) == 0 {
+
+			if len(currentPod.Status.ContainerStatuses) == 0 {
 				log.G(ctx).Debug("Network tester pod: creating container")
 				continue
 			}
-			if pod.Status.ContainerStatuses[0].State.Running != nil {
+
+			state := currentPod.Status.ContainerStatuses[0].State
+			if state.Running != nil {
 				log.G(ctx).Debug("Network tester pod: running")
 			}
-			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+
+			if state.Waiting != nil {
 				log.G(ctx).Debug("Network tester pod: waiting")
 			}
-			if pod.Status.ContainerStatuses[0].State.Terminated != nil {
+
+			if state.Terminated != nil {
 				log.G(ctx).Debug("Network tester pod: terminated")
-				podLastState = pod
+				podLastState = currentPod
 				break Loop
 			}
 		case <-timeoutChan:
 			return fmt.Errorf("network test timeout reached!")
 		}
 	}
-	
-	return checkPodLastState(ctx, client, testerPodName, podLastState)
+
+	return checkPodLastState(ctx, client, podLastState)
 }
 
 func prepareEnvVars(vars map[string]string) []v1.EnvVar {
 	var env []v1.EnvVar
-
 	for key, value := range vars {
 		env = append(env, v1.EnvVar{
 			Name:  key,
@@ -306,42 +284,19 @@ func prepareEnvVars(vars map[string]string) []v1.EnvVar {
 	return env
 }
 
-func getTesterPodName(ctx context.Context, client kubernetes.Interface) (string, error) {
-	pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to get pods from cluster: %w", err)
-	}
-
-	for _, pod := range pods.Items {
-		if pod.ObjectMeta.GenerateName == store.Get().NetworkTesterGenerateName {
-			return pod.ObjectMeta.Name, nil
+func checkPodLastState(ctx context.Context, client kubernetes.Interface, pod *v1.Pod) error {
+	terminated := pod.Status.ContainerStatuses[0].State.Terminated
+	if terminated.ExitCode != 0 {
+		logs, err := kubeutil.GetPodLogs(ctx, client, pod.Namespace, pod.Name)
+		if err != nil {
+			log.G(ctx).Errorf("Failed getting logs from network-tester pod: $s", err.Error())
+		} else {
+			log.G(ctx).Error(logs)
 		}
-	}
 
-	return "", nil
-}
-
-func checkPodLastState(ctx context.Context, client kubernetes.Interface, name string, podLastState *v1.Pod) error {
-	req := client.CoreV1().Pods(store.Get().DefaultNamespace).GetLogs(name, &v1.PodLogOptions{})
-	podLogs, err := req.Stream(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get network-tester pod logs: %w", err)
-	}
-	defer podLogs.Close()
-
-	logsBuf := new(bytes.Buffer)
-	_, err = io.Copy(logsBuf, podLogs)
-	if err != nil {
-		return fmt.Errorf("Failed to read network-tester pod logs: %w", err)
-	}
-	logs := strings.Trim(logsBuf.String(), "\n")
-	log.G(ctx).Debug(logs)
-
-	if podLastState.Status.ContainerStatuses[0].State.Terminated.ExitCode != 0 {
-		terminationMessage := strings.Trim(podLastState.Status.ContainerStatuses[0].State.Terminated.Message, "\n")
+		terminationMessage := strings.Trim(terminated.Message, "\n")
 		return fmt.Errorf("Network test failed with: %s", terminationMessage)
 	}
 
 	return nil
 }
-
