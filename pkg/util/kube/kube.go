@@ -258,7 +258,7 @@ func LaunchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobO
 func DeleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) error {
 	err := client.BatchV1().Jobs(job.Namespace).Delete(ctx, job.Name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("fail to delete job resource '%s': %s", job.Name, err.Error())
+		return fmt.Errorf("fail to delete job resource \"%s\": %s", job.Name, err.Error())
 	}
 
 	err = client.CoreV1().Pods(job.Namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
