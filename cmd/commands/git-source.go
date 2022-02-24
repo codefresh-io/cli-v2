@@ -480,7 +480,6 @@ func RunGitSourceList(ctx context.Context, runtimeName string, cmd *cobra.Comman
 
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
-		
 		nameWithoutRuntimePrefix := strings.Replace(name, fmt.Sprintf("%s-", runtimeName), "", 1)
 		if util.StringIndexOf(store.Get().CFInternalGitSources, nameWithoutRuntimePrefix) > -1 && !cmd.Flags().Changed("include-internal") {
 			continue
