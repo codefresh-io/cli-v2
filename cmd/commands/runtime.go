@@ -124,7 +124,7 @@ type (
 		reporterName string
 		gvr          []gvr
 		saName       string
-		IsInternal   string
+		IsInternal   bool
 	}
 
 	summaryLogLevels string
@@ -697,7 +697,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 	for _, component := range rt.Spec.Components {
 		infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
 		log.G(ctx).Infof(infoStr)
-		component.IsInternal = "true"
+		component.IsInternal = true
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
 			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
@@ -853,7 +853,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				},
 			},
 			saName: store.Get().CodefreshSA,
-			IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowReporterName) > -1),
+			IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowReporterName) > -1,
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
@@ -878,7 +878,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		},
 		saName: store.Get().RolloutReporterServiceAccount,
-		IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutReporterName) > -1),
+		IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutReporterName) > -1,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1664,7 +1664,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Name: store.Get().EventsReporterName,
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
-		IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().EventsReporterName) > -1),
+		IsInternal: util.StringIndexOf(store.Get().CFInternalReporters, store.Get().EventsReporterName) > -1,
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
