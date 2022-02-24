@@ -137,6 +137,7 @@ type Store struct {
 	MinKubeVersion                       string
 	MaxKubeVersion                       string
 	MasterIngressName                    string
+	InClusterPath                        string
 }
 
 // Get returns the global store
@@ -230,6 +231,7 @@ func init() {
 	s.MinKubeVersion = "v1.18.0"
 	s.MaxKubeVersion = "v1.21.9"
 	s.MasterIngressName = "-master"
+	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 
 	initVersion()
 }

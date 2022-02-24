@@ -451,7 +451,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{ NginxCommunity, NginxEnterprise }
+	supportedControllers := []ingressControllerType{NginxCommunity, NginxEnterprise}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
@@ -505,9 +505,9 @@ func getIngressControllerName(controllerType ingressControllerType, className st
 		return fmt.Sprintf("%s-controller", string(NginxCommunity))
 	case NginxEnterprise:
 		return fmt.Sprintf("%s-ingress-controller", className)
+	default:
+		return ""
 	}
-
-	return ""
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -725,12 +725,7 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		return err
 	}
 
-	overlaysDir := apstore.Default.AppsDir
-
-	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
-	if err != nil {
-		return err
-	}
+	inClusterDir := store.Get().InClusterPath
 
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:             opts.RuntimeName + store.Get().MasterIngressName,
@@ -742,13 +737,7 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		},
 	})
 
-	if err = fs.WriteYamls(fs.Join(overlaysDir, "master-ingress.yaml"), ingress); err != nil {
-		return err
-	}
-
-	kust.Resources = append(kust.Resources, "master-ingress.yaml")
-
-	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+	if err = fs.WriteYamls(fs.Join(inClusterDir, "master-ingress.yaml"), ingress); err != nil {
 		return err
 	}
 
