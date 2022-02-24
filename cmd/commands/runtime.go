@@ -572,6 +572,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
 			store.Get().LabelKeyCFInternal: "true",
 		},
+		BootstrapAppsLabels: map[string]string{
+			store.Get().LabelKeyCFInternal: "true",
+		},
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)
 	if err != nil {
