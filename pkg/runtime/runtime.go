@@ -266,7 +266,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			DestNamespace: projectName,
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
-				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): a.IsInternal,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): a.IsInternal,
 			},
 			Exclude: exclude,
 			Include: include,

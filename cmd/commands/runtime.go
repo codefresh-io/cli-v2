@@ -570,6 +570,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
+			store.Get().LabelKeyCFInternal: "true",
 		},
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)
@@ -620,16 +621,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	installationSuccessMsg := fmt.Sprintf("Runtime '%s' installed successfully", opts.RuntimeName)
 	skipIngressInfoMsg := fmt.Sprintf(
-	`To complete the installation: 
+		`To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and '%s'
 2. Create and register Git integration using the commands:
 cf integration git add default --runtime %s --api-url %s
-cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`, 
-	store.Get().AppProxyIngressPath, 
-	store.Get().GithubExampleEventSourceEndpointPath, 
-	opts.RuntimeName, 
-	opts.GitIntegrationCreationOpts.APIURL,
-	opts.RuntimeName)
+cf integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>`,
+		store.Get().AppProxyIngressPath,
+		store.Get().GithubExampleEventSourceEndpointPath,
+		opts.RuntimeName,
+		opts.GitIntegrationCreationOpts.APIURL,
+		opts.RuntimeName)
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	if store.Get().SkipIngress {
@@ -662,6 +663,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 	for _, component := range rt.Spec.Components {
 		infoStr := fmt.Sprintf("Creating component '%s'", component.Name)
 		log.G(ctx).Infof(infoStr)
+		component.IsInternal = "true"
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
 			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create '%s' application: %w", component.Name, err))
