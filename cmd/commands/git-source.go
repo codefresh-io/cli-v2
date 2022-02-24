@@ -447,8 +447,6 @@ func NewGitSourceListCommand() *cobra.Command {
 				return fmt.Errorf("must enter runtime name")
 			}
 
-			includeInternal := cmd.Flags().Changed("include-internal")
-
 			return RunGitSourceList(cmd.Context(), args[0], includeInternal)
 		},
 	}
