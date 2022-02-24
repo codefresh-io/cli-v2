@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	authv1 "k8s.io/api/authorization/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,13 +54,6 @@ type (
 		Env           []v1.EnvVar
 		RestartPolicy v1.RestartPolicy
 		BackOffLimit  int32
-	}
-
-	RunPodOptions struct {
-		Namespace    string
-		GenerateName string
-		Image        string
-		Env          []v1.EnvVar
 	}
 )
 
@@ -235,24 +229,61 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func RunPod(ctx context.Context, client kubernetes.Interface, opts RunPodOptions) (*v1.Pod, error) {
-	podSpec := &v1.Pod{
+func LaunchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobOptions) (*batchv1.Job, error) {
+	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    opts.Namespace,
-			GenerateName: opts.GenerateName,
+			Name:      *opts.JobName,
+			Namespace: opts.Namespace,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					Name:  opts.GenerateName,
-					Image: opts.Image,
-					Env:   opts.Env,
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  *opts.JobName,
+							Image: *opts.Image,
+							Env:   opts.Env,
+						},
+					},
+					RestartPolicy: opts.RestartPolicy,
 				},
 			},
+			BackoffLimit: &opts.BackOffLimit,
 		},
 	}
 
-	return client.CoreV1().Pods(opts.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
+	return client.BatchV1().Jobs(opts.Namespace).Create(ctx, jobSpec, metav1.CreateOptions{})
+}
+
+func DeleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) error {
+	err := client.BatchV1().Jobs(job.Namespace).Delete(ctx, job.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("fail to delete job resource '%s': %s", job.Name, err.Error())
+	}
+
+	err = client.CoreV1().Pods(job.Namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
+		LabelSelector: "controller-uid=" + job.GetLabels()["controller-uid"],
+	})
+	if err != nil {
+		return fmt.Errorf("fail to delete tester pod: %s", err.Error())
+	}
+
+	return nil
+}
+
+func GetPodByJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) (*v1.Pod, error) {
+	pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "controller-uid=" + job.GetLabels()["controller-uid"],
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pods.Items) == 0 {
+		return nil, nil
+	}
+
+	return &pods.Items[0], nil
 }
 
 func GetPodLogs(ctx context.Context, client kubernetes.Interface, namespace, name string) (string, error) {

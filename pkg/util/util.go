@@ -30,7 +30,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -212,24 +211,26 @@ func RunNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	pod, err := kubeutil.RunPod(ctx, client, kubeutil.RunPodOptions{
-		Namespace:    store.Get().DefaultNamespace,
-		GenerateName: store.Get().NetworkTesterName,
-		Image:        store.Get().NetworkTesterImage,
-		Env:          env,
+	job, err := kubeutil.LaunchJob(ctx, client, kubeutil.LaunchJobOptions{
+		Namespace:     store.Get().DefaultNamespace,
+		JobName:       &store.Get().NetworkTesterName,
+		Image:         &store.Get().NetworkTesterImage,
+		Env:           env,
+		RestartPolicy: v1.RestartPolicyNever,
+		BackOffLimit:  0,
 	})
 	if err != nil {
 		return err
 	}
+
 	defer func() {
-		err = client.CoreV1().Pods(store.Get().DefaultNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
+		err := kubeutil.DeleteJob(ctx, client, job)
 		if err != nil {
 			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
 		}
 	}()
 
 	log.G(ctx).Info("Running network test...")
-
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	var podLastState *v1.Pod
@@ -240,9 +241,14 @@ Loop:
 		select {
 		case <-ticker.C:
 			log.G(ctx).Debug("Waiting for network tester to finish")
-			currentPod, err := client.CoreV1().Pods(store.Get().DefaultNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
+			currentPod, err := kubeutil.GetPodByJob(ctx, client, job)
 			if err != nil {
 				return err
+			}
+
+			if currentPod == nil {
+				log.G(ctx).Debug("Network tester pod: waiting for pod")
+				continue
 			}
 
 			if len(currentPod.Status.ContainerStatuses) == 0 {
