@@ -591,6 +591,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
 			store.Get().LabelKeyCFType: store.Get().CFComponentType,
+			store.Get().LabelKeyCFInternal: "true",
 		},
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)

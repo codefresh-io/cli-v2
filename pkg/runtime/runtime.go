@@ -70,6 +70,7 @@ type (
 		Type string `json:"type"`
 		URL  string `json:"url"`
 		Wait bool   `json:"wait"`
+		IsInternal string `json:"isInternal"`
 	}
 )
 
@@ -265,6 +266,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			DestNamespace: projectName,
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): a.IsInternal,
 			},
 			Exclude: exclude,
 			Include: include,

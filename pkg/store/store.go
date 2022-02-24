@@ -77,6 +77,7 @@ type Store struct {
 	AppProxyServiceName                  string
 	DocsLink                             string
 	LabelKeyCFType                       string
+	LabelKeyCFInternal                   string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
 	MaxDefVersion                        *semver.Version
@@ -171,6 +172,7 @@ func init() {
 	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.MarketplaceGitSourceName = "marketplace-git-source"
