@@ -19,7 +19,7 @@ import (
 	"os"
 	"strings"
 	"time"
-
+	"strconv"
 	"encoding/json"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -225,6 +225,9 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		Type: application.AppTypeDirectory,
 		URL:  opts.GsCloneOpts.Repo,
 	}
+
+	_, isInternal := FindIndexIfExists(store.Get().CFInternalGitSources, appDef.Name)  
+	appDef.IsInternal = strconv.FormatBool(isInternal)
 
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
