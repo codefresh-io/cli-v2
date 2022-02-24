@@ -447,7 +447,9 @@ func NewGitSourceListCommand() *cobra.Command {
 				return fmt.Errorf("must enter runtime name")
 			}
 
-			return RunGitSourceList(cmd.Context(), args[0], cmd)
+			includeInternal := cmd.Flags().Changed("include-internal")
+
+			return RunGitSourceList(cmd.Context(), args[0], includeInternal)
 		},
 	}
 
@@ -456,7 +458,7 @@ func NewGitSourceListCommand() *cobra.Command {
 	return cmd
 }
 
-func RunGitSourceList(ctx context.Context, runtimeName string, cmd *cobra.Command) error {
+func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal bool) error {
 	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
 	if isRuntimeExists == nil {
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
@@ -481,7 +483,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string, cmd *cobra.Comman
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
 		nameWithoutRuntimePrefix := strings.Replace(name, fmt.Sprintf("%s-", runtimeName), "", 1)
-		if util.StringIndexOf(store.Get().CFInternalGitSources, nameWithoutRuntimePrefix) > -1 && !cmd.Flags().Changed("include-internal") {
+		if util.StringIndexOf(store.Get().CFInternalGitSources, nameWithoutRuntimePrefix) > -1 && !includeInternal {
 			continue
 		}
 
