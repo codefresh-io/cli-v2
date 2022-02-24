@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 VERSION=v0.0.257
+=======
+VERSION=v0.0.258
+>>>>>>> bdc300dfb301e2be39c0848bc6e4b826b39c90b8
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
