@@ -590,13 +590,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		KubeContextName: opts.kubeContext,
 		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
-			store.Get().LabelKeyCFType: store.Get().CFComponentType,
+			store.Get().LabelKeyCFType:     store.Get().CFComponentType,
 			store.Get().LabelKeyCFInternal: "true",
 		},
 		BootstrapAppsLabels: map[string]string{
 			store.Get().LabelKeyCFInternal: "true",
 		},
-	}),
+	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
