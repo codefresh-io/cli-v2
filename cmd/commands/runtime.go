@@ -124,6 +124,7 @@ type (
 		reporterName string
 		gvr          []gvr
 		saName       string
+		IsInternal   string
 	}
 
 	summaryLogLevels string
@@ -607,7 +608,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		ProjectName: opts.RuntimeName,
 		Labels: map[string]string{
 			store.Get().LabelKeyCFType: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
-			store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
+			// store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
 		},
 	})
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, true)
@@ -826,6 +827,7 @@ you can try to create it manually by running:
 
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
+
 	if opts.IngressHost != "" && !store.Get().SkipIngress {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
@@ -851,6 +853,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				},
 			},
 			saName: store.Get().CodefreshSA,
+			IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().WorkflowResourceName) > -1),
 		}); err != nil {
 		return fmt.Errorf("failed to create workflows-reporter: %w", err)
 	}
@@ -875,6 +878,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		},
 		saName: store.Get().RolloutReporterServiceAccount,
+		IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().RolloutResourceName) > -1),
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1660,6 +1664,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		Name: store.Get().EventsReporterName,
 		Type: application.AppTypeDirectory,
 		URL:  cloneOpts.URL() + "/" + resPath,
+		IsInternal: strconv.FormatBool(util.StringIndexOf(store.Get().CFInternalReporters, store.Get().EventsReporterName) > -1),
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
@@ -1687,9 +1692,10 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
 	appDef := &runtime.AppDef{
-		Name: reporterCreateOpts.reporterName,
-		Type: application.AppTypeDirectory,
-		URL:  cloneOpts.URL() + "/" + resPath,
+		Name:       reporterCreateOpts.reporterName,
+		Type:       application.AppTypeDirectory,
+		URL:        cloneOpts.URL() + "/" + resPath,
+		IsInternal: reporterCreateOpts.IsInternal,
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err

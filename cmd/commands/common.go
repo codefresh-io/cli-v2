@@ -586,12 +586,3 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	return nil
 }
 
-func FindIndexIfExists(slice []string, val string) (int, bool) {
-	for i, item := range slice {
-		if item == val {
-			return i, true
-		}
-	}
-
-	return -1, false
-}
