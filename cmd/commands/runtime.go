@@ -692,6 +692,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 	for _, component := range rt.Spec.Components {
 		infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
 		log.G(ctx).Infof(infoStr)
+		component.IsInternal = "true"
 		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 		if err != nil {
 			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
