@@ -6,21 +6,22 @@ require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/argoproj-labs/applicationset v0.2.0
 	github.com/argoproj-labs/argocd-autopilot v0.2.27
-	github.com/argoproj/argo-cd/v2 v2.1.2
+	github.com/argoproj/argo-cd/v2 v2.1.9
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/briandowns/spinner v1.16.0
-	github.com/codefresh-io/go-sdk v0.37.6
+	github.com/codefresh-io/go-sdk v0.37.8
 	github.com/fatih/color v1.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.1.2
-	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
-	github.com/lunixbochs/vtclean v1.0.0 // indirect
+	github.com/juju/ansiterm v0.0.0-20210929141451-8b71cc96ebdc
 	github.com/manifoldco/promptui v0.8.0
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/rkrmr33/checklist v0.0.5
 	github.com/segmentio/backo-go v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3

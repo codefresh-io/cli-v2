@@ -15,8 +15,10 @@
 package kube
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
@@ -227,9 +229,7 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
-	jobs := opts.Client.BatchV1().Jobs(opts.Namespace)
-
+func LaunchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobOptions) (*batchv1.Job, error) {
 	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      *opts.JobName,
@@ -252,10 +252,53 @@ func LaunchJob(ctx context.Context, opts LaunchJobOptions) error {
 		},
 	}
 
-	_, err := jobs.Create(ctx, jobSpec, metav1.CreateOptions{})
+	return client.BatchV1().Jobs(opts.Namespace).Create(ctx, jobSpec, metav1.CreateOptions{})
+}
+
+func DeleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) error {
+	err := client.BatchV1().Jobs(job.Namespace).Delete(ctx, job.Name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create K8s job '%s' : %w", *opts.JobName, err)
+		return fmt.Errorf("fail to delete job resource \"%s\": %s", job.Name, err.Error())
+	}
+
+	err = client.CoreV1().Pods(job.Namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
+		LabelSelector: "controller-uid=" + job.GetLabels()["controller-uid"],
+	})
+	if err != nil {
+		return fmt.Errorf("fail to delete tester pod: %s", err.Error())
 	}
 
 	return nil
+}
+
+func GetPodByJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) (*v1.Pod, error) {
+	pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "controller-uid=" + job.GetLabels()["controller-uid"],
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pods.Items) == 0 {
+		return nil, nil
+	}
+
+	return &pods.Items[0], nil
+}
+
+func GetPodLogs(ctx context.Context, client kubernetes.Interface, namespace, name string) (string, error) {
+	req := client.CoreV1().Pods(namespace).GetLogs(name, &v1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get network-tester pod logs: %w", err)
+	}
+	defer podLogs.Close()
+
+	logsBuf := new(bytes.Buffer)
+	_, err = io.Copy(logsBuf, podLogs)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read network-tester pod logs: %w", err)
+	}
+
+	return strings.Trim(logsBuf.String(), "\n"), nil
 }

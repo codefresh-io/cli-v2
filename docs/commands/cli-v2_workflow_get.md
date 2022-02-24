@@ -3,7 +3,7 @@
 Get a workflow under a specific uid
 
 ```
-cli-v2 workflow get [uid] [flags]
+cli-v2 workflow get UID [flags]
 ```
 
 ### Examples

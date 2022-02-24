@@ -3,7 +3,7 @@
 Create a new Codefresh authentication context
 
 ```
-cli-v2 config create-context [flags]
+cli-v2 config create-context NAME [flags]
 ```
 
 ### Examples

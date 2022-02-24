@@ -1,23 +1,16 @@
-## cli-v2 component list
+## cli-v2 integration
 
-List all the components under a specific runtime
-
-```
-cli-v2 component list RUNTIME_NAME [flags]
-```
-
-### Examples
+Manage integrations with git providers, container registries and more
 
 ```
-
-            cli-v2 component list runtime_name
-        
+cli-v2 integration [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for list
+  -h, --help             help for integration
+      --runtime string   Name of runtime to use
 ```
 
 ### Options inherited from parent commands
@@ -32,5 +25,6 @@ cli-v2 component list RUNTIME_NAME [flags]
 
 ### SEE ALSO
 
-* [cli-v2 component](cli-v2_component.md)	 - Manage components of Codefresh runtimes
+* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
+* [cli-v2 integration git](cli-v2_integration_git.md)	 - Manage your git integrations
 

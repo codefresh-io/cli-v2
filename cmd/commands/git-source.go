@@ -129,8 +129,9 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create runtime_name git-source_name",
-		Short: "add a new git-source to an existing runtime",
+		Use:   "create RUNTIME_NAME GITSOURCE_NAME",
+		Short: "Adds a new git-source to an existing runtime",
+		Args:  cobra.MaximumNArgs(2),
 		Example: util.Doc(`
 			<BIN> git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow
 		`),
@@ -228,8 +229,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
-	
-	log.G(ctx).Infof("Successfully created git-source: '%s'", opts.GsName)
+
+	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
 
 	return nil
 }
@@ -264,7 +265,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
 
 		log.G(ctx).Info("Pushing demo pipelines to the new git-source repo")
-		
+
 		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
 			return fmt.Errorf("failed to push demo pipelines to git-source repo: %w", err)
 		}
@@ -280,7 +281,7 @@ func createPlaceholderIfNeeded(ctx context.Context, opts *GitSourceCreateOptions
 	}
 
 	if len(fi) == 0 {
-		if 	err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
+		if err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
 			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
 		}
 
@@ -434,18 +435,16 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 
 func NewGitSourceListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "list runtime_name",
+		Use:     "list RUNTIME_NAME",
 		Short:   "List all Codefresh git-sources of a given runtime",
+		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> git-source list my-runtime`),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			if len(args) < 1 {
-				log.G(cmd.Context()).Fatal("must enter runtime name")
-			}
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
+			if len(args) < 1 {
+				return fmt.Errorf("must enter runtime name")
+			}
 
-			return RunGitSourceList(ctx, args[0])
+			return RunGitSourceList(cmd.Context(), args[0])
 		},
 	}
 	return cmd
@@ -514,21 +513,21 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete runtime_name git-source_name",
+		Use:   "delete RUNTIME_NAME GITSOURCE_NAME",
 		Short: "delete a git-source from a runtime",
+		Args:  cobra.MaximumNArgs(2),
 		Example: util.Doc(`
 			<BIN> git-source delete runtime_name git-source_name 
 		`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
 			store.Get().Silent = true
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter runtime name")
+				return fmt.Errorf("must enter runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("must enter git-source name")
+				return fmt.Errorf("must enter git-source name")
 			}
 
 			err := ensureRepo(cmd, args[0], insCloneOpts, true)
@@ -580,25 +579,25 @@ func NewGitSourceEditCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "edit runtime_name git-source_name",
+		Use:   "edit RUNTIME_NAME GITSOURCE_NAME",
 		Short: "edit a git-source of a runtime",
+		Args:  cobra.MaximumNArgs(2),
 		Example: util.Doc(`
-			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name/my-workflow
+			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
 		`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
 			store.Get().Silent = true
 
 			if len(args) < 1 {
-				log.G(ctx).Fatal("must enter a runtime name")
+				return fmt.Errorf("must enter a runtime name")
 			}
 
 			if len(args) < 2 {
-				log.G(ctx).Fatal("must enter a git-source name")
+				return fmt.Errorf("must enter a git-source name")
 			}
 
 			if gsCloneOpts.Repo == "" {
-				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
+				return fmt.Errorf("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
 			}
 
 			err := ensureRepo(cmd, args[0], insCloneOpts, true)
@@ -657,7 +656,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
-	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source '%s'", opts.GsName)); err != nil {
+	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
 		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 	}
 

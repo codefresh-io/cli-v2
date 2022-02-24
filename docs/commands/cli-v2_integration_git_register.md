@@ -1,23 +1,16 @@
-## cli-v2 component list
+## cli-v2 integration git register
 
-List all the components under a specific runtime
-
-```
-cli-v2 component list RUNTIME_NAME [flags]
-```
-
-### Examples
+Register to a git integrations
 
 ```
-
-            cli-v2 component list runtime_name
-        
+cli-v2 integration git register [NAME] [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for list
+  -h, --help           help for register
+      --token string   Authentication token
 ```
 
 ### Options inherited from parent commands
@@ -28,9 +21,10 @@ cli-v2 component list RUNTIME_NAME [flags]
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
       --insecure-ingress-host      Disable certificate validation of ingress host (default: false)
       --request-timeout duration   Request timeout (default 30s)
+      --runtime string             Name of runtime to use
 ```
 
 ### SEE ALSO
 
-* [cli-v2 component](cli-v2_component.md)	 - Manage components of Codefresh runtimes
+* [cli-v2 integration git](cli-v2_integration_git.md)	 - Manage your git integrations
 

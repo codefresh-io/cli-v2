@@ -3,7 +3,7 @@
 List all Codefresh git-sources of a given runtime
 
 ```
-cli-v2 git-source list runtime_name [flags]
+cli-v2 git-source list RUNTIME_NAME [flags]
 ```
 
 ### Examples

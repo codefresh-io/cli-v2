@@ -3,7 +3,7 @@
 delete a git-source from a runtime
 
 ```
-cli-v2 git-source delete runtime_name git-source_name [flags]
+cli-v2 git-source delete RUNTIME_NAME GITSOURCE_NAME [flags]
 ```
 
 ### Examples
