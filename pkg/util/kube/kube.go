@@ -171,12 +171,122 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
-	err = util.RunNetworkTest(ctx, kubeFactory, contextUrl)
+	err = runNetworkTest(ctx, kubeFactory, contextUrl)
 	if err != nil {
 		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
 	
 	log.G(ctx).Info("Network test finished successfully")
+
+	return nil
+}
+
+func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
+	const networkTestsTimeout = 120 * time.Second
+
+	envVars := map[string]string{
+		"URLS":       strings.Join(urls, ","),
+		"IN_CLUSTER": "1",
+	}
+	env := prepareEnvVars(envVars)
+
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	job, err := launchJob(ctx, client, LaunchJobOptions{
+		Namespace:     store.Get().DefaultNamespace,
+		JobName:       &store.Get().NetworkTesterName,
+		Image:         &store.Get().NetworkTesterImage,
+		Env:           env,
+		RestartPolicy: v1.RestartPolicyNever,
+		BackOffLimit:  0,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err := deleteJob(ctx, client, job)
+		if err != nil {
+			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
+		}
+	}()
+
+	log.G(ctx).Info("Running network test...")
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	var podLastState *v1.Pod
+	timeoutChan := time.After(networkTestsTimeout)
+
+Loop:
+	for {
+		select {
+		case <-ticker.C:
+			log.G(ctx).Debug("Waiting for network tester to finish")
+			currentPod, err := getPodByJob(ctx, client, job)
+			if err != nil {
+				return err
+			}
+
+			if currentPod == nil {
+				log.G(ctx).Debug("Network tester pod: waiting for pod")
+				continue
+			}
+
+			if len(currentPod.Status.ContainerStatuses) == 0 {
+				log.G(ctx).Debug("Network tester pod: creating container")
+				continue
+			}
+
+			state := currentPod.Status.ContainerStatuses[0].State
+			if state.Running != nil {
+				log.G(ctx).Debug("Network tester pod: running")
+			}
+
+			if state.Waiting != nil {
+				log.G(ctx).Debug("Network tester pod: waiting")
+			}
+
+			if state.Terminated != nil {
+				log.G(ctx).Debug("Network tester pod: terminated")
+				podLastState = currentPod
+				break Loop
+			}
+		case <-timeoutChan:
+			return fmt.Errorf("network test timeout reached!")
+		}
+	}
+
+	return checkPodLastState(ctx, client, podLastState)
+}
+
+func prepareEnvVars(vars map[string]string) []v1.EnvVar {
+	var env []v1.EnvVar
+	for key, value := range vars {
+		env = append(env, v1.EnvVar{
+			Name:  key,
+			Value: value,
+		})
+	}
+
+	return env
+}
+
+func checkPodLastState(ctx context.Context, client kubernetes.Interface, pod *v1.Pod) error {
+	terminated := pod.Status.ContainerStatuses[0].State.Terminated
+	if terminated.ExitCode != 0 {
+		logs, err := getPodLogs(ctx, client, pod.Namespace, pod.Name)
+		if err != nil {
+			log.G(ctx).Errorf("Failed getting logs from network-tester pod: $s", err.Error())
+		} else {
+			log.G(ctx).Error(logs)
+		}
+
+		terminationMessage := strings.Trim(terminated.Message, "\n")
+		return fmt.Errorf("Network test failed with: %s", terminationMessage)
+	}
 
 	return nil
 }
@@ -238,7 +348,7 @@ func testNode(n v1.Node, req validationRequest) []string {
 	return result
 }
 
-func LaunchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobOptions) (*batchv1.Job, error) {
+func launchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobOptions) (*batchv1.Job, error) {
 	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      *opts.JobName,
@@ -264,7 +374,7 @@ func LaunchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobO
 	return client.BatchV1().Jobs(opts.Namespace).Create(ctx, jobSpec, metav1.CreateOptions{})
 }
 
-func DeleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) error {
+func deleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) error {
 	err := client.BatchV1().Jobs(job.Namespace).Delete(ctx, job.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("fail to delete job resource \"%s\": %s", job.Name, err.Error())
@@ -280,7 +390,7 @@ func DeleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Jo
 	return nil
 }
 
-func GetPodByJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) (*v1.Pod, error) {
+func getPodByJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) (*v1.Pod, error) {
 	pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "controller-uid=" + job.GetLabels()["controller-uid"],
 	})
