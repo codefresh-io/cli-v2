@@ -435,6 +435,8 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 }
 
 func NewGitSourceListCommand() *cobra.Command {
+	var includeInternal bool
+
 	cmd := &cobra.Command{
 		Use:     "list RUNTIME_NAME",
 		Short:   "List all Codefresh git-sources of a given runtime",
@@ -445,13 +447,16 @@ func NewGitSourceListCommand() *cobra.Command {
 				return fmt.Errorf("must enter runtime name")
 			}
 
-			return RunGitSourceList(cmd.Context(), args[0])
+			return RunGitSourceList(cmd.Context(), args[0], cmd)
 		},
 	}
+
+	cmd.Flags().BoolVar(&includeInternal, "include-internal", false, "If true, will include the Codefresh-internal git-sources")
+
 	return cmd
 }
 
-func RunGitSourceList(ctx context.Context, runtimeName string) error {
+func RunGitSourceList(ctx context.Context, runtimeName string, cmd *cobra.Command) error {
 	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
 	if isRuntimeExists == nil {
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
@@ -475,6 +480,11 @@ func RunGitSourceList(ctx context.Context, runtimeName string) error {
 
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
+		nameWithoutRuntimePrefix := strings.Replace(name, fmt.Sprintf("%s-", runtimeName), "", 1)
+		if util.StringIndexOf(store.Get().CFInternalGitSources, nameWithoutRuntimePrefix) > -1 && !cmd.Flags().Changed("include-internal") {
+			continue
+		}
+
 		repoURL := "N/A"
 		path := "N/A"
 		healthStatus := "N/A"
