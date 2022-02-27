@@ -743,6 +743,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	mpCloneOpts.Parse()
 
 	createGitSrcMessgae := fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+	
 	err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		InsCloneOpts:        opts.InsCloneOpts,
 		GsCloneOpts:         mpCloneOpts,
