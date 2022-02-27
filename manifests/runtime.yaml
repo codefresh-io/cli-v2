@@ -5,7 +5,7 @@ metadata:
   namespace: "{{ namespace }}"
 spec:
   defVersion: 1.0.1
-  version: 0.0.259
+  version: 0.0.260
   bootstrapSpecifier: manifests/argo-cd
   components:
     - name: events
