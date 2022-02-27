@@ -1328,6 +1328,15 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
+	err = removeGitIntegrations(ctx, opts)
+	handleCliStep(reporter.UninstallStepRemoveGitIntegrations, "Removing git integrations", err, true)
+	if err != nil {
+		if !opts.Force {
+			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+			return err
+		}
+	}
+
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
@@ -1342,12 +1351,6 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 			return err
 		}
-	}
-
-	err = removeGitIntegrations(ctx, opts)
-	handleCliStep(reporter.UninstallStepRemoveGitIntegrations, "Removing git integrations", err, true)
-	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to remove git integrations: %w", err))
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
