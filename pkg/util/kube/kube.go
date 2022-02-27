@@ -421,3 +421,24 @@ func getPodLogs(ctx context.Context, client kubernetes.Interface, namespace, nam
 
 	return strings.Trim(logsBuf.String(), "\n"), nil
 }
+
+func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory kube.Factory) (bool, error) {
+	var namespaces *v1.NamespaceList
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return false, fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	namespaces, err = client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to list cluster namespaces: %w", err)
+	}
+
+	for _, ns := range namespaces.Items {
+		if ns.Name == namespace {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
