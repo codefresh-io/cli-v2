@@ -725,8 +725,6 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		return err
 	}
 
-	inClusterDir := store.Get().InClusterPath
-
 	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
 		Name:             opts.RuntimeName + store.Get().MasterIngressName,
 		Namespace:        opts.RuntimeName,
@@ -737,11 +735,11 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		},
 	})
 
-	if err = fs.WriteYamls(fs.Join(inClusterDir, "master-ingress.yaml"), ingress); err != nil {
+	if err = fs.WriteYamls(fs.Join(store.Get().InClusterPath, "master-ingress.yaml"), ingress); err != nil {
 		return err
 	}
 
-	log.G(ctx).Info("Pushing master ingress manifest")
+	log.G(ctx).Info("Pushing Master Ingress Manifest")
 
 	return apu.PushWithMessage(ctx, r, "Created master ingress resource")
 }
