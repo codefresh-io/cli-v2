@@ -193,3 +193,12 @@ func IsIP(s string) bool {
 	return ipRegexp.MatchString(s)
 }
 
+func StringIndexOf(slice []string, val string) (int) {
+	for i, item := range slice {
+		if item == val {
+			return i
+		}
+	}
+
+	return -1
+}

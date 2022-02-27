@@ -77,6 +77,7 @@ type Store struct {
 	AppProxyServiceName                  string
 	DocsLink                             string
 	LabelKeyCFType                       string
+	LabelKeyCFInternal                   string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
 	MaxDefVersion                        *semver.Version
@@ -131,6 +132,8 @@ type Store struct {
 	NetworkTesterImage                   string
 	MinKubeVersion                       string
 	MaxKubeVersion                       string
+	CFInternalGitSources                 []string
+	CFInternalReporters                  []string
 }
 
 // Get returns the global store
@@ -171,6 +174,7 @@ func init() {
 	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.MarketplaceGitSourceName = "marketplace-git-source"
@@ -219,6 +223,8 @@ func init() {
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
 	s.MaxKubeVersion = "v1.21.9"
+	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
+	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 
 	initVersion()
 }
