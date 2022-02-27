@@ -1232,9 +1232,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			createAnalyticsReporter(ctx, reporter.UninstallFlow)
 
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &uninstallationOpts)
-			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
+			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, false)
 			if err != nil {
-				return fmt.Errorf("pre installation error: %w", err)
+				if errors.Is(err, promptui.ErrInterrupt) {
+					return fmt.Errorf("uninstallation canceled by user")
+				}
+
+				return fmt.Errorf("pre run error: %w", err)
 			}
 
 			finalParameters = map[string]string{
@@ -1297,7 +1301,12 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
-	go printApplicationsState(ctx, opts.RuntimeName, opts.KubeFactory)
+	subCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory); err != nil {
+			log.G(ctx).WithError(err).Debug("failed to print components live state")
+		}
+	}()
 
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
@@ -1307,6 +1316,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
+	cancel()
 	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, true)
 	if err != nil {
 		if !opts.Force {
@@ -1346,19 +1356,25 @@ func printApplicationsState(ctx context.Context, runtime string, f kube.Factory)
 	}
 
 	appIf := cs.ArgoprojV1alpha1().Applications(runtime)
+	componentsLabelSelector := fmt.Sprintf("%s=%s", store.Get().LabelKeyCFType, store.Get().CFComponentType)
 
-	curApps, err := appIf.List(ctx, metav1.ListOptions{})
+	curApps, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: componentsLabelSelector})
 	if err != nil {
 		return err
 	}
 
-	for _, a := range curApps.Items {
-		apps[a.Name] = a
+	if len(curApps.Items) == 0 {
+		// all apps already deleted nothing to wait for
+		return nil
+	}
+
+	for i, a := range curApps.Items {
+		apps[a.Name] = &curApps.Items[i]
 	}
 
 	// refresh components state
 	go func() {
-		t := time.NewTicker(2 * time.Second)
+		t := time.NewTicker(time.Second)
 		for {
 			select {
 			case <-ctx.Done():
@@ -1366,38 +1382,48 @@ func printApplicationsState(ctx context.Context, runtime string, f kube.Factory)
 			case <-t.C:
 			}
 
-			curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
-			if err != nil && ctx.Err() == nil {
-				log.G(ctx).WithError(err).Error("failed to refresh components state")
+			curApps, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: componentsLabelSelector})
+			if err != nil {
+				log.G(ctx).WithError(err).Debug("failed to refresh components state")
 				continue
 			}
 
+			newApps := make(map[string]*argocdv1alpha1.Application, len(curApps.Items))
+			for i, a := range curApps.Items {
+				newApps[a.Name] = &curApps.Items[i]
+			}
+
 			lock.Lock()
-			for _, c := range curComponents {
-				components[c.Metadata.Name] = c
+			// update existing
+			for i, a := range curApps.Items {
+				apps[a.Name] = &curApps.Items[i]
+			}
+
+			// clear deleted apps
+			for name := range apps {
+				if _, ok := newApps[name]; !ok {
+					delete(apps, name)
+				}
 			}
 			lock.Unlock()
 		}
 	}()
 
-	checkers := make([]checklist.Checker, len(curComponents))
-	for i, c := range curComponents {
-		name := c.Metadata.Name
+	checkers := make([]checklist.Checker, len(curApps.Items))
+	for i, a := range curApps.Items {
+		name := a.Name
 		checkers[i] = func(ctx context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
 			lock.Lock()
 			defer lock.Unlock()
-			return getComponentChecklistState(components[name])
+			return getApplicationChecklistState(name, apps[name], runtime)
 		}
 	}
 
-	log.G().Info("Waiting for the runtime installation to complete...")
-
 	cl := checklist.NewCheckList(
 		os.Stdout,
-		checklist.ListItemInfo{"COMPONENT", "HEALTH STATUS", "SYNC STATUS", "VERSION", "ERRORS"},
+		checklist.ListItemInfo{"COMPONENT", "STATUS"},
 		checkers,
 		&checklist.CheckListOptions{
-			Interval:     1 * time.Second,
 			WaitAllReady: true,
 		},
 	)
@@ -1407,6 +1433,21 @@ func printApplicationsState(ctx context.Context, runtime string, f kube.Factory)
 	}
 
 	return nil
+}
+
+func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, runtime string) (checklist.ListItemState, checklist.ListItemInfo) {
+	state := checklist.Waiting
+	name = strings.TrimPrefix(name, fmt.Sprintf("%s-", runtime))
+	status := "N/A"
+
+	if a == nil {
+		status = "Deleted"
+		state = checklist.Ready
+	} else if string(a.Status.Health.Status) != "" {
+		status = string(a.Status.Health.Status)
+	}
+
+	return state, []string{name, status}
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
@@ -1451,9 +1492,12 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
 
 			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
-			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre installation checks", err, false)
+			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre run checks", err, false)
 			if err != nil {
-				return fmt.Errorf("Pre installation error: %w", err)
+				if errors.Is(err, promptui.ErrInterrupt) {
+					return fmt.Errorf("upgrade canceled by user")
+				}
+				return fmt.Errorf("Pre run error: %w", err)
 			}
 
 			finalParameters = map[string]string{
