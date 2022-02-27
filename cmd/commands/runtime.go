@@ -72,6 +72,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kustid "sigs.k8s.io/kustomize/api/resid"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+
+	osSecurityV1 "github.com/openshift/api/security/v1"
 )
 
 type (
@@ -604,6 +606,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
+	err = runOpenshiftSetup(opts, ctx)
+	if err != nil {
+		return fmt.Errorf("Failed setting up openshift %w", err)
+	}
+
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
 		CloneOpts:   opts.InsCloneOpts,
 		ProjectName: opts.RuntimeName,
@@ -689,6 +696,11 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get current server address: %w", err)
 	}
+
+	// err = runOpenshiftSetup(opts)
+	// if err != nil {
+	// 	return nil, "", fmt.Errorf("Failing setting up openshift: %w", err)
+	// }
 
 	return rt, server, nil
 }
@@ -2237,4 +2249,65 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
 	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
+}
+
+func runOpenshiftSetup(opts *RuntimeInstallOptions, ctx context.Context) error {
+	// r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// overlaysDir := fs.Join(apstore.Default.AppsDir, "app-proxy", apstore.Default.OverlaysDir, rt.Name)
+
+	// sccFilePath := filepath.Join(opts.InsCloneOpts.Repo, "/bootstrap/cluster-resources", "scc.yaml")
+	// log.G().Infof("InsCloseOpts.Path: %s", opts.InsCloneOpts.Repo)
+	// err = ioutil.WriteFile(sccFilePath, data, 0644)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// return nil
+
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	scc := osSecurityV1.SecurityContextConstraints{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: osSecurityV1.SchemeGroupVersion.Version,
+			
+			Kind: "SecurityContextConstraint",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: opts.RuntimeName,
+			Name: store.Get().SccName,
+		},
+		AllowPrivilegedContainer: false,
+		RunAsUser: osSecurityV1.RunAsUserStrategyOptions{
+			Type: osSecurityV1.RunAsUserStrategyRunAsAny,
+		},
+		SELinuxContext: osSecurityV1.SELinuxContextStrategyOptions{
+			Type: osSecurityV1.SELinuxStrategyRunAsAny,
+		},
+		FSGroup: osSecurityV1.FSGroupStrategyOptions{
+			Type: osSecurityV1.FSGroupStrategyRunAsAny,
+		},
+		SupplementalGroups: osSecurityV1.SupplementalGroupsStrategyOptions{
+			Type: osSecurityV1.SupplementalGroupsStrategyRunAsAny,
+		},
+		Users: []string{
+			fmt.Sprintf("system:serviceaccount:%s:argo-events-sa", opts.RuntimeName),
+		},
+	}
+
+	clusterResourcesDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ClusterResourcesDir)
+
+	if err = fs.WriteYamls(fs.Join(clusterResourcesDir, "scc.yaml"), scc); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing scc manifest")
+
+	return apu.PushWithMessage(ctx, r, "Created scc")
 }
