@@ -782,7 +782,7 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 }
 
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost) // why insecure ingress host
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client: %w", err)
 	}
