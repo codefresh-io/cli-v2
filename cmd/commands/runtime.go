@@ -1329,12 +1329,13 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
 	err = removeGitIntegrations(ctx, opts)
+	if opts.Force {
+		err = nil
+	}
 	handleCliStep(reporter.UninstallStepRemoveGitIntegrations, "Removing git integrations", err, true)
 	if err != nil {
-		if !opts.Force {
-			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
-			return err
-		}
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+		return err
 	}
 
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
@@ -1345,12 +1346,13 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
+	if opts.Force {
+		err = nil
+	}
 	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, true)
 	if err != nil {
-		if !opts.Force {
-			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
-			return err
-		}
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+		return err
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
