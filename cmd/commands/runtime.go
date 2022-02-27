@@ -53,6 +53,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
@@ -743,7 +744,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	mpCloneOpts.Parse()
 
 	createGitSrcMessgae := fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
-	
+
 	err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		InsCloneOpts:        opts.InsCloneOpts,
 		GsCloneOpts:         mpCloneOpts,
@@ -796,7 +797,7 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 	for _, intg := range integrations {
 		if err = RunGitIntegrationRemoveCommand(ctx, appProxyClient, intg.Name); err != nil {
 			command := util.Doc(fmt.Sprintf("\t<BIN> integration git remove %s", intg.Name))
-	
+
 			return fmt.Errorf(`%w. You can try to remove it manually by running: %s`, err, command)
 		}
 	}
@@ -1264,9 +1265,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			createAnalyticsReporter(ctx, reporter.UninstallFlow)
 
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &uninstallationOpts)
-			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre installation checks", err, false)
+			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, false)
 			if err != nil {
-				return fmt.Errorf("pre installation error: %w", err)
+				if errors.Is(err, promptui.ErrInterrupt) {
+					return fmt.Errorf("uninstallation canceled by user")
+				}
+
+				return fmt.Errorf("pre run error: %w", err)
 			}
 
 			finalParameters = map[string]string{
@@ -1339,6 +1344,13 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
+	subCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory); err != nil {
+			log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
+		}
+	}()
+
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
@@ -1347,6 +1359,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
+	cancel() // to tell the progress to stop displaying even if it's not finished
 	if opts.Force {
 		err = nil
 	}
@@ -1370,6 +1383,115 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	appendLogToSummary(uninstallDoneStr, nil)
 
 	return nil
+}
+
+func printApplicationsState(ctx context.Context, runtime string, f kube.Factory) error {
+	apps := map[string]*argocdv1alpha1.Application{}
+	lock := sync.Mutex{}
+
+	rc, err := f.ToRESTConfig()
+	if err != nil {
+		return err
+	}
+
+	cs, err := argocdv1alpha1cs.NewForConfig(rc)
+	if err != nil {
+		return err
+	}
+
+	appIf := cs.ArgoprojV1alpha1().Applications(runtime)
+	componentsLabelSelector := fmt.Sprintf("%s=%s", store.Get().LabelKeyCFType, store.Get().CFComponentType)
+
+	curApps, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: componentsLabelSelector})
+	if err != nil {
+		return err
+	}
+
+	if len(curApps.Items) == 0 {
+		// all apps already deleted nothing to wait for
+		return nil
+	}
+
+	for i, a := range curApps.Items {
+		apps[a.Name] = &curApps.Items[i]
+	}
+
+	// refresh components state
+	go func() {
+		t := time.NewTicker(time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+
+			curApps, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: componentsLabelSelector})
+			if err != nil {
+				log.G(ctx).WithError(err).Debug("failed to refresh components state")
+				continue
+			}
+
+			newApps := make(map[string]*argocdv1alpha1.Application, len(curApps.Items))
+			for i, a := range curApps.Items {
+				newApps[a.Name] = &curApps.Items[i]
+			}
+
+			lock.Lock()
+			// update existing
+			for i, a := range curApps.Items {
+				apps[a.Name] = &curApps.Items[i]
+			}
+
+			// clear deleted apps
+			for name := range apps {
+				if _, ok := newApps[name]; !ok {
+					delete(apps, name)
+				}
+			}
+			lock.Unlock()
+		}
+	}()
+
+	checkers := make([]checklist.Checker, len(curApps.Items))
+	for i, a := range curApps.Items {
+		name := a.Name
+		checkers[i] = func(ctx context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
+			lock.Lock()
+			defer lock.Unlock()
+			return getApplicationChecklistState(name, apps[name], runtime)
+		}
+	}
+
+	cl := checklist.NewCheckList(
+		os.Stdout,
+		checklist.ListItemInfo{"COMPONENT", "STATUS"},
+		checkers,
+		&checklist.CheckListOptions{
+			WaitAllReady: true,
+		},
+	)
+
+	if err := cl.Start(ctx); err != nil && ctx.Err() == nil {
+		return err
+	}
+
+	return nil
+}
+
+func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, runtime string) (checklist.ListItemState, checklist.ListItemInfo) {
+	state := checklist.Waiting
+	name = strings.TrimPrefix(name, fmt.Sprintf("%s-", runtime))
+	status := "N/A"
+
+	if a == nil {
+		status = "Deleted"
+		state = checklist.Ready
+	} else if string(a.Status.Health.Status) != "" {
+		status = string(a.Status.Health.Status)
+	}
+
+	return state, []string{name, status}
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
@@ -1414,9 +1536,12 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
 
 			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
-			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre installation checks", err, false)
+			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre run checks", err, false)
 			if err != nil {
-				return fmt.Errorf("Pre installation error: %w", err)
+				if errors.Is(err, promptui.ErrInterrupt) {
+					return fmt.Errorf("upgrade canceled by user")
+				}
+				return fmt.Errorf("Pre run error: %w", err)
 			}
 
 			finalParameters = map[string]string{
