@@ -39,7 +39,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --kubeconfig string           Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string            If present, the namespace scope for this CLI request
       --personal-git-token string   The Personal git token for your user
-      --provider string             The git provider, one of: gitea|github|gitlab
+      --provider string             The git provider, one of: azure|gitea|github|gitlab
       --provider-api-url string     Git provider API url
       --repo string                 Repository URL [GIT_REPO]
       --skip-cluster-checks         Skips the cluster's checks
