@@ -19,12 +19,12 @@ cli-v2 git-source edit RUNTIME_NAME GITSOURCE_NAME [flags]
 ```
       --git-src-git-token string   Your git provider api token [GIT_SRC_GIT_TOKEN]
       --git-src-git-user string    Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
-      --git-src-provider string    The git provider, one of: gitea|github|gitlab
+      --git-src-provider string    The git provider, one of: azure|gitea|github|gitlab
       --git-src-repo string        Repository URL [GIT_SRC_GIT_REPO]
   -t, --git-token string           Your git provider api token [GIT_TOKEN]
   -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                       help for edit
-      --provider string            The git provider, one of: gitea|github|gitlab
+      --provider string            The git provider, one of: azure|gitea|github|gitlab
       --repo string                Repository URL [GIT_REPO]
 ```
 

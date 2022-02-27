@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/argoproj-labs/applicationset v0.2.0
-	github.com/argoproj-labs/argocd-autopilot v0.2.27
+	github.com/argoproj-labs/argocd-autopilot v0.2.30
 	github.com/argoproj/argo-cd/v2 v2.1.9
 	github.com/argoproj/argo-events v1.4.0
 	github.com/argoproj/argo-workflows/v3 v3.1.6
@@ -17,7 +17,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.1
 	github.com/gobuffalo/packr v1.30.1
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/juju/ansiterm v0.0.0-20210929141451-8b71cc96ebdc
 	github.com/manifoldco/promptui v0.8.0
 	github.com/mattn/go-colorable v0.1.12 // indirect

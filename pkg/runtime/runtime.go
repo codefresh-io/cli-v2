@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,10 +67,11 @@ type (
 	}
 
 	AppDef struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-		URL  string `json:"url"`
-		Wait bool   `json:"wait"`
+		Name       string `json:"name"`
+		Type       string `json:"type"`
+		URL        string `json:"url"`
+		Wait       bool   `json:"wait"`
+		IsInternal bool   `json:"isInternal"`
 	}
 )
 
@@ -264,7 +266,8 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			AppType:       a.Type,
 			DestNamespace: projectName,
 			Labels: map[string]string{
-				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
 			},
 			Exclude: exclude,
 			Include: include,
