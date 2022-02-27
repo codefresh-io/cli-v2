@@ -743,6 +743,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	mpCloneOpts.Parse()
 
 	createGitSrcMessgae := fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+	
 	err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 		InsCloneOpts:        opts.InsCloneOpts,
 		GsCloneOpts:         mpCloneOpts,
@@ -776,6 +777,28 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", err))
+	}
+
+	return nil
+}
+
+func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+
+	integrations, err := appProxyClient.GitIntegrations().List(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get list of git integrations: %w", err)
+	}
+
+	for _, intg := range integrations {
+		if err = RunGitIntegrationRemoveCommand(ctx, appProxyClient, intg.Name); err != nil {
+			command := util.Doc(fmt.Sprintf("\t<BIN> integration git remove %s", intg.Name))
+	
+			return fmt.Errorf(`%w. You can try to remove it manually by running: %s`, err, command)
+		}
 	}
 
 	return nil
@@ -1306,6 +1329,16 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
+	err = removeGitIntegrations(ctx, opts)
+	if opts.Force {
+		err = nil
+	}
+	handleCliStep(reporter.UninstallStepRemoveGitIntegrations, "Removing git integrations", err, true)
+	if err != nil {
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+		return err
+	}
+
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:    opts.RuntimeName,
 		Timeout:      opts.Timeout,
@@ -1314,12 +1347,13 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
+	if opts.Force {
+		err = nil
+	}
 	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, true)
 	if err != nil {
-		if !opts.Force {
-			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
-			return err
-		}
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+		return err
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
