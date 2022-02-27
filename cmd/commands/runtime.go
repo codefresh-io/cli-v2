@@ -781,6 +781,28 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 	return nil
 }
 
+func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost) // why insecure ingress host
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+
+	integrations, err := appProxyClient.GitIntegrations().List(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get list of git integrations: %w", err)
+	}
+
+	for _, intg := range integrations {
+		if err = RunGitIntegrationRemoveCommand(ctx, appProxyClient, intg.Name); err != nil {
+			command := util.Doc(fmt.Sprintf("\t<BIN> integration git remove %s", intg.Name))
+	
+			return fmt.Errorf(`%w. You can try to create it manually by running: %s`, err, command)
+		}
+	}
+
+	return nil
+}
+
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
@@ -1320,6 +1342,12 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 			return err
 		}
+	}
+
+	err = removeGitIntegrations(ctx, opts)
+	handleCliStep(reporter.UninstallStepRemoveGitIntegrations, "Removing git integrations", err, true)
+	if err != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to remove git integrations: %w", err))
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
