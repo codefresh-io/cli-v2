@@ -796,7 +796,7 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 		if err = RunGitIntegrationRemoveCommand(ctx, appProxyClient, intg.Name); err != nil {
 			command := util.Doc(fmt.Sprintf("\t<BIN> integration git remove %s", intg.Name))
 	
-			return fmt.Errorf(`%w. You can try to create it manually by running: %s`, err, command)
+			return fmt.Errorf(`%w. You can try to remove it manually by running: %s`, err, command)
 		}
 	}
 
