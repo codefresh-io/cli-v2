@@ -1304,7 +1304,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	subCtx, cancel := context.WithCancel(ctx)
 	go func() {
 		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory); err != nil {
-			log.G(ctx).WithError(err).Debug("failed to print components live state")
+			log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
 		}
 	}()
 
@@ -1316,7 +1316,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
 	})
-	cancel()
+	cancel() // to tell the progress to stop displaying even if it's not finished
 	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, true)
 	if err != nil {
 		if !opts.Force {
