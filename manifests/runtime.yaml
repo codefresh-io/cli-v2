@@ -6,7 +6,7 @@ metadata:
 spec:
   defVersion: 1.0.1
   version: 0.0.239
-  bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
+  bootstrapSpecifier: ./manifests/argo-cd
   components:
     - name: events
       type: kustomize

@@ -1,0 +1,17 @@
+hs = {}
+if obj.metadata.annotations["nginx.org/mergeable-ingress-type"] == "minion" then
+  hs.status = "Healthy"
+  return hs
+end
+if obj.metadata.annotations["nginx.org/mergeable-ingress-type"] == "master" then
+  hs.status = "Healthy"
+  return hs
+end
+if obj.status.loadBalancer.ingress ~= nil then
+  if table.getn(obj.status.loadBalancer.ingress) > 0 then
+    hs.status = "Healthy"
+    return hs
+  end
+end
+hs.status = "Progressing"
+return hs
