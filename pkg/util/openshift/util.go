@@ -1,3 +1,17 @@
+// Copyright 2022 The Codefresh Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package openshift
 
 import (
@@ -11,7 +25,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	ocSecurityV1 "github.com/openshift/api/security/v1"
+	ocsecurityv1 "github.com/openshift/api/security/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -59,9 +73,10 @@ func createScc(ctx context.Context, opts *OpenshiftOptions) error {
 	if err != nil {
 		return err
 	}
+
 	sccPriority := int32(15)
 
-	scc := ocSecurityV1.SecurityContextConstraints{
+	scc := ocsecurityv1.SecurityContextConstraints{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SecurityContextConstraints",
 			APIVersion: "security.openshift.io/v1",
@@ -71,13 +86,14 @@ func createScc(ctx context.Context, opts *OpenshiftOptions) error {
 			Name:      store.Get().SccName,
 		},
 		AllowPrivilegedContainer: false,
-		RunAsUser: ocSecurityV1.RunAsUserStrategyOptions{
-			Type: ocSecurityV1.RunAsUserStrategyRunAsAny,
+		RunAsUser: ocsecurityv1.RunAsUserStrategyOptions{
+			Type: ocsecurityv1.RunAsUserStrategyRunAsAny,
 		},
-		SELinuxContext: ocSecurityV1.SELinuxContextStrategyOptions{
-			Type: ocSecurityV1.SELinuxStrategyRunAsAny,
+		SELinuxContext: ocsecurityv1.SELinuxContextStrategyOptions{
+			Type: ocsecurityv1.SELinuxStrategyRunAsAny,
 		},
 		Users:    getServiceAccountsList(opts.RuntimeName),
+		// This is required to take precedence over the default SCC's
 		Priority: &sccPriority,
 	}
 
