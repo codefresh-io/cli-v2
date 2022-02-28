@@ -132,6 +132,7 @@ type Store struct {
 	NetworkTesterImage                   string
 	MinKubeVersion                       string
 	MaxKubeVersion                       string
+	SccName                              string
 	CFInternalGitSources                 []string
 	CFInternalReporters                  []string
 }
@@ -223,6 +224,7 @@ func init() {
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
 	s.MaxKubeVersion = "v1.21.9"
+	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 

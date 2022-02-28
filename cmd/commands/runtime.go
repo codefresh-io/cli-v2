@@ -55,6 +55,7 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	oc "github.com/codefresh-io/cli-v2/pkg/util/openshift"
 
 	"github.com/Masterminds/semver/v3"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
@@ -602,6 +603,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
+	}
+
+	err = oc.PrepareOpenshiftCluster(ctx, &oc.OpenshiftOptions{
+		KubeFactory:  opts.KubeFactory,
+		RuntimeName:  opts.RuntimeName,
+		InsCloneOpts: opts.InsCloneOpts,
+	})
+	if err != nil {
+		return fmt.Errorf("failed setting up environment for openshift %w", err)
 	}
 
 	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
