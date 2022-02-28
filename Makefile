@@ -158,7 +158,7 @@ check-worktree:
 $(GOBIN)/mockery:
 	@mkdir dist || true
 	@echo installing: mockery
-	@curl -L -o dist/mockery.tar.gz -- https://github.com/vektra/mockery/releases/download/v1.1.1/mockery_1.1.1_$(shell uname -s)_$(shell uname -m).tar.gz
+	@curl -L -o dist/mockery.tar.gz -- https://github.com/vektra/mockery/releases/download/v2.10.0/mockery_2.10.0_$(shell uname -s)_$(shell uname -m).tar.gz
 	@tar zxvf dist/mockery.tar.gz mockery
 	@rm dist/mockery.tar.gz
 	@chmod +x mockery
@@ -169,7 +169,7 @@ $(GOBIN)/mockery:
 $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.36.0
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.37.0
 
 .PHONY: flatten-manifests-base-paths
 flatten-manifests-base-paths:
