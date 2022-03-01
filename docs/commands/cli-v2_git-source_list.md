@@ -3,7 +3,7 @@
 List all Codefresh git-sources of a given runtime
 
 ```
-cli-v2 git-source list runtime_name [flags]
+cli-v2 git-source list RUNTIME_NAME [flags]
 ```
 
 ### Examples
@@ -15,7 +15,8 @@ cli-v2 git-source list my-runtime
 ### Options
 
 ```
-  -h, --help   help for list
+  -h, --help               help for list
+      --include-internal   If true, will include the Codefresh internal git-sources
 ```
 
 ### Options inherited from parent commands

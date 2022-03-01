@@ -89,7 +89,7 @@ func isValidIngressHost(ingressHost string) (bool, error) {
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
-	if !store.Get().Silent && !cmd.Flags().Changed("sample-install") {
+	if !store.Get().Silent && !cmd.Flags().Changed("demo-resources") {
 		templates := &promptui.SelectTemplates{
 			Selected: "{{ . | yellow }} ",
 		}
@@ -103,6 +103,7 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 		}
 
 		_, result, err := prompt.Run()
+		
 		if err != nil {
 			return err
 		}
@@ -286,47 +287,16 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 }
 
 func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	var err error
-	tokenFromFlag := opts.GitIntegrationRegistrationOpts.Token
-
-	if tokenFromFlag == "" {
-		if !store.Get().Silent {
-			err = getGitPATFromUserInput(cmd, opts)
-			if err != nil {
-				return err
-			}
-		} else {
-			log.G(cmd.Context()).Info("Using runtime token as personal user token")
-			opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-			if err != nil {
-				return err
-			}
+	if opts.GitIntegrationRegistrationOpts.Token == "" {
+		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
+		currentUser, err := cfConfig.NewClient().Users().GetCurrent(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("failed to retrieve username from platform: %w", err)
 		}
+		log.G(cmd.Context()).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
 	}
 
 	return cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
-}
-
-func getGitPATFromUserInput(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
-	gitPATPrompt := promptui.Prompt{
-		Label: "Personal git token for your user (skip to use runtime token)",
-		Mask:  '*',
-	}
-
-	gitPAT, err := gitPATPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	if gitPAT == "" {
-		gitPAT, err = cmd.Flags().GetString("git-token")
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-	opts.GitIntegrationRegistrationOpts.Token = gitPAT
-
-	return nil
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
@@ -609,3 +579,4 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 	return nil
 }
+

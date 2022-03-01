@@ -32,7 +32,6 @@ var (
 	segmentWriteKey = ""
 	maxDefVersion   = "1.0.1"
 	RuntimeDefURL   = "manifests/runtime.yaml"
-	ArgoAgentURL    = "manifests/argo-agent/agent.yaml"
 )
 
 type Version struct {
@@ -48,9 +47,6 @@ type Store struct {
 	ArgoCDServerName                     string
 	ArgoCDTokenKey                       string
 	ArgoCDTokenSecret                    string
-	ArgoCDAgentCFTokenKey                string
-	ArgoCDAgentCFTokenSecret             string
-	ArgoCDAgentSA                        string
 	ArgoWFServiceName                    string
 	ArgoWFServicePort                    int32
 	BinaryName                           string
@@ -72,7 +68,6 @@ type Store struct {
 	EventBusName                         string
 	EventReportingEndpoint               string
 	EventsReporterName                   string
-	ArgoCDAgentReporterName              string
 	GitSourceName                        string
 	WorkflowsIngressName                 string
 	WorkflowsIngressPath                 string
@@ -82,6 +77,7 @@ type Store struct {
 	AppProxyServiceName                  string
 	DocsLink                             string
 	LabelKeyCFType                       string
+	LabelKeyCFInternal                   string
 	MarketplaceGitSourceName             string
 	MarketplaceRepo                      string
 	MaxDefVersion                        *semver.Version
@@ -138,6 +134,9 @@ type Store struct {
 	MaxKubeVersion                       string
 	MasterIngressName                    string
 	InClusterPath                        string
+	SccName                              string
+	CFInternalGitSources                 []string
+	CFInternalReporters                  []string
 }
 
 // Get returns the global store
@@ -159,10 +158,6 @@ func init() {
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
 	s.CFTokenSecret = "codefresh-token"
-	s.ArgoCDAgentCFTokenKey = "token"
-	s.ArgoCDAgentCFTokenSecret = "cf-argocd-agent"
-	s.ArgoCDAgentReporterName = "argocd-agent"
-	s.ArgoCDAgentSA = "argocd-agent"
 	s.CFTokenSecretKey = "token"
 	s.CFStoreIVSecretKey = "encryptionIV"
 	s.CodefreshCM = "codefresh-cm"
@@ -182,6 +177,7 @@ func init() {
 	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.MarketplaceGitSourceName = "marketplace-git-source"
@@ -232,6 +228,9 @@ func init() {
 	s.MaxKubeVersion = "v1.21.9"
 	s.MasterIngressName = "-master"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
+	s.SccName = "cf-scc"
+	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
+	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 
 	initVersion()
 }

@@ -66,8 +66,9 @@ func NewConfigCreateContextCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create-context",
+		Use:   "create-context NAME",
 		Short: "Create a new Codefresh authentication context",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 # Create a new context named 'test':
 
@@ -91,7 +92,7 @@ func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) er
 	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
 		return err
 	}
-	log.G().Infof("New context created: '%s'", context)
+	log.G().Infof("New context created: \"%s\"", context)
 	return RunConfigUseContext(ctx, context)
 }
 
@@ -99,6 +100,7 @@ func NewConfigGetContextsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get-contexts",
 		Aliases: []string{"view"},
+		Args:    cobra.NoArgs,
 		Short:   "Lists all Codefresh authentication contexts",
 		Example: util.Doc(`
 # List all authentication contexts:
@@ -120,6 +122,7 @@ func NewConfigCurrentContextCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "current-context",
 		Short: "Shows the currently selected Codefresh authentication context",
+		Args:  cobra.NoArgs,
 		Example: util.Doc(`
 # Shows the current context:
 
@@ -146,6 +149,7 @@ func NewConfigSetRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-runtime RUNTIME",
 		Short: "Sets the default runtime name to use for the current authentication context",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 # Sets the default runtime to 'runtime-2':
 
@@ -153,7 +157,6 @@ func NewConfigSetRuntimeCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide runtime name to use")
-
 			}
 
 			return RunConfigSetRuntime(cmd.Context(), args[0])
@@ -189,6 +192,7 @@ func NewConfigGetRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-runtime",
 		Short: "Gets the default runtime for the current authentication context",
+		Args:  cobra.NoArgs,
 		Example: util.Doc(`
 # Prints the default runtime:
 
@@ -216,6 +220,7 @@ func NewConfigUseContextCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "use-context CONTEXT",
 		Short: "Switch the current authentication context",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 # Switch to another authentication context:
 
@@ -243,6 +248,7 @@ func NewConfigDeleteContextCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete-context CONTEXT",
 		Short: "Delete the specified authentication context",
+		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 # Deleting an authentication context name 'test':
 

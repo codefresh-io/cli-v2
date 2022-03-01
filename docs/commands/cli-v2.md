@@ -32,9 +32,11 @@ cli-v2 [flags]
 
 ### SEE ALSO
 
+* [cli-v2 completion](cli-v2_completion.md)	 - Generates shell completion script.
 * [cli-v2 component](cli-v2_component.md)	 - Manage components of Codefresh runtimes
 * [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 * [cli-v2 git-source](cli-v2_git-source.md)	 - Manage git-sources of Codefresh runtimes
+* [cli-v2 integration](cli-v2_integration.md)	 - Manage integrations with git providers, container registries and more
 * [cli-v2 pipeline](cli-v2_pipeline.md)	 - Manage pipelines of Codefresh runtimes
 * [cli-v2 runtime](cli-v2_runtime.md)	 - Manage Codefresh runtimes
 * [cli-v2 version](cli-v2_version.md)	 - Show cli version

@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,10 +67,11 @@ type (
 	}
 
 	AppDef struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-		URL  string `json:"url"`
-		Wait bool   `json:"wait"`
+		Name       string `json:"name"`
+		Type       string `json:"type"`
+		URL        string `json:"url"`
+		Wait       bool   `json:"wait"`
+		IsInternal bool   `json:"isInternal"`
 	}
 )
 
@@ -119,7 +121,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if runtime.Spec.devMode {
 		runtime.Spec.Version = runtimeVersionDevMode
 	}
@@ -222,7 +224,7 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 		if newComponent == nil {
 			log.G().Infof("Deleting \"%s\"", curComponent.Name)
 			if err := curComponent.delete(fs); err != nil {
-				return nil, fmt.Errorf("failed to delete app '%s': %w", curComponent.Name, err)
+				return nil, fmt.Errorf("failed to delete app \"%s\": %w", curComponent.Name, err)
 			}
 		}
 	}
@@ -264,7 +266,8 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 			AppType:       a.Type,
 			DestNamespace: projectName,
 			Labels: map[string]string{
-				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType): cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
 			},
 			Exclude: exclude,
 			Include: include,

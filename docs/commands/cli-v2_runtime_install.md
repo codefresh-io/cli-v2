@@ -30,6 +30,7 @@ cli-v2 runtime install [runtime_name] [flags]
 ```
       --context string              The name of the kubeconfig context to use
       --demo-resources              Installs demo resources (default: true) (default true)
+      --disable-rollback            If true, will not perform installation rollback after a failed installation
   -t, --git-token string            Your git provider api token [GIT_TOKEN]
   -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                        help for install
@@ -38,7 +39,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --kubeconfig string           Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string            If present, the namespace scope for this CLI request
       --personal-git-token string   The Personal git token for your user
-      --provider string             The git provider, one of: gitea|github|gitlab
+      --provider string             The git provider, one of: azure|gitea|github|gitlab
       --provider-api-url string     Git provider API url
       --repo string                 Repository URL [GIT_REPO]
       --skip-cluster-checks         Skips the cluster's checks

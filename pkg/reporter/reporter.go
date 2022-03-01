@@ -75,7 +75,6 @@ const (
 	InstallStepRunPreCheckEnsureCliVersion            CliStep = "install.run.pre-check.step.ensure-cli-version"
 	InstallStepRunPreCheckRuntimeCollision            CliStep = "install.run.pre-check.step.runtime-collision"
 	InstallStepRunPreCheckExisitingRuntimes           CliStep = "install.run.pre-check.step.existing-runtimes"
-	InstallStepRunPreCheckClusterChecks               CliStep = "install.run.pre-check.step.cluster-checks"
 	InstallStepRunPreCheckValidateClusterRequirements CliStep = "install.run.pre-check.step.validate-cluster-requirements"
 	InstallPhaseRunPreCheckFinish                     CliStep = "install.run.pre-check.phase.finish"
 	InstallPhaseStart                                 CliStep = "install.run.phase.start"
@@ -105,6 +104,7 @@ const (
 	UninstallPhaseStart                        CliStep = "uninstall.run.phase.start"
 	UninstallStepCheckRuntimeExists            CliStep = "uninstall.run.step.check-runtime-exists"
 	UninstallStepUninstallRepo                 CliStep = "uninstall.run.step.uninstall-repo"
+	UninstallStepRemoveGitIntegrations         CliStep = "uninstall.run.step.remove-git-integrations"
 	UninstallStepDeleteRuntimeFromPlatform     CliStep = "uninstall.run.step.delete-runtime-from-platform"
 	UninstallPhaseFinish                       CliStep = "uninstall.run.phase.finish"
 

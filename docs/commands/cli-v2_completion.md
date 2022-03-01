@@ -1,23 +1,24 @@
-## cli-v2 component list
+## cli-v2 completion
 
-List all the components under a specific runtime
+Generates shell completion script.
+
+### Synopsis
+
+Generates shell completion script for your shell environment
+
+Example:
+
+    source <(cli-v2 completion bash)
+
 
 ```
-cli-v2 component list RUNTIME_NAME [flags]
-```
-
-### Examples
-
-```
-
-            cli-v2 component list runtime_name
-        
+cli-v2 completion [bash|zsh|fish|powershell] [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for list
+  -h, --help   help for completion
 ```
 
 ### Options inherited from parent commands
@@ -32,5 +33,5 @@ cli-v2 component list RUNTIME_NAME [flags]
 
 ### SEE ALSO
 
-* [cli-v2 component](cli-v2_component.md)	 - Manage components of Codefresh runtimes
+* [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
 
