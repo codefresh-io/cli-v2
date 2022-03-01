@@ -800,7 +800,7 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 			},
 		}}
 
-	if ingressControllerType == NginxEnterprise {
+	if ingressControllerType == IngressControllerNginxEnterprise {
 		ingressOptions.Annotations = map[string]string{
 			"nginx.org/mergeable-ingress-type": "minion",
 		}

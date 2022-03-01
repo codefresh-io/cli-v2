@@ -149,8 +149,8 @@ const (
 	Failed  summaryLogLevels = "Failed"
 	Info    summaryLogLevels = "Info"
 
-	NginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
-	NginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
+	IngressControllerNginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
+	IngressControllerNginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
 )
 
 var summaryArr []summaryLog
@@ -469,7 +469,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{NginxCommunity, NginxEnterprise}
+	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
@@ -525,9 +525,9 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 
 func getIngressControllerName(controllerType ingressControllerType, className string) string {
 	switch controllerType {
-	case NginxCommunity:
+	case IngressControllerNginxCommunity:
 		return "ingress-nginx-controller"
-	case NginxEnterprise:
+	case IngressControllerNginxEnterprise:
 		return fmt.Sprintf("%s-ingress-controller", className)
 	default:
 		return ""
@@ -752,7 +752,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressControllerType == NginxEnterprise {
+	if opts.IngressControllerType == IngressControllerNginxEnterprise {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -1785,7 +1785,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		},
 	}
 
-	if opts.IngressControllerType == NginxEnterprise {
+	if opts.IngressControllerType == IngressControllerNginxEnterprise {
 		ingressOptions.Annotations["nginx.org/mergeable-ingress-type"] = "minion"
 	}
 
@@ -1874,7 +1874,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		}
 
-		if opts.IngressControllerType == NginxEnterprise {
+		if opts.IngressControllerType == IngressControllerNginxEnterprise {
 			ingressOptions.Annotations = map[string]string{
 				"nginx.org/mergeable-ingress-type": "minion",
 			}
