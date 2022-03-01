@@ -791,7 +791,7 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 		Paths: []ingressutil.IngressPath{
 			{
 				Path:        store.Get().GithubExampleEventSourceEndpointPath,
-				PathType:    netv1.PathTypeImplementationSpecific,
+				PathType:    netv1.PathTypePrefix,
 				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
 			},
