@@ -1,9 +1,6 @@
 hs = {}
-if obj.metadata.annotations["nginx.org/mergeable-ingress-type"] == "minion" then
-  hs.status = "Healthy"
-  return hs
-end
-if obj.metadata.annotations["nginx.org/mergeable-ingress-type"] == "master" then
+type = obj.metadata.annotations["nginx.org/mergeable-ingress-type"]
+if type == "minion" or type == "master" then
   hs.status = "Healthy"
   return hs
 end

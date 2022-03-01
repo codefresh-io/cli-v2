@@ -477,12 +477,18 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		if !isValidClass {
 			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
 		}
-	} else if len(ingressClassNames) == 0 {
+	}
+
+	if len(ingressClassNames) == 0 {
 		return fmt.Errorf("no ingress classes of the supported types were found")
-	} else if len(ingressClassNames) == 1 {
+	}
+	
+	if len(ingressClassNames) == 1 {
 		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
 		opts.IngressClass = ingressClassNames[0]
-	} else if len(ingressClassNames) > 1 {
+	}
+	
+	if len(ingressClassNames) > 1 {
 		if !store.Get().Silent {
 			err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
 			if err != nil {
@@ -502,7 +508,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 func getIngressControllerName(controllerType ingressControllerType, className string) string {
 	switch controllerType {
 	case NginxCommunity:
-		return fmt.Sprintf("%s-controller", string(NginxCommunity))
+		return "ingress-nginx-controller"
 	case NginxEnterprise:
 		return fmt.Sprintf("%s-ingress-controller", className)
 	default:
@@ -747,15 +753,15 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gitSrcMessage := fmt.Sprintf("Creating git source `%s`", store.Get().GitSourceName)
 	err := RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         opts.GsCloneOpts,
-		GsName:              store.Get().GitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: opts.InstallDemoResources,
-		HostName:            opts.HostName,
-		IngressHost:         opts.IngressHost,
-		IngressClass:        opts.IngressClass,
-		Minion:              (opts.IngressControllerType == NginxEnterprise),
+		InsCloneOpts:          opts.InsCloneOpts,
+		GsCloneOpts:           opts.GsCloneOpts,
+		GsName:                store.Get().GitSourceName,
+		RuntimeName:           opts.RuntimeName,
+		CreateDemoResources:   opts.InstallDemoResources,
+		HostName:              opts.HostName,
+		IngressHost:           opts.IngressHost,
+		IngressClass:          opts.IngressClass,
+		IngressControllerType: opts.IngressControllerType,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, true)
 	if err != nil {
