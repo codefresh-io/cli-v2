@@ -220,7 +220,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 					return fmt.Errorf("installation canceled by user")
 				}
 
-				return util.DecorateErrorWithDocsLink(fmt.Errorf("Pre installation error: %w", err), store.Get().RequirementsLink)
+				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
 			finalParameters = map[string]string{
@@ -1619,7 +1619,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				if errors.Is(err, promptui.ErrInterrupt) {
 					return fmt.Errorf("upgrade canceled by user")
 				}
-				return fmt.Errorf("Pre run error: %w", err)
+				return fmt.Errorf("pre run error: %w", err)
 			}
 
 			finalParameters = map[string]string{
