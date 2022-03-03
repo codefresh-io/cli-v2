@@ -495,18 +495,12 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		if !isValidClass {
 			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
 		}
-	}
-
-	if len(ingressClassNames) == 0 {
+	} else if len(ingressClassNames) == 0 {
 		return fmt.Errorf("no ingress classes of the supported types were found")
-	}
-	
-	if len(ingressClassNames) == 1 {
+	} else if len(ingressClassNames) == 1 {
 		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
 		opts.IngressClass = ingressClassNames[0]
-	}
-	
-	if len(ingressClassNames) > 1 {
+	} else if len(ingressClassNames) > 1 {
 		if !store.Get().Silent {
 			err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
 			if err != nil {
