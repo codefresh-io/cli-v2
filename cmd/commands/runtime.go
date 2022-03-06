@@ -514,6 +514,10 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 	opts.IngressController = ingressClassNameToController[opts.IngressClass].Name
 	opts.IngressControllerType = ingressClassNameToController[opts.IngressClass].Type
 
+	if opts.IngressControllerType == IngressControllerNginxEnterprise {
+		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
+	}
+
 	return nil
 }
 

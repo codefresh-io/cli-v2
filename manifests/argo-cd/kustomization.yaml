@@ -16,8 +16,6 @@ configMapGenerator:
     literals:
       - "timeout.reconciliation=20s"
       - "accounts.admin=apiKey,login" # need to be able to generate apikey for generic eventsource
-    files:
-      - "resource.customizations.health.networking.k8s.io_Ingress" #customize health check to support different ingress controllers
   - name: argocd-cmd-params-cm
     behavior: merge
     literals:
