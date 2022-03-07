@@ -26,24 +26,22 @@ import (
 type TokenTypes string
 
 const (
-	RuntimeToken TokenTypes = "runtime token"
+	RuntimeToken  TokenTypes = "runtime token"
 	PersonalToken TokenTypes = "personal token"
 )
 
 var (
-	requiredGitHubRuntimeScopes = []string{ "repo", "admin:repo_hook" }
-	requiredGitHubGitSourceScopes = []string{ "repo" }
-	
-	typeToGitHubScopes = map[TokenTypes][]string {
-		RuntimeToken: requiredGitHubRuntimeScopes,
+	requiredGitHubRuntimeScopes   = []string{"repo", "admin:repo_hook"}
+	requiredGitHubGitSourceScopes = []string{"repo"}
+
+	typeToGitHubScopes = map[TokenTypes][]string{
+		RuntimeToken:  requiredGitHubRuntimeScopes,
 		PersonalToken: requiredGitHubGitSourceScopes,
 	}
 )
 
-
-
 func VerifyToken(ctx context.Context, provider string, token string, tokenType TokenTypes) error {
-	providerToVerifier := map[string]func(context.Context, string, TokenTypes)error {
+	providerToVerifier := map[string]func(context.Context, string, TokenTypes) error{
 		"github": verifyGitHubTokenScope,
 	}
 
@@ -57,7 +55,7 @@ func VerifyToken(ctx context.Context, provider string, token string, tokenType T
 
 func verifyGitHubTokenScope(ctx context.Context, token string, tokenType TokenTypes) error {
 	errMessage := fmt.Sprintf("the provided %s is missing one or more of the required scopes: %s", tokenType, strings.Join(typeToGitHubScopes[tokenType], ", "))
-	
+
 	req, err := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com/", nil)
 	if err != nil {
 		return err
@@ -92,7 +90,7 @@ func verifyGitHubTokenScope(ctx context.Context, token string, tokenType TokenTy
 		}
 	}
 
-	log.G(ctx).Infof("%s verified", tokenType)
+	log.G(ctx).Infof("Verified %s", tokenType)
 
 	return nil
 }

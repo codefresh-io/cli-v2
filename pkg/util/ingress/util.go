@@ -71,14 +71,17 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 			Rules: []netv1.IngressRule{
 				{
 					Host: opts.Host,
-					IngressRuleValue: netv1.IngressRuleValue{
-						HTTP: &netv1.HTTPIngressRuleValue{
-							Paths: createHTTPIngressPaths(opts.Paths),
-						},
-					},
 				},
 			},
 		},
+	}
+
+	if len(opts.Paths) > 0 {
+		ingress.Spec.Rules[0].IngressRuleValue = netv1.IngressRuleValue{
+				HTTP: &netv1.HTTPIngressRuleValue{
+				Paths: createHTTPIngressPaths(opts.Paths),
+			},
+		}
 	}
 
 	if opts.IngressClassName != "" {

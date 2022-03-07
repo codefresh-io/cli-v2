@@ -88,11 +88,6 @@ func isValidIngressHost(ingressHost string) (bool, error) {
 	return regexp.MatchString(`^(http|https)://`, ingressHost)
 }
 
-func getControllerName(s string) string {
-	split := strings.Split(s, "/")
-	return split[1]
-}
-
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
 	if !store.Get().Silent && !cmd.Flags().Changed("demo-resources") {
 		templates := &promptui.SelectTemplates{
@@ -206,7 +201,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) erro
 		}
 
 		if len(runtimes) == 0 {
-			return fmt.Errorf("No runtimes were found")
+			return fmt.Errorf("no runtimes were found")
 		}
 
 		runtimeNames := make([]string, len(runtimes))
@@ -448,6 +443,9 @@ func validateIngressHost(ingressHost string) error {
 }
 
 func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var foundIngressHost string
+	var foundHostName string
+
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
@@ -455,9 +453,6 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
-
-	var foundIngressHost string
-	var foundHostName string
 
 	for _, s := range ServicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
@@ -479,10 +474,9 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	if store.Get().Silent {
-		log.G(ctx).Warnf("Using ingress host %s", foundIngressHost)
 		opts.IngressHost = foundIngressHost
 	} else {
-		err = getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		err := getIngressHostFromUserInput(ctx, opts, foundIngressHost)
 		if err != nil {
 			return err
 		}
