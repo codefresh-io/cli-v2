@@ -151,6 +151,9 @@ const (
 
 	IngressControllerNginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
 	IngressControllerNginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
+	IngressControllerIstio           ingressControllerType = "istio.io/ingress-controller"
+	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
+	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
 )
 
 var summaryArr []summaryLog
@@ -469,7 +472,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise}
+	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
@@ -527,6 +530,10 @@ func getIngressControllerName(controllerType ingressControllerType, className st
 		return "ingress-nginx-controller"
 	case IngressControllerNginxEnterprise:
 		return fmt.Sprintf("%s-ingress-controller", className)
+	case IngressControllerTraefik:
+		return "traefik"
+	case IngressControllerIstio:
+		return "istio-ingressgateway"
 	default:
 		return ""
 	}
@@ -1864,7 +1871,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Host:             opts.HostName,
 			Paths: []ingressutil.IngressPath{
 				{
-					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),
+					Path:        store.Get().AppProxyIngressPath,
 					PathType:    netv1.PathTypePrefix,
 					ServiceName: store.Get().AppProxyServiceName,
 					ServicePort: store.Get().AppProxyServicePort,
