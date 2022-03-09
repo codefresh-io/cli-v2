@@ -1,4 +1,4 @@
-VERSION=v0.0.270
+VERSION=v0.0.272
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -164,7 +164,7 @@ $(GOBIN)/mockery:
 	@chmod +x mockery
 	@mkdir -p $(GOBIN)
 	@mv mockery $(GOBIN)/mockery
-	@mockery -version
+	@mockery --version
 
 $(GOBIN)/golangci-lint:
 	@mkdir dist || true
