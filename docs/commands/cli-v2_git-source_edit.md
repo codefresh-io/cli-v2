@@ -26,6 +26,7 @@ cli-v2 git-source edit RUNTIME_NAME GITSOURCE_NAME [flags]
   -h, --help                       help for edit
       --provider string            The git provider, one of: azure|gitea|github|gitlab
       --repo string                Repository URL [GIT_REPO]
+  -b, --upsert-branch              If true will try to checkout the specified branch and create it if it doesn't exist
 ```
 
 ### Options inherited from parent commands
