@@ -734,7 +734,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the github eventsource service
-		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName, opts.ingressControllerType)
+		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName, opts.ingressControllerType, opts.runtimeName)
 		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
 		ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
@@ -753,7 +753,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 
 	// Create a github eventsource that will listen to push events in the git source repo
 	gsRepoURL := opts.gsCloneOpts.URL()
-	eventSource := createGithubExampleEventSource(gsRepoURL, opts.ingressHost)
+	eventSource := createGithubExampleEventSource(gsRepoURL, opts.ingressHost, opts.runtimeName)
 	eventSourceFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleEventSourceFileName)
 
 	eventSourceRedundanded, err := cleanUpFieldsGithubEventSource(&eventSource)
@@ -787,17 +787,17 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, ingressControllerType ingressControllerType) *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, ingressControllerType ingressControllerType, runtimeName string) *netv1.Ingress {
 	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,
 		Host:             hostName,
 		Paths: []ingressutil.IngressPath{
 			{
-				Path:        store.Get().GithubExampleEventSourceEndpointPath,
-				PathType:    netv1.PathTypePrefix,
+				Path:        util.GenerateIngressEventSourcePath(runtimeName),
 				ServiceName: store.Get().GithubExampleEventSourceObjectName + "-eventsource-svc",
 				ServicePort: store.Get().GithubExampleEventSourceServicePort,
+				PathType:    netv1.PathTypePrefix,
 			},
 		}}
 
@@ -818,7 +818,7 @@ func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) 
 	return owner, name
 }
 
-func createGithubExampleEventSource(repoURL string, ingressHost string) *eventsourcev1alpha1.EventSource {
+func createGithubExampleEventSource(repoURL string, ingressHost string, runtimeName string) *eventsourcev1alpha1.EventSource {
 	repoOwner, repoName := getRepoOwnerAndNameFromRepoURL(repoURL)
 
 	return &eventsourcev1alpha1.EventSource{
@@ -841,11 +841,8 @@ func createGithubExampleEventSource(repoURL string, ingressHost string) *eventso
 			},
 			Github: map[string]eventsourcev1alpha1.GithubEventSource{
 				store.Get().GithubExampleEventName: {
-					Webhook: &eventsourcev1alpha1.WebhookContext{
-						Endpoint: store.Get().GithubExampleEventSourceEndpointPath,
-						URL:      strings.Trim(ingressHost, "/"),
-						Port:     store.Get().GithubExampleEventSourceTargetPort,
-						Method:   "POST",
+					Events: []string{
+						"push",
 					},
 					Repositories: []eventsourcev1alpha1.OwnedRepositories{
 						{
@@ -855,8 +852,11 @@ func createGithubExampleEventSource(repoURL string, ingressHost string) *eventso
 							},
 						},
 					},
-					Events: []string{
-						"push",
+					Webhook: &eventsourcev1alpha1.WebhookContext{
+						Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressEventSourcePath(runtimeName), store.Get().GithubExampleEventName),
+						URL:      strings.Trim(ingressHost, "/"),
+						Port:     store.Get().GithubExampleEventSourceTargetPort,
+						Method:   "POST",
 					},
 					APIToken: &corev1.SecretKeySelector{
 						Key: store.Get().GithubAccessTokenSecretKey,
@@ -875,7 +875,7 @@ func createGithubExampleEventSource(repoURL string, ingressHost string) *eventso
 
 func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
-		GenerateName:          "github-",
+		GenerateName:          fmt.Sprintf("%s-", store.Get().GithubExampleTriggerTemplateName),
 		SpecWfTemplateRefName: store.Get().GithubExampleTriggerTemplateName,
 		Parameters: []string{
 			"message",
@@ -886,7 +886,7 @@ func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 
 	return sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
-			Name: store.Get().CronExampleTriggerTemplateName,
+			Name: store.Get().GithubExampleTriggerTemplateName,
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
 				GroupVersionResource: metav1.GroupVersionResource{
 					Group:    "argoproj.io",
@@ -912,6 +912,29 @@ func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 	}
 }
 
+// push heads filter for github
+func createGithubExampleDataFilters() *sensorsv1alpha1.EventDependencyFilter {
+	return &sensorsv1alpha1.EventDependencyFilter{
+		Data: []sensorsv1alpha1.DataFilter{
+			{
+				Path: fmt.Sprintf("body.%s", store.Get().GithubEventTypeHeader),
+				Value: []string{
+					"push",
+				},
+				Type: sensorsv1alpha1.JSONTypeString,
+			},
+			{
+				Path:     "body.ref",
+				Template: "{{ (split \"/\" .Input)._1 }}",
+				Value: []string{
+					"heads",
+				},
+				Type: sensorsv1alpha1.JSONTypeString,
+			},
+		},
+	}
+}
+
 func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 	triggers := []sensorsv1alpha1.Trigger{
 		createGithubExampleTrigger(),
@@ -921,6 +944,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 			Name:            store.Get().GithubExampleDependencyName,
 			EventSourceName: store.Get().GithubExampleEventSourceObjectName,
 			EventName:       store.Get().GithubExampleEventName,
+			Filters:         createGithubExampleDataFilters(),
 		},
 	}
 
@@ -1033,7 +1057,7 @@ func cleanUpFieldsGithubEventSource(eventSource **eventsourcev1alpha1.EventSourc
 		}
 	}
 
-	_, githup := nestedMapLookup(crd, "spec", "github", "push", "id")
+	_, githup := nestedMapLookup(crd, "spec", "github", "github-push-heads", "id")
 	if githup != nil {
 		delete(githup, "id")
 		delete(githup, "owner")
