@@ -875,7 +875,7 @@ func createGithubExampleEventSource(repoURL string, ingressHost string, runtimeN
 
 func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 	workflow := wfutil.CreateWorkflow(&wfutil.CreateWorkflowOptions{
-		GenerateName:          fmt.Sprintf("%s-", store.Get().GithubExampleTriggerTemplateName),
+		GenerateName:          store.Get().GithubExampleTriggerTemplateName + "-",
 		SpecWfTemplateRefName: store.Get().GithubExampleTriggerTemplateName,
 		Parameters: []string{
 			"message",
