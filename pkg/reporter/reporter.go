@@ -150,7 +150,7 @@ func Init(user *codefresh.User, flow FlowType) {
 		log.G().Debug("No segment write key was provided. Using the noop reporter.")
 		return
 	}
-	
+
 	account := user.GetActiveAccount()
 
 	ar = &segmentAnalyticsReporter{
@@ -187,6 +187,8 @@ func (r *segmentAnalyticsReporter) ReportStep(data CliStepData) {
 
 	if err != nil {
 		log.G().Debugf("Failed reporting to segment: %w", err)
+		r.Close(data.Status, err)
+		ar = &noopAnalyticsReporter{}
 	}
 }
 
