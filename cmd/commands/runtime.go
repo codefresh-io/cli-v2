@@ -2329,12 +2329,12 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 		return
 	}
 
-	// url := cfConfig.GetCurrentContext().URL
+	url := cfConfig.GetCurrentContext().URL
 
-	// if url != store.Get().DefaultAPI {
-	// 	log.G().Debug("Not reporting for local env")
-	// 	return
-	// }
+	if url != store.Get().DefaultAPI {
+		log.G().Debug("Not reporting for local env")
+		return
+	}
 
 	reporter.Init(user, flow)
 }
