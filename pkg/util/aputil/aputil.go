@@ -38,6 +38,7 @@ type CloneFlagsOptions struct {
 	Prefix           string
 	Optional         bool
 	CreateIfNotExist bool
+	CloneForWrite    bool
 	Progress         io.Writer
 }
 
@@ -46,6 +47,7 @@ func AddCloneFlags(cmd *cobra.Command, o *CloneFlagsOptions) *git.CloneOptions {
 		FS:               memfs.New(),
 		Prefix:           o.Prefix,
 		CreateIfNotExist: o.CreateIfNotExist,
+		CloneForWrite:    o.CloneForWrite,
 		Optional:         o.Optional,
 	})
 

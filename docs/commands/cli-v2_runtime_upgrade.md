@@ -32,6 +32,7 @@ cli-v2 runtime upgrade [RUNTIME_NAME] [flags]
   -u, --git-user string    Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help               help for upgrade
       --repo string        Repository URL [GIT_REPO]
+  -b, --upsert-branch      If true will try to checkout the specified branch and create it if it doesn't exist
       --version string     The runtime version to upgrade to, defaults to latest
 ```
 

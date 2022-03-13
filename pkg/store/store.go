@@ -172,7 +172,7 @@ func init() {
 	s.WorkflowsIngressName = "-workflows-ingress"
 	s.WorkflowsIngressPath = "workflows"
 	s.AppProxyIngressName = "-cap-app-proxy"
-	s.AppProxyIngressPath = "app-proxy"
+	s.AppProxyIngressPath = "/app-proxy/"
 	s.AppProxyServicePort = 3017
 	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
@@ -225,7 +225,7 @@ func init() {
 	s.NetworkTesterGenerateName = "cf-network-tester-"
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
-	s.MaxKubeVersion = "v1.21.9"
+	s.MaxKubeVersion = "v1.23.4"
 	s.MasterIngressName = "-master"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 	s.SccName = "cf-scc"

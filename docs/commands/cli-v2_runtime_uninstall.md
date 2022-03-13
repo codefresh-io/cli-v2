@@ -38,6 +38,7 @@ cli-v2 runtime uninstall [RUNTIME_NAME] [flags]
   -n, --namespace string        If present, the namespace scope for this CLI request
       --repo string             Repository URL [GIT_REPO]
       --skip-checks             If true, will not verify that runtime exists before uninstalling
+  -b, --upsert-branch           If true will try to checkout the specified branch and create it if it doesn't exist
       --wait-timeout duration   How long to wait for the runtime components to be deleted (default 8m0s)
 ```
 

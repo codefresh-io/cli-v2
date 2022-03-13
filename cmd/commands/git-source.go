@@ -194,7 +194,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
 
-	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		Prefix:   "git-src",
 		Optional: true,
@@ -564,7 +564,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		},
 	}
 
-	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 
 	return cmd
 }
@@ -637,6 +637,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
+		CloneForWrite:    true,
 	})
 
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{

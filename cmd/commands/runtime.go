@@ -151,6 +151,9 @@ const (
 
 	IngressControllerNginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
 	IngressControllerNginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
+	IngressControllerIstio           ingressControllerType = "istio.io/ingress-controller"
+	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
+	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
 )
 
 var summaryArr []summaryLog
@@ -260,6 +263,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
+		CloneForWrite:    true,
 	})
 
 	installationOpts.GsCloneOpts = &git.CloneOptions{
@@ -469,7 +473,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise}
+	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
@@ -527,6 +531,10 @@ func getIngressControllerName(controllerType ingressControllerType, className st
 		return "ingress-nginx-controller"
 	case IngressControllerNginxEnterprise:
 		return fmt.Sprintf("%s-ingress-controller", className)
+	case IngressControllerTraefik:
+		return "traefik"
+	case IngressControllerIstio:
+		return "istio-ingressgateway"
 	default:
 		return ""
 	}
@@ -1386,7 +1394,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&uninstallationOpts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
 	cmd.Flags().BoolVar(&uninstallationOpts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 
-	uninstallationOpts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	uninstallationOpts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	uninstallationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
@@ -1660,7 +1668,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
-	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{})
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 
 	return cmd
 }
@@ -1864,7 +1872,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Host:             opts.HostName,
 			Paths: []ingressutil.IngressPath{
 				{
-					Path:        fmt.Sprintf("/%s", store.Get().AppProxyIngressPath),
+					Path:        store.Get().AppProxyIngressPath,
 					PathType:    netv1.PathTypePrefix,
 					ServiceName: store.Get().AppProxyServiceName,
 					ServicePort: store.Get().AppProxyServicePort,
@@ -1912,10 +1920,19 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 	}
 
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
+	u, err := url.Parse(cloneOpts.URL())
+	if err != nil {
+		return fmt.Errorf("failed to parse url: %w", err)
+	}
+	u.Path += "/" + resPath
+	q := u.Query()
+	q.Add("ref", cloneOpts.Revision())
+	u.RawQuery = q.Encode()
+
 	appDef := &runtime.AppDef{
 		Name:       store.Get().EventsReporterName,
 		Type:       application.AppTypeDirectory,
-		URL:        cloneOpts.URL() + "/" + resPath,
+		URL:        u.String(),
 		IsInternal: true,
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
@@ -1943,10 +1960,19 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 
 func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
+	u, err := url.Parse(cloneOpts.URL())
+	if err != nil {
+		return fmt.Errorf("failed to parse url: %w", err)
+	}
+	u.Path += "/" + resPath
+	q := u.Query()
+	q.Add("ref", cloneOpts.Revision())
+	u.RawQuery = q.Encode()
+
 	appDef := &runtime.AppDef{
 		Name:       reporterCreateOpts.reporterName,
 		Type:       application.AppTypeDirectory,
-		URL:        cloneOpts.URL() + "/" + resPath,
+		URL:        u.String(),
 		IsInternal: reporterCreateOpts.IsInternal,
 	}
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {

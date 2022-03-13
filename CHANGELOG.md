@@ -1,3 +1,3 @@
 # Changelog:
 
-* Reverted pre-install network check to Job
+* Moved Codefresh ci pipeline into the repo
