@@ -113,10 +113,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName  string
-		Version      *semver.Version
-		CloneOpts    *git.CloneOptions
-		CommonConfig *runtime.CommonConfig
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -645,7 +646,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
-	// TODO: what are we doing with this open shift cluster
 	err = oc.PrepareOpenshiftCluster(ctx, &oc.OpenshiftOptions{
 		KubeFactory:  opts.KubeFactory,
 		RuntimeName:  opts.RuntimeName,
@@ -1622,7 +1622,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
+			createAnalyticsReporter(ctx, reporter.UpgradeFlow, opts.DisableTelemetry)
 
 			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre run checks", err, true, false)
@@ -1673,6 +1673,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 
 	return cmd
@@ -2328,12 +2329,12 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 		return
 	}
 
-	url := cfConfig.GetCurrentContext().URL
+	// url := cfConfig.GetCurrentContext().URL
 
-	if url != store.Get().DefaultAPI {
-		log.G().Debug("Not reporting for local env")
-		return
-	}
+	// if url != store.Get().DefaultAPI {
+	// 	log.G().Debug("Not reporting for local env")
+	// 	return
+	// }
 
 	reporter.Init(user, flow)
 }
