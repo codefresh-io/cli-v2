@@ -707,7 +707,7 @@ To complete the installation:
 <BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
 `,
 			store.Get().AppProxyIngressPath,
-			store.Get().GithubExampleEventSourceEndpointPath,
+			util.GenerateIngressEventSourcePath(opts.RuntimeName),
 			opts.RuntimeName,
 			opts.GitIntegrationCreationOpts.APIURL,
 			opts.RuntimeName))
