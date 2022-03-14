@@ -193,7 +193,7 @@ func IsIP(s string) bool {
 	return ipRegexp.MatchString(s)
 }
 
-func StringIndexOf(slice []string, val string) (int) {
+func StringIndexOf(slice []string, val string) int {
 	for i, item := range slice {
 		if item == val {
 			return i
@@ -201,4 +201,8 @@ func StringIndexOf(slice []string, val string) (int) {
 	}
 
 	return -1
+}
+
+func GenerateIngressEventSourcePath(runtimeName string) string {
+	return fmt.Sprintf("%s/%s/%s", store.Get().WebhooksRootPath, runtimeName, store.Get().GithubExampleEventSourceObjectName)
 }
