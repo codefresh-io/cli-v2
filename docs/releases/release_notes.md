@@ -6,10 +6,6 @@
 - Argo Rollouts [v1.1.0](https://github.com/argoproj/argo-rollouts/releases/tag/v1.1.0)
 - Argo Workflows [v3.2.6](https://github.com/argoproj/argo-workflows/releases/tag/v3.2.6)
 
-### Security Fixes:
-
-- Argo CD [GHSA-63qx-x74g-jcr7](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7) fixed in [v2.1.11](https://github.com/argoproj/argo-cd/releases/tag/v2.1.11)
-
 ### Using brew:
 
 ```bash
