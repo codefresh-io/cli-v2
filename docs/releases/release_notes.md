@@ -6,10 +6,6 @@
 - Argo Rollouts [v1.1.0](https://github.com/argoproj/argo-rollouts/releases/tag/v1.1.0)
 - Argo Workflows [v3.2.6](https://github.com/argoproj/argo-workflows/releases/tag/v3.2.6)
 
-### Security Fixes:
-
-- Argo CD [GHSA-63qx-x74g-jcr7](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7) fixed in [v2.1.11](https://github.com/argoproj/argo-cd/releases/tag/v2.1.11)
-
 ### Using brew:
 
 ```bash
@@ -27,7 +23,7 @@ cf version
 
 ```bash
 # download and extract the binary
-curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.277/cf-linux-amd64.tar.gz | tar zx
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.280/cf-linux-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
 mv ./cf-linux-amd64 /usr/local/bin/cf
@@ -40,7 +36,7 @@ cf version
 
 ```bash
 # download and extract the binary
-curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.277/cf-darwin-amd64.tar.gz | tar zx
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.280/cf-darwin-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
 mv ./cf-darwin-amd64 /usr/local/bin/cf
