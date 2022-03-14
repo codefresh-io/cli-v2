@@ -89,6 +89,7 @@ type (
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
 		DisableRollback                bool
+		DisableTelemetry               bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -100,21 +101,23 @@ type (
 		kubeContext                    string
 	}
 	RuntimeUninstallOptions struct {
-		RuntimeName string
-		Timeout     time.Duration
-		CloneOpts   *git.CloneOptions
-		KubeFactory kube.Factory
-		SkipChecks  bool
-		Force       bool
-		FastExit    bool
-		kubeContext string
+		RuntimeName      string
+		Timeout          time.Duration
+		CloneOpts        *git.CloneOptions
+		KubeFactory      kube.Factory
+		SkipChecks       bool
+		Force            bool
+		FastExit         bool
+		DisableTelemetry bool
+		kubeContext      string
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName  string
-		Version      *semver.Version
-		CloneOpts    *git.CloneOptions
-		CommonConfig *runtime.CommonConfig
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -214,7 +217,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				installationOpts.RuntimeName = args[0]
 			}
 
-			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow)
+			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
 
 			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, true, false)
@@ -260,6 +263,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
+	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -1346,7 +1350,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				uninstallationOpts.RuntimeName = args[0]
 			}
 
-			createAnalyticsReporter(ctx, reporter.UninstallFlow)
+			createAnalyticsReporter(ctx, reporter.UninstallFlow, uninstallationOpts.DisableTelemetry)
 
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &uninstallationOpts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, true, false)
@@ -1393,6 +1397,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
 	cmd.Flags().BoolVar(&uninstallationOpts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
 	cmd.Flags().BoolVar(&uninstallationOpts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
+	cmd.Flags().BoolVar(&uninstallationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
 
 	uninstallationOpts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	uninstallationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
@@ -1617,7 +1622,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			createAnalyticsReporter(ctx, reporter.UpgradeFlow)
+			createAnalyticsReporter(ctx, reporter.UpgradeFlow, opts.DisableTelemetry)
 
 			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre run checks", err, true, false)
@@ -1668,6 +1673,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 
 	return cmd
@@ -2310,7 +2316,12 @@ func printSummaryToUser() {
 	summaryArr = []summaryLog{}
 }
 
-func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType) {
+func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disableTelemetry bool) {
+	if disableTelemetry {
+		log.G().Debug("Analytics Reporter disabled by the --disable-telemetry flag.")
+		return
+	}
+
 	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
 	// If error, it will default to noop reporter
 	if err != nil {
