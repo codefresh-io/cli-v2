@@ -101,7 +101,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
-                  key: argoCdUrl
+                  key: argoCDUrl
                   optional: true
             - name: STORE_BACKEND
               valueFrom:
