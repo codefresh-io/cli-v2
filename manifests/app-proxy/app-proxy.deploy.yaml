@@ -108,18 +108,6 @@ spec:
                   name: codefresh-token
                   key: encryptionIV
                   optional: true
-            - name: ARGO_CD_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: argocd-token
-                  key: token
-                  optional: true
-            - name: ARGO_CD_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: cap-app-proxy-cm
-                  key: argoCDUrl
-                  optional: true
             - name: STORE_BACKEND
               valueFrom:
                 configMapKeyRef:
