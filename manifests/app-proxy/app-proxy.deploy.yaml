@@ -16,6 +16,23 @@ spec:
       serviceAccountName: cap-app-proxy
       containers:
         - env:
+            - name: ARGO_CD_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoCdUrl
+                  optional: true
+            - name: ARGO_CD_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoCdUsername
+                  optional: true
+            - name: ARGO_CD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argocd-initial-admin-secret
+                  key: password
             - name: ARGO_WORKFLOWS_INSECURE
               valueFrom:
                 configMapKeyRef:
