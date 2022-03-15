@@ -29,6 +29,7 @@ cli-v2 runtime uninstall [RUNTIME_NAME] [flags]
 
 ```
       --context string          The name of the kubeconfig context to use
+      --disable-telemetry       If true, will disable the analytics reporting for the uninstall process
       --fast-exit               If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified
       --force                   If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster
   -t, --git-token string        Your git provider api token [GIT_TOKEN]
