@@ -161,6 +161,16 @@ func EscapeAppsetFieldName(field string) string {
 	return appsetFieldRegexp.ReplaceAllString(field, "_")
 }
 
+func CurrentContext() (string, error) {
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return "", err
+	}
+
+	return conf.CurrentContext, nil
+}
+
 func CurrentServer() (string, error) {
 	configAccess := clientcmd.NewDefaultPathOptions()
 	conf, err := configAccess.GetStartingConfig()
@@ -168,8 +178,37 @@ func CurrentServer() (string, error) {
 		return "", err
 	}
 
-	server := conf.Clusters[conf.Contexts[conf.CurrentContext].Cluster].Server
-	return server, nil
+	currentContext := conf.Contexts[conf.CurrentContext]
+	return conf.Clusters[currentContext.Cluster].Server, nil
+}
+
+func KubeContextNameByServer(server string) (string, error) {
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return "", err
+	}
+
+	for contextName, context := range conf.Contexts {
+		if cluster, ok := conf.Clusters[context.Cluster]; ok {
+			if cluster.Server == server {
+				return contextName, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("Context not found for server \"%s\"", server)
+}
+
+func KubeServerByContextName(contextName string) (string, error) {
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return "", err
+	}
+
+	currentContext := conf.Contexts[contextName]
+	return conf.Clusters[currentContext.Cluster].Server, nil
 }
 
 func DecorateErrorWithDocsLink(err error, link ...string) error {

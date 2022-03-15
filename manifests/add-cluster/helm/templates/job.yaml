@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "csdp-add-cluster.fullname" . }}-job
+  namespace: {{ .Values.systemNamespace | default "kube-system" }}
+  labels:
+    {{- include "csdp-add-cluster.labels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 600 # stick around for 10m
+  template:
+    metadata:
+      name: {{ include "csdp-add-cluster.fullname" . }}-pod
+    spec:
+      serviceAccount: {{ include "csdp-add-cluster.serviceAccount" . }}
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: "quay.io/codefresh/csdp-add-cluster:{{ .Chart.AppVersion }}"
+          imagePullPolicy: Always
+          command:
+            - bash
+          args:
+            - ./add-cluster.sh
+          env:
+            - name: SERVICE_ACCOUNT_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.serviceAccountName
+            - name: INGRESS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "csdp-add-cluster.fullname" . }}-cm
+                  key: ingressUrl
+            - name: CSDP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "csdp-add-cluster.fullname" . }}-secret
+                  key: csdpToken
+            - name: CONTEXT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "csdp-add-cluster.fullname" . }}-cm
+                  key: contextName
+            - name: SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "csdp-add-cluster.fullname" . }}-cm
+                  key: server
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: '1'
+            requests:
+              memory: 256Mi
+              cpu: '0.2'

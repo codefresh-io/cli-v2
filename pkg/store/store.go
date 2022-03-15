@@ -32,6 +32,7 @@ var (
 	segmentWriteKey = ""
 	maxDefVersion   = "1.0.1"
 	RuntimeDefURL   = "manifests/runtime.yaml"
+	AddClusterDefURL   = "../manifests/add-cluster/kustomize"
 )
 
 type Version struct {

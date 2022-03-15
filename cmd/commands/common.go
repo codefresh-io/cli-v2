@@ -103,7 +103,7 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 		}
 
 		_, result, err := prompt.Run()
-		
+
 		if err != nil {
 			return err
 		}
@@ -127,6 +127,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 		if err != nil {
 			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
+
 		if runtimeData.Repo != nil {
 			die(cmd.Flags().Set("repo", *runtimeData.Repo))
 			return nil
@@ -156,83 +157,87 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 		return err
 	}
 
-	die(cmd.Flags().Set("repo", repoInput))
-
-	return nil
+	return cmd.Flags().Set("repo", repoInput)
 }
 
-func ensureRuntimeName(ctx context.Context, args []string, runtimeName *string) error {
+func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
+	var (
+		runtimeName string
+		err error
+	)
+
 	if len(args) > 0 {
-		*runtimeName = args[0]
+		return args[0], nil
 	}
 
-	if *runtimeName == "" {
-		if !store.Get().Silent {
-			return getRuntimeNameFromUserSelect(ctx, runtimeName)
+	if !store.Get().Silent {
+		runtimeName, err = getRuntimeNameFromUserSelect(ctx)
+		if err != nil {
+			return "", err
 		}
-		log.G(ctx).Fatal("must enter a runtime name")
 	}
 
-	return nil
+	if runtimeName == "" {
+		return "", fmt.Errorf("Must supply value for \"Runtime name\"")
+	}
+
+	return runtimeName, nil
 }
 
-func getRuntimeNameFromUserInput(runtimeName *string) error {
-	runtimeNamePrompt := promptui.Prompt{
-		Label:   "Runtime name",
-		Default: "codefresh",
+func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if len(runtimes) == 0 {
+		return "", fmt.Errorf("no runtimes were found")
+	}
+
+	runtimeNames := make([]string, len(runtimes))
+
+	for index, rt := range runtimes {
+		runtimeNames[index] = rt.Metadata.Name
+	}
+
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     runtimeNames,
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	return result, err
+}
+
+func getRuntimeNameFromUserInput() (string, error) {
+	return getValueFromUserInput("Runtime name", "codefresh")
+}
+
+func getValueFromUserInput(label, defaultValue string) (string, error) {
+	prompt := promptui.Prompt{
+		Label:   label,
+		Default: defaultValue,
+		// Validate: func (value string) error {
+		// 	if value == "" {
+		// 		return fmt.Errorf("Must supply value for \"%s\"", label)
+		// 	}
+
+		// 	return nil
+		// },
 		Pointer: promptui.PipeCursor,
 	}
 
-	runtimeNameInput, err := runtimeNamePrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	*runtimeName = runtimeNameInput
-
-	return nil
+	return prompt.Run()
 }
 
-func getRuntimeNameFromUserSelect(ctx context.Context, runtimeName *string) error {
-	if !store.Get().Silent {
-		runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-		if err != nil {
-			return err
-		}
-
-		if len(runtimes) == 0 {
-			return fmt.Errorf("no runtimes were found")
-		}
-
-		runtimeNames := make([]string, len(runtimes))
-
-		for index, rt := range runtimes {
-			runtimeNames[index] = rt.Metadata.Name
-		}
-
-		templates := &promptui.SelectTemplates{
-			Selected: "{{ . | yellow }} ",
-		}
-
-		labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
-
-		prompt := promptui.Select{
-			Label:     labelStr,
-			Items:     runtimeNames,
-			Templates: templates,
-		}
-
-		_, result, err := prompt.Run()
-		if err != nil {
-			return err
-		}
-
-		*runtimeName = result
-	}
-	return nil
-}
-
-func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []string, ingressClass *string) error {
+func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 	templates := &promptui.SelectTemplates{
 		Selected: "{{ . | yellow }} ",
 	}
@@ -247,12 +252,10 @@ func getIngressClassFromUserSelect(ctx context.Context, ingressClassNames []stri
 
 	_, result, err := prompt.Run()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	*ingressClass = result
-
-	return nil
+	return result, nil
 }
 
 func inferProviderFromRepo(opts *git.CloneOptions) {
@@ -293,6 +296,7 @@ func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		if err != nil {
 			return fmt.Errorf("failed to retrieve username from platform: %w", err)
 		}
+
 		log.G(cmd.Context()).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
 	}
 
@@ -359,16 +363,41 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	return false, nil
 }
 
-func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *string) error {
-	if store.Get().Silent {
-		*kubeContextName, _ = cmd.Flags().GetString("context")
-		return nil
+func ensureKubeContextName(flag *pflag.Flag) (string, error) {
+	contextName, err := getKubeContextName(flag)
+	if err != nil {
+		return "", err
 	}
 
+	if contextName == "" {
+		return "", fmt.Errorf("must supply value for \"%s\"", flag.Name)
+	}
+
+	return contextName, nil
+}
+
+func getKubeContextName(flag *pflag.Flag) (string, error) {
+	contextName := flag.Value.String()
+	if contextName != "" {
+		return contextName, nil
+	}
+
+	if !store.Get().Silent {
+		var err error
+		contextName, err = getKubeContextNameFromUserSelect()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return contextName, flag.Value.Set(contextName)
+}
+
+func getKubeContextNameFromUserSelect() (string, error) {
 	configAccess := clientcmd.NewDefaultPathOptions()
 	conf, err := configAccess.GetStartingConfig()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	contextsList := conf.Contexts
@@ -380,6 +409,7 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 		if key == currentContext {
 			continue
 		}
+
 		contextsIndex = append(contextsIndex, key)
 		contextsNamesToShowUser = append(contextsNamesToShowUser, key)
 	}
@@ -398,37 +428,10 @@ func getKubeContextNameFromUserSelect(cmd *cobra.Command, kubeContextName *strin
 
 	index, _, err := prompt.Run()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	result := contextsIndex[index]
-
-	die(cmd.Flags().Set("context", result))
-	*kubeContextName = result
-
-	return nil
-}
-
-func getIngressHostFromUserInput(ctx context.Context, opts *RuntimeInstallOptions, foundIngressHost string) error {
-	ingressHostPrompt := promptui.Prompt{
-		Label:   "Ingress host",
-		Default: foundIngressHost,
-		Pointer: promptui.PipeCursor,
-	}
-
-	ingressHostInput, err := ingressHostPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	err = validateIngressHost(ingressHostInput)
-	if err != nil {
-		return err
-	}
-
-	opts.IngressHost = ingressHostInput
-
-	return nil
+	return contextsIndex[index], nil
 }
 
 func validateIngressHost(ingressHost string) error {
@@ -476,7 +479,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if store.Get().Silent {
 		opts.IngressHost = foundIngressHost
 	} else {
-		err := getIngressHostFromUserInput(ctx, opts, foundIngressHost)
+		opts.IngressHost, err = getIngressHostFromUserInput(foundIngressHost)
 		if err != nil {
 			return err
 		}
@@ -489,7 +492,21 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	return nil
 }
 
-func checkIngressHostCertificate(ctx context.Context, ingress string) (bool, error) {
+func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
+	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost)
+	if err != nil {
+		return "", err
+	}
+
+	err = validateIngressHost(ingressHostInput)
+	if err != nil {
+		return "", err
+	}
+
+	return ingressHostInput, nil
+}
+
+func checkIngressHostCertificate(ingress string) (bool, error) {
 	match, err := regexp.MatchString("http:", ingress)
 	if err != nil {
 		return false, err
@@ -550,6 +567,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	if store.Get().InsecureIngressHost {
 		return nil
 	}
+
 	if store.Get().Silent {
 		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 	}
@@ -577,6 +595,6 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	} else {
 		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 	}
+
 	return nil
 }
-
