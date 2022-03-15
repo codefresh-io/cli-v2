@@ -1847,7 +1847,6 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		"argoWorkflowsInsecure=true",
 		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
 		fmt.Sprintf("cors=%s", cfConfig.GetCurrentContext().URL),
-		"argoCdUsername=admin",
 		"env=production",
 	}
 
