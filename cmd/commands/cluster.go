@@ -143,7 +143,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
 	resourceUrl := store.AddClusterDefURL
 	if strings.HasPrefix(resourceUrl, "http") {
-		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
+		resourceUrl = fmt.Sprintf("%s?ref=v%s", resourceUrl, version)
 	}
 
 	k := &kusttypes.Kustomization{
