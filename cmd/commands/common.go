@@ -414,10 +414,7 @@ func getKubeContextName(flag *pflag.Flag) (string, error) {
 		}
 	}
 
-	return contextName, flag.Value.Set(contextName) // this is fi contextName is "", and --silent is set. this is a common case, that needs future handling in ap.
-	// TODO: deal with the silent case of uninstall. c==
-	// in RunRepoUninstall in ap: setUninstallOptsDefaults. there's a function (wierd syntax) that gets it.
-	//
+	return contextName, flag.Value.Set(contextName)
 }
 
 func getKubeContextNameFromUserSelect() (string, error) {
