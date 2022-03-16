@@ -163,7 +163,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	var (
 		runtimeName string
-		err error
+		err         error
 	)
 
 	if len(args) > 0 {
@@ -376,6 +376,30 @@ func ensureKubeContextName(flag *pflag.Flag) (string, error) {
 	return contextName, nil
 }
 
+func validateKubeContext(ctx context.Context, kubeContextName string, force bool) error {
+	if kubeContextName == "" {
+		return nil
+	}
+
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return fmt.Errorf("failed getting kube configurations. Err: %w", err)
+	}
+
+	if conf.CurrentContext != kubeContextName {
+		if !force {
+			return fmt.Errorf(`given kubeContext (%s) doesn't match the current kubecontext (%s). 
+			If this was intentional, please uninstall again, with the --force flag`, kubeContextName, conf.CurrentContext)
+		} 
+
+		log.G(ctx).Warnf(`given kubeContext (%s) doesn't match the current kubecontext (%s). 
+		Nevertheless, continuing uninstall, due to --force flag`)
+	}
+
+	return nil
+}
+
 func getKubeContextName(flag *pflag.Flag) (string, error) {
 	contextName := flag.Value.String()
 	if contextName != "" {
@@ -390,7 +414,10 @@ func getKubeContextName(flag *pflag.Flag) (string, error) {
 		}
 	}
 
-	return contextName, flag.Value.Set(contextName)
+	return contextName, flag.Value.Set(contextName) // this is fi contextName is "", and --silent is set. this is a common case, that needs future handling in ap.
+	// TODO: deal with the silent case of uninstall. c==
+	// in RunRepoUninstall in ap: setUninstallOptsDefaults. there's a function (wierd syntax) that gets it.
+	//
 }
 
 func getKubeContextNameFromUserSelect() (string, error) {

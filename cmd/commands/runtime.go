@@ -1405,11 +1405,22 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	var err error
 	if !opts.SkipChecks {
 		_, err = cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
-	}
-	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, false, true)
-	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
-		return err
+		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, false, true)
+		if err != nil {
+			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
+			return err
+		}
+
+		err = validateKubeContext(ctx, opts.kubeContext, opts.Force)
+		if err != nil {
+			return err
+		}
+
+		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Validating kubecontext", err, false, true)
+		if err != nil {
+			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
+			return err
+		}
 	}
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)

@@ -84,7 +84,7 @@ func NewClusterAddCommand() *cobra.Command {
 				return err
 			}
 
-			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context"))
+			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context")) // TODO: store.
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

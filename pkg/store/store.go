@@ -25,14 +25,14 @@ import (
 var s Store
 
 var (
-	binaryName      = "cli-v2"
-	version         = "v99.99.99"
-	buildDate       = ""
-	gitCommit       = ""
-	segmentWriteKey = ""
-	maxDefVersion   = "1.0.1"
-	RuntimeDefURL   = "manifests/runtime.yaml"
-	AddClusterDefURL   = "../manifests/add-cluster/kustomize"
+	binaryName       = "cli-v2"
+	version          = "v99.99.99"
+	buildDate        = ""
+	gitCommit        = ""
+	segmentWriteKey  = ""
+	maxDefVersion    = "1.0.1"
+	RuntimeDefURL    = "manifests/runtime.yaml"
+	AddClusterDefURL = "../manifests/add-cluster/kustomize"
 )
 
 type Version struct {
@@ -139,6 +139,9 @@ type Store struct {
 	SccName                             string
 	CFInternalGitSources                []string
 	CFInternalReporters                 []string
+	InstallFlow                         string
+	UninstallFlow                       string
+	ClusterAddFlow                      string
 }
 
 // Get returns the global store
@@ -234,6 +237,9 @@ func init() {
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
+	s.InstallFlow = "install"
+	s.UninstallFlow = "uninstall"
+	s.ClusterAddFlow = "cluster add"
 
 	initVersion()
 }
