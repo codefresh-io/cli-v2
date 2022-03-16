@@ -45,8 +45,7 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 
-	"github.com/Masterminds/semver/v3"
-	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
+	semver "github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -54,6 +53,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	appset "github.com/argoproj/applicationset/api/v1alpha1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
@@ -70,8 +70,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kustid "sigs.k8s.io/kustomize/api/resid"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -1810,8 +1810,8 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	kust.Resources = append(kust.Resources, "ingress.yaml")
 	kust.Patches = append(kust.Patches, kusttypes.Patch{
 		Target: &kusttypes.Selector{
-			KrmId: kusttypes.KrmId{
-				Gvk: kustid.Gvk{
+			ResId: resid.ResId{
+				Gvk: resid.Gvk{
 					Group:   appsv1.SchemeGroupVersion.Group,
 					Version: appsv1.SchemeGroupVersion.Version,
 					Kind:    "Deployment",
@@ -1912,7 +1912,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
 
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
+	if err = opts.KubeFactory.Apply(ctx, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 

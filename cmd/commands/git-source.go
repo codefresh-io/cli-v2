@@ -414,11 +414,6 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().CronExampleTriggerTemplateName,
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
-				GroupVersionResource: metav1.GroupVersionResource{
-					Group:    "argoproj.io",
-					Version:  "v1alpha1",
-					Resource: store.Get().WorkflowResourceName,
-				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
 					Resource: &workflowResource,
@@ -687,28 +682,26 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: store.Get().CronExampleTriggerTemplateName,
 		},
-		Spec: wfv1alpha1.WorkflowTemplateSpec{
-			WorkflowSpec: wfv1alpha1.WorkflowSpec{
-				Arguments: wfv1alpha1.Arguments{
-					Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
-				},
-				Entrypoint:         "whalesay",
-				ServiceAccountName: store.Get().CodefreshSA,
-				PodGC: &wfv1alpha1.PodGC{
-					Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
-				},
-				Templates: []wfv1alpha1.Template{
-					{
-						Name: "whalesay",
-						Inputs: wfv1alpha1.Inputs{
-							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
-							Artifacts:  wfv1alpha1.Artifacts{},
-						},
-						Container: &corev1.Container{
-							Image:   "docker/whalesay:latest",
-							Command: []string{"cowsay"},
-							Args:    []string{"{{inputs.parameters.message}}"},
-						},
+		Spec: wfv1alpha1.WorkflowSpec{
+			Arguments: wfv1alpha1.Arguments{
+				Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
+			},
+			Entrypoint:         "whalesay",
+			ServiceAccountName: store.Get().CodefreshSA,
+			PodGC: &wfv1alpha1.PodGC{
+				Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
+			},
+			Templates: []wfv1alpha1.Template{
+				{
+					Name: "whalesay",
+					Inputs: wfv1alpha1.Inputs{
+						Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
+						Artifacts:  wfv1alpha1.Artifacts{},
+					},
+					Container: &corev1.Container{
+						Image:   "docker/whalesay:latest",
+						Command: []string{"cowsay"},
+						Args:    []string{"{{inputs.parameters.message}}"},
 					},
 				},
 			},
@@ -888,11 +881,6 @@ func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().GithubExampleTriggerTemplateName,
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
-				GroupVersionResource: metav1.GroupVersionResource{
-					Group:    "argoproj.io",
-					Version:  "v1alpha1",
-					Resource: store.Get().WorkflowResourceName,
-				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
 					Resource: &workflowResource,
