@@ -1416,7 +1416,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 			return err
 		}
 
-		handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Validating kubecontext", err, false, true)
+		handleCliStep(reporter.UninstallStepValidateKubeContext, "Validating kubecontext", err, false, true)
 		if err != nil {
 			summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
 			return err

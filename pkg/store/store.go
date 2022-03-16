@@ -139,9 +139,6 @@ type Store struct {
 	SccName                             string
 	CFInternalGitSources                []string
 	CFInternalReporters                 []string
-	InstallFlow                         string
-	UninstallFlow                       string
-	ClusterAddFlow                      string
 }
 
 // Get returns the global store
@@ -237,9 +234,6 @@ func init() {
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
-	s.InstallFlow = "install"
-	s.UninstallFlow = "uninstall"
-	s.ClusterAddFlow = "cluster add"
 
 	initVersion()
 }
