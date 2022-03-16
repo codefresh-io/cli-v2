@@ -52,6 +52,7 @@ variables in advanced to simplify the use of those commands.
 	cmd.AddCommand(NewConfigCommand())
 	cmd.AddCommand(NewRuntimeCommand())
 	cmd.AddCommand(NewGitSourceCommand())
+	cmd.AddCommand(NewClusterCommand())
 	cmd.AddCommand(NewComponentCommand())
 	cmd.AddCommand(NewWorkflowCommand())
 	cmd.AddCommand(NewPipelineCommand())

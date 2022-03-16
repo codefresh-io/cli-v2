@@ -22,9 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	authv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -176,10 +177,43 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 	if err != nil {
 		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
-	
+
 	log.G(ctx).Info("Network test finished successfully")
 
 	return nil
+}
+
+func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace string, name string) (*v1.Secret, error) {
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return nil, fmt.Errorf("cannot create kubernetes clientset: %w", err)
+	}
+
+	var (
+		res  *v1.Secret
+		cont string
+	)
+	for res == nil {
+		secrets, err := client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: "argocd.argoproj.io/secret-type=cluster",
+			Limit:         10,
+			Continue:      cont,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, secret := range secrets.Items {
+			if string(secret.Data["name"]) == name {
+				res = &secret
+				break
+			}
+		}
+
+		cont = secrets.Continue
+	}
+
+	return res, nil
 }
 
 func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {

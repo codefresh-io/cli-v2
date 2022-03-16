@@ -1,4 +1,4 @@
-VERSION=v0.0.282
+VERSION=v0.0.285
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -8,8 +8,10 @@ IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
 RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
+ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
+DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
 
 CLI_SRCS := $(shell find . -name '*.go')
 
@@ -23,6 +25,7 @@ SEGMENT_WRITE_KEY?=""
 
 ifeq (${DEV_MODE},true)
 	RUNTIME_DEF_URL=${DEV_RUNTIME_DEF_URL}
+	ADD_CLUSTER_DEF_URL=${DEV_ADD_CLUSTER_DEF_URL}
 endif
 
 ifndef GOBIN
@@ -97,6 +100,7 @@ $(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	GIT_COMMIT=$(GIT_COMMIT) \
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \
 	RUNTIME_DEF_URL=$(RUNTIME_DEF_URL) \
+	ADD_CLUSTER_DEF_URL=$(ADD_CLUSTER_DEF_URL) \
 	SEGMENT_WRITE_KEY=$(SEGMENT_WRITE_KEY) \
 	MAIN=./cmd \
 	./hack/build.sh

@@ -38,12 +38,14 @@ import (
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	oc "github.com/codefresh-io/cli-v2/pkg/util/openshift"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
-	"github.com/manifoldco/promptui"
 
+	"github.com/Masterminds/semver/v3"
 	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -55,14 +57,11 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	oc "github.com/codefresh-io/cli-v2/pkg/util/openshift"
-
-	"github.com/Masterminds/semver/v3"
-	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
+	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
@@ -100,6 +99,7 @@ type (
 		versionStr                     string
 		kubeContext                    string
 	}
+
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
 		Timeout          time.Duration
@@ -245,7 +245,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			err := RunRuntimeInstall(cmd.Context(), &installationOpts)
 			handleCliStep(reporter.InstallPhaseFinish, "Runtime installation phase finished", err, false, false)
 			return err
@@ -283,9 +283,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 }
 
 func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	err := getVersionIfExists(opts)
+	opts.Version, err = getVersionIfExists(opts)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
 	if err != nil {
 		return err
@@ -293,7 +294,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
-			err = getRuntimeNameFromUserInput(&opts.RuntimeName)
+			opts.RuntimeName, err = getRuntimeNameFromUserInput()
 		} else {
 			err = fmt.Errorf("must enter a runtime name")
 		}
@@ -309,7 +310,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
+	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"))
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
@@ -369,15 +370,16 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 }
 
 func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUninstallOptions) error {
+	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	err := getKubeContextNameFromUserSelect(cmd, &opts.kubeContext)
+	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"))
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	err = ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
@@ -399,9 +401,11 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 }
 
 func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUpgradeOptions) error {
+	var err error
+
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	err := ensureRuntimeName(cmd.Context(), args, &opts.RuntimeName)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
@@ -450,7 +454,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 	log.G(cmd.Context()).Info("Validating ingress host")
 
-	certValid, err := checkIngressHostCertificate(cmd.Context(), opts.IngressHost)
+	certValid, err := checkIngressHostCertificate(opts.IngressHost)
 	if err != nil {
 		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
 	}
@@ -510,7 +514,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		opts.IngressClass = ingressClassNames[0]
 	} else if len(ingressClassNames) > 1 {
 		if !store.Get().Silent {
-			err = getIngressClassFromUserSelect(ctx, ingressClassNames, &opts.IngressClass)
+			opts.IngressClass, err = getIngressClassFromUserSelect(ingressClassNames)
 			if err != nil {
 				return err
 			}
@@ -580,7 +584,6 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-
 	err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
@@ -950,7 +953,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
 	}
 
-	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts, rt); err != nil {
+	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts); err != nil {
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
@@ -1017,7 +1020,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
-	err = checkRuntimeCollisions(ctx, opts.RuntimeName, opts.KubeFactory)
+	err = checkRuntimeCollisions(ctx, opts.KubeFactory)
 	handleCliStep(reporter.InstallStepRunPreCheckRuntimeCollision, "Checking for runtime collisions", err, true, false)
 	if err != nil {
 		return fmt.Errorf("runtime collision check failed: %w", err)
@@ -1040,7 +1043,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func checkRuntimeCollisions(ctx context.Context, runtime string, kube kube.Factory) error {
+func checkRuntimeCollisions(ctx context.Context, kube kube.Factory) error {
 	log.G(ctx).Debug("checking for argocd collisions in cluster")
 
 	cs, err := kube.KubernetesClientSet()
@@ -1133,7 +1136,7 @@ func printComponentsState(ctx context.Context, runtime string) error {
 	checkers := make([]checklist.Checker, len(curComponents))
 	for i, c := range curComponents {
 		name := c.Metadata.Name
-		checkers[i] = func(ctx context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
+		checkers[i] = func(_ context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
 			lock.Lock()
 			defer lock.Unlock()
 			return getComponentChecklistState(components[name])
@@ -1321,8 +1324,8 @@ func RunRuntimeList(ctx context.Context) error {
 
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
-		uninstallationOpts RuntimeUninstallOptions
-		finalParameters    map[string]string
+		opts            RuntimeUninstallOptions
+		finalParameters map[string]string
 	)
 
 	cmd := &cobra.Command{
@@ -1346,13 +1349,9 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if len(args) > 0 {
-				uninstallationOpts.RuntimeName = args[0]
-			}
+			createAnalyticsReporter(ctx, reporter.UninstallFlow, opts.DisableTelemetry)
 
-			createAnalyticsReporter(ctx, reporter.UninstallFlow, uninstallationOpts.DisableTelemetry)
-
-			err := runtimeUninstallCommandPreRunHandler(cmd, args, &uninstallationOpts)
+			err := runtimeUninstallCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, true, false)
 			if err != nil {
 				if errors.Is(err, promptui.ErrInterrupt) {
@@ -1364,9 +1363,9 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.CurrentContext,
-				"Kube context":      uninstallationOpts.kubeContext,
-				"Runtime name":      uninstallationOpts.RuntimeName,
-				"Repository URL":    uninstallationOpts.CloneOpts.Repo,
+				"Kube context":      opts.kubeContext,
+				"Runtime name":      opts.RuntimeName,
+				"Repository URL":    opts.CloneOpts.Repo,
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
@@ -1374,33 +1373,25 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 				return err
 			}
 
-			uninstallationOpts.CloneOpts.Parse()
+			opts.Timeout = store.Get().WaitTimeout
+			opts.CloneOpts.Parse()
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-				RuntimeName: uninstallationOpts.RuntimeName,
-				Timeout:     store.Get().WaitTimeout,
-				CloneOpts:   uninstallationOpts.CloneOpts,
-				KubeFactory: uninstallationOpts.KubeFactory,
-				SkipChecks:  uninstallationOpts.SkipChecks,
-				Force:       uninstallationOpts.Force,
-				FastExit:    uninstallationOpts.FastExit,
-			})
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := RunRuntimeUninstall(cmd.Context(), &opts)
 			handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished", err, false, true)
 			return err
 		},
 	}
 
-	cmd.Flags().BoolVar(&uninstallationOpts.SkipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
+	cmd.Flags().BoolVar(&opts.SkipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
-	cmd.Flags().BoolVar(&uninstallationOpts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
-	cmd.Flags().BoolVar(&uninstallationOpts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
-	cmd.Flags().BoolVar(&uninstallationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
+	cmd.Flags().BoolVar(&opts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
+	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
+	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
 
-	uninstallationOpts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
-	uninstallationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
+	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -1651,7 +1642,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			opts.CloneOpts.Parse()
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			var err error
 			ctx := cmd.Context()
 
@@ -1910,13 +1901,13 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return apu.PushWithMessage(ctx, r, "Created App-Proxy Ingress")
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
 	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeStoreIV)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
 
-	argoTokenSecret, err := getArgoCDTokenSecret(ctx, opts.RuntimeName, opts.Insecure)
+	argoTokenSecret, err := getArgoCDTokenSecret(ctx, opts.kubeContext, opts.RuntimeName, opts.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
@@ -2057,8 +2048,8 @@ func getRuntimeTokenSecret(namespace string, token string, iv string) ([]byte, e
 	})
 }
 
-func getArgoCDTokenSecret(ctx context.Context, namespace string, insecure bool) ([]byte, error) {
-	token, err := cdutil.GenerateToken(ctx, namespace, "admin", nil, insecure)
+func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, insecure bool) ([]byte, error) {
+	token, err := cdutil.GenerateToken(ctx, "admin", kubeContext, namespace, insecure)
 	if err != nil {
 		return nil, err
 	}
@@ -2351,17 +2342,13 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func getVersionIfExists(opts *RuntimeInstallOptions) error {
+func getVersionIfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
 	if opts.versionStr != "" {
 		log.G().Infof("vesionStr: %s", opts.versionStr)
-		version, err := semver.NewVersion(opts.versionStr)
-		if err != nil {
-			return err
-		}
-		opts.Version = version
-		log.G().Infof("opts.Version: %s", opts.Version)
+		return semver.NewVersion(opts.versionStr)
 	}
-	return nil
+
+	return nil, nil
 }
 
 func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
