@@ -103,6 +103,7 @@ const (
 	UninstallPhasePreCheckFinish               CliStep = "uninstall.pre-check.phase.finish"
 	UninstallPhaseStart                        CliStep = "uninstall.run.phase.start"
 	UninstallStepCheckRuntimeExists            CliStep = "uninstall.run.step.check-runtime-exists"
+	UninstallStepValidateKubeContext            CliStep = "uninstall.run.step.validate-kube-context"
 	UninstallStepUninstallRepo                 CliStep = "uninstall.run.step.uninstall-repo"
 	UninstallStepRemoveGitIntegrations         CliStep = "uninstall.run.step.remove-git-integrations"
 	UninstallStepDeleteRuntimeFromPlatform     CliStep = "uninstall.run.step.delete-runtime-from-platform"

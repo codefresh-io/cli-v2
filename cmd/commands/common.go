@@ -163,7 +163,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	var (
 		runtimeName string
-		err error
+		err         error
 	)
 
 	if len(args) > 0 {
@@ -374,6 +374,30 @@ func ensureKubeContextName(flag *pflag.Flag) (string, error) {
 	}
 
 	return contextName, nil
+}
+
+func validateKubeContext(ctx context.Context, kubeContextName string, force bool) error {
+	if kubeContextName == "" {
+		return nil
+	}
+
+	configAccess := clientcmd.NewDefaultPathOptions()
+	conf, err := configAccess.GetStartingConfig()
+	if err != nil {
+		return fmt.Errorf("failed getting kube configurations. Err: %w", err)
+	}
+
+	if conf.CurrentContext != kubeContextName {
+		if !force {
+			return fmt.Errorf(`given kubeContext (%s) doesn't match the current kubecontext (%s). 
+			If this was intentional, please uninstall again, with the --force flag`, kubeContextName, conf.CurrentContext)
+		} 
+
+		log.G(ctx).Warnf(`given kubeContext (%s) doesn't match the current kubecontext (%s). 
+		Nevertheless, continuing uninstall, due to --force flag`)
+	}
+
+	return nil
 }
 
 func getKubeContextName(flag *pflag.Flag) (string, error) {
