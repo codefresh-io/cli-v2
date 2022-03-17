@@ -14,6 +14,7 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	model "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -87,6 +89,7 @@ func NewGitIntegrationCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd.AddCommand(NewGitIntegrationRemoveCommand(client))
 	cmd.AddCommand(NewGitIntegrationRegisterCommand(client))
 	cmd.AddCommand(NewGitIntegrationDeregisterCommand(client))
+	cmd.AddCommand(NewGitAuthCommand())
 
 	return cmd
 }
@@ -403,6 +406,56 @@ func getAppProxyClient(runtime *string, client *sdk.AppProxyAPI) func(*cobra.Com
 
 		return nil
 	}
+}
+
+func NewGitAuthCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "auth",
+		Short: "Authenticate user",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return RunGitAuthCommand(cmd.Context(), cmd)
+		},
+	}
+
+	return cmd
+}
+
+func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
+	user, err1 := cfConfig.GetCurrentContext().GetUser(ctx)
+	if err1 != nil {
+		return err1
+	}
+
+	userId := user.ID
+	var accountId string
+	for i := range user.Accounts {
+		if user.Accounts[i].Name == user.ActiveAccountName {
+			accountId = user.Accounts[i].ID
+			break
+		}
+	}
+	runtimeName := cmd.Flag("runtime").Value.String()
+	runtime, err2 := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err2 != nil {
+		return err2
+	}
+
+	var b bytes.Buffer
+	if !strings.HasPrefix(*runtime.IngressHost, "http") {
+		b.WriteString("http://")
+	}
+	b.WriteString(*runtime.IngressHost)
+	b.WriteString("/app-proxy/api/git-auth/github?userId=" + userId + "&accountId=" + accountId)
+
+	url := b.String()
+	err3 := browser.OpenURL(url)
+	if err3 != nil {
+		return err3
+	}
+
+	fmt.Println("Follow instructions in web browser")
+
+	return nil
 }
 
 func printIntegration(i interface{}, format string) error {
