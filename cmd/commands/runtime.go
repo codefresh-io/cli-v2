@@ -665,6 +665,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 			store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 			store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
 		},
+		DestKubeContext: opts.kubeContext,
 	})
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, false, true)
 	if err != nil {
@@ -1438,6 +1439,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		KubeFactory:  opts.KubeFactory,
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
+		KubeContextName: opts.kubeContext,
 	})
 	cancel() // to tell the progress to stop displaying even if it's not finished
 	if opts.Force {
