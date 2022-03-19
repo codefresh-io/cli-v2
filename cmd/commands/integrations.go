@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -445,7 +446,7 @@ func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 		b.WriteString("http://")
 	}
 	b.WriteString(*runtime.IngressHost)
-	b.WriteString("/app-proxy/api/git-auth/github?userId=" + userId + "&accountId=" + accountId)
+	b.WriteString("/app-proxy/api/git-auth/github?user=" + userId + "&account=" + accountId)
 
 	url := b.String()
 	err3 := browser.OpenURL(url)
@@ -454,6 +455,7 @@ func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 	}
 
 	fmt.Println("Follow instructions in web browser")
+	time.Sleep(2 * time.Second)
 
 	return nil
 }
