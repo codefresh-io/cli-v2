@@ -1,3 +1,3 @@
 # Changelog:
 
-* Added cluster commands
+* Fixed cluster-add script
