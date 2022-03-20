@@ -4,6 +4,7 @@
 # INGRESS_URL (cm)
 # CONTEXT_NAME (cm)
 # SERVER (cm)
+# CSDP_TOKEN_SECRET
 
 echo "ServiceAccount: ${SERVICE_ACCOUNT_NAME}"
 echo "Ingress URL: ${INGRESS_URL}"
@@ -31,18 +32,18 @@ kubectl config set-credentials ${SERVICE_ACCOUNT_NAME} --token ${BEARER_TOKEN}
 kubectl config set-context ${CONTEXT_NAME} --cluster=${CLUSTER_NAME} --user=${SERVICE_ACCOUNT_NAME}
 KUBE_CONFIG_B64=$(kubectl config view --minify --flatten --output json --context=${CONTEXT_NAME} | base64 -w 0)
 
-RESPONSE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
+STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -H 'Content-Type: application/json' \
   -H 'Authorization: '${CSDP_TOKEN}'' \
-  -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'" }')
-echo $RESPONSE
-
-STATUS_CODE=$(echo $RESPONSE | jq .statusCode)
+  -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'" }' \
+  -s -o response -w "%{http_code}")
+echo response
+echo "STATUS_CODE: ${STATUS_CODE}"
 
 if [ $STATUS_CODE -ge 300 ]; then
   echo "error creating cluster in runtime"
   exit $STATUS_CODE
 fi
 
-echo "deleting token secret ${SECRET_NAME}"
-kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE}
+echo "deleting token secret ${CSDP_TOKEN_SECRET}"
+kubectl delete secret ${CSDP_TOKEN_SECRET} -n ${NAMESPACE}

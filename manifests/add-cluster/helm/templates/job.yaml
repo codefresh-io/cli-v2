@@ -46,6 +46,8 @@ spec:
                 configMapKeyRef:
                   name: {{ include "csdp-add-cluster.fullname" . }}-cm
                   key: server
+            - name: CSDP_TOKEN_SECRET
+              value: {{ include "csdp-add-cluster.fullname" . }}-secret
           resources:
             limits:
               memory: 512Mi
