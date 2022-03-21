@@ -14,14 +14,9 @@
 package commands
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -29,9 +24,10 @@ import (
 	model "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
-	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
+	"strings"
 )
 
 type (
@@ -422,42 +418,25 @@ func NewGitAuthCommand() *cobra.Command {
 }
 
 func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
-	user, err1 := cfConfig.GetCurrentContext().GetUser(ctx)
-	if err1 != nil {
-		return err1
+	var err error
+	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
+	if err != nil {
+		return err
 	}
 
-	userId := user.ID
-	var accountId string
-	for i := range user.Accounts {
-		if user.Accounts[i].Name == user.ActiveAccountName {
-			accountId = user.Accounts[i].ID
-			break
-		}
+	accountId, err := util.CurrentAccount(user)
+	if err != nil {
+		return err
 	}
+
 	runtimeName := cmd.Flag("runtime").Value.String()
-	runtime, err2 := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
-	if err2 != nil {
-		return err2
+	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return err
 	}
 
-	var b bytes.Buffer
-	if !strings.HasPrefix(*runtime.IngressHost, "http") {
-		b.WriteString("http://")
-	}
-	b.WriteString(*runtime.IngressHost)
-	b.WriteString("/app-proxy/api/git-auth/github?user=" + userId + "&account=" + accountId)
-
-	url := b.String()
-	err3 := browser.OpenURL(url)
-	if err3 != nil {
-		return err3
-	}
-
-	fmt.Println("Follow instructions in web browser")
-	time.Sleep(2 * time.Second)
-
-	return nil
+	err = util.OpenBrowserForGitLogin(*runtime.IngressHost, user.ID, accountId)
+	return err
 }
 
 func printIntegration(i interface{}, format string) error {

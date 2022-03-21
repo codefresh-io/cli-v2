@@ -15,8 +15,11 @@
 package util
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	"github.com/pkg/browser"
 	"os"
 	"os/signal"
 	"regexp"
@@ -180,6 +183,35 @@ func CurrentServer() (string, error) {
 
 	currentContext := conf.Contexts[conf.CurrentContext]
 	return conf.Clusters[currentContext.Cluster].Server, nil
+}
+
+func CurrentAccount(user *codefresh.User) (string, error) {
+	for i := range user.Accounts {
+		if user.Accounts[i].Name == user.ActiveAccountName {
+			return user.Accounts[i].ID, nil
+		}
+	}
+	return "", fmt.Errorf("account id for \"%s\" not found", user.ActiveAccountName)
+}
+
+func OpenBrowserForGitLogin(ingressHost string, user string, account string) error {
+	var b bytes.Buffer
+	if !strings.HasPrefix(ingressHost, "http") {
+		b.WriteString("http://")
+	}
+	b.WriteString(ingressHost)
+	b.WriteString("/app-proxy/api/git-auth/github?user=" + user + "&account=" + account)
+
+	url := b.String()
+	err := browser.OpenURL(url)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Follow instructions in web browser")
+	time.Sleep(2 * time.Second)
+
+	return nil
 }
 
 func KubeContextNameByServer(server string) (string, error) {
