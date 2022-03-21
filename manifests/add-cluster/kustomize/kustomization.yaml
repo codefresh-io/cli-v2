@@ -4,7 +4,7 @@ namespace: kube-system
 
 images:
   - name: quay.io/codefresh/csdp-add-cluster
-    newTag: 0.1.0
+    newTag: 0.2.0
 
 resources:
   - configmap.yaml
@@ -13,3 +13,10 @@ resources:
   - job.yaml
   - secret.yaml
   - serviceaccount.yaml
+
+vars:
+  - name: CSDP_ADD_CLUSTER_SECRET
+    objref:
+      apiVersion: v1
+      kind: Secret
+      name: csdp-add-cluster-secret
