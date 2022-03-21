@@ -197,10 +197,10 @@ func CurrentAccount(user *codefresh.User) (string, error) {
 func OpenBrowserForGitLogin(ingressHost string, user string, account string) error {
 	var b bytes.Buffer
 	if !strings.HasPrefix(ingressHost, "http") {
-		b.WriteString("http://")
+		b.WriteString("https://")
 	}
 	b.WriteString(ingressHost)
-	b.WriteString("/app-proxy/api/git-auth/github?user=" + user + "&account=" + account)
+	b.WriteString("/app-proxy/api/git-auth/github?userId=" + user + "&accountId=" + account)
 
 	url := b.String()
 	err := browser.OpenURL(url)
