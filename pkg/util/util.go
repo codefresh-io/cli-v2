@@ -204,6 +204,16 @@ func KubeContexts() []kubeContext {
 	return contexts
 }
 
+func CheckExistingContext(contextName string) bool {
+	for _, context := range KubeContexts() {
+		if context.Name == contextName {
+			return true
+		}
+	}
+
+	return false
+}
+
 func KubeCurrentServer() (string, error) {
 	return KubeServerByContextName("")
 }

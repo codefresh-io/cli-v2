@@ -378,6 +378,10 @@ func ensureKubeContextName(flag *pflag.Flag) (string, error) {
 func getKubeContextName(flag *pflag.Flag) (string, error) {
 	contextName := flag.Value.String()
 	if contextName != "" {
+		if !util.CheckExistingContext(contextName) {
+			return "", fmt.Errorf("context \"%s\" does not exist in kubeconfig", contextName)
+		}
+
 		return contextName, nil
 	}
 
@@ -397,15 +401,7 @@ type SelectItem struct {
 	Label string
 }
 
-
-
 func getKubeContextNameFromUserSelect() (string, error) {
-	// configAccess := clientcmd.NewDefaultPathOptions()
-	// conf, err := configAccess.GetStartingConfig()
-	// if err != nil {
-	// 	return "", err
-	// }}}
-
 	contexts := util.KubeContexts()
 	templates := &promptui.SelectTemplates{
 		Active:   "▸ {{ .Name }} {{if .Current }}(current){{end}}",
