@@ -27,6 +27,7 @@ cli-v2 integration git [flags]
 
 * [cli-v2 integration](cli-v2_integration.md)	 - Manage integrations with git providers, container registries and more
 * [cli-v2 integration git add](cli-v2_integration_git_add.md)	 - Add a new git integration
+* [cli-v2 integration git auth](cli-v2_integration_git_auth.md)	 - Authenticate user
 * [cli-v2 integration git deregister](cli-v2_integration_git_deregister.md)	 - Deregister user from a git integrations
 * [cli-v2 integration git edit](cli-v2_integration_git_edit.md)	 - Edit a git integration
 * [cli-v2 integration git get](cli-v2_integration_git_get.md)	 - Retrieve a git integration
