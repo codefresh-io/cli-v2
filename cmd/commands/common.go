@@ -379,7 +379,7 @@ func getKubeContextName(flag *pflag.Flag) (string, error) {
 	contextName := flag.Value.String()
 	if contextName != "" {
 		if !util.CheckExistingContext(contextName) {
-			return "", fmt.Errorf("context \"%s\" does not exist in kubeconfig", contextName)
+			return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
 		}
 
 		return contextName, nil
