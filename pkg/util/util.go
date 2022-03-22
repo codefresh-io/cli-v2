@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -167,6 +168,40 @@ func kubeConfig() *clientcmdapi.Config {
 	conf, err := configAccess.GetStartingConfig()
 	Die(err, "failed reading kubeconfig file")
 	return conf
+}
+
+type kubeContext struct {
+	Name string
+	Current bool
+}
+
+func KubeContexts() []kubeContext {
+	conf := kubeConfig()
+	contexts := make([]kubeContext, len(conf.Contexts))
+	i := 0
+	for key := range conf.Contexts {
+		contexts[i] = kubeContext{
+			Name: key,
+			Current: key == conf.CurrentContext,
+		}
+		i += 1
+	}
+
+	sort.SliceStable(contexts, func(i, j int) bool {
+		c1 := contexts[i]
+		if c1.Current {
+			return true
+		}
+
+		c2 := contexts[j]
+		if c2.Current {
+			return true
+		}
+
+		return c1.Name < c2.Name
+	})
+
+	return contexts
 }
 
 func KubeCurrentServer() (string, error) {
