@@ -1,3 +1,3 @@
 # Changelog:
 
-* Fixed cluster-add script
+* Protect against invalid kube context
