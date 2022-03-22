@@ -5,14 +5,13 @@ serviceAccountName: argocd-manager
 # example https://some.domain.name
 ingressUrl: <ingressUrl>
 
-# csdpToken is used to authenticate against the app-proxy
-# 
+# csdpToken is the user's Personal Access Token
 csdpToken: <csdpToken>
 
 # contextName is the name of the kube context (in the local kubeconfig file) that connects to the target cluster
 contextName: <contextName>
 
-# server is the
+# server is the k8s cluster API endpoint url
 # can be obtained by
 #   CONTEXT_NAME=<TARGET_CONTEXT_NAME>
 #   CLUSTER_NAME=$(kubectl config view --raw --flatten -o jsonpath='{.contexts[?(@.name == "'"${CONTEXT_NAME}"'")].context.cluster}')
