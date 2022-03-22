@@ -30,6 +30,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -161,34 +162,19 @@ func EscapeAppsetFieldName(field string) string {
 	return appsetFieldRegexp.ReplaceAllString(field, "_")
 }
 
-func CurrentContext() (string, error) {
+func kubeConfig() *clientcmdapi.Config {
 	configAccess := clientcmd.NewDefaultPathOptions()
 	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	return conf.CurrentContext, nil
+	Die(err, "failed reading kubeconfig file")
+	return conf
 }
 
-func CurrentServer() (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	currentContext := conf.Contexts[conf.CurrentContext]
-	return conf.Clusters[currentContext.Cluster].Server, nil
+func KubeCurrentServer() (string, error) {
+	return KubeServerByContextName("")
 }
 
 func KubeContextNameByServer(server string) (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
+	conf := kubeConfig()
 	for contextName, context := range conf.Contexts {
 		if cluster, ok := conf.Clusters[context.Cluster]; ok {
 			if cluster.Server == server {
@@ -201,14 +187,22 @@ func KubeContextNameByServer(server string) (string, error) {
 }
 
 func KubeServerByContextName(contextName string) (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
+	conf := kubeConfig()
+	if contextName == "" {
+		contextName = conf.CurrentContext
 	}
 
-	currentContext := conf.Contexts[contextName]
-	return conf.Clusters[currentContext.Cluster].Server, nil
+	context := conf.Contexts[contextName]
+	if context == nil {
+		return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
+	}
+
+	cluster := conf.Clusters[context.Cluster]
+	if cluster == nil {
+		return "", fmt.Errorf("kubeconfig file missing cluster \"%s\"", context.Cluster)
+	}
+
+	return cluster.Server, nil
 }
 
 func DecorateErrorWithDocsLink(err error, link ...string) error {
