@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/browser"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -238,8 +239,12 @@ func OpenBrowserForGitLogin(ingressHost string, user string, account string) err
 	b.WriteString(ingressHost)
 	b.WriteString("/app-proxy/api/git-auth/github?userId=" + user + "&accountId=" + account)
 
-	url := b.String()
-	err := browser.OpenURL(url)
+	url, err := url.Parse(b.String())
+	if err != nil {
+		return err
+	}
+
+	err = browser.OpenURL(url.String())
 	if err != nil {
 		return err
 	}
