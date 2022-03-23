@@ -1848,6 +1848,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
 		fmt.Sprintf("cors=%s", cfConfig.GetCurrentContext().URL),
 		"env=production",
+		"argoCdUrl=https://inc03.cf-op.com",
 	}
 
 	// configure codefresh host
