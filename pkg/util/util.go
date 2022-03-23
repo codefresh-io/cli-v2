@@ -169,7 +169,6 @@ func EscapeAppsetFieldName(field string) string {
 
 func kubeConfig(kubeconfig string) *clientcmdapi.Config {
 	configAccess := clientcmd.NewDefaultPathOptions()
-	// TODO: remove any logic related to kubeconfig and move it to argocd-autopilot
 	if kubeconfig != "" {
 		configAccess.GlobalFile = kubeconfig
 	}
