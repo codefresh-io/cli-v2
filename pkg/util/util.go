@@ -15,8 +15,11 @@
 package util
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/pkg/browser"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -29,6 +32,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -171,7 +175,7 @@ func kubeConfig() *clientcmdapi.Config {
 }
 
 type kubeContext struct {
-	Name string
+	Name    string
 	Current bool
 }
 
@@ -181,7 +185,7 @@ func KubeContexts() []kubeContext {
 	i := 0
 	for key := range conf.Contexts {
 		contexts[i] = kubeContext{
-			Name: key,
+			Name:    key,
 			Current: key == conf.CurrentContext,
 		}
 		i += 1
@@ -216,6 +220,39 @@ func CheckExistingContext(contextName string) bool {
 
 func KubeCurrentServer() (string, error) {
 	return KubeServerByContextName("")
+}
+
+func CurrentAccount(user *codefresh.User) (string, error) {
+	for i := range user.Accounts {
+		if user.Accounts[i].Name == user.ActiveAccountName {
+			return user.Accounts[i].ID, nil
+		}
+	}
+	return "", fmt.Errorf("account id for \"%s\" not found", user.ActiveAccountName)
+}
+
+func OpenBrowserForGitLogin(ingressHost string, user string, account string) error {
+	var b bytes.Buffer
+	if !strings.HasPrefix(ingressHost, "http") {
+		b.WriteString("https://")
+	}
+	b.WriteString(ingressHost)
+	b.WriteString("/app-proxy/api/git-auth/github?userId=" + user + "&accountId=" + account)
+
+	url, err := url.Parse(b.String())
+	if err != nil {
+		return err
+	}
+
+	err = browser.OpenURL(url.String())
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Follow instructions in web browser")
+	time.Sleep(2 * time.Second)
+
+	return nil
 }
 
 func KubeContextNameByServer(server string) (string, error) {
