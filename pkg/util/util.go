@@ -167,8 +167,12 @@ func EscapeAppsetFieldName(field string) string {
 	return appsetFieldRegexp.ReplaceAllString(field, "_")
 }
 
-func kubeConfig() *clientcmdapi.Config {
+func kubeConfig(kubeconfig string) *clientcmdapi.Config {
 	configAccess := clientcmd.NewDefaultPathOptions()
+	// TODO: remove any logic related to kubeconfig and move it to argocd-autopilot
+	if kubeconfig != "" {
+		configAccess.GlobalFile = kubeconfig
+	}
 	conf, err := configAccess.GetStartingConfig()
 	Die(err, "failed reading kubeconfig file")
 	return conf
@@ -179,8 +183,8 @@ type kubeContext struct {
 	Current bool
 }
 
-func KubeContexts() []kubeContext {
-	conf := kubeConfig()
+func KubeContexts(kubeconfig string) []kubeContext {
+	conf := kubeConfig(kubeconfig)
 	contexts := make([]kubeContext, len(conf.Contexts))
 	i := 0
 	for key := range conf.Contexts {
@@ -208,8 +212,8 @@ func KubeContexts() []kubeContext {
 	return contexts
 }
 
-func CheckExistingContext(contextName string) bool {
-	for _, context := range KubeContexts() {
+func CheckExistingContext(contextName, kubeconfig string) bool {
+	for _, context := range KubeContexts(kubeconfig) {
 		if context.Name == contextName {
 			return true
 		}
@@ -218,8 +222,8 @@ func CheckExistingContext(contextName string) bool {
 	return false
 }
 
-func KubeCurrentServer() (string, error) {
-	return KubeServerByContextName("")
+func KubeCurrentServer(kubeconfig string) (string, error) {
+	return KubeServerByContextName("", kubeconfig)
 }
 
 func CurrentAccount(user *codefresh.User) (string, error) {
@@ -255,8 +259,8 @@ func OpenBrowserForGitLogin(ingressHost string, user string, account string) err
 	return nil
 }
 
-func KubeContextNameByServer(server string) (string, error) {
-	conf := kubeConfig()
+func KubeContextNameByServer(server, kubeconfig string) (string, error) {
+	conf := kubeConfig(kubeconfig)
 	for contextName, context := range conf.Contexts {
 		if cluster, ok := conf.Clusters[context.Cluster]; ok {
 			if cluster.Server == server {
@@ -268,8 +272,8 @@ func KubeContextNameByServer(server string) (string, error) {
 	return "", fmt.Errorf("Context not found for server \"%s\"", server)
 }
 
-func KubeServerByContextName(contextName string) (string, error) {
-	conf := kubeConfig()
+func KubeServerByContextName(contextName, kubeconfig string) (string, error) {
+	conf := kubeConfig(kubeconfig)
 	if contextName == "" {
 		contextName = conf.CurrentContext
 	}
