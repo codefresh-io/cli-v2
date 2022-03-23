@@ -4,3 +4,10 @@ resources:
   - https://raw.githubusercontent.com/codefresh-io/argo-events/v1.5.5-cap-CR-10290/manifests/install.yaml
   - https://raw.githubusercontent.com/codefresh-io/argo-events/v1.5.5-cap-CR-10290/manifests/install-validating-webhook.yaml
   - eventbus.yaml
+patches:
+  - path: eventbus.jsonpatch.argocd-application-controller.jsonpatch.yaml
+    target:
+      name: eventbus-codefresh-eventbus-stan
+      kind: StatefulSet
+      group: apps
+      version: v1

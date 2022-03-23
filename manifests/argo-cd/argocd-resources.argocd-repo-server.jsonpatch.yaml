@@ -1,0 +1,9 @@
+- op: add
+  path: /spec/template/spec/containers/0/resources
+  value:
+    limits:
+      cpu: 200m
+      memory: 1.2Gi
+    requests:
+      cpu: 50m
+      memory: 780Mi

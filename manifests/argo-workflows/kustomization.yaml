@@ -24,6 +24,13 @@ patches:
         path: /spec/template/spec/containers/0/args/-
         value: --auth-mode=server
 
+  - path: argo-workflows.jsonpatch.yaml
+    target:
+      name: workflow-controller
+      kind: Deployment
+      group: apps
+      version: v1
+
 patchesStrategicMerge:
     - |
         apiVersion: v1

@@ -20,3 +20,10 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: default
+
+  - path: argo-rollouts.jsonpatch.yaml
+    target:
+      name: argo-rollouts
+      kind: Deployment
+      group: apps
+      version: v1
