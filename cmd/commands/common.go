@@ -36,7 +36,6 @@ import (
 
 	"github.com/manifoldco/promptui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -163,7 +162,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	var (
 		runtimeName string
-		err error
+		err         error
 	)
 
 	if len(args) > 0 {
@@ -379,6 +378,10 @@ func ensureKubeContextName(flag *pflag.Flag) (string, error) {
 func getKubeContextName(flag *pflag.Flag) (string, error) {
 	contextName := flag.Value.String()
 	if contextName != "" {
+		if !util.CheckExistingContext(contextName) {
+			return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
+		}
+
 		return contextName, nil
 	}
 
@@ -393,36 +396,24 @@ func getKubeContextName(flag *pflag.Flag) (string, error) {
 	return contextName, flag.Value.Set(contextName)
 }
 
+type SelectItem struct {
+	Value string
+	Label string
+}
+
 func getKubeContextNameFromUserSelect() (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	contextsList := conf.Contexts
-	currentContext := conf.CurrentContext
-	contextsNamesToShowUser := []string{currentContext + " (current)"}
-	contextsIndex := []string{currentContext}
-
-	for key := range contextsList {
-		if key == currentContext {
-			continue
-		}
-
-		contextsIndex = append(contextsIndex, key)
-		contextsNamesToShowUser = append(contextsNamesToShowUser, key)
-	}
-
+	contexts := util.KubeContexts()
 	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
+		Active:   "▸ {{ .Name }} {{if .Current }}(current){{end}}",
+		Inactive: "  {{ .Name }} {{if .Current }}(current){{end}}",
+		Selected: "{{ .Name | yellow }}",
 	}
 
 	labelStr := fmt.Sprintf("%vSelect kube context%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     contextsNamesToShowUser,
+		Items:     contexts,
 		Templates: templates,
 	}
 
@@ -431,7 +422,7 @@ func getKubeContextNameFromUserSelect() (string, error) {
 		return "", err
 	}
 
-	return contextsIndex[index], nil
+	return contexts[index].Name, nil
 }
 
 func validateIngressHost(ingressHost string) error {

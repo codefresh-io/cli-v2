@@ -15,14 +15,12 @@
 package util
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	"github.com/pkg/browser"
 	"os"
 	"os/signal"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +31,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -164,63 +163,63 @@ func EscapeAppsetFieldName(field string) string {
 	return appsetFieldRegexp.ReplaceAllString(field, "_")
 }
 
-func CurrentContext() (string, error) {
+func kubeConfig() *clientcmdapi.Config {
 	configAccess := clientcmd.NewDefaultPathOptions()
 	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	return conf.CurrentContext, nil
+	Die(err, "failed reading kubeconfig file")
+	return conf
 }
 
-func CurrentServer() (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	currentContext := conf.Contexts[conf.CurrentContext]
-	return conf.Clusters[currentContext.Cluster].Server, nil
+type kubeContext struct {
+	Name string
+	Current bool
 }
 
-func CurrentAccount(user *codefresh.User) (string, error) {
-	for i := range user.Accounts {
-		if user.Accounts[i].Name == user.ActiveAccountName {
-			return user.Accounts[i].ID, nil
+func KubeContexts() []kubeContext {
+	conf := kubeConfig()
+	contexts := make([]kubeContext, len(conf.Contexts))
+	i := 0
+	for key := range conf.Contexts {
+		contexts[i] = kubeContext{
+			Name: key,
+			Current: key == conf.CurrentContext,
+		}
+		i += 1
+	}
+
+	sort.SliceStable(contexts, func(i, j int) bool {
+		c1 := contexts[i]
+		if c1.Current {
+			return true
+		}
+
+		c2 := contexts[j]
+		if c2.Current {
+			return true
+		}
+
+		return c1.Name < c2.Name
+	})
+
+	return contexts
+}
+
+func CheckExistingContext(contextName string) bool {
+	for _, context := range KubeContexts() {
+		if context.Name == contextName {
+			return true
 		}
 	}
-	return "", fmt.Errorf("account id for \"%s\" not found", user.ActiveAccountName)
+
+	return false
 }
 
-func OpenBrowserForGitLogin(ingressHost string, user string, account string) error {
-	var b bytes.Buffer
-	if !strings.HasPrefix(ingressHost, "http") {
-		b.WriteString("https://")
-	}
-	b.WriteString(ingressHost)
-	b.WriteString("/app-proxy/api/git-auth/github?userId=" + user + "&accountId=" + account)
-
-	url := b.String()
-	err := browser.OpenURL(url)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Follow instructions in web browser")
-	time.Sleep(2 * time.Second)
-
-	return nil
+func KubeCurrentServer() (string, error) {
+	return KubeServerByContextName("")
 }
 
 func KubeContextNameByServer(server string) (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
+	conf := kubeConfig()
 	for contextName, context := range conf.Contexts {
 		if cluster, ok := conf.Clusters[context.Cluster]; ok {
 			if cluster.Server == server {
@@ -233,14 +232,22 @@ func KubeContextNameByServer(server string) (string, error) {
 }
 
 func KubeServerByContextName(contextName string) (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
+	conf := kubeConfig()
+	if contextName == "" {
+		contextName = conf.CurrentContext
 	}
 
-	currentContext := conf.Contexts[contextName]
-	return conf.Clusters[currentContext.Cluster].Server, nil
+	context := conf.Contexts[contextName]
+	if context == nil {
+		return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
+	}
+
+	cluster := conf.Clusters[context.Cluster]
+	if cluster == nil {
+		return "", fmt.Errorf("kubeconfig file missing cluster \"%s\"", context.Cluster)
+	}
+
+	return cluster.Server, nil
 }
 
 func DecorateErrorWithDocsLink(err error, link ...string) error {
