@@ -1,4 +1,4 @@
-VERSION=v0.0.294
+VERSION=v0.0.295
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
