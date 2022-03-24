@@ -6,5 +6,4 @@
       memory: 4Gi
     requests:
       cpu: 500m
-      # memory: 2.7Gi
       memory: 1Gi

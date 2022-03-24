@@ -109,16 +109,10 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 		}
 	}
 
-	// tpl := &eventsourcev1alpha1.Template{
-	// 	Container: &v1.Container{
-	// 		Resources: defaultResourceRequirements(),
-	// 	},
-	// }
-
 	tpl := &eventsourcev1alpha1.Template{Container: &v1.Container{}}
 
 	if store.Get().SetDefaultResources {
-		defaultResourceRequirements(tpl.Container)
+		SetDefaultResourceRequirements(tpl.Container)
 	}
 
 	if opts.ServiceAccountName != "" {
@@ -212,7 +206,7 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 	tpl := &sensorsv1alpha1.Template{Container: &v1.Container{}}
 
 	if store.Get().SetDefaultResources {
-		defaultResourceRequirements(tpl.Container)
+		SetDefaultResourceRequirements(tpl.Container)
 	}
 
 	return &sensorsv1alpha1.Sensor{
@@ -280,7 +274,7 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 	}
 }
 
-func defaultResourceRequirements(cont *v1.Container) {
+func SetDefaultResourceRequirements(cont *v1.Container) {
 	// cont.Resources.Requests = make(map[v1.ResourceName]kubeResource.Quantity)
 	cont.Resources.Requests = make(map[v1.ResourceName]kubeResource.Quantity)
 	cont.Resources.Limits = make(map[v1.ResourceName]kubeResource.Quantity)
