@@ -37,6 +37,7 @@ type (
 	ClusterAddOptions struct {
 		runtimeName string
 		kubeContext string
+		kubeconfig  string
 		dryRun      bool
 		kubeFactory kube.Factory
 	}
@@ -84,7 +85,7 @@ func NewClusterAddCommand() *cobra.Command {
 				return err
 			}
 
-			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context"))
+			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -119,7 +120,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	ingressUrl := *runtime.IngressHost
-	server, err := util.KubeServerByContextName(opts.kubeContext)
+	server, err := util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
 	if err != nil {
 		return fmt.Errorf("failed getting server for context \"%s\": %w", opts.kubeContext, err)
 	}
@@ -201,20 +202,21 @@ func NewClusterListCommand() *cobra.Command {
 			return err
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runClusterList(cmd.Context(), runtimeName)
+			kubeconfig := cmd.Flag("kubeconfig").Value.String()
+			return runClusterList(cmd.Context(), runtimeName, kubeconfig)
 		},
 	}
 
 	return cmd
 }
 
-func runClusterList(ctx context.Context, runtimeName string) error {
+func runClusterList(ctx context.Context, runtimeName, kubeconfig string) error {
 	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 	if err != nil {
 		return err
 	}
 
-	kubeContext, err := util.KubeContextNameByServer(*runtime.Cluster)
+	kubeContext, err := util.KubeContextNameByServer(*runtime.Cluster, kubeconfig)
 	if err != nil {
 		return fmt.Errorf("failed getting context for \"%s\": %w", *runtime.Cluster, err)
 	}

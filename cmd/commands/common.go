@@ -362,23 +362,25 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	return false, nil
 }
 
-func ensureKubeContextName(flag *pflag.Flag) (string, error) {
-	contextName, err := getKubeContextName(flag)
+func ensureKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
+	contextName, err := getKubeContextName(context, kubeconfig)
 	if err != nil {
 		return "", err
 	}
 
 	if contextName == "" {
-		return "", fmt.Errorf("must supply value for \"%s\"", flag.Name)
+		return "", fmt.Errorf("must supply value for \"%s\"", context.Name)
 	}
 
 	return contextName, nil
 }
 
-func getKubeContextName(flag *pflag.Flag) (string, error) {
-	contextName := flag.Value.String()
+func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
+	kubeconfigPath := kubeconfig.Value.String()
+
+	contextName := context.Value.String()
 	if contextName != "" {
-		if !util.CheckExistingContext(contextName) {
+		if !util.CheckExistingContext(contextName, kubeconfigPath) {
 			return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
 		}
 
@@ -387,13 +389,13 @@ func getKubeContextName(flag *pflag.Flag) (string, error) {
 
 	if !store.Get().Silent {
 		var err error
-		contextName, err = getKubeContextNameFromUserSelect()
+		contextName, err = getKubeContextNameFromUserSelect(kubeconfigPath)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	return contextName, flag.Value.Set(contextName)
+	return contextName, context.Value.Set(contextName)
 }
 
 type SelectItem struct {
@@ -401,8 +403,8 @@ type SelectItem struct {
 	Label string
 }
 
-func getKubeContextNameFromUserSelect() (string, error) {
-	contexts := util.KubeContexts()
+func getKubeContextNameFromUserSelect(kubeconfig string) (string, error) {
+	contexts := util.KubeContexts(kubeconfig)
 	templates := &promptui.SelectTemplates{
 		Active:   "▸ {{ .Name }} {{if .Current }}(current){{end}}",
 		Inactive: "  {{ .Name }} {{if .Current }}(current){{end}}",
