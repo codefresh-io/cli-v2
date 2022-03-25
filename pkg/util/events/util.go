@@ -275,7 +275,6 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 }
 
 func SetDefaultResourceRequirements(cont *v1.Container) {
-	// cont.Resources.Requests = make(map[v1.ResourceName]kubeResource.Quantity)
 	cont.Resources.Requests = make(map[v1.ResourceName]kubeResource.Quantity)
 	cont.Resources.Limits = make(map[v1.ResourceName]kubeResource.Quantity)
 
