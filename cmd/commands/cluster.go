@@ -189,6 +189,7 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 
 func NewClusterListCommand() *cobra.Command {
 	var runtimeName string
+	var kubeconfig string
 
 	cmd := &cobra.Command{
 		Use:     "list RUNTIME_NAME",
@@ -202,10 +203,11 @@ func NewClusterListCommand() *cobra.Command {
 			return err
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			kubeconfig := cmd.Flag("kubeconfig").Value.String()
 			return runClusterList(cmd.Context(), runtimeName, kubeconfig)
 		},
 	}
+
+	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to the kubeconfig file")
 
 	return cmd
 }
