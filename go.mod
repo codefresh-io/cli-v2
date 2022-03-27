@@ -255,6 +255,10 @@ replace (
 	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+	github.com/nats-io/nats-server => github.com/nats-io/nats-server/v2 v2.7.4
+
+	// Security fixes
+	github.com/rs/cors => github.com/rs/cors v1.8.2
 
 	google.golang.org/grpc => google.golang.org/grpc v1.15.0
 
