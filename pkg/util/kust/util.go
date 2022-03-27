@@ -22,7 +22,7 @@ import (
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/ghodss/yaml"
-	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 )

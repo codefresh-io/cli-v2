@@ -27,6 +27,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.1
+	golang.org/x/text v0.3.7
 	gopkg.in/segmentio/analytics-go.v3 v3.1.0
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
@@ -212,7 +213,6 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/notify v0.1.0 // indirect
@@ -256,6 +256,7 @@ replace (
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/nats-io/nats-server => github.com/nats-io/nats-server/v2 v2.7.4
+	github.com/nats-io/nats-server/v2 => github.com/nats-io/nats-server/v2 v2.7.4
 
 	// Security fixes
 	github.com/rs/cors => github.com/rs/cors v1.8.2
