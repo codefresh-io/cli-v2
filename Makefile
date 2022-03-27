@@ -1,4 +1,4 @@
-VERSION=v0.0.296
+VERSION=v0.0.297
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -173,7 +173,7 @@ $(GOBIN)/mockery:
 $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.36.0
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.45.2
 
 .PHONY: flatten-manifests-base-paths
 flatten-manifests-base-paths:

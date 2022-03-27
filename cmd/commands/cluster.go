@@ -138,7 +138,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return nil
 	}
 
-	return opts.kubeFactory.Apply(ctx, "", manifests)
+	return opts.kubeFactory.Apply(ctx, manifests)
 }
 
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
