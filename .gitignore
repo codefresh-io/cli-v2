@@ -5,6 +5,7 @@
 *.so
 *.dylib
 coverage.txt
+.dccache
 
 # Test binary, built with `go test -c`
 *.test
