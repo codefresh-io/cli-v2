@@ -17,9 +17,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -29,6 +26,8 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
+	"strings"
 )
 
 type (
@@ -87,6 +86,7 @@ func NewGitIntegrationCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	cmd.AddCommand(NewGitIntegrationRemoveCommand(client))
 	cmd.AddCommand(NewGitIntegrationRegisterCommand(client))
 	cmd.AddCommand(NewGitIntegrationDeregisterCommand(client))
+	cmd.AddCommand(NewGitAuthCommand())
 
 	return cmd
 }
@@ -403,6 +403,39 @@ func getAppProxyClient(runtime *string, client *sdk.AppProxyAPI) func(*cobra.Com
 
 		return nil
 	}
+}
+
+func NewGitAuthCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "auth",
+		Short: "Authenticate user",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return RunGitAuthCommand(cmd.Context(), cmd)
+		},
+	}
+
+	return cmd
+}
+
+func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
+	var err error
+	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
+	if err != nil {
+		return err
+	}
+
+	accountId, err := util.CurrentAccount(user)
+	if err != nil {
+		return err
+	}
+
+	runtimeName := cmd.Flag("runtime").Value.String()
+	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return err
+	}
+
+	return util.OpenBrowserForGitLogin(*runtime.IngressHost, user.ID, accountId)
 }
 
 func printIntegration(i interface{}, format string) error {

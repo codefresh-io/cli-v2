@@ -36,7 +36,6 @@ import (
 
 	"github.com/manifoldco/promptui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -163,7 +162,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	var (
 		runtimeName string
-		err error
+		err         error
 	)
 
 	if len(args) > 0 {
@@ -363,66 +362,60 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	return false, nil
 }
 
-func ensureKubeContextName(flag *pflag.Flag) (string, error) {
-	contextName, err := getKubeContextName(flag)
+func ensureKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
+	contextName, err := getKubeContextName(context, kubeconfig)
 	if err != nil {
 		return "", err
 	}
 
 	if contextName == "" {
-		return "", fmt.Errorf("must supply value for \"%s\"", flag.Name)
+		return "", fmt.Errorf("must supply value for \"%s\"", context.Name)
 	}
 
 	return contextName, nil
 }
 
-func getKubeContextName(flag *pflag.Flag) (string, error) {
-	contextName := flag.Value.String()
+func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
+	kubeconfigPath := kubeconfig.Value.String()
+
+	contextName := context.Value.String()
 	if contextName != "" {
+		if !util.CheckExistingContext(contextName, kubeconfigPath) {
+			return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
+		}
+
 		return contextName, nil
 	}
 
 	if !store.Get().Silent {
 		var err error
-		contextName, err = getKubeContextNameFromUserSelect()
+		contextName, err = getKubeContextNameFromUserSelect(kubeconfigPath)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	return contextName, flag.Value.Set(contextName)
+	return contextName, context.Value.Set(contextName)
 }
 
-func getKubeContextNameFromUserSelect() (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
+type SelectItem struct {
+	Value string
+	Label string
+}
 
-	contextsList := conf.Contexts
-	currentContext := conf.CurrentContext
-	contextsNamesToShowUser := []string{currentContext + " (current)"}
-	contextsIndex := []string{currentContext}
-
-	for key := range contextsList {
-		if key == currentContext {
-			continue
-		}
-
-		contextsIndex = append(contextsIndex, key)
-		contextsNamesToShowUser = append(contextsNamesToShowUser, key)
-	}
-
+func getKubeContextNameFromUserSelect(kubeconfig string) (string, error) {
+	contexts := util.KubeContexts(kubeconfig)
 	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
+		Active:   "▸ {{ .Name }} {{if .Current }}(current){{end}}",
+		Inactive: "  {{ .Name }} {{if .Current }}(current){{end}}",
+		Selected: "{{ .Name | yellow }}",
 	}
 
 	labelStr := fmt.Sprintf("%vSelect kube context%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     contextsNamesToShowUser,
+		Items:     contexts,
 		Templates: templates,
 	}
 
@@ -431,7 +424,7 @@ func getKubeContextNameFromUserSelect() (string, error) {
 		return "", err
 	}
 
-	return contextsIndex[index], nil
+	return contexts[index].Name, nil
 }
 
 func validateIngressHost(ingressHost string) error {

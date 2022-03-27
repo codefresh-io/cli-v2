@@ -98,6 +98,7 @@ type (
 		CommonConfig                   *runtime.CommonConfig
 		versionStr                     string
 		kubeContext                    string
+		kubeconfig                     string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -276,6 +277,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	}
 
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
+	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 
@@ -310,7 +312,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"))
+	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
@@ -373,7 +375,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"))
+	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
@@ -738,7 +740,7 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 		return nil, "", fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	server, err := util.CurrentServer()
+	server, err := util.KubeCurrentServer(opts.kubeconfig)
 	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, false, true)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get current server address: %w", err)

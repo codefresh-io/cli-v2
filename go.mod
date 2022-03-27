@@ -22,6 +22,7 @@ require (
 	github.com/manifoldco/promptui v0.8.0
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/openshift/api v3.9.0+incompatible
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/rkrmr33/checklist v0.0.5
 	github.com/segmentio/backo-go v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
