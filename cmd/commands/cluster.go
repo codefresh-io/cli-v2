@@ -213,10 +213,6 @@ func NewClusterRemoveCommand() *cobra.Command {
 				return err
 			}
 
-			if opts.server == "" {
-				return fmt.Errorf("must supply value for the cluster's server url with --server-url flag")
-			}
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
