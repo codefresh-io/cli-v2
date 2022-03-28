@@ -225,19 +225,20 @@ func NewClusterRemoveCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&opts.server, "server-url", "", "The cluster's server url")
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "server-url"))
 
 	return cmd
 }
 
 func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, *&opts.runtimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
 
 	err = appProxy.AppProxyClusters().RemoveCluster(ctx, opts.server, opts.runtimeName)
 	if err != nil {
-		return fmt.Errorf("failed to get app-proxy client, cluster was not removed")
+		return fmt.Errorf("failed to remove cluster: %w", err)
 	}
 
 	log.G(ctx).Info("cluster was removed successfully")
