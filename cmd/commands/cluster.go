@@ -41,6 +41,11 @@ type (
 		dryRun      bool
 		kubeFactory kube.Factory
 	}
+
+	ClusterRemoveOptions struct {
+		server      string
+		runtimeName string
+	}
 )
 
 var minAddClusterSupportedVersion = semver.MustParse("0.0.283")
@@ -59,6 +64,7 @@ func NewClusterCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewClusterAddCommand())
+	cmd.AddCommand(NewClusterRemoveCommand())
 	cmd.AddCommand(NewClusterListCommand())
 
 	return cmd
@@ -185,6 +191,58 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
 	return k
+}
+
+func NewClusterRemoveCommand() *cobra.Command {
+	var (
+		opts ClusterRemoveOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:     "remove RUNTIME_NAME",
+		Short:   "Removes a cluster from a given runtime",
+		Args:    cobra.MaximumNArgs(1),
+		Example: util.Doc(`<BIN> cluster remove my-runtime --server-url my-server-url`),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			ctx := cmd.Context()
+
+			opts.runtimeName, err = ensureRuntimeName(ctx, args)
+			if err != nil {
+				return err
+			}
+
+			if opts.server == "" {
+				return fmt.Errorf("must supply value for the cluster's server url with --server-url flag")
+			}
+
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runClusterRemove(cmd.Context(), &opts)
+		},
+	}
+
+	cmd.Flags().StringVar(&opts.server, "server-url", "", "The cluster's server url")
+
+	return cmd
+}
+
+func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, *&opts.runtimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return err
+	}
+
+	err = appProxy.AppProxyClusters().RemoveCluster(ctx, opts.server, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get app-proxy client, cluster was not removed")
+	}
+
+	log.G(ctx).Info("cluster was removed successfully")
+
+	return nil
 }
 
 func NewClusterListCommand() *cobra.Command {
