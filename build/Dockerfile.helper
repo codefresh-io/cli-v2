@@ -1,4 +1,4 @@
-FROM golang:1.17.8-alpine3.15
+FROM golang:1.18.0-alpine3.15
 
 RUN apk -U add --no-cache \
   bash \
@@ -19,7 +19,9 @@ RUN curl -L https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_
   && rm gh.tar.gz \
   && rm -rf gh_${GH_VERSION}_linux_amd64
 
-RUN curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash \
-  && mv /go/kustomize /usr/bin
+RUN curl -Ls https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.3/kustomize_v4.5.3_linux_amd64.tar.gz --output kustomize.tar.gz  \
+  && tar -xzf kustomize.tar.gz \
+  && mv ./kustomize /usr/bin \
+  && rm kustomize.tar.gz
 
 ENTRYPOINT [ "/bin/bash" ]

@@ -15,21 +15,28 @@
 package util
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/browser"
 
 	"github.com/briandowns/spinner"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -161,34 +168,99 @@ func EscapeAppsetFieldName(field string) string {
 	return appsetFieldRegexp.ReplaceAllString(field, "_")
 }
 
-func CurrentContext() (string, error) {
+func kubeConfig(kubeconfig string) *clientcmdapi.Config {
 	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
+	if kubeconfig != "" {
+		configAccess.GlobalFile = kubeconfig
 	}
-
-	return conf.CurrentContext, nil
+	conf, err := configAccess.GetStartingConfig()
+	Die(err, "failed reading kubeconfig file")
+	return conf
 }
 
-func CurrentServer() (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	currentContext := conf.Contexts[conf.CurrentContext]
-	return conf.Clusters[currentContext.Cluster].Server, nil
+type kubeContext struct {
+	Name    string
+	Current bool
 }
 
-func KubeContextNameByServer(server string) (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
+func KubeContexts(kubeconfig string) []kubeContext {
+	conf := kubeConfig(kubeconfig)
+	contexts := make([]kubeContext, len(conf.Contexts))
+	i := 0
+	for key := range conf.Contexts {
+		contexts[i] = kubeContext{
+			Name:    key,
+			Current: key == conf.CurrentContext,
+		}
+		i += 1
 	}
 
+	sort.SliceStable(contexts, func(i, j int) bool {
+		c1 := contexts[i]
+		if c1.Current {
+			return true
+		}
+
+		c2 := contexts[j]
+		if c2.Current {
+			return true
+		}
+
+		return c1.Name < c2.Name
+	})
+
+	return contexts
+}
+
+func CheckExistingContext(contextName, kubeconfig string) bool {
+	for _, context := range KubeContexts(kubeconfig) {
+		if context.Name == contextName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func KubeCurrentServer(kubeconfig string) (string, error) {
+	return KubeServerByContextName("", kubeconfig)
+}
+
+func CurrentAccount(user *codefresh.User) (string, error) {
+	for i := range user.Accounts {
+		if user.Accounts[i].Name == user.ActiveAccountName {
+			return user.Accounts[i].ID, nil
+		}
+	}
+	return "", fmt.Errorf("account id for \"%s\" not found", user.ActiveAccountName)
+}
+
+func OpenBrowserForGitLogin(ingressHost string, user string, account string) error {
+	var b bytes.Buffer
+	if !strings.HasPrefix(ingressHost, "http") {
+		b.WriteString("https://")
+	}
+	b.WriteString(ingressHost)
+	b.WriteString("/app-proxy/api/git-auth/github?userId=" + user + "&accountId=" + account)
+
+	url, err := url.Parse(b.String())
+	if err != nil {
+		return err
+	}
+
+	err = browser.OpenURL(url.String())
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Follow instructions in web browser")
+	time.Sleep(2 * time.Second)
+
+	return nil
+}
+
+func KubeContextNameByServer(server, kubeconfig string) (string, error) {
+	conf := kubeConfig(kubeconfig)
 	for contextName, context := range conf.Contexts {
 		if cluster, ok := conf.Clusters[context.Cluster]; ok {
 			if cluster.Server == server {
@@ -200,15 +272,23 @@ func KubeContextNameByServer(server string) (string, error) {
 	return "", fmt.Errorf("Context not found for server \"%s\"", server)
 }
 
-func KubeServerByContextName(contextName string) (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
+func KubeServerByContextName(contextName, kubeconfig string) (string, error) {
+	conf := kubeConfig(kubeconfig)
+	if contextName == "" {
+		contextName = conf.CurrentContext
 	}
 
-	currentContext := conf.Contexts[contextName]
-	return conf.Clusters[currentContext.Cluster].Server, nil
+	context := conf.Contexts[contextName]
+	if context == nil {
+		return "", fmt.Errorf("kubeconfig file missing context \"%s\"", contextName)
+	}
+
+	cluster := conf.Clusters[context.Cluster]
+	if cluster == nil {
+		return "", fmt.Errorf("kubeconfig file missing cluster \"%s\"", context.Cluster)
+	}
+
+	return cluster.Server, nil
 }
 
 func DecorateErrorWithDocsLink(err error, link ...string) error {

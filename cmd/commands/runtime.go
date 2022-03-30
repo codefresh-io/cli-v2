@@ -44,9 +44,10 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/Masterminds/semver/v3"
-	appset "github.com/argoproj-labs/applicationset/api/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -54,6 +55,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	appset "github.com/argoproj/applicationset/api/v1alpha1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
@@ -70,8 +72,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kustid "sigs.k8s.io/kustomize/api/resid"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -98,6 +100,7 @@ type (
 		CommonConfig                   *runtime.CommonConfig
 		versionStr                     string
 		kubeContext                    string
+		kubeconfig                     string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -276,6 +279,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	}
 
 	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
+	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 
@@ -310,7 +314,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"))
+	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
 	handleCliStep(reporter.InstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
@@ -373,7 +377,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"))
+	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
@@ -601,11 +605,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	shouldRollback := opts.DisableRollback
+	disableRollback := opts.DisableRollback
 
 	defer func() {
 		// will rollback if err is not nil and it is safe to do so
-		postInstallationHandler(ctx, opts, err, shouldRollback)
+		postInstallationHandler(ctx, opts, err, &disableRollback)
 	}()
 
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
@@ -694,7 +698,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	// if we got to this point the runtime was installed successfully
 	// thus we shall not perform a rollback after this point.
-	shouldRollback = false
+	disableRollback = true
 
 	if store.Get().SkipIngress {
 		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, false, true)
@@ -738,7 +742,7 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 		return nil, "", fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	server, err := util.CurrentServer()
+	server, err := util.KubeCurrentServer(opts.kubeconfig)
 	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, false, true)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get current server address: %w", err)
@@ -1810,7 +1814,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	kust.Resources = append(kust.Resources, "ingress.yaml")
 	kust.Patches = append(kust.Patches, kusttypes.Patch{
 		Target: &kusttypes.Selector{
-			KrmId: kusttypes.KrmId{
+			ResId: kustid.ResId{
 				Gvk: kustid.Gvk{
 					Group:   appsv1.SchemeGroupVersion.Group,
 					Version: appsv1.SchemeGroupVersion.Version,
@@ -1912,7 +1916,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
 
-	if err = opts.KubeFactory.Apply(ctx, opts.RuntimeName, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
+	if err = opts.KubeFactory.Apply(ctx, aputil.JoinManifests(runtimeTokenSecret, argoTokenSecret)); err != nil {
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
@@ -1998,9 +2002,10 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Codefresh ", strings.Title(reporterCreateOpts.reporterName), " manifests")
+	titleCase := cases.Title(language.AmericanEnglish)
+	log.G(ctx).Info("Pushing Codefresh ", titleCase.String(reporterCreateOpts.reporterName), " manifests")
 
-	pushMessage := "Created Codefresh" + strings.Title(reporterCreateOpts.reporterName) + "Reporter"
+	pushMessage := "Created Codefresh" + titleCase.String(reporterCreateOpts.reporterName) + "Reporter"
 
 	return apu.PushWithMessage(ctx, r, pushMessage)
 }
@@ -2240,8 +2245,8 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
-func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err error, shouldRollback bool) {
-	if err != nil && shouldRollback {
+func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err error, disableRollback *bool) {
+	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
