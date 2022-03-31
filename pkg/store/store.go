@@ -25,14 +25,14 @@ import (
 var s Store
 
 var (
-	binaryName      = "cli-v2"
-	version         = "v99.99.99"
-	buildDate       = ""
-	gitCommit       = ""
-	segmentWriteKey = ""
-	maxDefVersion   = "1.0.1"
-	RuntimeDefURL   = "manifests/runtime.yaml"
-	AddClusterDefURL   = "../manifests/add-cluster/kustomize"
+	binaryName       = "cli-v2"
+	version          = "v99.99.99"
+	buildDate        = ""
+	gitCommit        = ""
+	segmentWriteKey  = ""
+	maxDefVersion    = "1.0.1"
+	RuntimeDefURL    = "manifests/runtime.yaml"
+	AddClusterDefURL = "../manifests/add-cluster/kustomize"
 )
 
 type Version struct {
@@ -116,6 +116,7 @@ type Store struct {
 	InsecureIngressHost                 bool
 	BypassIngressClassCheck             bool
 	SkipIngress                         bool
+	SetDefaultResources                 bool
 	MinimumMemorySizeRequired           string
 	MinimumCpuRequired                  string
 	MinimumLocalDiskSizeRequired        string

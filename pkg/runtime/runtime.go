@@ -127,7 +127,11 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	}
 
 	for i := range runtime.Spec.Components {
-		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
+		url := runtime.Spec.Components[i].URL
+		if store.Get().SetDefaultResources {
+			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+		}
+		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
 	}
 
 	return runtime, nil
@@ -243,7 +247,11 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 }
 
 func (r *RuntimeSpec) FullSpecifier() string {
-	return buildFullURL(r.BootstrapSpecifier, r.Version, r.devMode)
+	url := r.BootstrapSpecifier
+	if store.Get().SetDefaultResources {
+		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+	}
+	return buildFullURL(url, r.Version, r.devMode)
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
