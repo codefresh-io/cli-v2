@@ -1443,6 +1443,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		KubeFactory:  opts.KubeFactory,
 		Force:        opts.Force,
 		FastExit:     opts.FastExit,
+		KubeContextName: opts.kubeContext,
 	})
 	cancel() // to tell the progress to stop displaying even if it's not finished
 	if opts.Force {
