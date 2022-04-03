@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - ../../argo-workflows
+patches:
+  - path: argo-workflows.jsonpatch.yaml
+    target:
+      name: workflow-controller
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: argo-server.jsonpatch.yaml
+    target:
+      name: argo-server
+      kind: Deployment
+      group: apps
+      version: v1

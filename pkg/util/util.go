@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/pkg/browser"
 	"net/url"
 	"os"
 	"os/signal"
@@ -27,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/browser"
 
 	"github.com/briandowns/spinner"
 	"github.com/codefresh-io/cli-v2/pkg/log"

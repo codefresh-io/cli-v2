@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - ../../argo-events
+patches:
+  - path: eventbus.jsonpatch.yaml
+    target:
+      name: codefresh-eventbus
+      kind: EventBus
+      group: argoproj.io
+      version: v1alpha1
+  - path: eventbus-controller.jsonpatch.yaml
+    target:
+      name: eventbus-controller
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: sensor-controller.jsonpatch.yaml
+    target:
+      name: sensor-controller
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: eventsource-controller.jsonpatch.yaml
+    target:
+      name: eventsource-controller
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: events-webhook.jsonpatch.yaml
+    target:
+      name: events-webhook
+      kind: Deployment
+      group: apps
+      version: v1

@@ -134,7 +134,7 @@ func RunGitIntegrationListCommand(ctx context.Context, client sdk.AppProxyAPI, f
 				intg.Name,
 				intg.Provider,
 				intg.APIURL,
-				len(intg.RegisteredUsers),
+				len(intg.Users),
 				intg.SharingPolicy.String(),
 			)
 			if err != nil {

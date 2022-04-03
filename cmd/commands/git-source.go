@@ -40,6 +40,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
+	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
@@ -352,6 +353,12 @@ func createCronExamplePipeline(opts *gitSourceCronExampleOptions) error {
 }
 
 func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
+	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+
+	if store.Get().SetDefaultResources {
+		eventsutil.SetDefaultResourceRequirements(tpl.Container)
+	}
+
 	return &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       eventsourcereg.Kind,
@@ -361,6 +368,7 @@ func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
 			Name: store.Get().CronExampleEventSourceName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
+			Template: tpl,
 			EventBusName: store.Get().EventBusName,
 			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
 				store.Get().CronExampleEventName: {
@@ -380,6 +388,15 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alph
 		},
 	}
 
+	tpl := &sensorsv1alpha1.Template{
+		ServiceAccountName: "argo-server",
+		Container: &corev1.Container{},
+	}
+
+	if store.Get().SetDefaultResources {
+		eventsutil.SetDefaultResourceRequirements(tpl.Container)
+	}
+
 	return &sensorsv1alpha1.Sensor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       sensorreg.Kind,
@@ -390,9 +407,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alph
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: "codefresh-eventbus",
-			Template: &sensorsv1alpha1.Template{
-				ServiceAccountName: "argo-server",
-			},
+			Template: tpl,
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
@@ -414,11 +429,6 @@ func createCronExampleTrigger() (*sensorsv1alpha1.Trigger, error) {
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().CronExampleTriggerTemplateName,
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
-				GroupVersionResource: metav1.GroupVersionResource{
-					Group:    "argoproj.io",
-					Version:  "v1alpha1",
-					Resource: store.Get().WorkflowResourceName,
-				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
 					Resource: &workflowResource,
@@ -661,9 +671,9 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 	}
 
-	c.SrcPath = opts.GsCloneOpts.Path()
-	c.SrcRepoURL = opts.GsCloneOpts.URL()
-	c.SrcTargetRevision = opts.GsCloneOpts.Revision()
+	c.Config.SrcPath = opts.GsCloneOpts.Path()
+	c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
+	c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
 	err = fs.WriteJson(fileName, c)
 	if err != nil {
@@ -687,28 +697,26 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: store.Get().CronExampleTriggerTemplateName,
 		},
-		Spec: wfv1alpha1.WorkflowTemplateSpec{
-			WorkflowSpec: wfv1alpha1.WorkflowSpec{
-				Arguments: wfv1alpha1.Arguments{
-					Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
-				},
-				Entrypoint:         "whalesay",
-				ServiceAccountName: store.Get().CodefreshSA,
-				PodGC: &wfv1alpha1.PodGC{
-					Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
-				},
-				Templates: []wfv1alpha1.Template{
-					{
-						Name: "whalesay",
-						Inputs: wfv1alpha1.Inputs{
-							Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
-							Artifacts:  wfv1alpha1.Artifacts{},
-						},
-						Container: &corev1.Container{
-							Image:   "docker/whalesay:latest",
-							Command: []string{"cowsay"},
-							Args:    []string{"{{inputs.parameters.message}}"},
-						},
+		Spec: wfv1alpha1.WorkflowSpec{
+			Arguments: wfv1alpha1.Arguments{
+				Parameters: []wfv1alpha1.Parameter{{Name: "message"}},
+			},
+			Entrypoint:         "whalesay",
+			ServiceAccountName: store.Get().CodefreshSA,
+			PodGC: &wfv1alpha1.PodGC{
+				Strategy: wfv1alpha1.PodGCOnWorkflowCompletion,
+			},
+			Templates: []wfv1alpha1.Template{
+				{
+					Name: "whalesay",
+					Inputs: wfv1alpha1.Inputs{
+						Parameters: []wfv1alpha1.Parameter{{Name: "message", Value: wfv1alpha1.AnyStringPtr("hello world")}},
+						Artifacts:  wfv1alpha1.Artifacts{},
+					},
+					Container: &corev1.Container{
+						Image:   "docker/whalesay:latest",
+						Command: []string{"cowsay"},
+						Args:    []string{"{{inputs.parameters.message}}"},
 					},
 				},
 			},
@@ -821,6 +829,12 @@ func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) 
 func createGithubExampleEventSource(repoURL string, ingressHost string, runtimeName string) *eventsourcev1alpha1.EventSource {
 	repoOwner, repoName := getRepoOwnerAndNameFromRepoURL(repoURL)
 
+	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+
+	if store.Get().SetDefaultResources {
+		eventsutil.SetDefaultResourceRequirements(tpl.Container)
+	}
+
 	return &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       eventsourcereg.Kind,
@@ -831,6 +845,7 @@ func createGithubExampleEventSource(repoURL string, ingressHost string, runtimeN
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			EventBusName: store.Get().EventBusName,
+			Template: tpl,
 			Service: &eventsourcev1alpha1.Service{
 				Ports: []corev1.ServicePort{
 					{
@@ -888,11 +903,6 @@ func createGithubExampleTrigger() sensorsv1alpha1.Trigger {
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().GithubExampleTriggerTemplateName,
 			ArgoWorkflow: &sensorsv1alpha1.ArgoWorkflowTrigger{
-				GroupVersionResource: metav1.GroupVersionResource{
-					Group:    "argoproj.io",
-					Version:  "v1alpha1",
-					Resource: store.Get().WorkflowResourceName,
-				},
 				Operation: sensorsv1alpha1.Submit,
 				Source: &sensorsv1alpha1.ArtifactLocation{
 					Resource: &workflowResource,
@@ -948,6 +958,15 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 		},
 	}
 
+	tpl := &sensorsv1alpha1.Template{
+		Container: &corev1.Container{},
+		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
+	}
+
+	if store.Get().SetDefaultResources {
+		eventsutil.SetDefaultResourceRequirements(tpl.Container)
+	}
+
 	return &sensorsv1alpha1.Sensor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       sensorreg.Kind,
@@ -958,9 +977,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: store.Get().EventBusName,
-			Template: &sensorsv1alpha1.Template{
-				ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
-			},
+			Template: tpl,
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
