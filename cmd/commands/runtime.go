@@ -116,11 +116,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName      string
-		Version          *semver.Version
-		CloneOpts        *git.CloneOptions
-		CommonConfig     *runtime.CommonConfig
-		DisableTelemetry bool
+		RuntimeName         string
+		Version             *semver.Version
+		CloneOpts           *git.CloneOptions
+		CommonConfig        *runtime.CommonConfig
+		DisableTelemetry    bool
 	}
 
 	gvr struct {
@@ -267,6 +267,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
+	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -1669,6 +1670,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
+	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 
 	return cmd

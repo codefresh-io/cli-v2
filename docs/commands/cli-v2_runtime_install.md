@@ -43,6 +43,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider string             The git provider, one of: azure|gitea|github|gitlab
       --provider-api-url string     Git provider API url
       --repo string                 Repository URL [GIT_REPO]
+      --set-default-resources       If true, will set default requests and limits on all of the runtime components
       --skip-cluster-checks         Skips the cluster's checks
       --skip-ingress                Skips the creation of ingress resources
   -b, --upsert-branch               If true will try to checkout the specified branch and create it if it doesn't exist

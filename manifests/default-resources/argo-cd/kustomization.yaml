@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - ../../argo-cd
+
+patches:
+  - path: argocd-resources.argocd-application-controller.jsonpatch.yaml
+    target:
+      name: argocd-application-controller
+      kind: StatefulSet
+      group: apps
+      version: v1
+  - path: argocd-resources.argocd-applicationset-controller.jsonpatch.yaml
+    target:
+      name: argocd-applicationset-controller
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: argocd-resources.argocd-dex-server.jsonpatch.yaml
+    target:
+      name: argocd-dex-server
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: argocd-resources.argocd-redis.jsonpatch.yaml
+    target:
+      name: argocd-redis
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: argocd-resources.argocd-repo-server.jsonpatch.yaml
+    target:
+      name: argocd-repo-server
+      kind: Deployment
+      group: apps
+      version: v1
+  - path: argocd-resources.argocd-server.jsonpatch.yaml
+    target:
+      name: argocd-server
+      kind: Deployment
+      group: apps
+      version: v1

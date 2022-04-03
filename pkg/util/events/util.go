@@ -24,6 +24,7 @@ import (
 	sensorreg "github.com/argoproj/argo-events/pkg/apis/sensor"
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	kubeResource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -108,7 +109,12 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 		}
 	}
 
-	tpl := &eventsourcev1alpha1.Template{}
+	tpl := &eventsourcev1alpha1.Template{Container: &v1.Container{}}
+
+	if store.Get().SetDefaultResources {
+		SetDefaultResourceRequirements(tpl.Container)
+	}
+
 	if opts.ServiceAccountName != "" {
 		tpl.ServiceAccountName = opts.ServiceAccountName
 	}
@@ -197,6 +203,12 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 		})
 	}
 
+	tpl := &sensorsv1alpha1.Template{Container: &v1.Container{}}
+
+	if store.Get().SetDefaultResources {
+		SetDefaultResourceRequirements(tpl.Container)
+	}
+
 	return &sensorsv1alpha1.Sensor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       sensorreg.Kind,
@@ -210,6 +222,7 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 			},
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
+			Template:     tpl,
 			EventBusName: opts.EventBusName,
 			Dependencies: dependencies,
 			Triggers:     triggers,
@@ -259,4 +272,14 @@ func createTrigger(opts *createTriggerOptions) *sensorsv1alpha1.Trigger {
 			},
 		},
 	}
+}
+
+func SetDefaultResourceRequirements(cont *v1.Container) {
+	cont.Resources.Requests = make(map[v1.ResourceName]kubeResource.Quantity)
+	cont.Resources.Limits = make(map[v1.ResourceName]kubeResource.Quantity)
+
+	cont.Resources.Requests[v1.ResourceMemory] = kubeResource.MustParse("64Mi")
+	cont.Resources.Requests[v1.ResourceCPU] = kubeResource.MustParse("250m")
+	cont.Resources.Limits[v1.ResourceMemory] = kubeResource.MustParse("128Mi")
+	cont.Resources.Limits[v1.ResourceCPU] = kubeResource.MustParse("500m")
 }
