@@ -205,8 +205,25 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	// upsert git-source repo
+	// TODO: check runtime version (if it's the new one that contains the new app-proxy)
+	
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return err
+	}
 
+	appSpecifier := opts.GsCloneOpts.Repo
+	isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
+
+	err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, isInternal)
+	if err != nil {
+		return fmt.Errorf("failed to create git-source: %w", err)
+	}
+
+
+	// TODO: if not, add a depracation log.
+	
+	// upsert git-source repo
 	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to clone git-source repo: %w", err)
@@ -470,10 +487,25 @@ func NewGitSourceListCommand() *cobra.Command {
 }
 
 func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal bool) error {
+
 	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
 	if isRuntimeExists == nil {
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
 	}
+
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return err
+	}
+
+	gitSourcesProxy, err := appProxy.AppProxyGitSources().List(ctx, runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to remove cluster: %w", err)
+	}
+
+	log.G(ctx).Info("GIT SOURCES: ", gitSourcesProxy)
+
+	// return nil
 
 	gitSources, err := cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
 	if err != nil {
@@ -580,7 +612,22 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 }
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
-	err := apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
+
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return err
+	}
+
+	err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
+	if err != nil {
+		return fmt.Errorf("failed to delete git-source: %w", err)
+	}
+
+
+
+
+	// TODO: deprecated
+	err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
 		CloneOpts:   opts.InsCloneOpts,
 		ProjectName: opts.RuntimeName,
 		AppName:     opts.GsName,
