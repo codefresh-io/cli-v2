@@ -154,6 +154,8 @@ github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
 github.com/argoproj-labs/argocd-autopilot v0.3.1 h1:zEa0gtlF+08kK6r3wnVyEUSV/tPE4a1mufTAdHSOjfU=
 github.com/argoproj-labs/argocd-autopilot v0.3.1/go.mod h1:arocnll/bOoq6GoRYW5RaG1qO/H75RIquwMDAP4ZDgI=
+github.com/argoproj-labs/argocd-autopilot v0.3.2 h1:kVrHEYAEnn/eftxuOWx8Kd8EmJP+CPLAP2UMUyDJC4g=
+github.com/argoproj-labs/argocd-autopilot v0.3.2/go.mod h1:z3k6U7sz0l4uIbiIMFCM+o3ZRrpJCVHi5RatQTA+tHU=
 github.com/argoproj/applicationset v0.4.1 h1:PzTn77TK7XQB3CdpCDPbwU4pQgip0x4qvuJQ8XiBk5E=
 github.com/argoproj/applicationset v0.4.1/go.mod h1:cJZ7CWG80kBII4QNalyAvSr8eVifo8jKkyXoVl9qXaA=
 github.com/argoproj/argo-cd/v2 v2.3.3 h1:SE1Cb8MDqP5T2iUtyL9bwpKYIvpGkVUsgzKCAqZZ5Vc=
