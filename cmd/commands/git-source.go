@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -39,9 +40,10 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -102,6 +104,8 @@ type (
 		Include string `json:"include"`
 	}
 )
+
+var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.304")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -206,54 +210,65 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
 	// TODO: check runtime version (if it's the new one that contains the new app-proxy)
-	
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
-	appSpecifier := opts.GsCloneOpts.Repo
-	isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
-
-	err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, isInternal)
-	if err != nil {
-		return fmt.Errorf("failed to create git-source: %w", err)
+	if rt.RuntimeVersion == nil {
+		return fmt.Errorf("runtime \"%s\" has no version", opts.RuntimeName)
 	}
 
-
-	// TODO: if not, add a depracation log.
-	
-	// upsert git-source repo
-	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to clone git-source repo: %w", err)
-	}
-
-	if opts.CreateDemoResources {
-		if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create git-source demo resources: %w", err)
+	version := semver.MustParse(*rt.RuntimeVersion)
+	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
 		}
+
+		appSpecifier := opts.GsCloneOpts.Repo
+		isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
+
+		err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, isInternal)
+		if err != nil {
+			return fmt.Errorf("failed to create git-source: %w", err)
+		}
+
+		return nil
 	} else {
-		if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create a git-source placeholder: %w", err)
+		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		// upsert git-source repo
+		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to clone git-source repo: %w", err)
 		}
+
+		if opts.CreateDemoResources {
+			if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
+				return fmt.Errorf("failed to create git-source demo resources: %w", err)
+			}
+		} else {
+			if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
+				return fmt.Errorf("failed to create a git-source placeholder: %w", err)
+			}
+		}
+
+		appDef := &runtime.AppDef{
+			Name: opts.GsName,
+			Type: application.AppTypeDirectory,
+			URL:  opts.GsCloneOpts.Repo,
+		}
+
+		appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
+
+		if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
+			return fmt.Errorf("failed to create git-source application. Err: %w", err)
+		}
+
+		log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
+
+		return nil
 	}
-
-	appDef := &runtime.AppDef{
-		Name: opts.GsName,
-		Type: application.AppTypeDirectory,
-		URL:  opts.GsCloneOpts.Repo,
-	}
-
-	appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
-
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
-		return fmt.Errorf("failed to create git-source application. Err: %w", err)
-	}
-
-	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
-
-	return nil
 }
 
 func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
@@ -385,7 +400,7 @@ func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
 			Name: store.Get().CronExampleEventSourceName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
-			Template: tpl,
+			Template:     tpl,
 			EventBusName: store.Get().EventBusName,
 			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
 				store.Get().CronExampleEventName: {
@@ -407,7 +422,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alph
 
 	tpl := &sensorsv1alpha1.Template{
 		ServiceAccountName: "argo-server",
-		Container: &corev1.Container{},
+		Container:          &corev1.Container{},
 	}
 
 	if store.Get().SetDefaultResources {
@@ -424,7 +439,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alph
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: "codefresh-eventbus",
-			Template: tpl,
+			Template:     tpl,
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
@@ -487,30 +502,44 @@ func NewGitSourceListCommand() *cobra.Command {
 }
 
 func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal bool) error {
+	// TODO: calling the same query twice, should refactor "checkExistingruntime to be singular, and return"
+	var gitSources []model.GitSource
 
-	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
-	if isRuntimeExists == nil {
-		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
-	}
-
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 	if err != nil {
-		return err
+		// TODO: think about how to do one call only, but still be descriptive
+		// idea: just have a mini implementation of CheckifExists, while actually retrieving it. or create a function for it. or change checkExistingruntime to return the runtime it already gets
+		return fmt.Errorf("failed getting runtime: %s", runtimeName)
 	}
 
-	gitSourcesProxy, err := appProxy.AppProxyGitSources().List(ctx, runtimeName)
-	if err != nil {
-		return fmt.Errorf("failed to remove cluster: %w", err)
+	if rt.RuntimeVersion == nil {
+		return fmt.Errorf("runtime \"%s\" has no version", runtimeName)
 	}
 
-	log.G(ctx).Info("GIT SOURCES: ", gitSourcesProxy)
-
-	// return nil
-
-	gitSources, err := cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
-	if err != nil {
-		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
+	version := semver.MustParse(*rt.RuntimeVersion)
+	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
+		}
+	
+		gitSources, err = appProxy.AppProxyGitSources().List(ctx, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed to get git-sources list. Err: %w", err)
+		}
+	} else {
+		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		gitSources, err = cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed to get git-sources list. Err: %w", err)
+		}
 	}
+
+
+
+
+
+
 
 	if len(gitSources) == 0 {
 		log.G(ctx).WithField("runtime", runtimeName).Info("no git-sources were found in runtime")
@@ -622,9 +651,6 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 	if err != nil {
 		return fmt.Errorf("failed to delete git-source: %w", err)
 	}
-
-
-
 
 	// TODO: deprecated
 	err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
@@ -892,7 +918,7 @@ func createGithubExampleEventSource(repoURL string, ingressHost string, runtimeN
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			EventBusName: store.Get().EventBusName,
-			Template: tpl,
+			Template:     tpl,
 			Service: &eventsourcev1alpha1.Service{
 				Ports: []corev1.ServicePort{
 					{
@@ -1006,7 +1032,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 	}
 
 	tpl := &sensorsv1alpha1.Template{
-		Container: &corev1.Container{},
+		Container:          &corev1.Container{},
 		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
 	}
 
@@ -1024,7 +1050,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: store.Get().EventBusName,
-			Template: tpl,
+			Template:     tpl,
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
