@@ -524,8 +524,9 @@ func checkIngressHostCertificate(ingress string) (bool, error) {
 	_, ok3 := urlErr.Err.(x509.UnknownAuthorityError)
 	_, ok4 := urlErr.Err.(x509.ConstraintViolationError)
 	_, ok5 := urlErr.Err.(x509.HostnameError)
+	ok6 := strings.Contains(urlErr.Err.Error(), "x509")
 
-	certErr := ok1 || ok2 || ok3 || ok4 || ok5
+	certErr := ok1 || ok2 || ok3 || ok4 || ok5 || ok6
 	if !certErr {
 		return false, fmt.Errorf("failed with non-certificate error: %w", err)
 	}
@@ -562,7 +563,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	if store.Get().Silent {
-		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
+		return fmt.Errorf("cancelled installation due to invalid ingress host certificate. you can try again with --insecure-ingress-host")
 	}
 
 	templates := &promptui.SelectTemplates{
