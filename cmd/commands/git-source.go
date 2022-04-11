@@ -208,16 +208,10 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
-
-	if rt.RuntimeVersion == nil {
-		return fmt.Errorf("runtime \"%s\" has no version", opts.RuntimeName)
-	}
-
-	version := semver.MustParse(*rt.RuntimeVersion)
 
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
@@ -705,17 +699,33 @@ func NewGitSourceEditCommand() *cobra.Command {
 }
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
+	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	
 	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
+		appSpecifier := fs.Join(opts.GsCloneOpts.Repo, opts.GsCloneOpts.Path())
+		revision := opts.GsCloneOpts.Revision()
 
+		if revision != "" {
+			appSpecifier = fs.Join(appSpecifier, "?ref=", revision)
+		}
+
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
+		}
+
+		err = appProxy.AppProxyGitSources().Edit(ctx, opts.GsName, appSpecifier)
+		if err != nil {
+			return fmt.Errorf("failed to edit git-source: %w", err)
+		}
 	} else {
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 
-		repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
 		}
