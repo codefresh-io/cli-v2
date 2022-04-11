@@ -502,44 +502,15 @@ func NewGitSourceListCommand() *cobra.Command {
 }
 
 func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal bool) error {
-	// TODO: calling the same query twice, should refactor "checkExistingruntime to be singular, and return"
-	var gitSources []model.GitSource
+	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
+	if isRuntimeExists == nil {
+		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
+	}
 
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	gitSources, err := cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
 	if err != nil {
-		// TODO: think about how to do one call only, but still be descriptive
-		// idea: just have a mini implementation of CheckifExists, while actually retrieving it. or create a function for it. or change checkExistingruntime to return the runtime it already gets
-		return fmt.Errorf("failed getting runtime: %s", runtimeName)
+		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
 	}
-
-	if rt.RuntimeVersion == nil {
-		return fmt.Errorf("runtime \"%s\" has no version", runtimeName)
-	}
-
-	version := semver.MustParse(*rt.RuntimeVersion)
-	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		appProxy, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
-		if err != nil {
-			return err
-		}
-	
-		gitSources, err = appProxy.AppProxyGitSources().List(ctx, runtimeName)
-		if err != nil {
-			return fmt.Errorf("failed to get git-sources list. Err: %w", err)
-		}
-	} else {
-		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", runtimeName, minAddClusterSupportedVersion)
-		gitSources, err = cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
-		if err != nil {
-			return fmt.Errorf("failed to get git-sources list. Err: %w", err)
-		}
-	}
-
-
-
-
-
-
 
 	if len(gitSources) == 0 {
 		log.G(ctx).WithField("runtime", runtimeName).Info("no git-sources were found in runtime")
