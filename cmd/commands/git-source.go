@@ -707,20 +707,12 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		appSpecifier := opts.GsCloneOpts.Repo
-		revision := opts.GsCloneOpts.Revision() // test
-
-		if revision != "" {
-			// TODO: maybe find a better way to concatenate without /
-			appSpecifier = appSpecifier + "?ref=" + revision
-		}
-
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 		if err != nil {
 			return err
 		}
 
-		err = appProxy.AppProxyGitSources().Edit(ctx, opts.GsName, appSpecifier)
+		err = appProxy.AppProxyGitSources().Edit(ctx, opts.GsName, opts.GsCloneOpts.Repo)
 		if err != nil {
 			return fmt.Errorf("failed to edit git-source: %w", err)
 		}
