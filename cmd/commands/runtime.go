@@ -2349,15 +2349,6 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func IfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
-	if opts.versionStr != "" {
-		log.G().Infof("vesionStr: %s", opts.versionStr)
-		return semver.NewVersion(opts.versionStr)
-	}
-
-	return nil, nil
-}
-
 func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
 	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
