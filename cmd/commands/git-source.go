@@ -528,7 +528,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 			return fmt.Errorf("failed to get git-sources list. Err: %w", err)
 		}
 	} else {
-		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", runtimeName, minAddClusterSupportedVersion)
 		gitSources, err = cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
 		if err != nil {
 			return fmt.Errorf("failed to get git-sources list. Err: %w", err)
