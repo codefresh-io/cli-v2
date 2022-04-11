@@ -4,9 +4,8 @@ go 1.18
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/argoproj-labs/argocd-autopilot v0.3.0
-	github.com/argoproj/applicationset v0.4.1
-	github.com/argoproj/argo-cd/v2 v2.3.2
+	github.com/argoproj-labs/argocd-autopilot v0.0.5-0.20220411092200-d029b4700f98
+	github.com/argoproj/argo-cd/v2 v2.0.0-20220407135446-5c2391f71fe0
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
 	github.com/argoproj/argo-workflows/v3 v3.3.1
 	github.com/briandowns/spinner v1.18.1
@@ -32,8 +31,8 @@ require (
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
-	sigs.k8s.io/kustomize/api v0.11.2
-	sigs.k8s.io/kustomize/kyaml v0.13.3
+	sigs.k8s.io/kustomize/api v0.11.4
+	sigs.k8s.io/kustomize/kyaml v0.13.6
 )
 
 require (
@@ -61,8 +60,8 @@ require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis/v2 v2.14.2 // indirect
 	github.com/antonmedv/expr v1.9.0 // indirect
-	github.com/argoproj/gitops-engine v0.6.1 // indirect
-	github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998 // indirect
+	github.com/argoproj/gitops-engine v0.6.2 // indirect
+	github.com/argoproj/notifications-engine v0.3.1-0.20220322174744-ac18ca10234c // indirect
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -264,12 +263,12 @@ replace (
 	google.golang.org/grpc => google.golang.org/grpc v1.15.0
 
 	// https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505627280
-	k8s.io/api => k8s.io/api v0.23.3
+	k8s.io/api => k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
-	k8s.io/apimachinery => k8s.io/apimachinery v0.23.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.23.1
 	k8s.io/apiserver => k8s.io/apiserver v0.23.1
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.23.1
-	k8s.io/client-go => k8s.io/client-go v0.23.3
+	k8s.io/client-go => k8s.io/client-go v0.23.1
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.23.1
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.23.1
 	k8s.io/code-generator => k8s.io/code-generator v0.23.1
