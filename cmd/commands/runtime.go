@@ -116,11 +116,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName         string
-		Version             *semver.Version
-		CloneOpts           *git.CloneOptions
-		CommonConfig        *runtime.CommonConfig
-		DisableTelemetry    bool
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -617,9 +617,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:    opts.RuntimeName,
 		Cluster:        server,
 		RuntimeVersion: runtimeVersion,
-		IngressHost:    &opts.IngressHost,
+		IngressHost:    opts.IngressHost,
 		ComponentNames: componentNames,
-		Repo:           &opts.InsCloneOpts.Repo,
+		Repo:           opts.InsCloneOpts.Repo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -630,6 +630,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeStoreIV = iv
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
+	rt.Spec.IngressClass = opts.IngressClass
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -1286,7 +1287,8 @@ func RunRuntimeList(ctx context.Context) error {
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
-		ingressHost := "N/A"
+		ingressHost := rt.IngressHost
+		ingressClass := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -1304,8 +1306,8 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage = *rt.HealthMessage
 		}
 
-		if rt.IngressHost != nil {
-			ingressHost = *rt.IngressHost
+		if rt.IngressClass != nil {
+			ingressClass = *rt.IngressClass
 		}
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -1318,6 +1320,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage,
 			installationStatus,
 			ingressHost,
+			ingressClass,
 		)
 		if err != nil {
 			return err
