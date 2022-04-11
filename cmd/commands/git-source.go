@@ -180,7 +180,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			return nil
 		},
-		
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
