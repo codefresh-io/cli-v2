@@ -232,8 +232,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		if err != nil {
 			return fmt.Errorf("failed to create git-source: %w", err)
 		}
-
-		return nil
 	} else {
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 		// upsert git-source repo
@@ -263,11 +261,10 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 			return fmt.Errorf("failed to create git-source application. Err: %w", err)
 		}
-
-		log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
-
-		return nil
 	}
+
+	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
+	return nil
 }
 
 func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
@@ -611,44 +608,36 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 }
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
-	if rt.RuntimeVersion == nil {
-		return fmt.Errorf("runtime \"%s\" has no version", opts.RuntimeName)
-	}
-
-	version := semver.MustParse(*rt.RuntimeVersion)
-	
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
+		}
 
+		err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
+		if err != nil {
+			return fmt.Errorf("failed to delete git-source: %w", err)
+		}
+	} else {
+		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
+			CloneOpts:   opts.InsCloneOpts,
+			ProjectName: opts.RuntimeName,
+			AppName:     opts.GsName,
+			Global:      false,
+		})
 
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
-	if err != nil {
-		return err
-	}
-
-	err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
-	if err != nil {
-		return fmt.Errorf("failed to delete git-source: %w", err)
-	}
-
-	// TODO: deprecated
-	err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
-		CloneOpts:   opts.InsCloneOpts,
-		ProjectName: opts.RuntimeName,
-		AppName:     opts.GsName,
-		Global:      false,
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
+		if err != nil {
+			return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
+		}
 	}
 
 	log.G(ctx).Infof("Successfully deleted the git-source: %s", opts.GsName)
-
 	return nil
 }
 
@@ -716,30 +705,42 @@ func NewGitSourceEditCommand() *cobra.Command {
 }
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
-	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
-		return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
-	}
-	c := &dirConfig{}
-	fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
-	err = fs.ReadJson(fileName, c)
-	if err != nil {
-		return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
+		return err
 	}
 
-	c.Config.SrcPath = opts.GsCloneOpts.Path()
-	c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
-	c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
+	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 
-	err = fs.WriteJson(fileName, c)
-	if err != nil {
-		return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
+	} else {
+		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+
+		repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
+		}
+		c := &dirConfig{}
+		fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
+		err = fs.ReadJson(fileName, c)
+		if err != nil {
+			return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
+		}
+	
+		c.Config.SrcPath = opts.GsCloneOpts.Path()
+		c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
+		c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
+	
+		err = fs.WriteJson(fileName, c)
+		if err != nil {
+			return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
+		}
+	
+		log.G(ctx).Info("Pushing updated GitSource to the installation repo")
+		if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
+			return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
+		}
 	}
 
-	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
-	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
-		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
-	}
 
 	return nil
 }
@@ -1212,4 +1213,17 @@ func unMarshalCustomObject(obj interface{}) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return crd, nil
+}
+
+func getRuntimeVersion(ctx context.Context, runtimeName string) (*semver.Version, error) {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return err
+	}
+
+	if rt.RuntimeVersion == nil {
+		return fmt.Errorf("runtime \"%s\" has no version", runtimeName)
+	}
+
+	return semver.MustParse(*rt.RuntimeVersion), nil
 }
