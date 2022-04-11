@@ -617,9 +617,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:    opts.RuntimeName,
 		Cluster:        server,
 		RuntimeVersion: runtimeVersion,
-		IngressHost:    opts.IngressHost,
+		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
-		Repo:           opts.InsCloneOpts.Repo,
+		Repo:           &opts.InsCloneOpts.Repo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
