@@ -248,7 +248,6 @@ require (
 )
 
 replace (
-
 	// https://github.com/argoproj/argo-cd/issues/8829
 	github.com/argoproj/argo-cd/v2 => github.com/argoproj/argo-cd/v2 v2.0.0-20220407135446-5c2391f71fe0
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
