@@ -700,18 +700,19 @@ func NewGitSourceEditCommand() *cobra.Command {
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
-	
+
 	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		appSpecifier := fs.Join(opts.GsCloneOpts.Repo, opts.GsCloneOpts.Path())
-		revision := opts.GsCloneOpts.Revision()
+		appSpecifier := opts.GsCloneOpts.Repo
+		revision := opts.GsCloneOpts.Revision() // test
 
 		if revision != "" {
-			appSpecifier = fs.Join(appSpecifier, "?ref=", revision)
+			// TODO: maybe find a better way to concatenate without /
+			appSpecifier = appSpecifier + "?ref=" + revision
 		}
 
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
@@ -735,22 +736,21 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		if err != nil {
 			return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 		}
-	
+
 		c.Config.SrcPath = opts.GsCloneOpts.Path()
 		c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
 		c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
-	
+
 		err = fs.WriteJson(fileName, c)
 		if err != nil {
 			return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
 		}
-	
+
 		log.G(ctx).Info("Pushing updated GitSource to the installation repo")
 		if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
 			return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 		}
 	}
-
 
 	return nil
 }
@@ -1228,11 +1228,11 @@ func unMarshalCustomObject(obj interface{}) (map[string]interface{}, error) {
 func getRuntimeVersion(ctx context.Context, runtimeName string) (*semver.Version, error) {
 	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if rt.RuntimeVersion == nil {
-		return fmt.Errorf("runtime \"%s\" has no version", runtimeName)
+		return nil, fmt.Errorf("runtime \"%s\" has no version", runtimeName)
 	}
 
 	return semver.MustParse(*rt.RuntimeVersion), nil
