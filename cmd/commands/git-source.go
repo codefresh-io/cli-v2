@@ -43,7 +43,6 @@ import (
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -209,7 +208,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	// TODO: check runtime version (if it's the new one that contains the new app-proxy)
 	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
@@ -220,6 +218,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	version := semver.MustParse(*rt.RuntimeVersion)
+
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 		if err != nil {
@@ -612,6 +611,19 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 }
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	if err != nil {
+		return err
+	}
+
+	if rt.RuntimeVersion == nil {
+		return fmt.Errorf("runtime \"%s\" has no version", opts.RuntimeName)
+	}
+
+	version := semver.MustParse(*rt.RuntimeVersion)
+	
+	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
+
 
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {

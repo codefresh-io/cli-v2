@@ -116,11 +116,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName         string
-		Version             *semver.Version
-		CloneOpts           *git.CloneOptions
-		CommonConfig        *runtime.CommonConfig
-		DisableTelemetry    bool
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -2349,7 +2349,7 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func getVersionIfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
+func IfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
 	if opts.versionStr != "" {
 		log.G().Infof("vesionStr: %s", opts.versionStr)
 		return semver.NewVersion(opts.versionStr)
