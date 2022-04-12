@@ -17,6 +17,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -26,8 +29,6 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
 )
 
 type (
@@ -435,7 +436,7 @@ func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 		return err
 	}
 
-	return util.OpenBrowserForGitLogin(*runtime.IngressHost, user.ID, accountId)
+	return util.OpenBrowserForGitLogin(runtime.IngressHost, user.ID, accountId)
 }
 
 func printIntegration(i interface{}, format string) error {
