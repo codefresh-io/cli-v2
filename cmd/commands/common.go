@@ -128,7 +128,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 		}
 
 		if runtimeData.Repo != nil {
-			die(cmd.Flags().Set("repo", runtimeData.Repo))
+			die(cmd.Flags().Set("repo", *runtimeData.Repo))
 			return nil
 		}
 	}
