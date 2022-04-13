@@ -127,7 +127,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
 
-		if runtimeData.Repo != "" {
+		if runtimeData.Repo != nil {
 			die(cmd.Flags().Set("repo", runtimeData.Repo))
 			return nil
 		}

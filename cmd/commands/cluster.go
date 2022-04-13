@@ -121,11 +121,11 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("runtime \"%s\" does not support this command. Minimal required version is %s", opts.runtimeName, minAddClusterSupportedVersion)
 	}
 
-	if runtime.IngressHost == "" {
+	if runtime.IngressHost == nil {
 		return fmt.Errorf("runtime \"%s\" is missing an ingress URL", opts.runtimeName)
 	}
 
-	ingressUrl := runtime.IngressHost
+	ingressUrl := *runtime.IngressHost
 	server, err := util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
 	if err != nil {
 		return fmt.Errorf("failed getting server for context \"%s\": %w", opts.kubeContext, err)

@@ -617,9 +617,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:    opts.RuntimeName,
 		Cluster:        server,
 		RuntimeVersion: runtimeVersion,
-		IngressHost:    opts.IngressHost,
+		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
-		Repo:           opts.InsCloneOpts.Repo,
+		Repo:           &opts.InsCloneOpts.Repo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -1287,7 +1287,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthStatus := rt.HealthStatus
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
-		ingressHost := rt.IngressHost
+		ingressHost := "N/A"
 		ingressClass := "N/A"
 
 		if rt.Metadata.Namespace != nil {
@@ -1304,6 +1304,10 @@ func RunRuntimeList(ctx context.Context) error {
 
 		if rt.HealthMessage != nil {
 			healthMessage = *rt.HealthMessage
+		}
+
+		if rt.IngressHost != nil {
+			ingressHost = *rt.IngressHost
 		}
 
 		if rt.IngressClass != nil {

@@ -436,7 +436,7 @@ func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 		return err
 	}
 
-	return util.OpenBrowserForGitLogin(runtime.IngressHost, user.ID, accountId)
+	return util.OpenBrowserForGitLogin(*runtime.IngressHost, user.ID, accountId)
 }
 
 func printIntegration(i interface{}, format string) error {
