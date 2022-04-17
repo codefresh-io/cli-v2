@@ -160,6 +160,7 @@ const (
 	IngressControllerIstio           ingressControllerType = "istio.io/ingress-controller"
 	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
 	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
+	IngressControllerALB             ingressControllerType = "ingress.k8s.aws/alb"
 )
 
 var summaryArr []summaryLog
@@ -486,7 +487,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador}
+	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB}
 	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]ingressController)
 	var isValidClass bool
@@ -1802,8 +1803,13 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		},
 	}
 
-	if opts.IngressControllerType == IngressControllerNginxEnterprise {
+	switch opts.IngressControllerType {
+	case IngressControllerNginxEnterprise:
 		ingressOptions.Annotations["nginx.org/mergeable-ingress-type"] = "minion"
+	case IngressControllerALB:
+		ingressOptions.Annotations["alb.ingress.kubernetes.io/group.name"] = "csdp-ingress"
+		ingressOptions.Annotations["alb.ingress.kubernetes.io/scheme"] = "internet-facing"
+		ingressOptions.Annotations["alb.ingress.kubernetes.io/target-type"] = "ip"
 	}
 
 	ingress := ingressutil.CreateIngress(&ingressOptions)
@@ -1891,9 +1897,16 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		}
 
-		if opts.IngressControllerType == IngressControllerNginxEnterprise {
+		switch opts.IngressControllerType {
+		case IngressControllerNginxEnterprise:
 			ingressOptions.Annotations = map[string]string{
 				"nginx.org/mergeable-ingress-type": "minion",
+			}
+		case IngressControllerALB:
+			ingressOptions.Annotations = map[string]string{
+				"alb.ingress.kubernetes.io/group.name":  "csdp-ingress",
+				"alb.ingress.kubernetes.io/scheme":      "internet-facing",
+				"alb.ingress.kubernetes.io/target-type": "ip",
 			}
 		}
 

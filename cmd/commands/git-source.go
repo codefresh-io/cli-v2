@@ -809,9 +809,16 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 			},
 		}}
 
-	if ingressControllerType == IngressControllerNginxEnterprise {
+	switch ingressControllerType {
+	case IngressControllerNginxEnterprise:
 		ingressOptions.Annotations = map[string]string{
 			"nginx.org/mergeable-ingress-type": "minion",
+		}
+	case IngressControllerALB:
+		ingressOptions.Annotations = map[string]string{
+			"alb.ingress.kubernetes.io/group.name": "csdp-ingress",
+		  "alb.ingress.kubernetes.io/scheme": "internet-facing",
+			"alb.ingress.kubernetes.io/target-type": "ip",
 		}
 	}
 
