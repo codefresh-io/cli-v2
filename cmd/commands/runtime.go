@@ -240,6 +240,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
+				"Ingress controller":        installationOpts.IngressController,       
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -633,6 +634,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.IngressClass = opts.IngressClass
+	rt.Spec.IngressController = string(opts.IngressControllerType)
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -1291,6 +1293,7 @@ func RunRuntimeList(ctx context.Context) error {
 		installationStatus := rt.InstallationStatus
 		ingressHost := "N/A"
 		ingressClass := "N/A"
+		ingressController := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -1316,6 +1319,10 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressClass = *rt.IngressClass
 		}
 
+		if rt.IngressController != nil {
+			ingressController = *rt.IngressController
+		}
+
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
@@ -1327,6 +1334,7 @@ func RunRuntimeList(ctx context.Context) error {
 			installationStatus,
 			ingressHost,
 			ingressClass,
+			ingressController,
 		)
 		if err != nil {
 			return err
