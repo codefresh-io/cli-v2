@@ -10,6 +10,7 @@ rules:
     resources:
       - secrets
       - configmap
+      - services
     verbs:
       - get
       - create

@@ -116,11 +116,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName         string
-		Version             *semver.Version
-		CloneOpts           *git.CloneOptions
-		CommonConfig        *runtime.CommonConfig
-		DisableTelemetry    bool
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -459,16 +459,16 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 	log.G(cmd.Context()).Info("Validating ingress host")
 
-	certValid, err := checkIngressHostCertificate(opts.IngressHost)
-	if err != nil {
-		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
-	}
+	// certValid, err := checkIngressHostCertificate(opts.IngressHost)
+	// if err != nil {
+	// 	log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
+	// }
 
-	if !certValid {
-		if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
-			return err
-		}
-	}
+	// if !certValid {
+	// 	if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	return nil
 }
