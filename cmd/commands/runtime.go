@@ -240,7 +240,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
-				"Ingress controller":        installationOpts.IngressController,       
+				"Ingress controller":        installationOpts.IngressController,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -616,13 +616,14 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}()
 
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:    opts.RuntimeName,
-		Cluster:        server,
-		RuntimeVersion: runtimeVersion,
-		IngressHost:    &opts.IngressHost,
-		ComponentNames: componentNames,
-		Repo:           &opts.InsCloneOpts.Repo,
-		IngressClass:   &opts.IngressClass,
+		RuntimeName:       opts.RuntimeName,
+		Cluster:           server,
+		RuntimeVersion:    runtimeVersion,
+		IngressHost:       &opts.IngressHost,
+		IngressClass:      &opts.IngressClass,
+		IngressController: (*string)(&opts.IngressControllerType),
+		ComponentNames:    componentNames,
+		Repo:              &opts.InsCloneOpts.Repo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -953,7 +954,7 @@ you can try to create it manually by running:
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
-	if !store.Get().SkipIngress {
+	if !store.Get().SkipIngress && rt.Spec.IngressController != string(IngressControllerALB) {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}

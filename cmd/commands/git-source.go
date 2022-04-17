@@ -817,7 +817,7 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 	case IngressControllerALB:
 		ingressOptions.Annotations = map[string]string{
 			"alb.ingress.kubernetes.io/group.name": "csdp-ingress",
-		  "alb.ingress.kubernetes.io/scheme": "internet-facing",
+			"alb.ingress.kubernetes.io/scheme": "internet-facing",
 			"alb.ingress.kubernetes.io/target-type": "ip",
 		}
 	}
