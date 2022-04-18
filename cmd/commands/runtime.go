@@ -116,11 +116,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName         string
-		Version             *semver.Version
-		CloneOpts           *git.CloneOptions
-		CommonConfig        *runtime.CommonConfig
-		DisableTelemetry    bool
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -291,7 +291,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	var err error
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.Version, err = getVersionIfExists(opts)
+	opts.Version, err = getVersionIfExists(opts.versionStr)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
 	if err != nil {
 		return err
@@ -620,6 +620,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
 		Repo:           &opts.InsCloneOpts.Repo,
+		IngressClass:   &opts.IngressClass,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -630,6 +631,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeStoreIV = iv
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
+	rt.Spec.IngressClass = opts.IngressClass
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -1287,6 +1289,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
 		ingressHost := "N/A"
+		ingressClass := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -1308,7 +1311,11 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressHost = *rt.IngressHost
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		if rt.IngressClass != nil {
+			ingressClass = *rt.IngressClass
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -1318,6 +1325,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage,
 			installationStatus,
 			ingressHost,
+			ingressClass,
 		)
 		if err != nil {
 			return err
@@ -2349,19 +2357,19 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func getVersionIfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
-	if opts.versionStr != "" {
-		log.G().Infof("vesionStr: %s", opts.versionStr)
-		return semver.NewVersion(opts.versionStr)
-	}
-
-	return nil, nil
-}
-
 func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
 	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
 	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
 	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
+}
+
+func getVersionIfExists(versionStr string) (*semver.Version, error) {
+	if versionStr != "" {
+		log.G().Infof("vesionStr: %s", versionStr)
+		return semver.NewVersion(versionStr)
+	}
+
+	return nil, nil
 }
