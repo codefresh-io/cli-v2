@@ -620,6 +620,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
 		Repo:           &opts.InsCloneOpts.Repo,
+		IngressClass:   &opts.IngressClass,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
