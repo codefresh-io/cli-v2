@@ -57,6 +57,7 @@ type (
 		Components         []AppDef        `json:"components"`
 		Cluster            string          `json:"cluster"`
 		IngressHost        string          `json:"ingressHost"`
+		IngressClass       string          `json:"ingressClassName"`
 		Repo               string          `json:"repo"`
 
 		devMode bool
@@ -206,6 +207,7 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 
 	newRt.Cluster = r.Cluster
 	newRt.IngressHost = r.IngressHost
+	newRt.IngressClass = r.IngressClass
 	newRt.Repo = r.Repo
 
 	newComponents := make([]AppDef, 0)
