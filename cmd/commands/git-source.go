@@ -213,20 +213,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return err
 	}
 
-	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
-		if err != nil {
-			return err
-		}
+	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 
-		appSpecifier := opts.GsCloneOpts.Repo
-		isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
-
-		err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, isInternal)
-		if err != nil {
-			return fmt.Errorf("failed to create git-source: %w", err)
-		}
-	} else {
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 		// upsert git-source repo
 		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
@@ -254,6 +242,19 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 		if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
 			return fmt.Errorf("failed to create git-source application. Err: %w", err)
+		}
+	} else {
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
+		}
+
+		appSpecifier := opts.GsCloneOpts.Repo
+		isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
+
+		err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, isInternal)
+		if err != nil {
+			return fmt.Errorf("failed to create git-source: %w", err)
 		}
 	}
 
@@ -607,17 +608,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 		return err
 	}
 
-	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
-		if err != nil {
-			return err
-		}
-
-		err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
-		if err != nil {
-			return fmt.Errorf("failed to delete git-source: %w", err)
-		}
-	} else {
+	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 		err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
 			CloneOpts:   opts.InsCloneOpts,
@@ -628,6 +619,16 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 		if err != nil {
 			return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
+		}
+	} else {
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
+		}
+
+		err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
+		if err != nil {
+			return fmt.Errorf("failed to delete git-source: %w", err)
 		}
 	}
 
@@ -709,17 +710,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return err
 	}
 
-	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
-		if err != nil {
-			return err
-		}
-
-		err = appProxy.AppProxyGitSources().Edit(ctx, opts.GsName, opts.GsCloneOpts.Repo)
-		if err != nil {
-			return fmt.Errorf("failed to edit git-source: %w", err)
-		}
-	} else {
+	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 
 		if err != nil {
@@ -744,6 +735,16 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		log.G(ctx).Info("Pushing updated GitSource to the installation repo")
 		if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
 			return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
+		}
+	} else {
+		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+		if err != nil {
+			return err
+		}
+
+		err = appProxy.AppProxyGitSources().Edit(ctx, opts.GsName, opts.GsCloneOpts.Repo)
+		if err != nil {
+			return fmt.Errorf("failed to edit git-source: %w", err)
 		}
 	}
 
