@@ -620,6 +620,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:    &opts.IngressHost,
 		ComponentNames: componentNames,
 		Repo:           &opts.InsCloneOpts.Repo,
+		IngressClass:   &opts.IngressClass,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -630,6 +631,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeStoreIV = iv
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
+	rt.Spec.IngressClass = opts.IngressClass
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -1287,6 +1289,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
 		ingressHost := "N/A"
+		ingressClass := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -1308,7 +1311,11 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressHost = *rt.IngressHost
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		if rt.IngressClass != nil {
+			ingressClass = *rt.IngressClass
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -1318,6 +1325,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage,
 			installationStatus,
 			ingressHost,
+			ingressClass,
 		)
 		if err != nil {
 			return err
