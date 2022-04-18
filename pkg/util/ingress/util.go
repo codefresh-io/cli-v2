@@ -20,6 +20,23 @@ import (
 )
 
 type (
+	IngressController interface {
+		Name() string
+		Decorate(ingress *netv1.Ingress)
+	}
+
+	baseController struct {
+		name string
+	}
+
+	ingressControllerALB struct {
+		baseController
+	}
+
+	ingressControllerNginxEnterprise struct {
+		baseController
+	}
+
 	IngressPath struct {
 		Path        string
 		PathType    netv1.PathType
@@ -35,7 +52,54 @@ type (
 		Host             string
 		Paths            []IngressPath
 	}
+
+	ingressControllerType string
 )
+
+const (
+	IngressControllerNginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
+	IngressControllerNginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
+	IngressControllerIstio           ingressControllerType = "istio.io/ingress-controller"
+	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
+	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
+	IngressControllerALB             ingressControllerType = "ingress.k8s.aws/alb"
+)
+
+var SupportedControllers = []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB}
+
+func (c baseController) Name() string {
+	return c.name
+}
+
+func (c baseController) Decorate(ingress *netv1.Ingress) {}
+
+func GetController(name string) IngressController {
+	b := baseController{name}
+	switch name {
+	case string(IngressControllerALB):
+		return ingressControllerALB{b}
+	case string(IngressControllerNginxEnterprise):
+		return ingressControllerNginxEnterprise{b}
+	default:
+		return b
+	}
+}
+
+func (ingressControllerALB) Decorate(ingress *netv1.Ingress) {
+	if ingress.Annotations == nil {
+		ingress.Annotations = make(map[string]string)
+	}
+	ingress.Annotations["alb.ingress.kubernetes.io/group.name"] = "csdp-ingress"
+	ingress.Annotations["alb.ingress.kubernetes.io/scheme"] = "internet-facing"
+	ingress.Annotations["alb.ingress.kubernetes.io/target-type"] = "ip"
+}
+
+func (ingressControllerNginxEnterprise) Decorate(ingress *netv1.Ingress) {
+	if ingress.Annotations == nil {
+		ingress.Annotations = make(map[string]string)
+	}
+	ingress.Annotations["nginx.org/mergeable-ingress-type"] = "minion"
+}
 
 func createHTTPIngressPaths(paths []IngressPath) []netv1.HTTPIngressPath {
 	httpIngressPaths := make([]netv1.HTTPIngressPath, 0, len(paths))
@@ -78,7 +142,7 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 
 	if len(opts.Paths) > 0 {
 		ingress.Spec.Rules[0].IngressRuleValue = netv1.IngressRuleValue{
-				HTTP: &netv1.HTTPIngressRuleValue{
+			HTTP: &netv1.HTTPIngressRuleValue{
 				Paths: createHTTPIngressPaths(opts.Paths),
 			},
 		}

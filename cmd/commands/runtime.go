@@ -84,8 +84,7 @@ type (
 		HostName                       string
 		IngressHost                    string
 		IngressClass                   string
-		IngressController              string
-		IngressControllerType          ingressControllerType
+		IngressController              ingressutil.IngressController
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
@@ -141,26 +140,12 @@ type (
 		message string
 		level   summaryLogLevels
 	}
-
-	ingressControllerType string
-
-	ingressController struct {
-		Name string
-		Type ingressControllerType
-	}
 )
 
 const (
 	Success summaryLogLevels = "Success"
 	Failed  summaryLogLevels = "Failed"
 	Info    summaryLogLevels = "Info"
-
-	IngressControllerNginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
-	IngressControllerNginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
-	IngressControllerIstio           ingressControllerType = "istio.io/ingress-controller"
-	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
-	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
-	IngressControllerALB             ingressControllerType = "ingress.k8s.aws/alb"
 )
 
 var summaryArr []summaryLog
@@ -240,7 +225,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
-				"Ingress controller":        installationOpts.IngressController,
+				"Ingress controller":        installationOpts.IngressController.Name(),
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -488,19 +473,15 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB}
 	var ingressClassNames []string
-	ingressClassNameToController := make(map[string]ingressController)
+	ingressClassNameToController := make(map[string]ingressutil.IngressController)
 	var isValidClass bool
 
 	for _, ic := range ingressClassList.Items {
-		for _, controller := range supportedControllers {
+		for _, controller := range ingressutil.SupportedControllers {
 			if ic.Spec.Controller == string(controller) {
 				ingressClassNames = append(ingressClassNames, ic.Name)
-				ingressClassNameToController[ic.Name] = ingressController{
-					Name: getIngressControllerName(controller, ic.Name),
-					Type: controller,
-				}
+				ingressClassNameToController[ic.Name] = ingressutil.GetController(string(controller))
 
 				if opts.IngressClass == ic.Name { //if ingress class provided via flag
 					isValidClass = true
@@ -530,29 +511,13 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		}
 	}
 
-	opts.IngressController = ingressClassNameToController[opts.IngressClass].Name
-	opts.IngressControllerType = ingressClassNameToController[opts.IngressClass].Type
+	opts.IngressController = ingressClassNameToController[opts.IngressClass]
 
-	if opts.IngressControllerType == IngressControllerNginxEnterprise {
+	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) {
 		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
 	}
 
 	return nil
-}
-
-func getIngressControllerName(controllerType ingressControllerType, className string) string {
-	switch controllerType {
-	case IngressControllerNginxCommunity:
-		return "ingress-nginx-controller"
-	case IngressControllerNginxEnterprise:
-		return fmt.Sprintf("%s-ingress-controller", className)
-	case IngressControllerTraefik:
-		return "traefik"
-	case IngressControllerIstio:
-		return "istio-ingressgateway"
-	default:
-		return ""
-	}
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -615,13 +580,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		postInstallationHandler(ctx, opts, err, &disableRollback)
 	}()
 
+	ingressControllerName := opts.IngressController.Name()
+
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:       opts.RuntimeName,
 		Cluster:           server,
 		RuntimeVersion:    runtimeVersion,
 		IngressHost:       &opts.IngressHost,
 		IngressClass:      &opts.IngressClass,
-		IngressController: (*string)(&opts.IngressControllerType),
+		IngressController: &ingressControllerName,
 		ComponentNames:    componentNames,
 		Repo:              &opts.InsCloneOpts.Repo,
 	})
@@ -635,7 +602,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.IngressClass = opts.IngressClass
-	rt.Spec.IngressController = string(opts.IngressControllerType)
+	rt.Spec.IngressController = string(opts.IngressController.Name())
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -776,7 +743,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressControllerType == IngressControllerNginxEnterprise {
+	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -824,15 +791,15 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	gitSrcMessage := fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
 	err := RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:          opts.InsCloneOpts,
-		GsCloneOpts:           opts.GsCloneOpts,
-		GsName:                store.Get().GitSourceName,
-		RuntimeName:           opts.RuntimeName,
-		CreateDemoResources:   opts.InstallDemoResources,
-		HostName:              opts.HostName,
-		IngressHost:           opts.IngressHost,
-		IngressClass:          opts.IngressClass,
-		IngressControllerType: opts.IngressControllerType,
+		InsCloneOpts:        opts.InsCloneOpts,
+		GsCloneOpts:         opts.GsCloneOpts,
+		GsName:              store.Get().GitSourceName,
+		RuntimeName:         opts.RuntimeName,
+		CreateDemoResources: opts.InstallDemoResources,
+		HostName:            opts.HostName,
+		IngressHost:         opts.IngressHost,
+		IngressClass:        opts.IngressClass,
+		IngressController:   opts.IngressController,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
 	if err != nil {
@@ -954,7 +921,7 @@ you can try to create it manually by running:
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
-	if !store.Get().SkipIngress && rt.Spec.IngressController != string(IngressControllerALB) {
+	if !store.Get().SkipIngress && rt.Spec.IngressController != string(ingressutil.IngressControllerALB) {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1806,16 +1773,8 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		},
 	}
 
-	switch opts.IngressControllerType {
-	case IngressControllerNginxEnterprise:
-		ingressOptions.Annotations["nginx.org/mergeable-ingress-type"] = "minion"
-	case IngressControllerALB:
-		ingressOptions.Annotations["alb.ingress.kubernetes.io/group.name"] = "csdp-ingress"
-		ingressOptions.Annotations["alb.ingress.kubernetes.io/scheme"] = "internet-facing"
-		ingressOptions.Annotations["alb.ingress.kubernetes.io/target-type"] = "ip"
-	}
-
 	ingress := ingressutil.CreateIngress(&ingressOptions)
+	opts.IngressController.Decorate(ingress)
 
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
@@ -1900,20 +1859,8 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		}
 
-		switch opts.IngressControllerType {
-		case IngressControllerNginxEnterprise:
-			ingressOptions.Annotations = map[string]string{
-				"nginx.org/mergeable-ingress-type": "minion",
-			}
-		case IngressControllerALB:
-			ingressOptions.Annotations = map[string]string{
-				"alb.ingress.kubernetes.io/group.name":  "csdp-ingress",
-				"alb.ingress.kubernetes.io/scheme":      "internet-facing",
-				"alb.ingress.kubernetes.io/target-type": "ip",
-			}
-		}
-
 		ingress := ingressutil.CreateIngress(&ingressOptions)
+		opts.IngressController.Decorate(ingress)
 
 		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 			return err
