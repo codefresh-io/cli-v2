@@ -700,6 +700,9 @@ func NewGitSourceEditCommand() *cobra.Command {
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
 
 	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
