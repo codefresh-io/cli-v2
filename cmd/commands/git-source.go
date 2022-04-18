@@ -104,7 +104,6 @@ type (
 	}
 )
 
-// TODO: to merge only after platform is actually merged.
 var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.308")
 
 func NewGitSourceCommand() *cobra.Command {
@@ -214,7 +213,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return err
 	}
 
-	// TODO: can invert the condition
 	if !version.LessThan(versionOfGitSourceByAppProxyRefactor) {
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 		if err != nil {
@@ -229,7 +227,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 			return fmt.Errorf("failed to create git-source: %w", err)
 		}
 	} else {
-		// TODO: return legacyGitSourceCreate
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 		// upsert git-source repo
 		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
