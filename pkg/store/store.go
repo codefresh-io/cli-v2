@@ -140,7 +140,6 @@ type Store struct {
 	SccName                             string
 	CFInternalGitSources                []string
 	CFInternalReporters                 []string
-	VersionOfGitSourceAppProxyRefactor  string
 }
 
 // Get returns the global store
