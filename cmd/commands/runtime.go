@@ -2365,6 +2365,7 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }
 
+
 func getVersionIfExists(versionStr string) (*semver.Version, error) {
 	if versionStr != "" {
 		log.G().Infof("vesionStr: %s", versionStr)
