@@ -1294,7 +1294,6 @@ func RunRuntimeList(ctx context.Context) error {
 		installationStatus := rt.InstallationStatus
 		ingressHost := "N/A"
 		ingressClass := "N/A"
-		ingressController := "N/A"
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -1320,11 +1319,7 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressClass = *rt.IngressClass
 		}
 
-		if rt.IngressController != nil {
-			ingressController = *rt.IngressController
-		}
-
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -1335,7 +1330,6 @@ func RunRuntimeList(ctx context.Context) error {
 			installationStatus,
 			ingressHost,
 			ingressClass,
-			ingressController,
 		)
 		if err != nil {
 			return err
