@@ -78,6 +78,8 @@ type (
 		GsName       string
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
+		Include      string
+		Exclude      string
 	}
 
 	gitSourceCronExampleOptions struct {
@@ -191,8 +193,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				GsName:              args[1],
 				RuntimeName:         args[0],
 				CreateDemoResources: false,
-				Include: include,
-				Exclude: exclude,
+				Include:             include,
+				Exclude:             exclude,
 			})
 		},
 	}
@@ -606,6 +608,8 @@ func NewGitSourceEditCommand() *cobra.Command {
 	var (
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
+		include      string
+		exclude      string
 	)
 
 	cmd := &cobra.Command{
@@ -647,12 +651,15 @@ func NewGitSourceEditCommand() *cobra.Command {
 				GsName:       args[1],
 				InsCloneOpts: insCloneOpts,
 				GsCloneOpts:  gsCloneOpts,
+				Include: include,
+				Exclude: exclude,
 			})
 		},
 	}
 
-	// cmd.Flags().StringVar(&include, "include", "", "include")
-	// cmd.Flags().StringVar(&exclude, "exclude", "", "exclude")
+	// defaults to "nil" string in order to allows an empty value
+	cmd.Flags().StringVar(&include, "include", "nil", "Optional glob for files to include")
+	cmd.Flags().StringVar(&exclude, "exclude", "nil", "Optional glob for files to exclude")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -683,6 +690,14 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	c.Config.SrcPath = opts.GsCloneOpts.Path()
 	c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
+
+	if opts.Include != "nil" {
+		c.Include = opts.Include
+	}
+
+	if opts.Exclude != "nil" {
+		c.Exclude = opts.Include
+	}
 
 	err = fs.WriteJson(fileName, c)
 	if err != nil {
