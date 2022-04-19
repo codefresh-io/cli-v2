@@ -43,8 +43,14 @@ type (
 	}
 
 	ClusterRemoveOptions struct {
-		server      string
 		runtimeName string
+		server      string
+	}
+
+	ClusterCreateArgoRolloutsOptions struct {
+		runtimeName string
+		server      string
+		namespace   string
 	}
 )
 
@@ -63,21 +69,19 @@ func NewClusterCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewClusterAddCommand())
-	cmd.AddCommand(NewClusterRemoveCommand())
-	cmd.AddCommand(NewClusterListCommand())
+	cmd.AddCommand(newClusterAddCommand())
+	cmd.AddCommand(newClusterRemoveCommand())
+	cmd.AddCommand(newClusterListCommand())
+	cmd.AddCommand(newClusterCreateArgoRolloutsCommand())
 
 	return cmd
 }
 
-func NewClusterAddCommand() *cobra.Command {
-	var (
-		opts ClusterAddOptions
-		err  error
-	)
+func newClusterAddCommand() *cobra.Command {
+	var opts ClusterAddOptions
 
 	cmd := &cobra.Command{
-		Use:     "add RUNTIME_NAME",
+		Use:     "add [RUNTIME_NAME]",
 		Short:   "Add a cluster to a given runtime",
 		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> cluster add my-runtime --context my-context`),
@@ -101,7 +105,6 @@ func NewClusterAddCommand() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
-	die(err)
 
 	return cmd
 }
@@ -193,16 +196,14 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 	return k
 }
 
-func NewClusterRemoveCommand() *cobra.Command {
-	var (
-		opts ClusterRemoveOptions
-	)
+func newClusterRemoveCommand() *cobra.Command {
+	var opts ClusterRemoveOptions
 
 	cmd := &cobra.Command{
-		Use:     "remove RUNTIME_NAME",
+		Use:     "remove [RUNTIME_NAME]",
 		Short:   "Removes a cluster from a given runtime",
 		Args:    cobra.MaximumNArgs(1),
-		Example: util.Doc(`<BIN> cluster remove my-runtime --server-url my-server-url`),
+		Example: util.Doc(`<BIN> cluster remove my-runtime --server-url https://<some-hash>.gr7.us-east-1.eks.amazonaws.com`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
@@ -232,7 +233,7 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 		return err
 	}
 
-	err = appProxy.AppProxyClusters().RemoveCluster(ctx, opts.server, opts.runtimeName)
+	err = appProxy.AppProxyClusters().Delete(ctx, opts.server, opts.runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to remove cluster: %w", err)
 	}
@@ -242,12 +243,12 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 	return nil
 }
 
-func NewClusterListCommand() *cobra.Command {
+func newClusterListCommand() *cobra.Command {
 	var runtimeName string
 	var kubeconfig string
 
 	cmd := &cobra.Command{
-		Use:     "list RUNTIME_NAME",
+		Use:     "list [RUNTIME_NAME]",
 		Short:   "List all the clusters of a given runtime",
 		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> cluster list my-runtime`),
@@ -313,4 +314,47 @@ func runClusterList(ctx context.Context, runtimeName, kubeconfig string) error {
 	}
 
 	return tb.Flush()
+}
+
+func newClusterCreateArgoRolloutsCommand() *cobra.Command {
+	var opts ClusterCreateArgoRolloutsOptions
+
+	cmd := &cobra.Command{
+		Use:     "create-argo-rollouts [RUNTIME_NAME]",
+		Short:   "creates argo-rollouts component on the target cluster",
+		Args:    cobra.MaximumNArgs(1),
+		Example: util.Doc(`<BIN> cluster create-argo-rollouts my-runtime --server-url https://<some-hash>.gr7.us-east-1.eks.amazonaws.com --namespace managed-ns`),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			opts.runtimeName, err = ensureRuntimeName(cmd.Context(), args)
+			return err
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runCreateArgoRollouts(cmd.Context(), &opts)
+		},
+	}
+
+	cmd.Flags().StringVar(&opts.server, "server-url", "", "The cluster's server url")
+	cmd.Flags().StringVar(&opts.namespace, "namespace", "", "Path to the kubeconfig file")
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "server-url"))
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "namespace"))
+
+	return cmd
+}
+
+func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsOptions) error {
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return err
+	}
+
+	err = appProxy.AppProxyClusters().CreateArgoRollouts(ctx, opts.server, opts.namespace)
+	if err != nil {
+		return fmt.Errorf("failed to create argo-rollouts on \"%s'\": %w", opts.server, err)
+	}
+
+	log.G(ctx).Infof("created argo-rollouts component on \"%s\"", opts.server)
+
+  return nil
 }
