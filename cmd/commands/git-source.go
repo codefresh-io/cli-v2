@@ -39,8 +39,8 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
@@ -78,6 +78,8 @@ type (
 		GsName       string
 		InsCloneOpts *git.CloneOptions
 		GsCloneOpts  *git.CloneOptions
+		Include      string
+		Exclude      string
 	}
 
 	gitSourceCronExampleOptions struct {
@@ -128,6 +130,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
 		createRepo   bool
+		include      string
+		exclude      string
 	)
 
 	cmd := &cobra.Command{
@@ -189,11 +193,15 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				GsName:              args[1],
 				RuntimeName:         args[0],
 				CreateDemoResources: false,
+				Include:             include,
+				Exclude:             exclude,
 			})
 		},
 	}
 
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
+	cmd.Flags().StringVar(&include, "include", "", "include")
+	cmd.Flags().StringVar(&exclude, "exclude", "", "exclude")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
@@ -230,7 +238,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 
 	appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
 
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, ""); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, opts.Exclude); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
@@ -368,7 +376,7 @@ func createCronExampleEventSource() *eventsourcev1alpha1.EventSource {
 			Name: store.Get().CronExampleEventSourceName,
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
-			Template: tpl,
+			Template:     tpl,
 			EventBusName: store.Get().EventBusName,
 			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
 				store.Get().CronExampleEventName: {
@@ -390,7 +398,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alph
 
 	tpl := &sensorsv1alpha1.Template{
 		ServiceAccountName: "argo-server",
-		Container: &corev1.Container{},
+		Container:          &corev1.Container{},
 	}
 
 	if store.Get().SetDefaultResources {
@@ -407,7 +415,7 @@ func createCronExampleSensor(triggers []sensorsv1alpha1.Trigger) (*sensorsv1alph
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: "codefresh-eventbus",
-			Template: tpl,
+			Template:     tpl,
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
@@ -600,6 +608,8 @@ func NewGitSourceEditCommand() *cobra.Command {
 	var (
 		insCloneOpts *git.CloneOptions
 		gsCloneOpts  *git.CloneOptions
+		include      string
+		exclude      string
 	)
 
 	cmd := &cobra.Command{
@@ -645,6 +655,10 @@ func NewGitSourceEditCommand() *cobra.Command {
 		},
 	}
 
+	// defaults to "nil" string in order to allows an empty value
+	cmd.Flags().StringVar(&include, "include", "nil", "Optional glob for files to include")
+	cmd.Flags().StringVar(&exclude, "exclude", "nil", "Optional glob for files to exclude")
+
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
 		CloneForWrite:    true,
@@ -674,6 +688,14 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	c.Config.SrcPath = opts.GsCloneOpts.Path()
 	c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
+
+	if opts.Include != "nil" {
+		c.Include = opts.Include
+	}
+
+	if opts.Exclude != "nil" {
+		c.Exclude = opts.Include
+	}
 
 	err = fs.WriteJson(fileName, c)
 	if err != nil {
@@ -845,7 +867,7 @@ func createGithubExampleEventSource(repoURL string, ingressHost string, runtimeN
 		},
 		Spec: eventsourcev1alpha1.EventSourceSpec{
 			EventBusName: store.Get().EventBusName,
-			Template: tpl,
+			Template:     tpl,
 			Service: &eventsourcev1alpha1.Service{
 				Ports: []corev1.ServicePort{
 					{
@@ -959,7 +981,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 	}
 
 	tpl := &sensorsv1alpha1.Template{
-		Container: &corev1.Container{},
+		Container:          &corev1.Container{},
 		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
 	}
 
@@ -977,7 +999,7 @@ func createGithubExampleSensor() *sensorsv1alpha1.Sensor {
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: store.Get().EventBusName,
-			Template: tpl,
+			Template:     tpl,
 			Dependencies: dependencies,
 			Triggers:     triggers,
 		},
