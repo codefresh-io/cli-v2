@@ -136,6 +136,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		createRepo   bool
 		include      string
 		exclude      string
+		flow         string
 	)
 
 	cmd := &cobra.Command{
@@ -199,7 +200,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				CreateDemoResources: false,
 				Include:             include,
 				Exclude:             exclude,
-				Flow:                store.Get().InstallationFlow,
+				Flow:                flow,
 			})
 		},
 	}
@@ -213,6 +214,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Prefix:   "git-src",
 		Optional: true,
 	})
+
+	flow = store.Get().GsCreateFlow
 
 	return cmd
 }
@@ -1205,36 +1208,36 @@ func getRuntimeVersion(ctx context.Context, runtimeName string) (*semver.Version
 }
 
 func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-		// upsert git-source repo
-		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to clone git-source repo: %w", err)
+	// upsert git-source repo
+	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to clone git-source repo: %w", err)
+	}
+
+	if opts.CreateDemoResources {
+		if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
+			return fmt.Errorf("failed to create git-source demo resources: %w", err)
 		}
-
-		if opts.CreateDemoResources {
-			if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
-				return fmt.Errorf("failed to create git-source demo resources: %w", err)
-			}
-		} else {
-			if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
-				return fmt.Errorf("failed to create a git-source placeholder: %w", err)
-			}
+	} else {
+		if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
+			return fmt.Errorf("failed to create a git-source placeholder: %w", err)
 		}
+	}
 
-		appDef := &runtime.AppDef{
-			Name: opts.GsName,
-			Type: application.AppTypeDirectory,
-			URL:  opts.GsCloneOpts.Repo,
-		}
+	appDef := &runtime.AppDef{
+		Name: opts.GsName,
+		Type: application.AppTypeDirectory,
+		URL:  opts.GsCloneOpts.Repo,
+	}
 
-		appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
+	appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
 
-		if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, opts.Exclude); err != nil {
-			return fmt.Errorf("failed to create git-source application. Err: %w", err)
-		}
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, opts.Exclude); err != nil {
+		return fmt.Errorf("failed to create git-source application. Err: %w", err)
+	}
 
-		log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
-		return nil
+	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
+	return nil
 }
 
 func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo git.Repository, fs fs.FS, err error) error {

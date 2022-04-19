@@ -829,6 +829,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:           opts.IngressHost,
 		IngressClass:          opts.IngressClass,
 		IngressControllerType: opts.IngressControllerType,
+		Flow:                  store.Get().InstallationFlow,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
 	if err != nil {
@@ -851,6 +852,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: false,
 		Exclude:             "**/images/**/*",
 		Include:             "workflows/**/*.yaml",
+		Flow:                store.Get().InstallationFlow,
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
 	if err != nil {
