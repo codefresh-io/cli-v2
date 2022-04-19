@@ -376,9 +376,9 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	err = appProxy.AppProxyClusters().CreateArgoRollouts(ctx, opts.server, opts.namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create argo-rollouts on \"%s'\": %w", opts.server, err)
-	}
+	} 
 
 	log.G(ctx).Infof("created argo-rollouts component on \"%s\"", opts.server)
 
-  return nil
+	return nil
 }
