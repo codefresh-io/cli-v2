@@ -256,6 +256,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		if err != nil {
 			return fmt.Errorf("failed to create git-source: %w", err)
 		}
+
+		log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
 	}
 
 	return nil
@@ -727,6 +729,8 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		if err != nil {
 			return fmt.Errorf("failed to edit git-source: %w", err)
 		}
+
+		log.G(ctx).Infof("Successfully edited git-source: \"%s\"", opts.GsName)
 	}
 
 	return nil
