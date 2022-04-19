@@ -41,6 +41,5 @@ curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0
 # move the binary to your $PATH
 mv ./cf-darwin-amd64 /usr/local/bin/cf
 
-# check the installation
 cf version
 ```
