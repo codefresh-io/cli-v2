@@ -65,6 +65,7 @@ type (
 		IngressHost           string
 		IngressClass          string
 		IngressControllerType ingressControllerType
+		Flow                  string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -198,6 +199,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				CreateDemoResources: false,
 				Include:             include,
 				Exclude:             exclude,
+				Flow:                store.Get().InstallationFlow,
 			})
 		},
 	}
@@ -221,36 +223,13 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return err
 	}
 
+	if opts.Flow == store.Get().InstallationFlow {
+		return legacyGitSourceCreate(ctx, opts)
+	}
+
 	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-
 		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
-		// upsert git-source repo
-		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to clone git-source repo: %w", err)
-		}
-
-		if opts.CreateDemoResources {
-			if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
-				return fmt.Errorf("failed to create git-source demo resources: %w", err)
-			}
-		} else {
-			if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
-				return fmt.Errorf("failed to create a git-source placeholder: %w", err)
-			}
-		}
-
-		appDef := &runtime.AppDef{
-			Name: opts.GsName,
-			Type: application.AppTypeDirectory,
-			URL:  opts.GsCloneOpts.Repo,
-		}
-
-		appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
-
-		if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, opts.Exclude); err != nil {
-			return fmt.Errorf("failed to create git-source application. Err: %w", err)
-		}
+		return legacyGitSourceCreate(ctx, opts)
 	} else {
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 		if err != nil {
@@ -725,39 +704,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
-
-		if err != nil {
-			return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
-		}
-		c := &dirConfig{}
-		fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
-		err = fs.ReadJson(fileName, c)
-		if err != nil {
-			return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
-		}
-
-		c.Config.SrcPath = opts.GsCloneOpts.Path()
-		c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
-		c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
-
-		if opts.Include != "nil" {
-			c.Include = opts.Include
-		}
-
-		if opts.Exclude != "nil" {
-			c.Exclude = opts.Include
-		}
-
-		err = fs.WriteJson(fileName, c)
-		if err != nil {
-			return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
-		}
-
-		log.G(ctx).Info("Pushing updated GitSource to the installation repo")
-		if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
-			return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
-		}
+		return legacyGitSourceEdit(ctx, opts, repo, fs, err)
 	} else {
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 		if err != nil {
@@ -1255,4 +1202,76 @@ func getRuntimeVersion(ctx context.Context, runtimeName string) (*semver.Version
 	}
 
 	return semver.MustParse(*rt.RuntimeVersion), nil
+}
+
+func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
+		// upsert git-source repo
+		gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to clone git-source repo: %w", err)
+		}
+
+		if opts.CreateDemoResources {
+			if err := createDemoResources(ctx, opts, gsRepo, gsFs); err != nil {
+				return fmt.Errorf("failed to create git-source demo resources: %w", err)
+			}
+		} else {
+			if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
+				return fmt.Errorf("failed to create a git-source placeholder: %w", err)
+			}
+		}
+
+		appDef := &runtime.AppDef{
+			Name: opts.GsName,
+			Type: application.AppTypeDirectory,
+			URL:  opts.GsCloneOpts.Repo,
+		}
+
+		appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
+
+		if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, opts.Exclude); err != nil {
+			return fmt.Errorf("failed to create git-source application. Err: %w", err)
+		}
+
+		log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
+		return nil
+}
+
+func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo git.Repository, fs fs.FS, err error) error {
+	log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+
+	if err != nil {
+		return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
+	}
+	c := &dirConfig{}
+	fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
+	err = fs.ReadJson(fileName, c)
+	if err != nil {
+		return fmt.Errorf("failed to read the %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
+	}
+
+	c.Config.SrcPath = opts.GsCloneOpts.Path()
+	c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
+	c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
+
+	if opts.Include != "nil" {
+		c.Include = opts.Include
+	}
+
+	if opts.Exclude != "nil" {
+		c.Exclude = opts.Include
+	}
+
+	err = fs.WriteJson(fileName, c)
+	if err != nil {
+		return fmt.Errorf("failed to write the updated %s of git-source: %s. Err: %w", fileName, opts.GsName, err)
+	}
+
+	log.G(ctx).Info("Pushing updated GitSource to the installation repo")
+	if err := apu.PushWithMessage(ctx, repo, fmt.Sprintf("Persisted an updated git-source \"%s\"", opts.GsName)); err != nil {
+		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
+	}
+
+	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
+	return nil
 }
