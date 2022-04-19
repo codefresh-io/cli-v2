@@ -244,20 +244,19 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 }
 
 func newClusterListCommand() *cobra.Command {
-	var runtimeName string
+	runtimeName := ""
 
 	cmd := &cobra.Command{
 		Use:     "list [RUNTIME_NAME]",
 		Short:   "List all the clusters of a given runtime",
 		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> cluster list my-runtime`),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			var err error
-
-			runtimeName, err = ensureRuntimeName(cmd.Context(), args)
-			return err
+		PreRun: func(_ *cobra.Command, args []string) {
+			if len(args) == 1 {
+				runtimeName = args[0]
+			}
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			return runClusterList(cmd.Context(), runtimeName)
 		},
 	}
@@ -291,6 +290,13 @@ func runClusterList(ctx context.Context, runtimeName string) error {
 	})
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	if runtimeName == "" {
+		_, err = fmt.Fprint(tb, "RUNTIME\t")
+		if err != nil {
+			return err
+		}
+	}
+
 	_, err = fmt.Fprintln(tb, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE")
 	if err != nil {
 		return err
@@ -310,6 +316,13 @@ func runClusterList(ctx context.Context, runtimeName string) error {
 		message := ""
 		if c.Info.ConnectionState.Message != nil {
 			message = *c.Info.ConnectionState.Message
+		}
+
+		if runtimeName == "" {
+			_, err = fmt.Fprintf(tb, "%s\t", c.Metadata.Runtime)
+			if err != nil {
+				return err
+			}
 		}
 
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
