@@ -50,6 +50,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	appProxyModel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 )
 
 type (
@@ -242,7 +243,16 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		appSpecifier := opts.GsCloneOpts.Repo
 		isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
 
-		err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, opts.Include, opts.Exclude, isInternal)
+		err = appProxy.AppProxyGitSources().Create(ctx, &appProxyModel.CreateGitSourceInput{
+			AppName: opts.GsName,
+			AppSpecifier: appSpecifier,
+			DestServer: store.Get().InCluster,
+			DestNamespace: opts.RuntimeName,
+			IsInternal: &isInternal,
+			Include: &opts.Include,
+			Exclude: &opts.Exclude,
+		})
+
 		if err != nil {
 			return fmt.Errorf("failed to create git-source: %w", err)
 		}
