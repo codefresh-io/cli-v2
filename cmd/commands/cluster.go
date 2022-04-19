@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 
 	"github.com/Masterminds/semver/v3"
@@ -43,8 +43,14 @@ type (
 	}
 
 	ClusterRemoveOptions struct {
-		server      string
 		runtimeName string
+		server      string
+	}
+
+	ClusterCreateArgoRolloutsOptions struct {
+		runtimeName string
+		server      string
+		namespace   string
 	}
 )
 
@@ -63,21 +69,19 @@ func NewClusterCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewClusterAddCommand())
-	cmd.AddCommand(NewClusterRemoveCommand())
-	cmd.AddCommand(NewClusterListCommand())
+	cmd.AddCommand(newClusterAddCommand())
+	cmd.AddCommand(newClusterRemoveCommand())
+	cmd.AddCommand(newClusterListCommand())
+	cmd.AddCommand(newClusterCreateArgoRolloutsCommand())
 
 	return cmd
 }
 
-func NewClusterAddCommand() *cobra.Command {
-	var (
-		opts ClusterAddOptions
-		err  error
-	)
+func newClusterAddCommand() *cobra.Command {
+	var opts ClusterAddOptions
 
 	cmd := &cobra.Command{
-		Use:     "add RUNTIME_NAME",
+		Use:     "add [RUNTIME_NAME]",
 		Short:   "Add a cluster to a given runtime",
 		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> cluster add my-runtime --context my-context`),
@@ -101,7 +105,6 @@ func NewClusterAddCommand() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
-	die(err)
 
 	return cmd
 }
@@ -193,16 +196,14 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 	return k
 }
 
-func NewClusterRemoveCommand() *cobra.Command {
-	var (
-		opts ClusterRemoveOptions
-	)
+func newClusterRemoveCommand() *cobra.Command {
+	var opts ClusterRemoveOptions
 
 	cmd := &cobra.Command{
-		Use:     "remove RUNTIME_NAME",
+		Use:     "remove [RUNTIME_NAME]",
 		Short:   "Removes a cluster from a given runtime",
 		Args:    cobra.MaximumNArgs(1),
-		Example: util.Doc(`<BIN> cluster remove my-runtime --server-url my-server-url`),
+		Example: util.Doc(`<BIN> cluster remove my-runtime --server-url https://<some-hash>.gr7.us-east-1.eks.amazonaws.com`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
@@ -232,7 +233,7 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 		return err
 	}
 
-	err = appProxy.AppProxyClusters().RemoveCluster(ctx, opts.server, opts.runtimeName)
+	err = appProxy.AppProxyClusters().Delete(ctx, opts.server, opts.runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to remove cluster: %w", err)
 	}
@@ -242,70 +243,94 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 	return nil
 }
 
-func NewClusterListCommand() *cobra.Command {
-	var runtimeName string
-	var kubeconfig string
+func newClusterListCommand() *cobra.Command {
+	runtimeName := ""
 
 	cmd := &cobra.Command{
-		Use:     "list RUNTIME_NAME",
+		Use:     "list [RUNTIME_NAME]",
 		Short:   "List all the clusters of a given runtime",
 		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> cluster list my-runtime`),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			var err error
-
-			runtimeName, err = ensureRuntimeName(cmd.Context(), args)
-			return err
+		PreRun: func(_ *cobra.Command, args []string) {
+			if len(args) == 1 {
+				runtimeName = args[0]
+			}
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runClusterList(cmd.Context(), runtimeName, kubeconfig)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runClusterList(cmd.Context(), runtimeName)
 		},
 	}
-
-	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to the kubeconfig file")
 
 	return cmd
 }
 
-func runClusterList(ctx context.Context, runtimeName, kubeconfig string) error {
-	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+func runClusterList(ctx context.Context, runtimeName string) error {
+	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
 	if err != nil {
 		return err
 	}
 
-	kubeContext, err := util.KubeContextNameByServer(*runtime.Cluster, kubeconfig)
-	if err != nil {
-		return fmt.Errorf("failed getting context for \"%s\": %w", *runtime.Cluster, err)
-	}
-
-	clusters, err := cdutil.GetClusterList(ctx, kubeContext, *runtime.Metadata.Namespace, false)
-	if err != nil {
-		return err
-	}
-
-	if len(clusters.Items) == 0 {
+	if len(clusters) == 0 {
 		log.G(ctx).Info("No clusters were found")
 		return nil
 	}
 
+	sort.SliceStable(clusters, func(i, j int) bool {
+		c1 := clusters[i]
+		if c1.Metadata.Name == "in-cluster" {
+			return true
+		}
+
+		c2 := clusters[j]
+		if c2.Metadata.Name == "in-cluster" {
+			return false
+		}
+
+		return c1.Metadata.Name < c2.Metadata.Name
+	})
+
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	if runtimeName == "" {
+		_, err = fmt.Fprint(tb, "RUNTIME\t")
+		if err != nil {
+			return err
+		}
+	}
+
 	_, err = fmt.Fprintln(tb, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE")
 	if err != nil {
 		return err
 	}
 
-	for _, c := range clusters.Items {
+	for _, c := range clusters {
 		server := c.Server
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
 
+		version := ""
+		if c.Info.ServerVersion != nil {
+			version = *c.Info.ServerVersion
+		}
+
+		message := ""
+		if c.Info.ConnectionState.Message != nil {
+			message = *c.Info.ConnectionState.Message
+		}
+
+		if runtimeName == "" {
+			_, err = fmt.Fprintf(tb, "%s\t", c.Metadata.Runtime)
+			if err != nil {
+				return err
+			}
+		}
+
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			server,
-			c.Name,
-			c.ServerVersion,
-			c.ConnectionState.Status,
-			c.ConnectionState.Message,
+			c.Metadata.Name,
+			version,
+			c.Info.ConnectionState.Status,
+			message,
 		)
 		if err != nil {
 			return err
@@ -313,4 +338,47 @@ func runClusterList(ctx context.Context, runtimeName, kubeconfig string) error {
 	}
 
 	return tb.Flush()
+}
+
+func newClusterCreateArgoRolloutsCommand() *cobra.Command {
+	var opts ClusterCreateArgoRolloutsOptions
+
+	cmd := &cobra.Command{
+		Use:     "create-argo-rollouts [RUNTIME_NAME]",
+		Short:   "creates argo-rollouts component on the target cluster",
+		Args:    cobra.MaximumNArgs(1),
+		Example: util.Doc(`<BIN> cluster create-argo-rollouts my-runtime --server-url https://<some-hash>.gr7.us-east-1.eks.amazonaws.com --namespace managed-ns`),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			opts.runtimeName, err = ensureRuntimeName(cmd.Context(), args)
+			return err
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runCreateArgoRollouts(cmd.Context(), &opts)
+		},
+	}
+
+	cmd.Flags().StringVar(&opts.server, "server-url", "", "The cluster's server url")
+	cmd.Flags().StringVar(&opts.namespace, "namespace", "", "Path to the kubeconfig file")
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "server-url"))
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "namespace"))
+
+	return cmd
+}
+
+func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsOptions) error {
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return err
+	}
+
+	err = appProxy.AppProxyClusters().CreateArgoRollouts(ctx, opts.server, opts.namespace)
+	if err != nil {
+		return fmt.Errorf("failed to create argo-rollouts on \"%s'\": %w", opts.server, err)
+	} 
+
+	log.G(ctx).Infof("created argo-rollouts component on \"%s\"", opts.server)
+
+	return nil
 }

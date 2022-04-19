@@ -1,3 +1,3 @@
 # Changelog:
 
-* Protect against invalid kube context
+* Added `cluster create-argo-rollouts` command
