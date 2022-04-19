@@ -248,7 +248,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		}
 	}
 
-	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
 	return nil
 }
 
@@ -720,7 +719,6 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		}
 	}
 
-	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
 	return nil
 }
 
