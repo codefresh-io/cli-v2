@@ -177,7 +177,7 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	}
 
 	if runtimeName == "" {
-		return "", fmt.Errorf("Must supply value for \"Runtime name\"")
+		return "", fmt.Errorf("must supply value for \"Runtime name\"")
 	}
 
 	return runtimeName, nil
