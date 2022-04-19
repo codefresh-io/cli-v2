@@ -260,7 +260,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		appSpecifier := opts.GsCloneOpts.Repo
 		isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
 
-		err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, isInternal)
+		err = appProxy.AppProxyGitSources().Create(ctx, opts.GsName, appSpecifier, opts.RuntimeName, opts.RuntimeName, opts.Include, opts.Exclude, isInternal)
 		if err != nil {
 			return fmt.Errorf("failed to create git-source: %w", err)
 		}
