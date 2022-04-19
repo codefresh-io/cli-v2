@@ -225,7 +225,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
-				"Ingress controller":        installationOpts.IngressController.Name(),
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
@@ -462,6 +461,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
+		opts.IngressController = ingressutil.GetController("")
 		return nil
 	}
 
