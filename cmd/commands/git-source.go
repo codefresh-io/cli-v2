@@ -684,6 +684,8 @@ func NewGitSourceEditCommand() *cobra.Command {
 				GsName:       args[1],
 				InsCloneOpts: insCloneOpts,
 				GsCloneOpts:  gsCloneOpts,
+				Include:      include,
+				Exclude:      exclude,
 			})
 		},
 	}
