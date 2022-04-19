@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 
 	"github.com/Masterminds/semver/v3"
@@ -245,7 +245,6 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 
 func newClusterListCommand() *cobra.Command {
 	var runtimeName string
-	var kubeconfig string
 
 	cmd := &cobra.Command{
 		Use:     "list [RUNTIME_NAME]",
@@ -259,35 +258,37 @@ func newClusterListCommand() *cobra.Command {
 			return err
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runClusterList(cmd.Context(), runtimeName, kubeconfig)
+			return runClusterList(cmd.Context(), runtimeName)
 		},
 	}
-
-	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to the kubeconfig file")
 
 	return cmd
 }
 
-func runClusterList(ctx context.Context, runtimeName, kubeconfig string) error {
-	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+func runClusterList(ctx context.Context, runtimeName string) error {
+	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
 	if err != nil {
 		return err
 	}
 
-	kubeContext, err := util.KubeContextNameByServer(*runtime.Cluster, kubeconfig)
-	if err != nil {
-		return fmt.Errorf("failed getting context for \"%s\": %w", *runtime.Cluster, err)
-	}
-
-	clusters, err := cdutil.GetClusterList(ctx, kubeContext, *runtime.Metadata.Namespace, false)
-	if err != nil {
-		return err
-	}
-
-	if len(clusters.Items) == 0 {
+	if len(clusters) == 0 {
 		log.G(ctx).Info("No clusters were found")
 		return nil
 	}
+
+	sort.SliceStable(clusters, func(i, j int) bool {
+		c1 := clusters[i]
+		if c1.Metadata.Name == "in-cluster" {
+			return true
+		}
+
+		c2 := clusters[j]
+		if c2.Metadata.Name == "in-cluster" {
+			return false
+		}
+
+		return c1.Metadata.Name < c2.Metadata.Name
+	})
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, err = fmt.Fprintln(tb, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE")
@@ -295,18 +296,28 @@ func runClusterList(ctx context.Context, runtimeName, kubeconfig string) error {
 		return err
 	}
 
-	for _, c := range clusters.Items {
+	for _, c := range clusters {
 		server := c.Server
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
 
+		version := ""
+		if c.Info.ServerVersion != nil {
+			version = *c.Info.ServerVersion
+		}
+
+		message := ""
+		if c.Info.ConnectionState.Message != nil {
+			message = *c.Info.ConnectionState.Message
+		}
+
 		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
 			server,
-			c.Name,
-			c.ServerVersion,
-			c.ConnectionState.Status,
-			c.ConnectionState.Message,
+			c.Metadata.Name,
+			version,
+			c.Info.ConnectionState.Status,
+			message,
 		)
 		if err != nil {
 			return err
