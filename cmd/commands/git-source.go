@@ -254,7 +254,9 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		})
 
 		if err != nil {
-			return fmt.Errorf("failed to create git-source: %w", err)
+			log.G(ctx).Errorf("failed to create git-source: %w", err)
+			log.G(ctx).Info("attempting creation of git-source without using app-proxy")
+			return legacyGitSourceCreate(ctx, opts)
 		}
 
 		log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
@@ -629,7 +631,18 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 		err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
 		if err != nil {
-			return fmt.Errorf("failed to delete git-source: %w", err)
+			log.G(ctx).Errorf("failed to delete git-source: %w", err)
+			log.G(ctx).Info("attempting deletion of git-source without using app-proxy")
+			err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
+				CloneOpts:   opts.InsCloneOpts,
+				ProjectName: opts.RuntimeName,
+				AppName:     opts.GsName,
+				Global:      false,
+			})
+	
+			if err != nil {
+				return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
+			}
 		}
 	}
 
@@ -735,7 +748,10 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("failed to edit git-source: %w", err)
+			log.G(ctx).Errorf("failed to edit git-source: %w", err)
+			log.G(ctx).Info("attempting edit of git-source without using app-proxy")
+			return legacyGitSourceEdit(ctx, opts, repo, fs, err)
+			
 		}
 
 		log.G(ctx).Infof("Successfully edited git-source: \"%s\"", opts.GsName)
@@ -1264,7 +1280,7 @@ func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo g
 	log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 
 	if err != nil {
-		return fmt.Errorf("failed to clone the installation repo, attemptint to edit git-source %s. Err: %w", opts.GsName, err)
+		return fmt.Errorf("failed to clone the installation repo, attempting to edit git-source %s. Err: %w", opts.GsName, err)
 	}
 	c := &dirConfig{}
 	fileName := fs.Join(apstore.Default.AppsDir, opts.GsName, opts.RuntimeName, "config_dir.json")
