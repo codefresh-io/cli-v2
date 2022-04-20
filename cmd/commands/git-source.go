@@ -55,18 +55,18 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		InsCloneOpts          *git.CloneOptions
-		GsCloneOpts           *git.CloneOptions
-		GsName                string
-		RuntimeName           string
-		CreateDemoResources   bool
-		Exclude               string
-		Include               string
-		HostName              string
-		IngressHost           string
-		IngressClass          string
-		IngressControllerType ingressControllerType
-		Flow                  string
+		InsCloneOpts        *git.CloneOptions
+		GsCloneOpts         *git.CloneOptions
+		GsName              string
+		RuntimeName         string
+		CreateDemoResources bool
+		Exclude             string
+		Include             string
+		HostName            string
+		IngressHost         string
+		IngressClass        string
+		IngressController   ingressutil.IngressController
+		Flow                string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -92,13 +92,13 @@ type (
 	}
 
 	gitSourceGithubExampleOptions struct {
-		runtimeName           string
-		gsCloneOpts           *git.CloneOptions
-		gsFs                  fs.FS
-		hostName              string
-		ingressHost           string
-		ingressClass          string
-		ingressControllerType ingressControllerType
+		runtimeName       string
+		gsCloneOpts       *git.CloneOptions
+		gsFs              fs.FS
+		hostName          string
+		ingressHost       string
+		ingressClass      string
+		ingressController ingressutil.IngressController
 	}
 
 	dirConfig struct {
@@ -281,13 +281,13 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 		}
 
 		err = createGithubExamplePipeline(&gitSourceGithubExampleOptions{
-			runtimeName:           opts.RuntimeName,
-			gsCloneOpts:           opts.GsCloneOpts,
-			gsFs:                  gsFs,
-			hostName:              opts.HostName,
-			ingressHost:           opts.IngressHost,
-			ingressClass:          opts.IngressClass,
-			ingressControllerType: opts.IngressControllerType,
+			runtimeName:       opts.RuntimeName,
+			gsCloneOpts:       opts.GsCloneOpts,
+			gsFs:              gsFs,
+			hostName:          opts.HostName,
+			ingressHost:       opts.IngressHost,
+			ingressClass:      opts.IngressClass,
+			ingressController: opts.IngressController,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -639,7 +639,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 				AppName:     opts.GsName,
 				Global:      false,
 			})
-	
+
 			if err != nil {
 				return fmt.Errorf("failed to delete the git-source %s. Err: %w", opts.GsName, err)
 			}
@@ -751,7 +751,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 			log.G(ctx).Errorf("failed to edit git-source: %w", err)
 			log.G(ctx).Info("attempting edit of git-source without using app-proxy")
 			return legacyGitSourceEdit(ctx, opts, repo, fs, err)
-			
+
 		}
 
 		log.G(ctx).Infof("Successfully edited git-source: \"%s\"", opts.GsName)
@@ -814,7 +814,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the github eventsource service
-		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName, opts.ingressControllerType, opts.runtimeName)
+		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName, opts.ingressController, opts.runtimeName)
 		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
 		ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
@@ -867,7 +867,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, ingressControllerType ingressControllerType, runtimeName string) *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
 	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,
@@ -881,13 +881,10 @@ func createGithubExampleIngress(ingressClass string, ingressHost string, hostNam
 			},
 		}}
 
-	if ingressControllerType == IngressControllerNginxEnterprise {
-		ingressOptions.Annotations = map[string]string{
-			"nginx.org/mergeable-ingress-type": "minion",
-		}
-	}
+	ingress := ingressutil.CreateIngress(&ingressOptions)
+	ingressController.Decorate(ingress)
 
-	return ingressutil.CreateIngress(&ingressOptions)
+	return ingress
 }
 
 func getRepoOwnerAndNameFromRepoURL(repoURL string) (owner string, name string) {
