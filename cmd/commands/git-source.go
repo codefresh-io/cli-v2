@@ -108,7 +108,7 @@ type (
 	}
 )
 
-var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.322")
+var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.324")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -207,8 +207,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
-	cmd.Flags().StringVar(&include, "include", "", "include")
-	cmd.Flags().StringVar(&exclude, "exclude", "", "exclude")
+	cmd.Flags().StringVar(&include, "include", "", "files to include. can be either filenames or a glob")
+	cmd.Flags().StringVar(&exclude, "exclude", "", "files to exclude. can be either filenames or a glob")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
