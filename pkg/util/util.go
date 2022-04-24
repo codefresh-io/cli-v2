@@ -203,7 +203,7 @@ func KubeContexts(kubeconfig string) []kubeContext {
 
 		c2 := contexts[j]
 		if c2.Current {
-			return true
+			return false
 		}
 
 		return c1.Name < c2.Name

@@ -10,7 +10,6 @@ rules:
     resources:
       - secrets
       - configmap
-      - services
     verbs:
       - get
       - create
@@ -19,3 +18,11 @@ rules:
       - patch
       - list
       - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+  
