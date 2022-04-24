@@ -704,8 +704,8 @@ func NewGitSourceEditCommand() *cobra.Command {
 	}
 
 	// defaults to "nil" string in order to allows an empty value
-	cmd.Flags().StringVar(&include, "include", "nil", "Optional glob for files to include")
-	cmd.Flags().StringVar(&exclude, "exclude", "nil", "Optional glob for files to exclude")
+	cmd.Flags().StringVar(&include, "include", "nil", "files to include. can be either filenames or a glob")
+	cmd.Flags().StringVar(&exclude, "exclude", "nil", "files to exclude. can be either filenames or a glob")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
