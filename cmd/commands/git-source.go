@@ -1314,6 +1314,6 @@ func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo g
 		return fmt.Errorf("failed to persist the updated git-source: %s. Err: %w", opts.GsName, err)
 	}
 
-	log.G(ctx).Infof("Successfully created git-source: \"%s\"", opts.GsName)
+	log.G(ctx).Infof("Successfully edited git-source: \"%s\"", opts.GsName)
 	return nil
 }
