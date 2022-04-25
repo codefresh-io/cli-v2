@@ -699,13 +699,12 @@ func NewGitSourceEditCommand() *cobra.Command {
 				GsCloneOpts:  gsCloneOpts,
 				Include:      include,
 				Exclude:      exclude,
-			})
+			}, cmd)
 		},
 	}
 
-	// defaults to "nil" string in order to allows an empty value
-	cmd.Flags().StringVar(&include, "include", "nil", "files to include. can be either filenames or a glob")
-	cmd.Flags().StringVar(&exclude, "exclude", "nil", "files to exclude. can be either filenames or a glob")
+	cmd.Flags().StringVar(&include, "include", "", "files to include. can be either filenames or a glob")
+	cmd.Flags().StringVar(&exclude, "exclude", "", "files to exclude. can be either filenames or a glob")
 
 	insCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -721,7 +720,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 	return cmd
 }
 
-func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
+func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, cmd *cobra.Command) error {
 	repo, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -733,25 +732,32 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		return legacyGitSourceEdit(ctx, opts, repo, fs, err)
+		return legacyGitSourceEdit(ctx, opts, repo, fs, err, cmd)
 	} else {
 		appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 		if err != nil {
 			return err
 		}
 
-		err = appProxy.AppProxyGitSources().Edit(ctx, &appProxyModel.EditGitSourceInput{
+		args := &appProxyModel.EditGitSourceInput{
 			AppName:      opts.GsName,
 			AppSpecifier: opts.GsCloneOpts.Repo,
-			Include:      &opts.Include,
-			Exclude:      &opts.Exclude,
-		})
+		}
+
+		if cmd.Flags().Changed("include") {
+			args.Include = &opts.Include
+		}
+
+		if cmd.Flags().Changed("exclude") {
+			args.Exclude = &opts.Exclude
+		}
+
+		err = appProxy.AppProxyGitSources().Edit(ctx, args)
 
 		if err != nil {
 			log.G(ctx).Errorf("failed to edit git-source: %w", err)
 			log.G(ctx).Info("attempting edit of git-source without using app-proxy")
-			return legacyGitSourceEdit(ctx, opts, repo, fs, err)
-
+			return legacyGitSourceEdit(ctx, opts, repo, fs, err, cmd)
 		}
 
 		log.G(ctx).Infof("Successfully edited git-source: \"%s\"", opts.GsName)
@@ -1273,7 +1279,7 @@ func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) er
 	return nil
 }
 
-func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo git.Repository, fs fs.FS, err error) error {
+func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo git.Repository, fs fs.FS, err error, cmd *cobra.Command) error {
 	log.G(ctx).Infof("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
 
 	if err != nil {
@@ -1290,11 +1296,11 @@ func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo g
 	c.Config.SrcRepoURL = opts.GsCloneOpts.URL()
 	c.Config.SrcTargetRevision = opts.GsCloneOpts.Revision()
 
-	if opts.Include != "nil" {
+	if cmd.Flags().Changed("include") {
 		c.Include = opts.Include
 	}
 
-	if opts.Exclude != "nil" {
+	if cmd.Flags().Changed("exclude") {
 		c.Exclude = opts.Include
 	}
 
