@@ -1301,7 +1301,7 @@ func legacyGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions, repo g
 	}
 
 	if cmd.Flags().Changed("exclude") {
-		c.Exclude = opts.Include
+		c.Exclude = opts.Exclude
 	}
 
 	err = fs.WriteJson(fileName, c)
