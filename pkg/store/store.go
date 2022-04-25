@@ -140,6 +140,9 @@ type Store struct {
 	SccName                             string
 	CFInternalGitSources                []string
 	CFInternalReporters                 []string
+	InstallationFlow                    string
+	GsCreateFlow                        string
+	InCluster                           string
 }
 
 // Get returns the global store
@@ -235,6 +238,9 @@ func init() {
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
+	s.InstallationFlow = "install-runtime"
+	s.GsCreateFlow = "git-source-create"
+	s.InCluster = "https://kubernetes.default.svc"
 
 	initVersion()
 }

@@ -277,7 +277,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	var err error
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.Version, err = getVersionIfExists(opts)
+	opts.Version, err = getVersionIfExists(opts.versionStr)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
 	if err != nil {
 		return err
@@ -800,6 +800,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
 		IngressController:   opts.IngressController,
+		Flow:                store.Get().InstallationFlow,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
 	if err != nil {
@@ -822,6 +823,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: false,
 		Exclude:             "**/images/**/*",
 		Include:             "workflows/**/*.yaml",
+		Flow:                store.Get().InstallationFlow,
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
 	if err != nil {
@@ -2320,10 +2322,10 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func getVersionIfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
-	if opts.versionStr != "" {
-		log.G().Infof("vesionStr: %s", opts.versionStr)
-		return semver.NewVersion(opts.versionStr)
+func getVersionIfExists(versionStr string) (*semver.Version, error) {
+	if versionStr != "" {
+		log.G().Infof("vesionStr: %s", versionStr)
+		return semver.NewVersion(versionStr)
 	}
 
 	return nil, nil
