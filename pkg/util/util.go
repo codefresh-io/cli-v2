@@ -27,14 +27,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/browser"
-
-	"github.com/briandowns/spinner"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 
+	"github.com/briandowns/spinner"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	"github.com/pkg/browser"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )

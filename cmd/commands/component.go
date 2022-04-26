@@ -22,9 +22,9 @@ import (
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/juju/ansiterm"
-
 	"github.com/spf13/cobra"
 )
 
