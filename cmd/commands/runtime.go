@@ -2235,7 +2235,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {
-			log.G(ctx).Errorf("installation rollback failed: %w", err)
+			log.G(ctx).Errorf("installation rollback failed: %s", err.Error())
 		}
 	}
 
