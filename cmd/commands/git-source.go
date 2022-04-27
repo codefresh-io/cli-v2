@@ -256,7 +256,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	})
 
 	if err != nil {
-		log.G(ctx).Errorf("failed to create git-source: %w", err)
+		log.G(ctx).Errorf("failed to create git-source: %w", err.Error())
 		log.G(ctx).Info("attempting creation of git-source without using app-proxy")
 		return legacyGitSourceCreate(ctx, opts)
 	}
@@ -623,7 +623,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 	err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
 	if err != nil {
-		log.G(ctx).Errorf("failed to delete git-source: %w", err)
+		log.G(ctx).Errorf("failed to delete git-source: %w", err.Error())
 		log.G(ctx).Info("attempting deletion of git-source without using app-proxy")
 		err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
 			CloneOpts:   opts.InsCloneOpts,
@@ -742,7 +742,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	})
 
 	if err != nil {
-		log.G(ctx).Errorf("failed to edit git-source: %w", err)
+		log.G(ctx).Errorf("failed to edit git-source: %w", err.Error())
 		log.G(ctx).Info("attempting edit of git-source without using app-proxy")
 		return legacyGitSourceEdit(ctx, opts)
 	}
