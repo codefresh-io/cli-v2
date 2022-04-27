@@ -233,7 +233,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, versionOfGitSourceByAppProxyRefactor)
 		return legacyGitSourceCreate(ctx, opts)
 	}
 
@@ -612,7 +612,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 	}
 
 	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, versionOfGitSourceByAppProxyRefactor)
 		return legacyGitSourceDelete(ctx, opts)
 	}
 
@@ -725,7 +725,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	}
 
 	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, versionOfGitSourceByAppProxyRefactor)
 		return legacyGitSourceEdit(ctx, opts)
 	}
 
