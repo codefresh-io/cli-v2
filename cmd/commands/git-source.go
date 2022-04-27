@@ -109,7 +109,7 @@ type (
 	}
 )
 
-var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.326")
+var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.327")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
