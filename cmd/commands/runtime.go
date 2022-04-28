@@ -97,6 +97,7 @@ type (
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
+		NamespaceLabels				   map[string]string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -254,6 +255,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
+	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"app.kubernetes.io/managed-by={{ placeholder }}\"")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -621,6 +623,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		BootstrapAppsLabels: map[string]string{
 			store.Get().LabelKeyCFInternal: "true",
 		},
+		NamespaceLabels: opts.NamespaceLabels,
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, false, true)
 	if err != nil {
