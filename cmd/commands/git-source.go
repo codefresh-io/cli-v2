@@ -109,7 +109,7 @@ type (
 	}
 )
 
-var versionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.326")
+var appProxyGitSourceSupport = semver.MustParse("0.0.328")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -232,8 +232,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return legacyGitSourceCreate(ctx, opts)
 	}
 
-	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+	if version.LessThan(appProxyGitSourceSupport) {
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceCreate(ctx, opts)
 	}
 
@@ -256,7 +256,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	})
 
 	if err != nil {
-		log.G(ctx).Errorf("failed to create git-source: %w", err)
+		log.G(ctx).Errorf("failed to create git-source: %s", err.Error())
 		log.G(ctx).Info("attempting creation of git-source without using app-proxy")
 		return legacyGitSourceCreate(ctx, opts)
 	}
@@ -611,8 +611,8 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 		return err
 	}
 
-	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+	if version.LessThan(appProxyGitSourceSupport) {
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceDelete(ctx, opts)
 	}
 
@@ -623,7 +623,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 	err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
 	if err != nil {
-		log.G(ctx).Errorf("failed to delete git-source: %w", err)
+		log.G(ctx).Errorf("failed to delete git-source: %s", err.Error())
 		log.G(ctx).Info("attempting deletion of git-source without using app-proxy")
 		err = apcmd.RunAppDelete(ctx, &apcmd.AppDeleteOptions{
 			CloneOpts:   opts.InsCloneOpts,
@@ -724,8 +724,8 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return err
 	}
 
-	if version.LessThan(versionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command", opts.RuntimeName, minAddClusterSupportedVersion)
+	if version.LessThan(appProxyGitSourceSupport) {
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceEdit(ctx, opts)
 	}
 
@@ -742,7 +742,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	})
 
 	if err != nil {
-		log.G(ctx).Errorf("failed to edit git-source: %w", err)
+		log.G(ctx).Errorf("failed to edit git-source: %s", err.Error())
 		log.G(ctx).Info("attempting edit of git-source without using app-proxy")
 		return legacyGitSourceEdit(ctx, opts)
 	}
