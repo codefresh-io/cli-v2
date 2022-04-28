@@ -109,7 +109,7 @@ type (
 	}
 )
 
-var appProxyGitSourceSupport = semver.MustParse("0.0.327")
+var appProxyGitSourceSupport = semver.MustParse("0.0.328")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
