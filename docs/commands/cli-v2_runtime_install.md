@@ -28,27 +28,28 @@ cli-v2 runtime install [runtime_name] [flags]
 ### Options
 
 ```
-      --context string              The name of the kubeconfig context to use
-      --demo-resources              Installs demo resources (default: true) (default true)
-      --disable-rollback            If true, will not perform installation rollback after a failed installation
-      --disable-telemetry           If true, will disable the analytics reporting for the installation process
-  -t, --git-token string            Your git provider api token [GIT_TOKEN]
-  -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
-  -h, --help                        help for install
-      --ingress-class string        The ingress class name
-      --ingress-host string         The ingress host
-      --kubeconfig string           Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string            If present, the namespace scope for this CLI request
-      --personal-git-token string   The Personal git token for your user
-      --provider string             The git provider, one of: azure|gitea|github|gitlab
-      --provider-api-url string     Git provider API url
-      --repo string                 Repository URL [GIT_REPO]
-      --set-default-resources       If true, will set default requests and limits on all of the runtime components
-      --skip-cluster-checks         Skips the cluster's checks
-      --skip-ingress                Skips the creation of ingress resources
-  -b, --upsert-branch               If true will try to checkout the specified branch and create it if it doesn't exist
-      --version string              The runtime version to install (default: latest)
-      --wait-timeout duration       How long to wait for the runtime components to be ready (default 8m0s)
+      --context string                    The name of the kubeconfig context to use
+      --demo-resources                    Installs demo resources (default: true) (default true)
+      --disable-rollback                  If true, will not perform installation rollback after a failed installation
+      --disable-telemetry                 If true, will disable the analytics reporting for the installation process
+  -t, --git-token string                  Your git provider api token [GIT_TOKEN]
+  -u, --git-user string                   Your git provider user name [GIT_USER] (not required in GitHub)
+  -h, --help                              help for install
+      --ingress-class string              The ingress class name
+      --ingress-host string               The ingress host
+      --kubeconfig string                 Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string                  If present, the namespace scope for this CLI request
+      --namespace-labels stringToString   Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2" (default [])
+      --personal-git-token string         The Personal git token for your user
+      --provider string                   The git provider, one of: azure|gitea|github|gitlab
+      --provider-api-url string           Git provider API url
+      --repo string                       Repository URL [GIT_REPO]
+      --set-default-resources             If true, will set default requests and limits on all of the runtime components
+      --skip-cluster-checks               Skips the cluster's checks
+      --skip-ingress                      Skips the creation of ingress resources
+  -b, --upsert-branch                     If true will try to checkout the specified branch and create it if it doesn't exist
+      --version string                    The runtime version to install (default: latest)
+      --wait-timeout duration             How long to wait for the runtime components to be ready (default 8m0s)
 ```
 
 ### Options inherited from parent commands
