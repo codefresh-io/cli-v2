@@ -31,3 +31,15 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: default
+
+  - target:
+      version: v1
+      kind: Service
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/ports/0/appProtocol
+        value: grpc
+      - op: add
+        path: /spec/ports/1/appProtocol
+        value: grpc
