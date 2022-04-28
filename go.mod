@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/argoproj-labs/argocd-autopilot v0.3.5
+	github.com/argoproj-labs/argocd-autopilot v0.3.6
 	github.com/argoproj/applicationset v0.4.1
 	github.com/argoproj/argo-cd/v2 v2.3.3
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
@@ -114,8 +114,8 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
-	github.com/google/go-github/v35 v35.3.0 // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
+	github.com/google/go-github/v43 v43.0.0 // indirect
 	github.com/google/go-jsonnet v0.18.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
