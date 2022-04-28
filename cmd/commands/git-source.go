@@ -109,7 +109,7 @@ type (
 	}
 )
 
-var runtimeVersionOfGitSourceByAppProxyRefactor = semver.MustParse("0.0.327")
+var appProxyGitSourceSupport = semver.MustParse("0.0.327")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -232,8 +232,8 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		return legacyGitSourceCreate(ctx, opts)
 	}
 
-	if version.LessThan(runtimeVersionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, runtimeVersionOfGitSourceByAppProxyRefactor, version.String())
+	if version.LessThan(appProxyGitSourceSupport) {
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceCreate(ctx, opts)
 	}
 
@@ -611,8 +611,8 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 		return err
 	}
 
-	if version.LessThan(runtimeVersionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, runtimeVersionOfGitSourceByAppProxyRefactor, version.String())
+	if version.LessThan(appProxyGitSourceSupport) {
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceDelete(ctx, opts)
 	}
 
@@ -724,8 +724,8 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return err
 	}
 
-	if version.LessThan(runtimeVersionOfGitSourceByAppProxyRefactor) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, runtimeVersionOfGitSourceByAppProxyRefactor, version.String())
+	if version.LessThan(appProxyGitSourceSupport) {
+		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceEdit(ctx, opts)
 	}
 
