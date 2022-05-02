@@ -97,7 +97,7 @@ type (
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
-		NamespaceLabels				   map[string]string
+		NamespaceLabels                map[string]string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -881,20 +881,28 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		command := util.Doc(fmt.Sprintf(
+		commandAdd := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
 			runtime,
 			strings.ToLower(opts.Provider.String()),
 			opts.APIURL,
 		))
+
+		commandRegister := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git register default --runtime %s --token <your-token>",
+			runtime,
+		))
+
 		return fmt.Errorf(`
-%w
+		%w
 you can try to create it manually by running:
 
-%s
-`,
+		%s
+		%s
+		`,
 			err,
-			command,
+			commandAdd,
+			commandRegister,
 		)
 	}
 
@@ -1250,7 +1258,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
 	if err != nil {
 		return err
 	}
