@@ -75,6 +75,7 @@ const (
 	InstallStepRunPreCheckDownloadRuntimeDefinition   CliStep = "install.run.pre-check.step.download-runtime-definition"
 	InstallStepRunPreCheckEnsureCliVersion            CliStep = "install.run.pre-check.step.ensure-cli-version"
 	InstallStepRunPreCheckRuntimeCollision            CliStep = "install.run.pre-check.step.runtime-collision"
+	InstallStepRunPreCheckExisitingRuntimes           CliStep = "install.run.pre-check.step.existing-runtimes"
 	InstallStepRunPreCheckValidateClusterRequirements CliStep = "install.run.pre-check.step.validate-cluster-requirements"
 	InstallPhaseRunPreCheckFinish                     CliStep = "install.run.pre-check.phase.finish"
 	InstallPhaseStart                                 CliStep = "install.run.phase.start"
