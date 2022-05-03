@@ -781,7 +781,9 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		}
 	}
 
-	err = installComponents(ctx, opts, rt)
+	if !opts.FromRepo {
+		err = installComponents(ctx, opts, rt)
+	}
 	handleCliStep(reporter.InstallStepInstallComponenets, "Installing components", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
@@ -2343,7 +2345,7 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 		Selected: "{{ . | yellow }} ",
 	}
 
-	labelStr := fmt.Sprintf("%vDo you with to proceed?%v", CYAN, COLOR_RESET)
+	labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
@@ -2447,11 +2449,11 @@ func printSummaryToUser() {
 }
 
 func printPreviousVsNewConfigsToUser(previousConfigurations map[string]string, newConfigurations map[string]string) {
-	fmt.Printf("%vYou are about to recover a runtime from an existing repo. some configuration will be changed as follows:%v", CYAN, COLOR_RESET)
-	fmt.Printf("Cluster server: %s -> %v%s%v\n", previousConfigurations["ClusterServer"], GREEN, newConfigurations["ClusterServer"], COLOR_RESET)
-	fmt.Printf("Ingress class: %s -> %v%s%v\n", previousConfigurations["IngressClass"], GREEN, newConfigurations["IngressClass"], COLOR_RESET)
-	fmt.Printf("Ingress controller: %s -> %v%s%v\n", previousConfigurations["IngressController"], GREEN, newConfigurations["IngressController"], COLOR_RESET)
-	fmt.Printf("Ingress host: %s -> %v%s%v\n", previousConfigurations["IngressHost"], GREEN, newConfigurations["IngressHost"], COLOR_RESET)
+	fmt.Printf("%vYou are about to recover a runtime from an existing repo. some configuration will be changed as follows:\n%v", CYAN, COLOR_RESET)
+	fmt.Printf("%vCluster server:%v     %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["ClusterServer"], GREEN, newConfigurations["ClusterServer"], COLOR_RESET)
+	fmt.Printf("%vIngress class:%v      %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressClass"], GREEN, newConfigurations["IngressClass"], COLOR_RESET)
+	fmt.Printf("%vIngress controller:%v %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressController"], GREEN, newConfigurations["IngressController"], COLOR_RESET)
+	fmt.Printf("%vIngress host:%v       %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressHost"], GREEN, newConfigurations["IngressHost"], COLOR_RESET)
 }
 
 func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disableTelemetry bool) {
