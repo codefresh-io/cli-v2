@@ -575,11 +575,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	disableRollback := opts.DisableRollback
-
 	defer func() {
 		// will rollback if err is not nil and it is safe to do so
-		postInstallationHandler(ctx, opts, err, &disableRollback)
+		postInstallationHandler(ctx, opts, err, &opts.DisableRollback)
 	}()
 
 	ingressControllerName := opts.IngressController.Name()
@@ -628,6 +626,11 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
+	}
+
+	if repoExists {
+		// in case of a runtime recovery, we don't want to clear the repo when failure occures
+		opts.DisableRollback = true
 	}
 
 	err = oc.PrepareOpenshiftCluster(ctx, &oc.OpenshiftOptions{
@@ -692,7 +695,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	// if we got to this point the runtime was installed successfully
 	// thus we shall not perform a rollback after this point.
-	disableRollback = true
+	opts.DisableRollback = true
 
 	if store.Get().SkipIngress {
 		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, false, true)
