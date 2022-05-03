@@ -676,18 +676,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to apply secrets to cluster: %w", err))
 	}
 
-	if !repoExists {
-		err = createRuntimeComponents(ctx, opts, rt)
-		if err != nil {
-			return err
-		}
+
+	err = createRuntimeComponents(ctx, opts, rt, repoExists)
+	if err != nil {
+		return err
 	}
 
-	if !repoExists {
-		err = createGitSources(ctx, opts)
-		if err != nil {
-			return err
-		}
+	err = createGitSources(ctx, opts, repoExists)
+	if err != nil {
+		return err
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
@@ -748,16 +745,19 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 	return rt, server, nil
 }
 
-func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime, recovery bool) error {
 	var err error
-	for _, component := range rt.Spec.Components {
-		infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
-		log.G(ctx).Infof(infoStr)
-		component.IsInternal = true
-		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		if err != nil {
-			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
-			break
+
+	if !recovery {
+		for _, component := range rt.Spec.Components {
+			infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
+			log.G(ctx).Infof(infoStr)
+			component.IsInternal = true
+			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
+			if err != nil {
+				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+				break
+			}
 		}
 	}
 
@@ -766,7 +766,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) {
+	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) && !recovery {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -811,43 +811,51 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 	return apu.PushWithMessage(ctx, r, "Created master ingress resource")
 }
 
-func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
-	gitSrcMessage := fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
-	err := RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         opts.GsCloneOpts,
-		GsName:              store.Get().GitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: opts.InstallDemoResources,
-		HostName:            opts.HostName,
-		IngressHost:         opts.IngressHost,
-		IngressClass:        opts.IngressClass,
-		IngressController:   opts.IngressController,
-		Flow:                store.Get().InstallationFlow,
-	})
+func createGitSources(ctx context.Context, opts *RuntimeInstallOptions, recovery bool) error {
+	var err error
+	var gitSrcMessage string
+	var createGitSrcMessgae string
+
+	if !recovery {
+		gitSrcMessage = fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
+		err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+			InsCloneOpts:        opts.InsCloneOpts,
+			GsCloneOpts:         opts.GsCloneOpts,
+			GsName:              store.Get().GitSourceName,
+			RuntimeName:         opts.RuntimeName,
+			CreateDemoResources: opts.InstallDemoResources,
+			HostName:            opts.HostName,
+			IngressHost:         opts.IngressHost,
+			IngressClass:        opts.IngressClass,
+			IngressController:   opts.IngressController,
+			Flow:                store.Get().InstallationFlow,
+		})
+	}
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().GitSourceName, err))
 	}
 
-	mpCloneOpts := &git.CloneOptions{
-		Repo: store.Get().MarketplaceRepo,
-		FS:   fs.Create(memfs.New()),
+	if !recovery {
+		mpCloneOpts := &git.CloneOptions{
+			Repo: store.Get().MarketplaceRepo,
+			FS:   fs.Create(memfs.New()),
+		}
+		mpCloneOpts.Parse()
+	
+		createGitSrcMessgae = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+	
+		err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+			InsCloneOpts:        opts.InsCloneOpts,
+			GsCloneOpts:         mpCloneOpts,
+			GsName:              store.Get().MarketplaceGitSourceName,
+			RuntimeName:         opts.RuntimeName,
+			CreateDemoResources: false,
+			Exclude:             "**/images/**/*",
+			Include:             "workflows/**/*.yaml",
+			Flow:                store.Get().InstallationFlow,
+		})
 	}
-	mpCloneOpts.Parse()
-
-	createGitSrcMessgae := fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
-
-	err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         mpCloneOpts,
-		GsName:              store.Get().MarketplaceGitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: false,
-		Exclude:             "**/images/**/*",
-		Include:             "workflows/**/*.yaml",
-		Flow:                store.Get().InstallationFlow,
-	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
