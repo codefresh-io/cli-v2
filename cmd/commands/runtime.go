@@ -97,7 +97,7 @@ type (
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
-		NamespaceLabels				   map[string]string
+		NamespaceLabels                map[string]string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -608,7 +608,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
-	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
+	repoExists, err := apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier:    rt.Spec.FullSpecifier(),
 		Namespace:       opts.RuntimeName,
 		KubeFactory:     opts.KubeFactory,
@@ -639,14 +639,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed setting up environment for openshift %w", err)
 	}
 
-	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
-		CloneOpts:   opts.InsCloneOpts,
-		ProjectName: opts.RuntimeName,
-		Labels: map[string]string{
-			store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
-			store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
-		},
-	})
+	if !repoExists {
+		err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
+			CloneOpts:   opts.InsCloneOpts,
+			ProjectName: opts.RuntimeName,
+			Labels: map[string]string{
+				store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
+				store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
+			},
+		})
+	}
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
@@ -654,20 +656,35 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
-	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
-	handleCliStep(reporter.InstallStepCreateConfigMap, "Creating codefresh-cm", err, false, true)
+	if !repoExists {
+		err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
+	} else {
+		// in case of runtime recovery we only update the existing cm
+		err = updateCodefreshCM(ctx, opts, rt, server)
+	}
+	handleCliStep(reporter.InstallStepCreateOrUpdateConfigMap, "Creating/Updating codefresh-cm", err, false, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create or update codefresh-cm: %w", err))
 	}
 
-	err = createRuntimeComponents(ctx, opts, rt)
+	err = applySecretsToCluster(ctx, opts)
+	handleCliStep(reporter.InstallStepApplySecretsToCluster, "Applying secrets to cluster", err, false, true)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to apply secrets to cluster: %w", err))
 	}
 
-	err = createGitSources(ctx, opts)
-	if err != nil {
-		return err
+	if !repoExists {
+		err = createRuntimeComponents(ctx, opts, rt)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !repoExists {
+		err = createGitSources(ctx, opts)
+		if err != nil {
+			return err
+		}
 	}
 
 	timeoutErr := intervalCheckIsRuntimePersisted(ctx, opts.RuntimeName)
@@ -1003,16 +1020,10 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
-	err = checkRuntimeCollisions(ctx, opts.KubeFactory)
+	err = checkRuntimeCollisions(ctx, opts.KubeFactory, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckRuntimeCollision, "Checking for runtime collisions", err, true, false)
 	if err != nil {
 		return fmt.Errorf("runtime collision check failed: %w", err)
-	}
-
-	err = checkExistingRuntimes(ctx, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, true, false)
-	if err != nil {
-		return fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
 	if !opts.SkipClusterChecks {
@@ -1026,7 +1037,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func checkRuntimeCollisions(ctx context.Context, kube kube.Factory) error {
+func checkRuntimeCollisions(ctx context.Context, kube kube.Factory, runtime string) error {
 	log.G(ctx).Debug("checking for argocd collisions in cluster")
 
 	cs, err := kube.KubernetesClientSet()
@@ -1050,6 +1061,10 @@ func checkRuntimeCollisions(ctx context.Context, kube kube.Factory) error {
 	}
 
 	subjNamespace := crb.Subjects[0].Namespace
+
+	if subjNamespace == runtime {
+		return nil // argocd will be over-written by runtime installation
+	}
 
 	// check if some argocd is actually using this crb
 	_, err = cs.AppsV1().Deployments(subjNamespace).Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
@@ -1883,7 +1898,55 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return apu.PushWithMessage(ctx, r, "Created App-Proxy Ingress")
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime, server string) error {
+	var repofs fs.FS
+	var marshalRuntime []byte
+	var r git.Repository
+	var err error
+
+	r, repofs, err = opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get repo while updating codefresh-cm: %w", err)
+	}
+
+	codefreshCM := &v1.ConfigMap{}
+	err = repofs.ReadYamls(repofs.Join(apstore.Default.BootsrtrapDir, rt.Name+".yaml"), codefreshCM)
+	if err != nil {
+		return fmt.Errorf("failed to read file while updating codefresh-cm: %w", err)
+	}
+
+	data := codefreshCM.Data["runtime"]
+	runtime := &runtime.Runtime{}
+	err = yaml.Unmarshal([]byte(data), runtime)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal runtime while updating codefresh-cm: %w", err)
+	}
+
+	runtime.Spec.Cluster = server
+	runtime.Spec.IngressClass = opts.IngressClass
+	runtime.Spec.IngressController = opts.IngressController.Name()
+	runtime.Spec.IngressHost = opts.IngressHost
+
+	marshalRuntime, err = yaml.Marshal(runtime)
+	if err != nil {
+		return fmt.Errorf("failed to marshal runtime while updating codefresh-cm: %w", err)
+	}
+
+	codefreshCM.Data["runtime"] = string(marshalRuntime)
+	err = repofs.WriteYamls(repofs.Join(apstore.Default.BootsrtrapDir, rt.Name+".yaml"), codefreshCM)
+	if err != nil {
+		return fmt.Errorf("failed to write file while updating codefresh-cm: %w", err)
+	}
+
+	err = apu.PushWithMessage(ctx, r, "Updating codefresh-cm")
+	if err != nil {
+		return fmt.Errorf("failed to push to git while updating codefresh-cm: %w", err)
+	}
+
+	return nil
+}
+
+func applySecretsToCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
 	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeStoreIV)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -1898,6 +1961,10 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
+	return nil
+}
+
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
 	u, err := url.Parse(cloneOpts.URL())
 	if err != nil {
