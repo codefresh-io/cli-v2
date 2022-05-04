@@ -618,14 +618,21 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressController = string(opts.IngressController.Name())
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
+	appSpecifier := rt.Spec.FullSpecifier()
+
+	if opts.FromRepo {
+		// installing argocd with manifests from the provided repo
+		appSpecifier = opts.InsCloneOpts.Repo+"/bootstrap/argo-cd"
+	}
+
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier:    rt.Spec.FullSpecifier(),
+		AppSpecifier:    appSpecifier,
 		Namespace:       opts.RuntimeName,
 		KubeFactory:     opts.KubeFactory,
 		CloneOptions:    opts.InsCloneOpts,
 		Insecure:        opts.Insecure,
-		FromRepo:        opts.FromRepo,
+		Recover:         opts.FromRepo,
 		KubeContextName: opts.kubeContext,
 		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
@@ -2310,7 +2317,7 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
-// display the user the old vs. the new configurations that will be changed upon recovery 
+// display the user the old vs. the new configurations that will be changed upon recovery
 // and asks for permission to proceed
 func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOptions) error {
 	server, err := util.KubeCurrentServer(opts.kubeconfig)
@@ -2319,10 +2326,10 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 	}
 
 	newConfigurations := map[string]string{
-		"ClusterServer": server,
-		"IngressClass": opts.IngressClass,
+		"ClusterServer":     server,
+		"IngressClass":      opts.IngressClass,
 		"IngressController": opts.IngressController.Name(),
-		"IngressHost": opts.IngressHost,
+		"IngressHost":       opts.IngressHost,
 	}
 	_, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -2331,36 +2338,39 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 
 	codefreshCM := &v1.ConfigMap{}
 	runtime, err := getRuntimeDataFromCodefreshCM(ctx, repofs, opts.RuntimeName, codefreshCM)
-
-	previousConfigurations := map[string]string{
-		"ClusterServer": runtime.Spec.Cluster,
-		"IngressClass": runtime.Spec.IngressClass,
-		"IngressController": runtime.Spec.IngressController,
-		"IngressHost": runtime.Spec.IngressHost,
-	}
-
-	printPreviousVsNewConfigsToUser(previousConfigurations, newConfigurations)
-
-	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
-	}
-
-	labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
-
-	prompt := promptui.Select{
-		Label:     labelStr,
-		Items:     []string{"Yes", "No"},
-		Templates: templates,
-	}
-
-	_, result, err := prompt.Run()
 	if err != nil {
 		return err
 	}
 
-	if result == "No" {
-		return fmt.Errorf("installation from existing repo was cancelled")
+	previousConfigurations := map[string]string{
+		"ClusterServer":     runtime.Spec.Cluster,
+		"IngressClass":      runtime.Spec.IngressClass,
+		"IngressController": runtime.Spec.IngressController,
+		"IngressHost":       runtime.Spec.IngressHost,
 	}
+
+	printPreviousVsNewConfigsToUser(previousConfigurations, newConfigurations)
+
+	// templates := &promptui.SelectTemplates{
+	// 	Selected: "{{ . | yellow }} ",
+	// }
+
+	// labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
+
+	// prompt := promptui.Select{
+	// 	Label:     labelStr,
+	// 	Items:     []string{"Yes", "No"},
+	// 	Templates: templates,
+	// }
+
+	// _, result, err := prompt.Run()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// if result == "No" {
+	// 	return fmt.Errorf("installation from existing repo was cancelled")
+	// }
 
 	return nil
 }
