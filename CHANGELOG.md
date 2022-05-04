@@ -1,3 +1,3 @@
 # Changelog:
 
-* Added `cluster create-argo-rollouts` command
+* Updated `cap-app-proxy` to 1.1134.0

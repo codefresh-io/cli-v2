@@ -27,19 +27,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/manifoldco/promptui"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -177,7 +176,7 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	}
 
 	if runtimeName == "" {
-		return "", fmt.Errorf("Must supply value for \"Runtime name\"")
+		return "", fmt.Errorf("must supply value for \"Runtime name\"")
 	}
 
 	return runtimeName, nil

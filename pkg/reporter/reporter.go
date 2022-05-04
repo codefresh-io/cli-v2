@@ -17,6 +17,7 @@ package reporter
 import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/google/uuid"
 	"gopkg.in/segmentio/analytics-go.v3"

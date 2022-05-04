@@ -41,11 +41,6 @@ import (
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	oc "github.com/codefresh-io/cli-v2/pkg/util/openshift"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
-	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -59,6 +54,9 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -66,6 +64,8 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -97,6 +97,7 @@ type (
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
+		NamespaceLabels                map[string]string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -254,6 +255,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
+	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -277,7 +279,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	var err error
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.Version, err = getVersionIfExists(opts)
+	opts.Version, err = getVersionIfExists(opts.versionStr)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
 	if err != nil {
 		return err
@@ -442,6 +444,10 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	}
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
+
+	if !opts.SkipClusterChecks {
+		return nil
+	}
 
 	log.G(cmd.Context()).Info("Validating ingress host")
 
@@ -621,6 +627,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		BootstrapAppsLabels: map[string]string{
 			store.Get().LabelKeyCFInternal: "true",
 		},
+		NamespaceLabels: opts.NamespaceLabels,
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, false, true)
 	if err != nil {
@@ -800,6 +807,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
 		IngressController:   opts.IngressController,
+		Flow:                store.Get().InstallationFlow,
 	})
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
 	if err != nil {
@@ -822,6 +830,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		CreateDemoResources: false,
 		Exclude:             "**/images/**/*",
 		Include:             "workflows/**/*.yaml",
+		Flow:                store.Get().InstallationFlow,
 	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
 	if err != nil {
@@ -876,20 +885,28 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		command := util.Doc(fmt.Sprintf(
+		commandAdd := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
 			runtime,
 			strings.ToLower(opts.Provider.String()),
 			opts.APIURL,
 		))
+
+		commandRegister := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git register default --runtime %s --token <your-token>",
+			runtime,
+		))
+
 		return fmt.Errorf(`
-%w
+		%w
 you can try to create it manually by running:
 
-%s
-`,
+		%s
+		%s
+		`,
 			err,
-			command,
+			commandAdd,
+			commandRegister,
 		)
 	}
 
@@ -1245,7 +1262,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
 	if err != nil {
 		return err
 	}
@@ -2233,7 +2250,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {
-			log.G(ctx).Errorf("installation rollback failed: %w", err)
+			log.G(ctx).Errorf("installation rollback failed: %s", err.Error())
 		}
 	}
 
@@ -2320,10 +2337,10 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func getVersionIfExists(opts *RuntimeInstallOptions) (*semver.Version, error) {
-	if opts.versionStr != "" {
-		log.G().Infof("vesionStr: %s", opts.versionStr)
-		return semver.NewVersion(opts.versionStr)
+func getVersionIfExists(versionStr string) (*semver.Version, error) {
+	if versionStr != "" {
+		log.G().Infof("vesionStr: %s", versionStr)
+		return semver.NewVersion(versionStr)
 	}
 
 	return nil, nil
