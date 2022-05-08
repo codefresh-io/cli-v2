@@ -1960,6 +1960,9 @@ func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	codefreshCM := &v1.ConfigMap{}
 
 	runtime, err := getRuntimeDataFromCodefreshCM(ctx, repofs, rt.Name, codefreshCM)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime data while updating codefresh-cm: %w", err)
+	}
 
 	runtime.Spec.Cluster = server
 	runtime.Spec.IngressClass = opts.IngressClass
