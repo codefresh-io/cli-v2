@@ -83,6 +83,7 @@ const (
 	InstallStepGetServerAddress                       CliStep = "install.run.step.get-server-address"
 	InstallStepCreateRuntimeOnPlatform                CliStep = "install.run.step.create-runtime-on-platform"
 	InstallStepBootstrapRepo                          CliStep = "install.run.step.bootstrap-repo"
+	InstallStepSetUpSharedConfigsRepo                 CliStep = "install.run.step.set-up-shared-configs-repo"
 	InstallStepCreateProject                          CliStep = "install.run.step.create-project"
 	InstallStepCreateOrUpdateConfigMap                CliStep = "install.run.step.create-or-update-codefresh-cm"
 	InstallStepApplySecretsToCluster                  CliStep = "install.run.step.apply-secrets-to-cluster"
