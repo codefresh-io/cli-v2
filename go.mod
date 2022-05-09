@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/argoproj-labs/argocd-autopilot v0.3.6
+	github.com/argoproj-labs/argocd-autopilot v0.3.7
 	github.com/argoproj/applicationset v0.4.1
 	github.com/argoproj/argo-cd/v2 v2.3.3
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
@@ -248,7 +248,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
