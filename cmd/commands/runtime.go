@@ -95,7 +95,7 @@ type (
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
-		SharedConfigsCloneOpts         *git.CloneOptions
+		SharedConfigCloneOpts          *git.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
@@ -182,6 +182,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
 		}
 		installationOpts = RuntimeInstallOptions{
+			SharedConfigCloneOpts:          &git.CloneOptions{},
 			GitIntegrationCreationOpts:     &gitIntegrationCreationOpts,
 			GitIntegrationRegistrationOpts: &apmodel.RegisterToGitIntegrationArgs{},
 		}
@@ -568,7 +569,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 		return "", "", "", fmt.Errorf("failed to create an initialization vector: %s. Error: %w", opts.RuntimeName, err)
 	}
 
-	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), *opts.Repo + "/shared-config", nil
+	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), runtimeCreationResponse.SharedConfigRepo, nil
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -618,7 +619,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	opts.RuntimeToken = token
 	opts.RuntimeStoreIV = iv
-	opts.SharedConfigsCloneOpts.Repo = sharedConfigRepo
+	opts.SharedConfigCloneOpts.Repo = sharedConfigRepo
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.IngressClass = opts.IngressClass
@@ -656,8 +657,8 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
-	err = setUpSharedConfigsRepo(ctx, opts)
-	handleCliStep(reporter.InstallStepSetUpSharedConfigsRepo, "Setting up shared configurations repo", err, false, true)
+	err = setUpSharedConfigRepo(ctx, opts)
+	handleCliStep(reporter.InstallStepSetUpSharedConfigRepo, "Setting up shared configurations repo", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to set up shared configurations repo: %w", err))
 	}
@@ -773,36 +774,37 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 	return rt, server, nil
 }
 
-func setUpSharedConfigsRepo(ctx context.Context, opts *RuntimeInstallOptions) error {
-	//set shared configs repo
+func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) error {
+	//set shared config repo
 	var err error
 
 	//1. clone repo (create it if it doesn't exist)
-	opts.SharedConfigsCloneOpts.Auth = opts.InsCloneOpts.Auth
-	opts.SharedConfigsCloneOpts.FS = fs.Create(memfs.New())
-	opts.SharedConfigsCloneOpts.CreateIfNotExist = true
-	_, opts.SharedConfigsCloneOpts.Provider, err = inferProviderFromCloneURL(opts.SharedConfigsCloneOpts.Repo)
-	if err != nil {
-		return fmt.Errorf("failed to infer provider from shared configurations repo url: %w", err)
-	}
+	opts.SharedConfigCloneOpts.Auth = opts.InsCloneOpts.Auth
+	opts.SharedConfigCloneOpts.FS = fs.Create(memfs.New())
+	opts.SharedConfigCloneOpts.CreateIfNotExist = true
 
-	scRepo, scFS, err := opts.SharedConfigsCloneOpts.GetRepo(ctx)
+	inferProviderFromRepo(opts.SharedConfigCloneOpts)
+	opts.SharedConfigCloneOpts.Parse()
+
+	log.G(ctx).Debug("cloning shared configurations repo")
+	scRepo, scFS, err := opts.SharedConfigCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed cloning shared configurations repo: %w", err)
 	}
 
 	//2. make sure there is resources/all folder in that repo (if not - create a DUMMY file in it)
-	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigsCloneOpts.Repo, "resources", "all")) {
+	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, "resources", "all")) {
 		_, err = scFS.Create("/resources/all/DUMMY")
 		if err != nil {
-			fmt.Errorf("failed creating 'resources' directory in shared configurations repo: %w", err)
+			return fmt.Errorf("failed creating 'resources/all' directory in shared configurations repo: %w", err)
 		}
 	}
 	//3. create runtimes/<runtimeName>/in-cluster.yaml file with an Argo-CD application that references resources with include: '{all/*.yaml,all/**/*.yaml}'
+
 	inClusterFile := argocdv1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
+			APIVersion: argocdv1alpha1.ApplicationSchemaGroupVersionKind.Version,
+			Kind:       argocdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -818,7 +820,7 @@ func setUpSharedConfigsRepo(ctx context.Context, opts *RuntimeInstallOptions) er
 			},
 			Project: "default",
 			Source: argocdv1alpha1.ApplicationSource{
-				RepoURL: opts.SharedConfigsCloneOpts.Repo,
+				RepoURL: opts.SharedConfigCloneOpts.Repo,
 				Path:    "resources",
 				Directory: &argocdv1alpha1.ApplicationSourceDirectory{
 					Include: "{all/*.yaml,all/**/*.yaml}",
@@ -832,7 +834,7 @@ func setUpSharedConfigsRepo(ctx context.Context, opts *RuntimeInstallOptions) er
 					SelfHeal:   true,
 				},
 				SyncOptions: argocdv1alpha1.SyncOptions{
-					"-allowEmpty=true",
+					"allowEmpty=true",
 				},
 			},
 		},
@@ -845,7 +847,7 @@ func setUpSharedConfigsRepo(ctx context.Context, opts *RuntimeInstallOptions) er
 	//4. commit and push sharedConfigRepo
 	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
 	if err != nil {
-		fmt.Errorf("failed persisting shared configurations repo: %w", err)
+		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
 	}
 
 	return nil
@@ -2373,7 +2375,7 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
 
 	if opts.InsCloneOpts.Provider == "" {
-		if opts.GitIntegrationCreationOpts.Provider, _, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
+		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
 			return err
 		}
 	} else {
@@ -2393,17 +2395,17 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	return nil
 }
 
-func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, string, error) {
+func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
 	const suggest = "you can specify a git provider explicitly with --provider"
 
 	if strings.Contains(cloneURL, "github.com") {
-		return apmodel.GitProvidersGithub, "GITHUB", nil
+		return apmodel.GitProvidersGithub, nil
 	}
 	if strings.Contains(cloneURL, "gitlab.com") {
-		return apmodel.GitProvidersGitlab, "GITLAB", nil
+		return apmodel.GitProvidersGitlab, nil
 	}
 
-	return apmodel.GitProviders(""), "", fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
+	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
 }
 
 func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
