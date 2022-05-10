@@ -58,6 +58,7 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	appProxyModel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -751,6 +752,14 @@ To complete the installation:
 		}
 	}
 
+	if !opts.FromRepo {
+		err = createIscGitSource(ctx, opts)
+	}
+	handleCliStep(reporter.InstallStepCreateIscGitSource, "Creating internal shared configurations gitsource", err, false, true)
+	if err != nil {
+		return fmt.Errorf("failed adding internal shared configurations git source: %w", err)
+	}
+
 	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
 	if timeoutErr != nil {
 		installationSuccessMsg = fmt.Sprintf("Runtime \"%s\" installed with some issues", opts.RuntimeName)
@@ -845,6 +854,33 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
 	if err != nil {
 		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
+	}
+
+	return nil
+}
+
+func createIscGitSource(ctx context.Context, opts *RuntimeInstallOptions) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	if err != nil {
+		return fmt.Errorf("failed to build app-proxy client: %w", err)
+	}
+
+	isInternal := true
+	repoURL, err := url.Parse(opts.SharedConfigCloneOpts.Repo)
+	if err != nil {
+		return fmt.Errorf("failed parsing isc repo url: %w", err) 
+	}
+	repoURL.Path = store.Get().RuntimesDir + "/" + opts.RuntimeName
+
+	err = appProxyClient.AppProxyGitSources().Create(ctx, &appProxyModel.CreateGitSourceInput{
+		AppName:       store.Get().IscGitSourceName,
+		AppSpecifier:  repoURL.String(),
+		DestServer:    store.Get().InCluster,
+		DestNamespace: opts.RuntimeName,
+		IsInternal:    &isInternal,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create internal shared configurations git source: %w", err)
 	}
 
 	return nil
@@ -970,6 +1006,8 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	return nil
 }
+
+
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
