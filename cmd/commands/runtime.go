@@ -570,6 +570,8 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
+	log.G(ctx).Info("RUNTIME INSTALL")
+
 	err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
@@ -1500,6 +1502,17 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 		return err
 	}
+
+	cs, err := opts.KubeFactory.KubernetesClientSet()
+	if err != nil {
+		return err
+	}
+
+	err = cs.CoreV1().Secrets(opts.RuntimeName).Delete(ctx, store.Get().ArgoCdInitialAdminSecret, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	log.G(ctx).Info("secret argocd-initial-admin-secret deleted")
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
 	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, true)
