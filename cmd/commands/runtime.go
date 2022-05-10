@@ -250,6 +250,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
+	cmd.Flags().StringVar(&installationOpts.SharedConfigCloneOpts.Repo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo>/shared-config or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
@@ -603,14 +604,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	ingressControllerName := opts.IngressController.Name()
 
 	token, iv, sharedConfigRepo, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:       opts.RuntimeName,
-		Cluster:           server,
-		RuntimeVersion:    runtimeVersion,
-		IngressHost:       &opts.IngressHost,
-		IngressClass:      &opts.IngressClass,
-		IngressController: &ingressControllerName,
-		ComponentNames:    componentNames,
-		Repo:              &opts.InsCloneOpts.Repo,
+		RuntimeName:               opts.RuntimeName,
+		Cluster:                   server,
+		RuntimeVersion:            runtimeVersion,
+		IngressHost:               &opts.IngressHost,
+		IngressClass:              &opts.IngressClass,
+		IngressController:         &ingressControllerName,
+		ComponentNames:            componentNames,
+		Repo:                      &opts.InsCloneOpts.Repo,
+		SuggestedSharedConfigRepo: &opts.SharedConfigCloneOpts.Repo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -775,10 +777,8 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 }
 
 func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) error {
-	//set shared config repo
 	var err error
 
-	//1. clone repo (create it if it doesn't exist)
 	opts.SharedConfigCloneOpts.Auth = opts.InsCloneOpts.Auth
 	opts.SharedConfigCloneOpts.FS = fs.Create(memfs.New())
 	opts.SharedConfigCloneOpts.CreateIfNotExist = true
@@ -792,16 +792,14 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("failed cloning shared configurations repo: %w", err)
 	}
 
-	//2. make sure there is resources/all folder in that repo (if not - create a DUMMY file in it)
-	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, "resources", "all")) {
-		_, err = scFS.Create("/resources/all/DUMMY")
+	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().ResourcesDir, store.Get().AllDir)) {
+		_, err = scFS.Create(filepath.Join(store.Get().ResourcesDir, store.Get().AllDir, "DUMMY"))
 		if err != nil {
 			return fmt.Errorf("failed creating 'resources/all' directory in shared configurations repo: %w", err)
 		}
 	}
-	//3. create runtimes/<runtimeName>/in-cluster.yaml file with an Argo-CD application that references resources with include: '{all/*.yaml,all/**/*.yaml}'
 
-	inClusterFile := argocdv1alpha1.Application{
+	IscAppManifest := argocdv1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: argocdv1alpha1.ApplicationSchemaGroupVersionKind.Version,
 			Kind:       argocdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
@@ -816,12 +814,12 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 		Spec: argocdv1alpha1.ApplicationSpec{
 			Destination: argocdv1alpha1.ApplicationDestination{
 				Namespace: "isc",
-				Server:    "https://kubernetes.default.svc",
+				Server:    store.Get().InCluster,
 			},
 			Project: "default",
 			Source: argocdv1alpha1.ApplicationSource{
 				RepoURL: opts.SharedConfigCloneOpts.Repo,
-				Path:    "resources",
+				Path:    store.Get().ResourcesDir,
 				Directory: &argocdv1alpha1.ApplicationSourceDirectory{
 					Include: "{all/*.yaml,all/**/*.yaml}",
 					Recurse: true,
@@ -839,12 +837,11 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 			},
 		},
 	}
-	err = scFS.WriteYamls("runtimes/"+opts.RuntimeName+"/in-cluster.yaml", inClusterFile)
+	err = scFS.WriteYamls(filepath.Join(store.Get().RuntimesDir, opts.RuntimeName, store.Get().IscAppManifestName), IscAppManifest)
 	if err != nil {
 		return fmt.Errorf("failed writing file to shared configuration repo: %w", err)
 	}
 
-	//4. commit and push sharedConfigRepo
 	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
 	if err != nil {
 		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
