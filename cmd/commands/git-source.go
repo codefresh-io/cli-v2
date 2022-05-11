@@ -524,6 +524,10 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 			continue
 		}
 
+		if gs.Self == nil {
+			continue
+		}
+
 		repoURL := "N/A"
 		path := "N/A"
 		healthStatus := "N/A"
