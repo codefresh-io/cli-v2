@@ -2372,25 +2372,27 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 
 	printPreviousVsNewConfigsToUser(previousConfigurations, newConfigurations)
 
-	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
-	}
-
-	labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
-
-	prompt := promptui.Select{
-		Label:     labelStr,
-		Items:     []string{"Yes", "No"},
-		Templates: templates,
-	}
-
-	_, result, err := prompt.Run()
-	if err != nil {
-		return err
-	}
-
-	if result == "No" {
-		return fmt.Errorf("installation from existing repo was cancelled")
+	if !store.Get().Silent {
+		templates := &promptui.SelectTemplates{
+			Selected: "{{ . | yellow }} ",
+		}
+	
+		labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
+	
+		prompt := promptui.Select{
+			Label:     labelStr,
+			Items:     []string{"Yes", "No"},
+			Templates: templates,
+		}
+	
+		_, result, err := prompt.Run()
+		if err != nil {
+			return err
+		}
+	
+		if result == "No" {
+			return fmt.Errorf("installation from existing repo was cancelled")
+		}
 	}
 
 	return nil
