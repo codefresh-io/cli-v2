@@ -525,6 +525,8 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 		}
 
 		if gs.Self == nil {
+			prefixToOmit := runtimeName + "-"
+			log.G(ctx).Errorf(`creation of git-source "%s" is still awaiting completion`, strings.ReplaceAll(name, prefixToOmit, ""))
 			continue
 		}
 
