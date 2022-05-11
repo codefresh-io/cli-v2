@@ -143,7 +143,6 @@ type Store struct {
 	InstallationFlow                    string
 	GsCreateFlow                        string
 	InCluster                           string
-	ArgoCdInitialAdminSecret            string
 }
 
 // Get returns the global store
@@ -242,7 +241,6 @@ func init() {
 	s.InstallationFlow = "install-runtime"
 	s.GsCreateFlow = "git-source-create"
 	s.InCluster = "https://kubernetes.default.svc"
-	s.ArgoCdInitialAdminSecret = "argocd-initial-admin-secret"
 
 	initVersion()
 }
