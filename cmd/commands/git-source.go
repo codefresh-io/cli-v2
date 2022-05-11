@@ -516,7 +516,6 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 	if err != nil {
 		return fmt.Errorf("failed to print git-source list table headers. Err: %w", err)
 	}
-	
 
 	for _, gs := range gitSources {
 		name := gs.Metadata.Name
