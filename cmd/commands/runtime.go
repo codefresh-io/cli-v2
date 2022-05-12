@@ -2273,6 +2273,9 @@ func getRuntimeTokenSecret(namespace string, token string, iv string) ([]byte, e
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      store.Get().CFTokenSecret,
 			Namespace: namespace,
+			Labels: map[string]string{
+				apstore.Default.LabelKeyAppManagedBy: apstore.Default.LabelValueManagedBy,
+			},
 		},
 		Data: map[string][]byte{
 			store.Get().CFTokenSecretKey:   []byte(token),
@@ -2295,6 +2298,9 @@ func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, in
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      store.Get().ArgoCDTokenSecret,
 			Namespace: namespace,
+			Labels: map[string]string{
+				apstore.Default.LabelKeyAppPartOf: apstore.Default.ArgoCDNamespace,
+			},
 		},
 		Data: map[string][]byte{
 			store.Get().ArgoCDTokenKey: []byte(token),
