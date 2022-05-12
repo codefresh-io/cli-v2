@@ -853,7 +853,7 @@ func createIscAppManifest(sharedConfigCloneOpts *git.CloneOptions) (argocdv1alph
 			},
 			Project: "default",
 			Source: argocdv1alpha1.ApplicationSource{
-				RepoURL: parsedRepo.Scheme + "//" + parsedRepo.Host,
+				RepoURL: parsedRepo.Scheme + "://" + parsedRepo.Host,
 				Path:    parsedRepo.Path,
 				Directory: &argocdv1alpha1.ApplicationSourceDirectory{
 					Include: "{all/*.yaml,all/**/*.yaml}",
