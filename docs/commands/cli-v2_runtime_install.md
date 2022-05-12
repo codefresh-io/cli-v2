@@ -32,6 +32,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --demo-resources                    Installs demo resources (default: true) (default true)
       --disable-rollback                  If true, will not perform installation rollback after a failed installation
       --disable-telemetry                 If true, will disable the analytics reporting for the installation process
+      --from-repo                         Installs a runtime from an existing repo. Used for recovery after cluster failure
   -t, --git-token string                  Your git provider api token [GIT_TOKEN]
   -u, --git-user string                   Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                              help for install
