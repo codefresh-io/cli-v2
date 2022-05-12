@@ -10,10 +10,12 @@ rules:
     resources:
       - secrets
       - configmap
+      - pods
     verbs:
       - get
       - create
       - delete
+      - deletecollection
       - update
       - patch
       - list
@@ -25,4 +27,4 @@ rules:
     verbs:
       - get
       - list
-  
+
