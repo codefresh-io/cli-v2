@@ -877,6 +877,17 @@ func createIscAppManifest(sharedConfigCloneOpts *git.CloneOptions) (argocdv1alph
 }
 
 func createIscGitSource(ctx context.Context, opts *RuntimeInstallOptions) error {
+	ns := kube.GenerateNamespace(store.Get().IscNamespaceName, map[string]string{})
+	namespaceManifest, err := yaml.Marshal(ns)
+	if err != nil {
+		return fmt.Errorf("failed to marshal namespace manifest: %w", err)
+	}
+
+	log.G(ctx).Infof("applying namespace isc to cluster...")
+	if err = opts.KubeFactory.Apply(ctx, namespaceManifest); err != nil {
+		return fmt.Errorf("failed to apply namespace isc to cluster: %w", err)
+	}
+
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client: %w", err)
