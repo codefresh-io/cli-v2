@@ -20,7 +20,7 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
     - name: app-proxy
       type: kustomize
-      url: ../manifests/app-proxy # change to real url when it's pushed
+      url: manifests/app-proxy # change to real url when it's pushed
     - name: sealed-secrets
-      type: kustomize 
-      url: ../manifests/sealed-secrets # change to real url when it's pushed 
+      type: kustomize
+      url: manifests/sealed-secrets # change to real url when it's pushed
