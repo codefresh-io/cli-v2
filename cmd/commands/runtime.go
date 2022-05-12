@@ -808,9 +808,35 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 		}
 	}
 
-	IscAppManifest := argocdv1alpha1.Application{
+	iscAppManifest, err := createIscAppManifest(opts.SharedConfigCloneOpts)
+	if err!= nil {
+		return err
+	}
+	
+	err = scFS.WriteYamls(filepath.Join(store.Get().RuntimesDir, opts.RuntimeName, store.Get().IscAppManifestName), iscAppManifest)
+	if err != nil {
+		return fmt.Errorf("failed writing file to shared configuration repo: %w", err)
+	}
+
+	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
+	if err != nil {
+		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
+	}
+
+	return nil
+}
+
+func createIscAppManifest(sharedConfigCloneOpts *git.CloneOptions) (argocdv1alpha1.Application, error) {
+	parsedRepo, err := url.Parse(sharedConfigCloneOpts.Repo)
+	if err != nil {
+		return argocdv1alpha1.Application{}, fmt.Errorf("failed to parse shared config repo url: %w", err)
+	}
+
+	parsedRepo.Path = parsedRepo.Path + "/" + store.Get().ResourcesDir
+
+	iscAppManifest := argocdv1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: argocdv1alpha1.ApplicationSchemaGroupVersionKind.Version,
+			APIVersion: argocdv1alpha1.AppProjectSchemaGroupVersionKind.Group + "/" + argocdv1alpha1.ApplicationSchemaGroupVersionKind.Version,
 			Kind:       argocdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -827,8 +853,8 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 			},
 			Project: "default",
 			Source: argocdv1alpha1.ApplicationSource{
-				RepoURL: opts.SharedConfigCloneOpts.Repo,
-				Path:    store.Get().ResourcesDir,
+				RepoURL: parsedRepo.Scheme + "//" + parsedRepo.Host,
+				Path:    parsedRepo.Path,
 				Directory: &argocdv1alpha1.ApplicationSourceDirectory{
 					Include: "{all/*.yaml,all/**/*.yaml}",
 					Recurse: true,
@@ -846,17 +872,8 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 			},
 		},
 	}
-	err = scFS.WriteYamls(filepath.Join(store.Get().RuntimesDir, opts.RuntimeName, store.Get().IscAppManifestName), IscAppManifest)
-	if err != nil {
-		return fmt.Errorf("failed writing file to shared configuration repo: %w", err)
-	}
 
-	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
-	if err != nil {
-		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
-	}
-
-	return nil
+	return iscAppManifest, nil
 }
 
 func createIscGitSource(ctx context.Context, opts *RuntimeInstallOptions) error {
@@ -870,7 +887,7 @@ func createIscGitSource(ctx context.Context, opts *RuntimeInstallOptions) error 
 	if err != nil {
 		return fmt.Errorf("failed parsing isc repo url: %w", err) 
 	}
-	repoURL.Path = store.Get().RuntimesDir + "/" + opts.RuntimeName
+	repoURL.Path = repoURL.Path + "/" + store.Get().RuntimesDir + "/" + opts.RuntimeName
 
 	err = appProxyClient.AppProxyGitSources().Create(ctx, &appProxyModel.CreateGitSourceInput{
 		AppName:       store.Get().IscGitSourceName,
