@@ -35,7 +35,7 @@ spec:
                   key: password
             - name: ARGO_CD_INSECURE
               valueFrom:
-                secretKeyRef:
+                configMapKeyRef:
                   name: cap-app-proxy-cm
                   key: argoCdInsecure
             - name: ARGO_WORKFLOWS_INSECURE
