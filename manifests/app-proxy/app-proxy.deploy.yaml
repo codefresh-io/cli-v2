@@ -33,6 +33,12 @@ spec:
                 secretKeyRef:
                   name: argocd-initial-admin-secret
                   key: password
+            - name: ARGO_CD_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoCdInsecure
+                  optional: true
             - name: ARGO_WORKFLOWS_INSECURE
               valueFrom:
                 configMapKeyRef:
