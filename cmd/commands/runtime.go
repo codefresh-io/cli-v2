@@ -626,7 +626,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	if opts.FromRepo {
 		// installing argocd with manifests from the provided repo
-		appSpecifier = opts.InsCloneOpts.Repo+"/bootstrap/argo-cd"
+		appSpecifier = opts.InsCloneOpts.Repo + "/bootstrap/argo-cd"
 	}
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -1895,6 +1895,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	literalResources := []string{
 		"argoWorkflowsInsecure=true",
+		"argoCdInsecure=true",
 		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
 		fmt.Sprintf("cors=%s", cfConfig.GetCurrentContext().URL),
 		"env=production",

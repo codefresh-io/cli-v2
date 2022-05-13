@@ -4,4 +4,3 @@ metadata:
   name: cap-app-proxy-cm
 data:
   argoCdUsername: admin
-  argoCdInsecure: "true"
