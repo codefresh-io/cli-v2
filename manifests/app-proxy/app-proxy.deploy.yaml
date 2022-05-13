@@ -38,13 +38,11 @@ spec:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
                   key: argoCdInsecure
-                  optional: true
             - name: ARGO_WORKFLOWS_INSECURE
               valueFrom:
                 configMapKeyRef:
                   name: cap-app-proxy-cm
                   key: argoWorkflowsInsecure
-                  optional: true
             - name: ARGO_WORKFLOWS_URL
               valueFrom:
                 configMapKeyRef:
