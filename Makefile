@@ -10,7 +10,7 @@ IMAGE_NAMESPACE?=codefresh
 RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
 ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
-DEV_RUNTIME_DEF_URL="./manifests/runtime.yaml"
+DEV_RUNTIME_DEF_URL="/code/apps/e2e/manifests/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
 
 CLI_SRCS := $(shell find . -name '*.go')
