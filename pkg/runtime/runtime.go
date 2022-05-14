@@ -15,14 +15,14 @@
 package runtime
 
 import (
-	"bufio"
+	// "bufio"
 	"context"
 	"fmt"
-	"io"
+	// "io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
+	// "os"
 	"strconv"
 	"strings"
 	"time"
@@ -104,50 +104,58 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 	} else {
-		log.G().Info("about to print pwd")
+		// log.G().Info("about to print pwd")
 
-		pwdPath, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
+		// pwdPath, err := os.Getwd()
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
+		// }
+		// log.G().Info(pwdPath)
+
+		// // fullPath := pwdPath + "/" + store.RuntimeDefURL
+		// log.G().Infof("about to os.Open at path: %s", pwdPath)
+
+		// pathToRead := "/codefresh/volume"
+
+		// dir, err := os.Open(pathToRead)
+		// if err != nil {
+		// 	log.G().Errorf("failed to open file at path: %s", pathToRead)
+		// 	return nil, err
+		// }
+		// defer dir.Close()
+
+		// files, err := dir.Readdir(0)
+		// if err != nil {
+		// 	log.G().Errorf("failed to Readdir path: %s", pathToRead)
+		// 	return nil, err
+		// }
+
+		// for _, v := range files {
+		// 	log.G().Infof("%s, %s", v.Name(), fmt.Sprintf("%v", v.IsDir()))
+		// }
+
+		// log.G().Info("SUCCESSFULLY READ FILE")
+
+		// TODO: successfully reads file for /codefresh/volume/manifests/runtime.yaml
+
+		// log.G().Infof("attempting to read from FULL PATH: %s", e2ePathRuntimeDef)
+		
+		e2ePathRuntimeDef := "/codefresh/volume/manifests/runtime.yaml"
+
+		body, err = ioutil.ReadFile(store.RuntimeDefURL) 
+		if err != nil && strings.Contains(err.Error(), "no such file or directory") {
+			log.G().Infof("USING E2E path for runtime definition: %s", e2ePathRuntimeDef)
+			body, err = ioutil.ReadFile("/codefresh/volume/manifests/runtime.yaml")
 		}
-		log.G().Info(pwdPath)
 
-		// fullPath := pwdPath + "/" + store.RuntimeDefURL
-		log.G().Infof("about to os.Open at path: %s", pwdPath)
-
-		pathToRead := "/codefresh/volume"
-
-		dir, err := os.Open(pathToRead)
 		if err != nil {
-			log.G().Errorf("failed to open file at path: %s", pathToRead)
-			return nil, err
-		}
-		defer dir.Close()
-
-		files, err := dir.Readdir(0)
-		if err != nil {
-			log.G().Errorf("failed to Readdir path: %s", pathToRead)
-			return nil, err
-		}
-
-		for _, v := range files {
-			log.G().Infof("%s, %s", v.Name(), v.IsDir())
-		}
-
-		log.G().Info("SUCCESSFULLY READ FILE")
-
-
-		// readLines(file)
-		fullPath := pathToRead + "/manifests/runtime.yaml"
-		log.G().Infof("attempting to read from FULL PATH: %s", fullPath)
-		body, err = ioutil.ReadFile(fullPath) // TODO: thrown from here
-		if err != nil {
-			log.G().Errorf("failed reading file at: %s", fullPath)
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 
 		devMode = true
 	}
+
+	log.G().Info("SUCCESSFULLY COMPLETED ACTUAL READ CALL")
 
 	runtime := &Runtime{}
 	err = yaml.Unmarshal(body, runtime)
@@ -179,23 +187,23 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	return runtime, nil
 }
 
-func readLines(r io.Reader) error {
-	rd := bufio.NewReader(r)
-	log.G().Infof("INSIDE readLines")
-	for {
-		line, err := rd.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
+// func readLines(r io.Reader) error {
+// 	rd := bufio.NewReader(r)
+// 	log.G().Infof("INSIDE readLines")
+// 	for {
+// 		line, err := rd.ReadString('\n')
+// 		if err == io.EOF {
+// 			break
+// 		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		log.G().Infof("%s", line)
-	}
+// 		log.G().Infof("%s", line)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func Load(fs fs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
