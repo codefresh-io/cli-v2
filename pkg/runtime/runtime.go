@@ -115,7 +115,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		// fullPath := pwdPath + "/" + store.RuntimeDefURL
 		log.G().Infof("about to os.Open at path: %s", pwdPath)
 
-		pathToRead := "/codefresh/volume/manifests"
+		pathToRead := "/codefresh/volume"
 
 		dir, err := os.Open(pathToRead)
 		if err != nil {
