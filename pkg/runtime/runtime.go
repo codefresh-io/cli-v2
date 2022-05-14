@@ -136,6 +136,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 		log.G().Info("SUCCESSFULLY READ FILE")
 
+		
 		// readLines(file)
 
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) // TODO: thrown from here
