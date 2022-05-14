@@ -1272,6 +1272,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 				return ctx.Err()
 			}
 
+			
 			log.G(ctx).Debugf("retrying the call to graphql API. Error: %s", err.Error())
 		} else if runtime.InstallationStatus == model.InstallationStatusCompleted {
 			return nil
