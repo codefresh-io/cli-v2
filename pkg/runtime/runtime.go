@@ -115,16 +115,18 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		// fullPath := pwdPath + "/" + store.RuntimeDefURL
 		log.G().Infof("about to os.Open at path: %s", pwdPath)
 
-		file, err := os.Open(pwdPath)
+		pathToRead := "/codefresh/volume/manifests"
+
+		dir, err := os.Open(pathToRead)
 		if err != nil {
-			log.G().Errorf("failed to open file at path: %s", pwdPath)
+			log.G().Errorf("failed to open file at path: %s", pathToRead)
 			return nil, err
 		}
-		defer file.Close()
+		defer dir.Close()
 
-		files, err := file.Readdir(0)
+		files, err := dir.Readdir(0)
 		if err != nil {
-			fmt.Println(err)
+			log.G().Errorf("failed to Readdir path: %s", pathToRead)
 			return nil, err
 		}
 
@@ -134,7 +136,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 		log.G().Info("SUCCESSFULLY READ FILE")
 
-		readLines(file)
+		// readLines(file)
 
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) // TODO: thrown from here
 		if err != nil {
