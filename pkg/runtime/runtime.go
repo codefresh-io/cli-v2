@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -101,6 +102,14 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 	} else {
+		log.G().Info("about to print pwd")
+
+		path, err := os.Getwd()
+			if err != nil {
+				return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
+			}
+		log.G().Info(path)
+		
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) // TODO: thrown from here
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
