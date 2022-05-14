@@ -113,7 +113,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		log.G().Info(path)
 
 		fullPath := path + "/" + store.RuntimeDefURL
-		log.G().Info("full path is: %s.", fullPath)
+		log.G().Infof("full path is: %s.", fullPath)
 
 		file, err := os.Open(fullPath)
 		if err != nil {
@@ -165,6 +165,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 func readLines(r io.Reader) error {
 	rd := bufio.NewReader(r)
+	log.G().Infof("INSIDE readLines")
 	for {
 		line, err := rd.ReadString('\n')
 		if err == io.EOF {
