@@ -1278,7 +1278,6 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 		}
 	}
 
-	
 
 	return fmt.Errorf("timed out while waiting for runtime installation to complete")
 }
