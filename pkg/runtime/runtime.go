@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"bufio"
+	"io"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -109,6 +111,19 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 				return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 			}
 		log.G().Info(path)
+
+		fullPath := path + "/" + store.RuntimeDefURL
+		log.G().Info("full path is: %s.", fullPath)
+
+		file, err := os.Open(fullPath)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		log.G().Info("SUCCESSFULLY READ FILE")
+
+		readLines(file)
 		
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) // TODO: thrown from here
 		if err != nil {
@@ -147,6 +162,24 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 	return runtime, nil
 }
+
+func readLines(r io.Reader) error {
+	rd := bufio.NewReader(r)
+	for {
+		line, err := rd.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		
+		log.G().Infof("%s", line)
+	}
+
+	return nil
+}
+
 
 func Load(fs fs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
