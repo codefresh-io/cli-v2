@@ -15,8 +15,10 @@
 package runtime
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -24,8 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"bufio"
-	"io"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -106,28 +106,39 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	} else {
 		log.G().Info("about to print pwd")
 
-		path, err := os.Getwd()
-			if err != nil {
-				return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
-			}
-		log.G().Info(path)
-
-		fullPath := path + "/" + store.RuntimeDefURL
-		log.G().Infof("full path is: %s", fullPath)
-
-		file, err := os.Open(fullPath)
+		pwdPath, err := os.Getwd()
 		if err != nil {
-			log.G().Info("about to open file at path: %s", fullPath)
+			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
+		}
+		log.G().Info(pwdPath)
+
+		// fullPath := pwdPath + "/" + store.RuntimeDefURL
+		log.G().Infof("about to os.Open at path: %s", pwdPath)
+
+		file, err := os.Open(pwdPath)
+		if err != nil {
+			log.G().Errorf("failed to open file at path: %s", pwdPath)
 			return nil, err
 		}
 		defer file.Close()
 
+		files, err := file.Readdir(0)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		for _, v := range files {
+			fmt.Println(v.Name(), v.IsDir())
+		}
+
 		log.G().Info("SUCCESSFULLY READ FILE")
 
 		readLines(file)
-		
+
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) // TODO: thrown from here
 		if err != nil {
+			log.G().Errorf("failed reading file at: %s", store.RuntimeDefURL)
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 
@@ -175,13 +186,12 @@ func readLines(r io.Reader) error {
 		if err != nil {
 			return err
 		}
-		
+
 		log.G().Infof("%s", line)
 	}
 
 	return nil
 }
-
 
 func Load(fs fs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
