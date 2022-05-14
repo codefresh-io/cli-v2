@@ -131,17 +131,18 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		}
 
 		for _, v := range files {
-			fmt.Println(v.Name(), v.IsDir())
+			log.G().Infof("%s, %s", v.Name(), v.IsDir())
 		}
 
 		log.G().Info("SUCCESSFULLY READ FILE")
 
-		
-		// readLines(file)
 
-		body, err = ioutil.ReadFile(store.RuntimeDefURL) // TODO: thrown from here
+		// readLines(file)
+		fullPath := pathToRead + "/manifests/runtime.yaml"
+		log.G().Infof("attempting to read from FULL PATH: %s", fullPath)
+		body, err = ioutil.ReadFile(fullPath) // TODO: thrown from here
 		if err != nil {
-			log.G().Errorf("failed reading file at: %s", store.RuntimeDefURL)
+			log.G().Errorf("failed reading file at: %s", fullPath)
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 
