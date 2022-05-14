@@ -113,10 +113,11 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		log.G().Info(path)
 
 		fullPath := path + "/" + store.RuntimeDefURL
-		log.G().Infof("full path is: %s.", fullPath)
+		log.G().Infof("full path is: %s", fullPath)
 
 		file, err := os.Open(fullPath)
 		if err != nil {
+			log.G().Info("about to open file at path: %s", fullPath)
 			return nil, err
 		}
 		defer file.Close()
