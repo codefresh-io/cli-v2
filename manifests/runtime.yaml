@@ -21,6 +21,3 @@ spec:
     - name: app-proxy
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/app-proxy
-    - name: doesnt-exist
-      type: kustomize
-      url: no-such-url
