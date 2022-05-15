@@ -148,6 +148,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			body, err = ioutil.ReadFile("/codefresh/volume/manifests/runtime.yaml")
 		}
 
+		
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
@@ -155,7 +156,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 
 
-		
+
 		devMode = true
 	}
 
