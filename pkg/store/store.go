@@ -32,7 +32,6 @@ var (
 	segmentWriteKey  = ""
 	maxDefVersion    = "1.0.1"
 	RuntimeDefURL    = "manifests/runtime.yaml"
-	RuntimeDefE2ePath = "/codefresh/volume/manifests/runtime.yaml"
 	AddClusterDefURL = "../manifests/add-cluster/kustomize"
 )
 

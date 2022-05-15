@@ -13,7 +13,7 @@ ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluste
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
 
-USE_LOCAL_MANIFESTS?=false
+LOCAL_MANIFESTS?="/codefresh/volume/cli-v2/manifests/runtime.yaml"
 
 CLI_SRCS := $(shell find . -name '*.go')
 
@@ -30,8 +30,8 @@ ifeq (${DEV_MODE},true)
 	ADD_CLUSTER_DEF_URL=${DEV_ADD_CLUSTER_DEF_URL}
 endif
 
-ifeq (${USE_LOCAL_MANIFESTS},true)
-	RUNTIME_DEF_URL=DEV_RUNTIME_DEF_URL
+ifdef (${LOCAL_MANIFESTS})
+	RUNTIME_DEF_URL=LOCAL_MANIFESTS
 endif
 
 ifndef GOBIN
