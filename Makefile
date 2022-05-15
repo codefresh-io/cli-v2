@@ -13,7 +13,6 @@ ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluste
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
 
-LOCAL_MANIFESTS?="/codefresh/volume/cli-v2/manifests/runtime.yaml"
 
 CLI_SRCS := $(shell find . -name '*.go')
 
