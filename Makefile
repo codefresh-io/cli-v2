@@ -34,6 +34,7 @@ ifdef (${LOCAL_MANIFESTS})
 	RUNTIME_DEF_URL=LOCAL_MANIFESTS
 endif
 
+
 ifndef GOBIN
 ifndef GOPATH
 $(error GOPATH is not set, please make sure you set your GOPATH correctly!)
