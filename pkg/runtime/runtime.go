@@ -114,8 +114,6 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		devMode = true
 	}
 
-	log.G().Info("SUCCESSFULLY COMPLETED ACTUAL READ CALL")
-
 	runtime := &Runtime{}
 	err = yaml.Unmarshal(body, runtime)
 	if err != nil {
