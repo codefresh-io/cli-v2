@@ -52,4 +52,4 @@ mv ./cf-* /usr/local/bin/cf
 
 # check the installation
 cf version
-```
+ ```

@@ -2047,6 +2047,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	literalResources := []string{
 		"argoWorkflowsInsecure=true",
+		"argoCdInsecure=true",
 		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
 		fmt.Sprintf("cors=%s", cfConfig.GetCurrentContext().URL),
 		"env=production",
