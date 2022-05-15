@@ -144,15 +144,16 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) 
 		if err != nil && strings.Contains(err.Error(), "no such file or directory") {
-			log.G().Infof("USING E2E path for runtime definition: %s", e2ePathRuntimeDef)
+			log.G().Infof("using e2e path for runtime definition: %s", e2ePathRuntimeDef)
 			body, err = ioutil.ReadFile("/codefresh/volume/manifests/runtime.yaml")
 		}
-		
+
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 
+		
 
 		devMode = true
 	}
