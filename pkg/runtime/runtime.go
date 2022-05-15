@@ -101,11 +101,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 	} else {		
-		body, err = ioutil.ReadFile(store.RuntimeDefURL) 
-		if err != nil && strings.Contains(err.Error(), "no such file or directory") {
-			log.G().Infof("manifests not found on url: %s. reading manifests from the e2e path: %s", store.RuntimeDefURL, store.RuntimeDefE2ePath)
-			body, err = ioutil.ReadFile(store.RuntimeDefE2ePath)
-		}
+		body, err = ioutil.ReadFile(store.RuntimeDefURL)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
