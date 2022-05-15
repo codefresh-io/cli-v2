@@ -100,15 +100,13 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
-	} else {		
+	} else {
 		body, err = ioutil.ReadFile(store.RuntimeDefURL)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 
-
-		
 		devMode = true
 	}
 

@@ -13,7 +13,6 @@ ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluste
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
 
-
 CLI_SRCS := $(shell find . -name '*.go')
 
 MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
@@ -32,7 +31,6 @@ endif
 ifdef (${LOCAL_MANIFESTS})
 	RUNTIME_DEF_URL=LOCAL_MANIFESTS
 endif
-
 
 ifndef GOBIN
 ifndef GOPATH
