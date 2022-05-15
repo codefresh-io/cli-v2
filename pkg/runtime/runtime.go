@@ -15,14 +15,11 @@
 package runtime
 
 import (
-	// "bufio"
 	"context"
 	"fmt"
-	// "io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	// "os"
 	"strconv"
 	"strings"
 	"time"
@@ -103,61 +100,16 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
-	} else {
-		// log.G().Info("about to print pwd")
-
-		// pwdPath, err := os.Getwd()
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
-		// }
-		// log.G().Info(pwdPath)
-
-		// // fullPath := pwdPath + "/" + store.RuntimeDefURL
-		// log.G().Infof("about to os.Open at path: %s", pwdPath)
-
-		// pathToRead := "/codefresh/volume"
-
-		// dir, err := os.Open(pathToRead)
-		// if err != nil {
-		// 	log.G().Errorf("failed to open file at path: %s", pathToRead)
-		// 	return nil, err
-		// }
-		// defer dir.Close()
-
-		// files, err := dir.Readdir(0)
-		// if err != nil {
-		// 	log.G().Errorf("failed to Readdir path: %s", pathToRead)
-		// 	return nil, err
-		// }
-
-		// for _, v := range files {
-		// 	log.G().Infof("%s, %s", v.Name(), fmt.Sprintf("%v", v.IsDir()))
-		// }
-
-		// log.G().Info("SUCCESSFULLY READ FILE")
-
-		// TODO: successfully reads file for /codefresh/volume/manifests/runtime.yaml
-
-		// log.G().Infof("attempting to read from FULL PATH: %s", e2ePathRuntimeDef)
-		
-		e2ePathRuntimeDef := "/codefresh/volume/manifests/runtime.yaml"
-
+	} else {		
 		body, err = ioutil.ReadFile(store.RuntimeDefURL) 
 		if err != nil && strings.Contains(err.Error(), "no such file or directory") {
-			log.G().Infof("using e2e path for runtime definition: %s", e2ePathRuntimeDef)
-			body, err = ioutil.ReadFile("/codefresh/volume/manifests/runtime.yaml")
+			log.G().Infof("manifests not found on url: %s. reading manifests from the e2e path: %s", store.RuntimeDefURL, store.RuntimeDefE2ePath)
+			body, err = ioutil.ReadFile(store.RuntimeDefE2ePath)
 		}
-
-		
-
-
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
-
-
-
 
 		devMode = true
 	}
@@ -193,24 +145,6 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 	return runtime, nil
 }
-
-// func readLines(r io.Reader) error {
-// 	rd := bufio.NewReader(r)
-// 	log.G().Infof("INSIDE readLines")
-// 	for {
-// 		line, err := rd.ReadString('\n')
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		log.G().Infof("%s", line)
-// 	}
-
-// 	return nil
-// }
 
 func Load(fs fs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
