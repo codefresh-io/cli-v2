@@ -84,6 +84,7 @@ type (
 		HostName                       string
 		IngressHost                    string
 		IngressClass                   string
+		InternalIngressHost            string
 		IngressController              ingressutil.IngressController
 		Insecure                       bool
 		InstallDemoResources           bool
@@ -226,6 +227,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
+				"Internal ingress host":     installationOpts.InternalIngressHost,
 				"Ingress class":             installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
@@ -245,6 +247,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
+	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
@@ -459,7 +462,19 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 	log.G(cmd.Context()).Info("Validating ingress host")
 
-	certValid, err := checkIngressHostCertificate(opts.IngressHost)
+	if opts.InternalIngressHost != "" {
+		if err = validateIngressHostCertificate(cmd, opts.InternalIngressHost); err != nil {
+			return err
+		}
+		log.G(cmd.Context()).Infof("Using internal ingress host: %s", opts.InternalIngressHost)
+
+	}
+
+	return validateIngressHostCertificate(cmd, opts.IngressHost)
+}
+
+func validateIngressHostCertificate(cmd *cobra.Command, ingressHost string) error {
+	certValid, err := checkIngressHostCertificate(ingressHost)
 	if err != nil {
 		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
 	}
@@ -600,14 +615,15 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	ingressControllerName := opts.IngressController.Name()
 
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:       opts.RuntimeName,
-		Cluster:           server,
-		RuntimeVersion:    runtimeVersion,
-		IngressHost:       &opts.IngressHost,
-		IngressClass:      &opts.IngressClass,
-		IngressController: &ingressControllerName,
-		ComponentNames:    componentNames,
-		Repo:              &opts.InsCloneOpts.Repo,
+		RuntimeName:         opts.RuntimeName,
+		Cluster:             server,
+		RuntimeVersion:      runtimeVersion,
+		IngressHost:         &opts.IngressHost,
+		InternalIngressHost: &opts.InternalIngressHost,
+		IngressClass:        &opts.IngressClass,
+		IngressController:   &ingressControllerName,
+		ComponentNames:      componentNames,
+		Repo:                &opts.InsCloneOpts.Repo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -619,6 +635,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.IngressClass = opts.IngressClass
+	rt.Spec.InternalIngressHost = opts.InternalIngressHost
 	rt.Spec.IngressController = string(opts.IngressController.Name())
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
@@ -626,7 +643,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	if opts.FromRepo {
 		// installing argocd with manifests from the provided repo
-		appSpecifier = opts.InsCloneOpts.Repo+"/bootstrap/argo-cd"
+		appSpecifier = opts.InsCloneOpts.Repo + "/bootstrap/argo-cd"
 	}
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
@@ -1328,6 +1345,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
 		ingressHost := "N/A"
+		internalIngressHost := "N/A"
 		ingressClass := "N/A"
 
 		if rt.Metadata.Namespace != nil {
@@ -1350,11 +1368,15 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressHost = *rt.IngressHost
 		}
 
+		if rt.InternalIngressHost != nil {
+			internalIngressHost = *rt.InternalIngressHost
+		}
+
 		if rt.IngressClass != nil {
 			ingressClass = *rt.IngressClass
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -1364,6 +1386,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage,
 			installationStatus,
 			ingressHost,
+			internalIngressHost,
 			ingressClass,
 		)
 		if err != nil {
