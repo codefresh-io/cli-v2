@@ -146,9 +146,6 @@ type Store struct {
 	ResourcesDir                        string
 	AllDir                              string
 	RuntimesDir                         string
-	IscAppManifestName                  string
-	IscGitSourceName                    string
-	IscNamespaceName                    string
 }
 
 // Get returns the global store
@@ -250,9 +247,6 @@ func init() {
 	s.ResourcesDir = "resources"
 	s.AllDir = "all"
 	s.RuntimesDir = "runtimes"
-	s.IscAppManifestName = "in-cluster.yaml"
-	s.IscGitSourceName = "isc"
-	s.IscNamespaceName = "isc"
 
 	initVersion()
 }

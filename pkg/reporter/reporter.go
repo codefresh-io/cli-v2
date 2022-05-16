@@ -91,7 +91,7 @@ const (
 	InstallStepInstallComponenets                     CliStep = "install.run.step.install-components"
 	InstallStepCreateGitsource                        CliStep = "install.run.step.create-gitsource"
 	InstallStepCreateMarketplaceGitsource             CliStep = "install.run.step.create-marketplace-gitsource"
-	InstallStepCreateIscGitSource                     CliStep = "install.run.step.create-isc-gitsource"
+	InstallStepCreateIsc                              CliStep = "install.run.step.create-isc"
 	InstallStepCompleteRuntimeInstallation            CliStep = "install.run.step.complete-runtime-installation"
 	InstallStepCreateDefaultGitIntegration            CliStep = "install.run.step.create-default-git-integration"
 	InstallStepRegisterToDefaultGitIntegration        CliStep = "install.run.step.register-to-default-git-integration"

@@ -58,7 +58,6 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
-	appProxyModel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -278,6 +277,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
+	util.Die(cmd.Flags().MarkHidden("shared-config-repo")) // for now this is hidden until we will support the option for the user to provide a repo url for isc (currently it will be on the default <runtime-repo>/shared-config)
+	
 
 	return cmd
 }
@@ -753,9 +754,9 @@ To complete the installation:
 	}
 
 	if !opts.FromRepo {
-		err = createIscGitSource(ctx, opts)
+		err = createIsc(ctx, opts)
 	}
-	handleCliStep(reporter.InstallStepCreateIscGitSource, "Creating internal shared configurations gitsource", err, false, true)
+	handleCliStep(reporter.InstallStepCreateIsc, "Creating isc", err, false, true)
 	if err != nil {
 		return fmt.Errorf("failed adding internal shared configurations git source: %w", err)
 	}
@@ -808,14 +809,11 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 		}
 	}
 
-	iscAppManifest, err := createIscAppManifest(opts.SharedConfigCloneOpts)
-	if err!= nil {
-		return err
-	}
-	
-	err = scFS.WriteYamls(filepath.Join(store.Get().RuntimesDir, opts.RuntimeName, store.Get().IscAppManifestName), iscAppManifest)
-	if err != nil {
-		return fmt.Errorf("failed writing file to shared configuration repo: %w", err)
+	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().RuntimesDir, opts.RuntimeName)) {
+		_, err = scFS.Create(filepath.Join(store.Get().ResourcesDir, store.Get().AllDir, "DUMMY"))
+		if err != nil {
+			return fmt.Errorf("failed creating 'runtimes/%s' directory in shared configurations repo: %w", opts.RuntimeName, err)
+		}
 	}
 
 	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
@@ -826,89 +824,23 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func createIscAppManifest(sharedConfigCloneOpts *git.CloneOptions) (argocdv1alpha1.Application, error) {
-	parsedRepo, err := url.Parse(sharedConfigCloneOpts.Repo)
-	if err != nil {
-		return argocdv1alpha1.Application{}, fmt.Errorf("failed to parse shared config repo url: %w", err)
-	}
-
-	parsedRepo.Path = parsedRepo.Path + "/" + store.Get().ResourcesDir
-
-	iscAppManifest := argocdv1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: argocdv1alpha1.AppProjectSchemaGroupVersionKind.Group + "/" + argocdv1alpha1.ApplicationSchemaGroupVersionKind.Version,
-			Kind:       argocdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				"codefresh.io/entity":   "internal-config",
-				"codefresh.io/internal": "true",
-			},
-			Name: "isc-in-cluster",
-		},
-		Spec: argocdv1alpha1.ApplicationSpec{
-			Destination: argocdv1alpha1.ApplicationDestination{
-				Namespace: "isc",
-				Server:    store.Get().InCluster,
-			},
-			Project: "default",
-			Source: argocdv1alpha1.ApplicationSource{
-				RepoURL: parsedRepo.Scheme + "://" + parsedRepo.Host,
-				Path:    parsedRepo.Path,
-				Directory: &argocdv1alpha1.ApplicationSourceDirectory{
-					Include: "{all/*.yaml,all/**/*.yaml}",
-					Recurse: true,
-				},
-			},
-			SyncPolicy: &argocdv1alpha1.SyncPolicy{
-				Automated: &argocdv1alpha1.SyncPolicyAutomated{
-					AllowEmpty: true,
-					Prune:      true,
-					SelfHeal:   true,
-				},
-				SyncOptions: argocdv1alpha1.SyncOptions{
-					"allowEmpty=true",
-				},
-			},
-		},
-	}
-
-	return iscAppManifest, nil
-}
-
-func createIscGitSource(ctx context.Context, opts *RuntimeInstallOptions) error {
-	ns := kube.GenerateNamespace(store.Get().IscNamespaceName, map[string]string{})
-	namespaceManifest, err := yaml.Marshal(ns)
-	if err != nil {
-		return fmt.Errorf("failed to marshal namespace manifest: %w", err)
-	}
-
-	log.G(ctx).Infof("applying namespace isc to cluster...")
-	if err = opts.KubeFactory.Apply(ctx, namespaceManifest); err != nil {
-		return fmt.Errorf("failed to apply namespace isc to cluster: %w", err)
-	}
-
+func createIsc(ctx context.Context, opts *RuntimeInstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while creating isc: %w", err)
 	}
 
-	isInternal := true
-	repoURL, err := url.Parse(opts.SharedConfigCloneOpts.Repo)
-	if err != nil {
-		return fmt.Errorf("failed parsing isc repo url: %w", err) 
-	}
-	repoURL.Path = repoURL.Path + "/" + store.Get().RuntimesDir + "/" + opts.RuntimeName
+	err = appProxyClient.AppProxyIsc().Create(
+		ctx, 
+		opts.RuntimeName, 
+		opts.RuntimeName, 
+		opts.SharedConfigCloneOpts.Repo, 
+		"in-cluster", 
+		store.Get().InCluster,
+	)
 
-	err = appProxyClient.AppProxyGitSources().Create(ctx, &appProxyModel.CreateGitSourceInput{
-		AppName:       store.Get().IscGitSourceName,
-		AppSpecifier:  repoURL.String(),
-		DestServer:    store.Get().InCluster,
-		DestNamespace: opts.RuntimeName,
-		IsInternal:    &isInternal,
-	})
 	if err != nil {
-		return fmt.Errorf("failed to create internal shared configurations git source: %w", err)
+		return fmt.Errorf("failed to create isc: %w", err)
 	}
 
 	return nil
