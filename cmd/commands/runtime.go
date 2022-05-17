@@ -437,7 +437,11 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	parsed, err := url.Parse(opts.IngressHost)
+	host := opts.IngressHost
+	if opts.InternalIngressHost != "" {
+		host = opts.InternalIngressHost
+	}
+	parsed, err := url.Parse(host)
 	if err != nil {
 		return err
 	}
@@ -467,7 +471,6 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 			return err
 		}
 		log.G(cmd.Context()).Infof("Using internal ingress host: %s", opts.InternalIngressHost)
-
 	}
 
 	return validateIngressHostCertificate(cmd, opts.IngressHost)
@@ -1992,6 +1995,7 @@ func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	runtime.Spec.IngressClass = opts.IngressClass
 	runtime.Spec.IngressController = opts.IngressController.Name()
 	runtime.Spec.IngressHost = opts.IngressHost
+	runtime.Spec.InternalIngressHost = opts.InternalIngressHost
 
 	marshalRuntime, err = yaml.Marshal(runtime)
 	if err != nil {
