@@ -132,11 +132,13 @@ func RunGitIntegrationListCommand(ctx context.Context, client sdk.AppProxyAPI, f
 		}
 
 		for _, intg := range integrations {
+			aaa := intg.Users
+			fmt.Println(aaa)
 			_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%d\t%s\n",
 				intg.Name,
 				intg.Provider,
 				intg.APIURL,
-				len(intg.RegisteredUsers),
+				len(intg.Users),
 				intg.SharingPolicy.String(),
 			)
 			if err != nil {
