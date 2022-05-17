@@ -92,6 +92,7 @@ type (
 		DisableRollback                bool
 		DisableTelemetry               bool
 		FromRepo                       bool
+		CreateIsc                      bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -254,6 +255,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
+	cmd.Flags().BoolVar(&installationOpts.CreateIsc, "create-isc", false, "creates isc-app (internal shared configurations) in the isc repo that is associated with the account, for the installed runtime. creates the isc repo if it doesn't exist")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
@@ -278,7 +280,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	util.Die(cmd.Flags().MarkHidden("shared-config-repo")) // for now this is hidden until we will support the option for the user to provide a repo url for isc (currently it will be on the default <runtime-repo>/shared-config)
-	
 
 	return cmd
 }
@@ -661,7 +662,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
-	err = setUpSharedConfigRepo(ctx, opts)
+	if !opts.FromRepo && opts.CreateIsc {
+		err = setUpSharedConfigRepo(ctx, opts)
+	}
 	handleCliStep(reporter.InstallStepSetUpSharedConfigRepo, "Setting up shared configurations repo", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to set up shared configurations repo: %w", err))
@@ -753,7 +756,7 @@ To complete the installation:
 		}
 	}
 
-	if !opts.FromRepo {
+	if !opts.FromRepo && opts.CreateIsc {
 		err = createIsc(ctx, opts)
 	}
 	handleCliStep(reporter.InstallStepCreateIsc, "Creating isc", err, false, true)
@@ -831,11 +834,11 @@ func createIsc(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	err = appProxyClient.AppProxyIsc().Create(
-		ctx, 
-		opts.RuntimeName, 
-		opts.RuntimeName, 
-		opts.SharedConfigCloneOpts.Repo, 
-		"in-cluster", 
+		ctx,
+		opts.RuntimeName,
+		opts.RuntimeName,
+		opts.SharedConfigCloneOpts.Repo,
+		"in-cluster",
 		store.Get().InCluster,
 	)
 
@@ -966,8 +969,6 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	return nil
 }
-
-
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
