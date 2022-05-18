@@ -759,9 +759,9 @@ To complete the installation:
 	if !opts.FromRepo && opts.CreateIsc {
 		err = createIsc(ctx, opts)
 	}
-	handleCliStep(reporter.InstallStepCreateIsc, "Creating isc", err, false, true)
+	handleCliStep(reporter.InstallStepCreateIsc, "Creating internal shared configurations app", err, false, true)
 	if err != nil {
-		return fmt.Errorf("failed adding internal shared configurations git source: %w", err)
+		return fmt.Errorf("failed adding internal shared configurations app: %w", err)
 	}
 
 	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
@@ -792,6 +792,8 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
 
+	log.G(ctx).Info("setting up internal shared configurations (isc) repo")
+
 	opts.SharedConfigCloneOpts.Auth = opts.InsCloneOpts.Auth
 	opts.SharedConfigCloneOpts.FS = fs.Create(memfs.New())
 	opts.SharedConfigCloneOpts.CreateIfNotExist = true
@@ -805,15 +807,15 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 		return fmt.Errorf("failed cloning shared configurations repo: %w", err)
 	}
 
-	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().ResourcesDir, store.Get().AllDir)) {
-		_, err = scFS.Create(filepath.Join(store.Get().ResourcesDir, store.Get().AllDir, "DUMMY"))
+	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().SharedConfigDir, store.Get().ResourcesDir, store.Get().AllDir)) {
+		_, err = scFS.Create(filepath.Join(store.Get().SharedConfigDir, store.Get().ResourcesDir, store.Get().AllDir, "DUMMY"))
 		if err != nil {
 			return fmt.Errorf("failed creating 'resources/all' directory in shared configurations repo: %w", err)
 		}
 	}
 
-	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().RuntimesDir, opts.RuntimeName)) {
-		_, err = scFS.Create(filepath.Join(store.Get().ResourcesDir, store.Get().AllDir, "DUMMY"))
+	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName)) {
+		_, err = scFS.Create(filepath.Join(store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName, "DUMMY"))
 		if err != nil {
 			return fmt.Errorf("failed creating 'runtimes/%s' directory in shared configurations repo: %w", opts.RuntimeName, err)
 		}
@@ -973,7 +975,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while creating git integration: %w", err)
 	}
 
 	err = addDefaultGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
@@ -994,7 +996,7 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while removing git integration: %w", err)
 	}
 
 	integrations, err := appProxyClient.GitIntegrations().List(ctx)
