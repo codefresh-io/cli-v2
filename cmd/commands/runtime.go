@@ -816,13 +816,13 @@ func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName)) {
-		_, err = scFS.Create(filepath.Join(store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName, "DUMMY"))
+		_, err = scFS.Create(filepath.Join(store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName, "isc-in-cluster.yaml"))
 		if err != nil {
 			return fmt.Errorf("failed creating 'runtimes/%s' directory in shared configurations repo: %w", opts.RuntimeName, err)
 		}
 	}
 
-	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting sharedConfigRepo"})
+	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting shared config repo"})
 	if err != nil {
 		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
 	}
