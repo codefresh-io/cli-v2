@@ -140,7 +140,9 @@ type Store struct {
 	SccName                             string
 	CFInternalGitSources                []string
 	CFInternalReporters                 []string
-	VersionOfGitSourceAppProxyRefactor  string
+	InstallationFlow                    string
+	GsCreateFlow                        string
+	InCluster                           string
 }
 
 // Get returns the global store
@@ -230,12 +232,15 @@ func init() {
 	s.NetworkTesterGenerateName = "cf-network-tester-"
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
-	s.MaxKubeVersion = "v1.23.4"
+	s.MaxKubeVersion = "v1.25.0"
 	s.MasterIngressName = "-master"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
+	s.InstallationFlow = "install-runtime"
+	s.GsCreateFlow = "git-source-create"
+	s.InCluster = "https://kubernetes.default.svc"
 
 	initVersion()
 }

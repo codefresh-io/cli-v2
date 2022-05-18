@@ -41,11 +41,6 @@ import (
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	oc "github.com/codefresh-io/cli-v2/pkg/util/openshift"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
-	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -59,6 +54,9 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -66,6 +64,8 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -84,13 +84,13 @@ type (
 		HostName                       string
 		IngressHost                    string
 		IngressClass                   string
-		IngressController              string
-		IngressControllerType          ingressControllerType
+		IngressController              ingressutil.IngressController
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
 		DisableRollback                bool
 		DisableTelemetry               bool
+		FromRepo                       bool
 		Version                        *semver.Version
 		GsCloneOpts                    *git.CloneOptions
 		InsCloneOpts                   *git.CloneOptions
@@ -98,6 +98,7 @@ type (
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
+		NamespaceLabels                map[string]string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -141,25 +142,12 @@ type (
 		message string
 		level   summaryLogLevels
 	}
-
-	ingressControllerType string
-
-	ingressController struct {
-		Name string
-		Type ingressControllerType
-	}
 )
 
 const (
 	Success summaryLogLevels = "Success"
 	Failed  summaryLogLevels = "Failed"
 	Info    summaryLogLevels = "Info"
-
-	IngressControllerNginxCommunity  ingressControllerType = "k8s.io/ingress-nginx"
-	IngressControllerNginxEnterprise ingressControllerType = "nginx.org/ingress-controller"
-	IngressControllerIstio           ingressControllerType = "istio.io/ingress-controller"
-	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
-	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
 )
 
 var summaryArr []summaryLog
@@ -268,6 +256,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
+	cmd.Flags().BoolVar(&installationOpts.FromRepo, "from-repo", false, "Installs a runtime from an existing repo. Used for recovery after cluster failure")
+	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -368,6 +358,12 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
+	if opts.FromRepo {
+		if err := getInstallationFromRepoApproval(cmd.Context(), opts); err != nil {
+			return err
+		}
+	}
+
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
@@ -457,6 +453,10 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
 
+	if !opts.SkipClusterChecks {
+		return nil
+	}
+
 	log.G(cmd.Context()).Info("Validating ingress host")
 
 	certValid, err := checkIngressHostCertificate(opts.IngressHost)
@@ -475,6 +475,7 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
+		opts.IngressController = ingressutil.GetController("")
 		return nil
 	}
 
@@ -486,19 +487,15 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	supportedControllers := []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador}
 	var ingressClassNames []string
-	ingressClassNameToController := make(map[string]ingressController)
+	ingressClassNameToController := make(map[string]ingressutil.IngressController)
 	var isValidClass bool
 
 	for _, ic := range ingressClassList.Items {
-		for _, controller := range supportedControllers {
+		for _, controller := range ingressutil.SupportedControllers {
 			if ic.Spec.Controller == string(controller) {
 				ingressClassNames = append(ingressClassNames, ic.Name)
-				ingressClassNameToController[ic.Name] = ingressController{
-					Name: getIngressControllerName(controller, ic.Name),
-					Type: controller,
-				}
+				ingressClassNameToController[ic.Name] = ingressutil.GetController(string(controller))
 
 				if opts.IngressClass == ic.Name { //if ingress class provided via flag
 					isValidClass = true
@@ -528,29 +525,13 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		}
 	}
 
-	opts.IngressController = ingressClassNameToController[opts.IngressClass].Name
-	opts.IngressControllerType = ingressClassNameToController[opts.IngressClass].Type
+	opts.IngressController = ingressClassNameToController[opts.IngressClass]
 
-	if opts.IngressControllerType == IngressControllerNginxEnterprise {
+	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) {
 		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
 	}
 
 	return nil
-}
-
-func getIngressControllerName(controllerType ingressControllerType, className string) string {
-	switch controllerType {
-	case IngressControllerNginxCommunity:
-		return "ingress-nginx-controller"
-	case IngressControllerNginxEnterprise:
-		return fmt.Sprintf("%s-ingress-controller", className)
-	case IngressControllerTraefik:
-		return "traefik"
-	case IngressControllerIstio:
-		return "istio-ingressgateway"
-	default:
-		return ""
-	}
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -606,21 +587,28 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	componentNames := getComponents(rt, opts)
 
-	disableRollback := opts.DisableRollback
+	if opts.FromRepo {
+		// in case of a runtime recovery, we don't want to clear the repo when failure occures
+		opts.DisableRollback = true
+	}
 
 	defer func() {
 		// will rollback if err is not nil and it is safe to do so
-		postInstallationHandler(ctx, opts, err, &disableRollback)
+		postInstallationHandler(ctx, opts, err, &opts.DisableRollback)
 	}()
 
+	ingressControllerName := opts.IngressController.Name()
+
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:    opts.RuntimeName,
-		Cluster:        server,
-		RuntimeVersion: runtimeVersion,
-		IngressHost:    &opts.IngressHost,
-		ComponentNames: componentNames,
-		Repo:           &opts.InsCloneOpts.Repo,
-		IngressClass:   &opts.IngressClass,
+		RuntimeName:       opts.RuntimeName,
+		Cluster:           server,
+		RuntimeVersion:    runtimeVersion,
+		IngressHost:       &opts.IngressHost,
+		IngressClass:      &opts.IngressClass,
+		IngressController: &ingressControllerName,
+		ComponentNames:    componentNames,
+		Repo:              &opts.InsCloneOpts.Repo,
+		Recover:           &opts.FromRepo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -632,15 +620,24 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.IngressClass = opts.IngressClass
+	rt.Spec.IngressController = string(opts.IngressController.Name())
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
+
+	appSpecifier := rt.Spec.FullSpecifier()
+
+	if opts.FromRepo {
+		// installing argocd with manifests from the provided repo
+		appSpecifier = opts.InsCloneOpts.Repo + "/bootstrap/argo-cd"
+	}
 
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
-		AppSpecifier:    rt.Spec.FullSpecifier(),
+		AppSpecifier:    appSpecifier,
 		Namespace:       opts.RuntimeName,
 		KubeFactory:     opts.KubeFactory,
 		CloneOptions:    opts.InsCloneOpts,
 		Insecure:        opts.Insecure,
+		Recover:         opts.FromRepo,
 		KubeContextName: opts.kubeContext,
 		Timeout:         store.Get().WaitTimeout,
 		ArgoCDLabels: map[string]string{
@@ -650,6 +647,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		BootstrapAppsLabels: map[string]string{
 			store.Get().LabelKeyCFInternal: "true",
 		},
+		NamespaceLabels: opts.NamespaceLabels,
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, false, true)
 	if err != nil {
@@ -665,14 +663,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed setting up environment for openshift %w", err)
 	}
 
-	err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
-		CloneOpts:   opts.InsCloneOpts,
-		ProjectName: opts.RuntimeName,
-		Labels: map[string]string{
-			store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
-			store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
-		},
-	})
+	if !opts.FromRepo {
+		err = apcmd.RunProjectCreate(ctx, &apcmd.ProjectCreateOptions{
+			CloneOpts:   opts.InsCloneOpts,
+			ProjectName: opts.RuntimeName,
+			Labels: map[string]string{
+				store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
+				store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
+			},
+		})
+	}
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
@@ -680,10 +680,21 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
-	err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
-	handleCliStep(reporter.InstallStepCreateConfigMap, "Creating codefresh-cm", err, false, true)
+	if !opts.FromRepo {
+		err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
+	} else {
+		// in case of runtime recovery we only update the existing cm
+		err = updateCodefreshCM(ctx, opts, rt, server)
+	}
+	handleCliStep(reporter.InstallStepCreateOrUpdateConfigMap, "Creating/Updating codefresh-cm", err, false, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create codefresh-cm: %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create or update codefresh-cm: %w", err))
+	}
+
+	err = applySecretsToCluster(ctx, opts)
+	handleCliStep(reporter.InstallStepApplySecretsToCluster, "Applying secrets to cluster", err, false, true)
+	if err != nil {
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to apply secrets to cluster: %w", err))
 	}
 
 	err = createRuntimeComponents(ctx, opts, rt)
@@ -701,7 +712,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	// if we got to this point the runtime was installed successfully
 	// thus we shall not perform a rollback after this point.
-	disableRollback = true
+	opts.DisableRollback = true
 
 	if store.Get().SkipIngress {
 		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, false, true)
@@ -756,14 +767,17 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
-	for _, component := range rt.Spec.Components {
-		infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
-		log.G(ctx).Infof(infoStr)
-		component.IsInternal = true
-		err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		if err != nil {
-			err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
-			break
+
+	if !opts.FromRepo {
+		for _, component := range rt.Spec.Components {
+			infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
+			log.G(ctx).Infof(infoStr)
+			component.IsInternal = true
+			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
+			if err != nil {
+				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+				break
+			}
 		}
 	}
 
@@ -772,14 +786,16 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressControllerType == IngressControllerNginxEnterprise {
+	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
 		}
 	}
 
-	err = installComponents(ctx, opts, rt)
+	if !opts.FromRepo {
+		err = installComponents(ctx, opts, rt)
+	}
 	handleCliStep(reporter.InstallStepInstallComponenets, "Installing components", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to install components: %s", err))
@@ -818,40 +834,50 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 }
 
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
-	gitSrcMessage := fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
-	err := RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:          opts.InsCloneOpts,
-		GsCloneOpts:           opts.GsCloneOpts,
-		GsName:                store.Get().GitSourceName,
-		RuntimeName:           opts.RuntimeName,
-		CreateDemoResources:   opts.InstallDemoResources,
-		HostName:              opts.HostName,
-		IngressHost:           opts.IngressHost,
-		IngressClass:          opts.IngressClass,
-		IngressControllerType: opts.IngressControllerType,
-	})
+	var err error
+	var gitSrcMessage string
+	var createGitSrcMessgae string
+
+	if !opts.FromRepo {
+		gitSrcMessage = fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
+		err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+			InsCloneOpts:        opts.InsCloneOpts,
+			GsCloneOpts:         opts.GsCloneOpts,
+			GsName:              store.Get().GitSourceName,
+			RuntimeName:         opts.RuntimeName,
+			CreateDemoResources: opts.InstallDemoResources,
+			HostName:            opts.HostName,
+			IngressHost:         opts.IngressHost,
+			IngressClass:        opts.IngressClass,
+			IngressController:   opts.IngressController,
+			Flow:                store.Get().InstallationFlow,
+		})
+	}
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().GitSourceName, err))
 	}
 
-	mpCloneOpts := &git.CloneOptions{
-		Repo: store.Get().MarketplaceRepo,
-		FS:   fs.Create(memfs.New()),
+	if !opts.FromRepo {
+		mpCloneOpts := &git.CloneOptions{
+			Repo: store.Get().MarketplaceRepo,
+			FS:   fs.Create(memfs.New()),
+		}
+		mpCloneOpts.Parse()
+
+		createGitSrcMessgae = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+
+		err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+			InsCloneOpts:        opts.InsCloneOpts,
+			GsCloneOpts:         mpCloneOpts,
+			GsName:              store.Get().MarketplaceGitSourceName,
+			RuntimeName:         opts.RuntimeName,
+			CreateDemoResources: false,
+			Exclude:             "**/images/**/*",
+			Include:             "workflows/**/*.yaml",
+			Flow:                store.Get().InstallationFlow,
+		})
 	}
-	mpCloneOpts.Parse()
-
-	createGitSrcMessgae := fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
-
-	err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         mpCloneOpts,
-		GsName:              store.Get().MarketplaceGitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: false,
-		Exclude:             "**/images/**/*",
-		Include:             "workflows/**/*.yaml",
-	})
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
@@ -905,20 +931,28 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
-		command := util.Doc(fmt.Sprintf(
+		commandAdd := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
 			runtime,
 			strings.ToLower(opts.Provider.String()),
 			opts.APIURL,
 		))
+
+		commandRegister := util.Doc(fmt.Sprintf(
+			"\t<BIN> integration git register default --runtime %s --token <your-token>",
+			runtime,
+		))
+
 		return fmt.Errorf(`
-%w
+		%w
 you can try to create it manually by running:
 
-%s
-`,
+		%s
+		%s
+		`,
 			err,
-			command,
+			commandAdd,
+			commandRegister,
 		)
 	}
 
@@ -950,7 +984,7 @@ you can try to create it manually by running:
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
-	if !store.Get().SkipIngress {
+	if !store.Get().SkipIngress && rt.Spec.IngressController != string(ingressutil.IngressControllerALB) {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1027,13 +1061,15 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
-	err = checkRuntimeCollisions(ctx, opts.KubeFactory)
+	err = checkRuntimeCollisions(ctx, opts.KubeFactory, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckRuntimeCollision, "Checking for runtime collisions", err, true, false)
 	if err != nil {
 		return fmt.Errorf("runtime collision check failed: %w", err)
 	}
 
-	err = checkExistingRuntimes(ctx, opts.RuntimeName)
+	if !opts.FromRepo {
+		err = checkExistingRuntimes(ctx, opts.RuntimeName)
+	}
 	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, true, false)
 	if err != nil {
 		return fmt.Errorf("existing runtime check failed: %w", err)
@@ -1050,7 +1086,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func checkRuntimeCollisions(ctx context.Context, kube kube.Factory) error {
+func checkRuntimeCollisions(ctx context.Context, kube kube.Factory, runtime string) error {
 	log.G(ctx).Debug("checking for argocd collisions in cluster")
 
 	cs, err := kube.KubernetesClientSet()
@@ -1074,6 +1110,10 @@ func checkRuntimeCollisions(ctx context.Context, kube kube.Factory) error {
 	}
 
 	subjNamespace := crb.Subjects[0].Namespace
+
+	if subjNamespace == runtime {
+		return nil // argocd will be over-written by runtime installation
+	}
 
 	// check if some argocd is actually using this crb
 	_, err = cs.AppsV1().Deployments(subjNamespace).Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
@@ -1274,7 +1314,7 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
 	if err != nil {
 		return err
 	}
@@ -1802,11 +1842,8 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		},
 	}
 
-	if opts.IngressControllerType == IngressControllerNginxEnterprise {
-		ingressOptions.Annotations["nginx.org/mergeable-ingress-type"] = "minion"
-	}
-
 	ingress := ingressutil.CreateIngress(&ingressOptions)
+	opts.IngressController.Decorate(ingress)
 
 	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 		return err
@@ -1891,13 +1928,8 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		}
 
-		if opts.IngressControllerType == IngressControllerNginxEnterprise {
-			ingressOptions.Annotations = map[string]string{
-				"nginx.org/mergeable-ingress-type": "minion",
-			}
-		}
-
 		ingress := ingressutil.CreateIngress(&ingressOptions)
+		opts.IngressController.Decorate(ingress)
 
 		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
 			return err
@@ -1915,7 +1947,49 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return apu.PushWithMessage(ctx, r, "Created App-Proxy Ingress")
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime, server string) error {
+	var repofs fs.FS
+	var marshalRuntime []byte
+	var r git.Repository
+	var err error
+
+	r, repofs, err = opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get repo while updating codefresh-cm: %w", err)
+	}
+
+	codefreshCM := &v1.ConfigMap{}
+
+	runtime, err := getRuntimeDataFromCodefreshCM(ctx, repofs, rt.Name, codefreshCM)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime data while updating codefresh-cm: %w", err)
+	}
+
+	runtime.Spec.Cluster = server
+	runtime.Spec.IngressClass = opts.IngressClass
+	runtime.Spec.IngressController = opts.IngressController.Name()
+	runtime.Spec.IngressHost = opts.IngressHost
+
+	marshalRuntime, err = yaml.Marshal(runtime)
+	if err != nil {
+		return fmt.Errorf("failed to marshal runtime while updating codefresh-cm: %w", err)
+	}
+
+	codefreshCM.Data["runtime"] = string(marshalRuntime)
+	err = repofs.WriteYamls(repofs.Join(apstore.Default.BootsrtrapDir, rt.Name+".yaml"), codefreshCM)
+	if err != nil {
+		return fmt.Errorf("failed to write file while updating codefresh-cm: %w", err)
+	}
+
+	err = apu.PushWithMessage(ctx, r, "Updating codefresh-cm")
+	if err != nil {
+		return fmt.Errorf("failed to push to git while updating codefresh-cm: %w", err)
+	}
+
+	return nil
+}
+
+func applySecretsToCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
 	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeStoreIV)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
@@ -1930,6 +2004,10 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 		return fmt.Errorf("failed to create codefresh token: %w", err)
 	}
 
+	return nil
+}
+
+func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
 	u, err := url.Parse(cloneOpts.URL())
 	if err != nil {
@@ -2055,6 +2133,9 @@ func getRuntimeTokenSecret(namespace string, token string, iv string) ([]byte, e
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      store.Get().CFTokenSecret,
 			Namespace: namespace,
+			Labels: map[string]string{
+				apstore.Default.LabelKeyAppManagedBy: apstore.Default.LabelValueManagedBy,
+			},
 		},
 		Data: map[string][]byte{
 			store.Get().CFTokenSecretKey:   []byte(token),
@@ -2077,6 +2158,9 @@ func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, in
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      store.Get().ArgoCDTokenSecret,
 			Namespace: namespace,
+			Labels: map[string]string{
+				apstore.Default.LabelKeyAppPartOf: apstore.Default.ArgoCDNamespace,
+			},
 		},
 		Data: map[string][]byte{
 			store.Get().ArgoCDTokenKey: []byte(token),
@@ -2255,6 +2339,82 @@ func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
 	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
+// display the user the old vs. the new configurations that will be changed upon recovery
+// and asks for permission to proceed
+func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOptions) error {
+	server, err := util.KubeCurrentServer(opts.kubeconfig)
+	if err != nil {
+		return fmt.Errorf("failed getting new cluster server: %w", err)
+	}
+
+	newConfigurations := map[string]string{
+		"ClusterServer":     server,
+		"IngressClass":      opts.IngressClass,
+		"IngressController": opts.IngressController.Name(),
+		"IngressHost":       opts.IngressHost,
+	}
+	_, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get repo while getting user's approval: %w", err)
+	}
+
+	codefreshCM := &v1.ConfigMap{}
+	runtime, err := getRuntimeDataFromCodefreshCM(ctx, repofs, opts.RuntimeName, codefreshCM)
+	if err != nil {
+		return err
+	}
+
+	previousConfigurations := map[string]string{
+		"ClusterServer":     runtime.Spec.Cluster,
+		"IngressClass":      runtime.Spec.IngressClass,
+		"IngressController": runtime.Spec.IngressController,
+		"IngressHost":       runtime.Spec.IngressHost,
+	}
+
+	printPreviousVsNewConfigsToUser(previousConfigurations, newConfigurations)
+
+	if !store.Get().Silent {
+		templates := &promptui.SelectTemplates{
+			Selected: "{{ . | yellow }} ",
+		}
+
+		labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
+
+		prompt := promptui.Select{
+			Label:     labelStr,
+			Items:     []string{"Yes", "No"},
+			Templates: templates,
+		}
+
+		_, result, err := prompt.Run()
+		if err != nil {
+			return err
+		}
+
+		if result == "No" {
+			return fmt.Errorf("installation from existing repo was cancelled")
+		}
+	}
+
+	return nil
+}
+
+func getRuntimeDataFromCodefreshCM(ctx context.Context, repofs fs.FS, runtimeName string, codefreshCM *v1.ConfigMap) (*runtime.Runtime, error) {
+	err := repofs.ReadYamls(repofs.Join(apstore.Default.BootsrtrapDir, runtimeName+".yaml"), codefreshCM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file '%s': %w", runtimeName+".yaml", err)
+	}
+
+	data := codefreshCM.Data["runtime"]
+	runtime := &runtime.Runtime{}
+	err = yaml.Unmarshal([]byte(data), runtime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal runtime: %w", err)
+	}
+
+	return runtime, nil
+}
+
 func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err error, disableRollback *bool) {
 	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
@@ -2270,7 +2430,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {
-			log.G(ctx).Errorf("installation rollback failed: %w", err)
+			log.G(ctx).Errorf("installation rollback failed: %s", err.Error())
 		}
 	}
 
@@ -2322,6 +2482,14 @@ func printSummaryToUser() {
 	summaryArr = []summaryLog{}
 }
 
+func printPreviousVsNewConfigsToUser(previousConfigurations map[string]string, newConfigurations map[string]string) {
+	fmt.Printf("%vYou are about to recover a runtime from an existing repo. some configuration will be changed as follows:\n%v", CYAN, COLOR_RESET)
+	fmt.Printf("%vCluster server:%v     %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["ClusterServer"], GREEN, newConfigurations["ClusterServer"], COLOR_RESET)
+	fmt.Printf("%vIngress class:%v      %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressClass"], GREEN, newConfigurations["IngressClass"], COLOR_RESET)
+	fmt.Printf("%vIngress controller:%v %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressController"], GREEN, newConfigurations["IngressController"], COLOR_RESET)
+	fmt.Printf("%vIngress host:%v       %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressHost"], GREEN, newConfigurations["IngressHost"], COLOR_RESET)
+}
+
 func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disableTelemetry bool) {
 	if disableTelemetry {
 		log.G().Debug("Analytics Reporter disabled by the --disable-telemetry flag.")
@@ -2357,14 +2525,6 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
-	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
-	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
-	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
-	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
-	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
-}
-
 func getVersionIfExists(versionStr string) (*semver.Version, error) {
 	if versionStr != "" {
 		log.G().Infof("vesionStr: %s", versionStr)
@@ -2372,4 +2532,12 @@ func getVersionIfExists(versionStr string) (*semver.Version, error) {
 	}
 
 	return nil, nil
+}
+
+func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
+	opts.GsCloneOpts.Provider = opts.InsCloneOpts.Provider
+	opts.GsCloneOpts.Auth = opts.InsCloneOpts.Auth
+	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
+	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
+	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }

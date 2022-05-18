@@ -7,7 +7,7 @@ resources:
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.1.14-cap-CR-commit-msg
+    newTag: v2.1.14-cap-CR-11708-send-app-deletion
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
@@ -31,3 +31,15 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: default
+
+  - target:
+      version: v1
+      kind: Service
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/ports/0/appProtocol
+        value: grpc
+      - op: add
+        path: /spec/ports/1/appProtocol
+        value: grpc

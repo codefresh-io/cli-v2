@@ -17,6 +17,7 @@ package reporter
 import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/google/uuid"
 	"gopkg.in/segmentio/analytics-go.v3"
@@ -83,7 +84,8 @@ const (
 	InstallStepCreateRuntimeOnPlatform                CliStep = "install.run.step.create-runtime-on-platform"
 	InstallStepBootstrapRepo                          CliStep = "install.run.step.bootstrap-repo"
 	InstallStepCreateProject                          CliStep = "install.run.step.create-project"
-	InstallStepCreateConfigMap                        CliStep = "install.run.step.create-codefresh-cm"
+	InstallStepCreateOrUpdateConfigMap                CliStep = "install.run.step.create-or-update-codefresh-cm"
+	InstallStepApplySecretsToCluster                  CliStep = "install.run.step.apply-secrets-to-cluster"
 	InstallStepCreateComponents                       CliStep = "install.run.step.create-components"
 	InstallStepInstallComponenets                     CliStep = "install.run.step.install-components"
 	InstallStepCreateGitsource                        CliStep = "install.run.step.create-gitsource"
