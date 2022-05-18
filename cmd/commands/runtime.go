@@ -616,6 +616,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		ComponentNames:            componentNames,
 		Repo:                      &opts.InsCloneOpts.Repo,
 		SuggestedSharedConfigRepo: &opts.SharedConfigCloneOpts.Repo,
+    Recover:                   &opts.FromRepo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -1982,7 +1983,6 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	literalResources := []string{
 		"argoWorkflowsInsecure=true",
-		"argoCdInsecure=true",
 		fmt.Sprintf("cfHost=%s", cfConfig.GetCurrentContext().URL),
 		fmt.Sprintf("cors=%s", cfConfig.GetCurrentContext().URL),
 		"env=production",
@@ -2460,25 +2460,27 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 
 	printPreviousVsNewConfigsToUser(previousConfigurations, newConfigurations)
 
-	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
-	}
+	if !store.Get().Silent {
+		templates := &promptui.SelectTemplates{
+			Selected: "{{ . | yellow }} ",
+		}
 
-	labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
+		labelStr := fmt.Sprintf("%vDo you wish to proceed?%v", CYAN, COLOR_RESET)
 
-	prompt := promptui.Select{
-		Label:     labelStr,
-		Items:     []string{"Yes", "No"},
-		Templates: templates,
-	}
+		prompt := promptui.Select{
+			Label:     labelStr,
+			Items:     []string{"Yes", "No"},
+			Templates: templates,
+		}
 
-	_, result, err := prompt.Run()
-	if err != nil {
-		return err
-	}
+		_, result, err := prompt.Run()
+		if err != nil {
+			return err
+		}
 
-	if result == "No" {
-		return fmt.Errorf("installation from existing repo was cancelled")
+		if result == "No" {
+			return fmt.Errorf("installation from existing repo was cancelled")
+		}
 	}
 
 	return nil
