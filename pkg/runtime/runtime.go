@@ -58,7 +58,7 @@ type (
 		Cluster             string          `json:"cluster"`
 		IngressHost         string          `json:"ingressHost"`
 		IngressClass        string          `json:"ingressClassName"`
-		InternalIngressHost string          `json:"InternalIngressHost"`
+		InternalIngressHost string          `json:"internalIngressHost"`
 		IngressController   string          `json:"ingressController"`
 		Repo                string          `json:"repo"`
 

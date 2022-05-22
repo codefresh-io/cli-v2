@@ -227,9 +227,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress host":              installationOpts.IngressHost,
-				"Internal ingress host":     installationOpts.InternalIngressHost,
 				"Ingress class":             installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
+			}
+
+			if installationOpts.InternalIngressHost != "" {
+				finalParameters["Internal ingress host"] = installationOpts.InternalIngressHost
 			}
 
 			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
