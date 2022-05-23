@@ -143,10 +143,6 @@ type Store struct {
 	InstallationFlow                    string
 	GsCreateFlow                        string
 	InCluster                           string
-	SharedConfigDir                     string
-	ResourcesDir                        string
-	AllDir                              string
-	RuntimesDir                         string
 }
 
 // Get returns the global store
@@ -245,10 +241,6 @@ func init() {
 	s.InstallationFlow = "install-runtime"
 	s.GsCreateFlow = "git-source-create"
 	s.InCluster = "https://kubernetes.default.svc"
-	s.SharedConfigDir = "shared-config"
-	s.ResourcesDir = "resources"
-	s.AllDir = "all"
-	s.RuntimesDir = "runtimes"
 
 	initVersion()
 }

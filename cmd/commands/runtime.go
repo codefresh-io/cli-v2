@@ -122,12 +122,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName               string
-		Version                   *semver.Version
-		CloneOpts                 *git.CloneOptions
-		CommonConfig              *runtime.CommonConfig
-		SuggestedSharedConfigRepo string
-		DisableTelemetry          bool
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -287,7 +286,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
-	util.Die(cmd.Flags().MarkHidden("shared-config-repo")) // for now this is hidden until we will support the option for the user to provide a repo url for isc (currently it will be on the default <runtime-repo>/shared-config)
 
 	return cmd
 }
@@ -380,7 +378,11 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		ensureIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := ensureIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		if err != nil {
+			return fmt.Errorf("failed to ensure shared config repo: %w", err)
+		}
+		log.G(cmd.Context()).Info("using repo '%s' as shared config repo", sharedConfigRepo)
 	}
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
@@ -700,14 +702,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
-	// if !opts.FromRepo && opts.CreateIsc {
-	// 	err = setUpSharedConfigRepo(ctx, opts)
-	// }
-	// handleCliStep(reporter.InstallStepSetUpSharedConfigRepo, "Setting up shared configurations repo", err, false, true)
-	// if err != nil {
-	// 	return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to set up shared configurations repo: %w", err))
-	// }
-
 	err = oc.PrepareOpenshiftCluster(ctx, &oc.OpenshiftOptions{
 		KubeFactory:  opts.KubeFactory,
 		RuntimeName:  opts.RuntimeName,
@@ -794,14 +788,6 @@ To complete the installation:
 		}
 	}
 
-	// if !opts.FromRepo && opts.CreateIsc {
-	// 	err = createIsc(ctx, opts)
-	// }
-	// handleCliStep(reporter.InstallStepCreateIsc, "Creating internal shared configurations app", err, false, true)
-	// if err != nil {
-	// 	return fmt.Errorf("failed adding internal shared configurations app: %w", err)
-	// }
-
 	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
 	if timeoutErr != nil {
 		installationSuccessMsg = fmt.Sprintf("Runtime \"%s\" installed with some issues", opts.RuntimeName)
@@ -826,68 +812,6 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 
 	return rt, server, nil
 }
-
-// func setUpSharedConfigRepo(ctx context.Context, opts *RuntimeInstallOptions) error {
-// 	var err error
-
-// 	log.G(ctx).Info("setting up internal shared configurations (isc) repo")
-
-// 	opts.SharedConfigCloneOpts.Auth = opts.InsCloneOpts.Auth
-// 	opts.SharedConfigCloneOpts.FS = fs.Create(memfs.New())
-// 	opts.SharedConfigCloneOpts.CreateIfNotExist = true
-
-// 	inferProviderFromRepo(opts.SharedConfigCloneOpts)
-// 	opts.SharedConfigCloneOpts.Parse()
-
-// 	log.G(ctx).Debug("cloning shared configurations repo")
-// 	scRepo, scFS, err := opts.SharedConfigCloneOpts.GetRepo(ctx)
-// 	if err != nil {
-// 		return fmt.Errorf("failed cloning shared configurations repo: %w", err)
-// 	}
-
-// 	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().SharedConfigDir, store.Get().ResourcesDir, store.Get().AllDir)) {
-// 		_, err = scFS.Create(filepath.Join(store.Get().SharedConfigDir, store.Get().ResourcesDir, store.Get().AllDir, "DUMMY"))
-// 		if err != nil {
-// 			return fmt.Errorf("failed creating 'resources/all' directory in shared configurations repo: %w", err)
-// 		}
-// 	}
-
-// 	if !scFS.ExistsOrDie(filepath.Join(opts.SharedConfigCloneOpts.Repo, store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName)) {
-// 		_, err = scFS.Create(filepath.Join(store.Get().SharedConfigDir, store.Get().RuntimesDir, opts.RuntimeName, "isc-in-cluster.yaml"))
-// 		if err != nil {
-// 			return fmt.Errorf("failed creating 'runtimes/%s' directory in shared configurations repo: %w", opts.RuntimeName, err)
-// 		}
-// 	}
-
-// 	_, err = scRepo.Persist(ctx, &git.PushOptions{CommitMsg: "Persisting shared config repo"})
-// 	if err != nil {
-// 		return fmt.Errorf("failed persisting shared configurations repo: %w", err)
-// 	}
-
-// 	return nil
-// }
-
-// func createIsc(ctx context.Context, opts *RuntimeInstallOptions) error {
-// 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to build app-proxy client while creating isc: %w", err)
-// 	}
-
-// 	err = appProxyClient.AppProxyIsc().Create(
-// 		ctx,
-// 		opts.RuntimeName,
-// 		opts.RuntimeName,
-// 		opts.SharedConfigCloneOpts.Repo,
-// 		"in-cluster",
-// 		store.Get().InCluster,
-// 	)
-
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create isc: %w", err)
-// 	}
-
-// 	return nil
-// }
 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
@@ -1853,7 +1777,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
-	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo>/shared-config or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
