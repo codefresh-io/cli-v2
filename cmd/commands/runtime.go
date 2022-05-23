@@ -1937,9 +1937,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 
 func mergeAnnotation(annotation map[string]string, newAnnotation map[string]string) {
 	for key, element := range newAnnotation {
-		if annotation[key] == "" {
-			annotation[key] = element
-		}
+		annotation[key] = element
 	}
 }
 
