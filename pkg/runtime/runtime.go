@@ -51,15 +51,16 @@ type (
 	}
 
 	RuntimeSpec struct {
-		DefVersion         *semver.Version `json:"defVersion"`
-		Version            *semver.Version `json:"version"`
-		BootstrapSpecifier string          `json:"bootstrapSpecifier"`
-		Components         []AppDef        `json:"components"`
-		Cluster            string          `json:"cluster"`
-		IngressHost        string          `json:"ingressHost"`
-		IngressClass       string          `json:"ingressClassName"`
-		IngressController  string          `json:"ingressController"`
-		Repo               string          `json:"repo"`
+		DefVersion          *semver.Version `json:"defVersion"`
+		Version             *semver.Version `json:"version"`
+		BootstrapSpecifier  string          `json:"bootstrapSpecifier"`
+		Components          []AppDef        `json:"components"`
+		Cluster             string          `json:"cluster"`
+		IngressHost         string          `json:"ingressHost"`
+		IngressClass        string          `json:"ingressClassName"`
+		InternalIngressHost string          `json:"internalIngressHost"`
+		IngressController   string          `json:"ingressController"`
+		Repo                string          `json:"repo"`
 
 		devMode bool
 	}
@@ -209,6 +210,7 @@ func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	newRt.Cluster = r.Cluster
 	newRt.IngressHost = r.IngressHost
 	newRt.IngressClass = r.IngressClass
+	newRt.InternalIngressHost = r.InternalIngressHost
 	newRt.IngressController = r.IngressController
 	newRt.Repo = r.Repo
 

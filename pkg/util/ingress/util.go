@@ -15,6 +15,8 @@
 package util
 
 import (
+	"strings"
+
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -122,6 +124,8 @@ func createHTTPIngressPaths(paths []IngressPath) []netv1.HTTPIngressPath {
 }
 
 func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
+	opts.Name = strings.TrimSuffix(opts.Name, "/")
+
 	ingress := &netv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: netv1.SchemeGroupVersion.String(),
