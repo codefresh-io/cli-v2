@@ -82,8 +82,10 @@ type (
 		RuntimeToken                   string
 		RuntimeStoreIV                 string
 		HostName                       string
+		InternalHostName               string
 		IngressHost                    string
 		IngressClass                   string
+		InternalIngressHost            string
 		IngressController              ingressutil.IngressController
 		Insecure                       bool
 		InstallDemoResources           bool
@@ -102,6 +104,8 @@ type (
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
+		InternalIngressAnnotation      map[string]string
+		ExternalIngressAnnotation      map[string]string
 	}
 
 	RuntimeUninstallOptions struct {
@@ -230,6 +234,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
+			if installationOpts.InternalIngressHost != "" {
+				finalParameters["Internal ingress host"] = installationOpts.InternalIngressHost
+			}
+
 			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
 				return err
 			}
@@ -245,6 +253,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
+	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
@@ -258,6 +267,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	cmd.Flags().BoolVar(&installationOpts.FromRepo, "from-repo", false, "Installs a runtime from an existing repo. Used for recovery after cluster failure")
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
+	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
+	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -434,20 +445,13 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	parsed, err := url.Parse(opts.IngressHost)
-	if err != nil {
+	if err := parseHostName(opts.IngressHost, &opts.HostName); err != nil {
 		return err
 	}
 
-	isIP := util.IsIP(parsed.Host)
-	if !isIP {
-		opts.HostName, _, err = net.SplitHostPort(parsed.Host)
-		if err != nil {
-			if err.Error() == fmt.Sprintf("address %s: missing port in address", parsed.Host) {
-				opts.HostName = parsed.Host
-			} else {
-				return err
-			}
+	if opts.InternalIngressHost != "" {
+		if err := parseHostName(opts.InternalIngressHost, &opts.InternalHostName); err != nil {
+			return err
 		}
 	}
 
@@ -459,7 +463,39 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 	log.G(cmd.Context()).Info("Validating ingress host")
 
-	certValid, err := checkIngressHostCertificate(opts.IngressHost)
+	if opts.InternalIngressHost != "" {
+		if err := validateIngressHostCertificate(cmd, opts.InternalIngressHost); err != nil {
+			return err
+		}
+		log.G(cmd.Context()).Infof("Using internal ingress host: %s", opts.InternalIngressHost)
+	}
+
+	return validateIngressHostCertificate(cmd, opts.IngressHost)
+}
+
+func parseHostName(ingressHost string, hostName *string) error {
+	parsed, err := url.Parse(ingressHost)
+	if err != nil {
+		return err
+	}
+
+	isIP := util.IsIP(parsed.Host)
+	if !isIP {
+		*hostName, _, err = net.SplitHostPort(parsed.Host)
+		if err != nil {
+			if err.Error() == fmt.Sprintf("address %s: missing port in address", parsed.Host) {
+				*hostName = parsed.Host
+			} else {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateIngressHostCertificate(cmd *cobra.Command, ingressHost string) error {
+	certValid, err := checkIngressHostCertificate(ingressHost)
 	if err != nil {
 		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
 	}
@@ -600,15 +636,16 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	ingressControllerName := opts.IngressController.Name()
 
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
-		RuntimeName:       opts.RuntimeName,
-		Cluster:           server,
-		RuntimeVersion:    runtimeVersion,
-		IngressHost:       &opts.IngressHost,
-		IngressClass:      &opts.IngressClass,
-		IngressController: &ingressControllerName,
-		ComponentNames:    componentNames,
-		Repo:              &opts.InsCloneOpts.Repo,
-		Recover:           &opts.FromRepo,
+		RuntimeName:         opts.RuntimeName,
+		Cluster:             server,
+		RuntimeVersion:      runtimeVersion,
+		IngressHost:         &opts.IngressHost,
+		InternalIngressHost: &opts.InternalIngressHost,
+		IngressClass:        &opts.IngressClass,
+		IngressController:   &ingressControllerName,
+		ComponentNames:      componentNames,
+		Repo:                &opts.InsCloneOpts.Repo,
+		Recover:             &opts.FromRepo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -620,6 +657,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.Cluster = server
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.IngressClass = opts.IngressClass
+	rt.Spec.InternalIngressHost = opts.InternalIngressHost
 	rt.Spec.IngressController = string(opts.IngressController.Name())
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
 
@@ -814,7 +852,7 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		return err
 	}
 
-	ingress := ingressutil.CreateIngress(&ingressutil.CreateIngressOptions{
+	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             opts.RuntimeName + store.Get().MasterIngressName,
 		Namespace:        opts.RuntimeName,
 		IngressClassName: opts.IngressClass,
@@ -822,7 +860,13 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		Annotations: map[string]string{
 			"nginx.org/mergeable-ingress-type": "master",
 		},
-	})
+	}
+
+	if opts.ExternalIngressAnnotation != nil {
+		mergeAnnotations(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
+	}
+
+	ingress := ingressutil.CreateIngress(&ingressOptions)
 
 	if err = fs.WriteYamls(fs.Join(store.Get().InClusterPath, "master-ingress.yaml"), ingress); err != nil {
 		return err
@@ -1329,6 +1373,7 @@ func RunRuntimeList(ctx context.Context) error {
 		healthMessage := "N/A"
 		installationStatus := rt.InstallationStatus
 		ingressHost := "N/A"
+		internalIngressHost := "N/A"
 		ingressClass := "N/A"
 
 		if rt.Metadata.Namespace != nil {
@@ -1351,11 +1396,15 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressHost = *rt.IngressHost
 		}
 
+		if rt.InternalIngressHost != nil {
+			internalIngressHost = *rt.InternalIngressHost
+		}
+
 		if rt.IngressClass != nil {
 			ingressClass = *rt.IngressClass
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
 			namespace,
 			cluster,
@@ -1365,6 +1414,7 @@ func RunRuntimeList(ctx context.Context) error {
 			healthMessage,
 			installationStatus,
 			ingressHost,
+			internalIngressHost,
 			ingressClass,
 		)
 		if err != nil {
@@ -1842,6 +1892,10 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		},
 	}
 
+	if opts.ExternalIngressAnnotation != nil {
+		mergeAnnotations(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
+	}
+
 	ingress := ingressutil.CreateIngress(&ingressOptions)
 	opts.IngressController.Decorate(ingress)
 
@@ -1881,6 +1935,12 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	return apu.PushWithMessage(ctx, r, "Created Workflows Ingress")
 }
 
+func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {
+	for key, element := range newAnnotation {
+		annotation[key] = element
+	}
+}
+
 func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -1912,12 +1972,17 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		},
 	})
 
+	hostName := opts.HostName
+	if opts.InternalHostName != "" {
+		hostName = opts.InternalHostName
+	}
+
 	if !store.Get().SkipIngress {
 		ingressOptions := ingressutil.CreateIngressOptions{
 			Name:             rt.Name + store.Get().AppProxyIngressName,
 			Namespace:        rt.Namespace,
 			IngressClassName: opts.IngressClass,
-			Host:             opts.HostName,
+			Host:             hostName,
 			Paths: []ingressutil.IngressPath{
 				{
 					Path:        store.Get().AppProxyIngressPath,
@@ -1926,6 +1991,11 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 					ServicePort: store.Get().AppProxyServicePort,
 				},
 			},
+		}
+
+		if opts.InternalIngressAnnotation != nil {
+			ingressOptions.Annotations = make(map[string]string)
+			mergeAnnotations(ingressOptions.Annotations, opts.InternalIngressAnnotation)
 		}
 
 		ingress := ingressutil.CreateIngress(&ingressOptions)
@@ -1969,6 +2039,7 @@ func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	runtime.Spec.IngressClass = opts.IngressClass
 	runtime.Spec.IngressController = opts.IngressController.Name()
 	runtime.Spec.IngressHost = opts.IngressHost
+	runtime.Spec.InternalIngressHost = opts.InternalIngressHost
 
 	marshalRuntime, err = yaml.Marshal(runtime)
 	if err != nil {
