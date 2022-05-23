@@ -863,7 +863,7 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 	}
 
 	if opts.ExternalIngressAnnotation != nil {
-		mergeAnnotation(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
+		mergeAnnotations(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
 	}
 
 	ingress := ingressutil.CreateIngress(&ingressOptions)
@@ -1893,7 +1893,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	}
 
 	if opts.ExternalIngressAnnotation != nil {
-		mergeAnnotation(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
+		mergeAnnotations(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
 	}
 
 	ingress := ingressutil.CreateIngress(&ingressOptions)
@@ -1935,7 +1935,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	return apu.PushWithMessage(ctx, r, "Created Workflows Ingress")
 }
 
-func mergeAnnotation(annotation map[string]string, newAnnotation map[string]string) {
+func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {
 	for key, element := range newAnnotation {
 		annotation[key] = element
 	}
@@ -1995,7 +1995,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 		if opts.InternalIngressAnnotation != nil {
 			ingressOptions.Annotations = make(map[string]string)
-			mergeAnnotation(ingressOptions.Annotations, opts.InternalIngressAnnotation)
+			mergeAnnotations(ingressOptions.Annotations, opts.InternalIngressAnnotation)
 		}
 
 		ingress := ingressutil.CreateIngress(&ingressOptions)
