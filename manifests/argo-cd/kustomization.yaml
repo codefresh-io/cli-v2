@@ -32,6 +32,8 @@ patches:
         path: /subjects/0/namespace
         value: default
 
+  # Service ports naming affects Istio protocol detection.
+  # Since this port may be used for http and grpc we decided to override the default name ("http").
   - target:
       version: v1
       kind: Service
