@@ -139,6 +139,7 @@ type (
 		gvr          []gvr
 		saName       string
 		IsInternal   bool
+		clusterScope bool
 	}
 
 	summaryLogLevels string
@@ -1077,8 +1078,9 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				version:      "v1alpha1",
 			},
 		},
-		saName:     store.Get().RolloutReporterServiceAccount,
-		IsInternal: true,
+		saName:       store.Get().RolloutReporterServiceAccount,
+		IsInternal:   true,
+		clusterScope: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -2144,11 +2146,11 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName); err != nil {
+	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
 		return err
 	}
 
-	if err := createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts); err != nil {
+	if err := createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
 		return err
 	}
 
@@ -2239,7 +2241,7 @@ func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, in
 	})
 }
 
-func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
+func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterScope bool) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -2251,15 +2253,25 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 		},
 	}
 
+	roleKind := "Role"
+	roleMeta := metav1.ObjectMeta{
+		Name:      saName,
+		Namespace: runtimeName,
+	}
+
+	if clusterScope {
+		roleKind = "ClusterRole"
+		roleMeta = metav1.ObjectMeta{
+			Name: saName,
+		}
+	}
+
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Role",
+			Kind:       roleKind,
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      saName,
-			Namespace: runtimeName,
-		},
+		ObjectMeta: roleMeta,
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"*"},
@@ -2269,15 +2281,25 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 		},
 	}
 
+	roleBindingKind := "RoleBinding"
+	roleBindingMeta := metav1.ObjectMeta{
+		Name:      saName,
+		Namespace: runtimeName,
+	}
+
+	if clusterScope {
+		roleBindingKind = "ClusterRoleBinding"
+		roleBindingMeta = metav1.ObjectMeta{
+			Name: saName,
+		}
+	}
+
 	roleBinding := rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "RoleBinding",
+			Kind:       roleBindingKind,
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      saName,
-			Namespace: runtimeName,
-		},
+		ObjectMeta: roleBindingMeta,
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
@@ -2316,7 +2338,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
+func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions, clusterScope bool) error {
 	var eventSource *aev1alpha1.EventSource
 	var options *eventsutil.CreateEventSourceOptions
 
@@ -2333,12 +2355,18 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 		Resource:           map[string]eventsutil.CreateResourceEventSourceOptions{},
 	}
 
+	resourceNamespace := namespace
+
+	if clusterScope {
+		resourceNamespace = ""
+	}
+
 	for i, name := range resourceNames {
 		options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
 			Group:     reporterCreateOpts.gvr[i].group,
 			Version:   reporterCreateOpts.gvr[i].version,
 			Resource:  reporterCreateOpts.gvr[i].resourceName,
-			Namespace: namespace,
+			Namespace: resourceNamespace,
 		}
 	}
 
