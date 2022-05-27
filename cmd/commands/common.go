@@ -215,7 +215,24 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
-	return getValueFromUserInput("Runtime name", "codefresh")
+	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh")
+	if err == promptui.ErrInterrupt {
+		os.Exit(0)
+	}
+	err = validateRuntimeName(runtimeName)
+	return runtimeName, err
+}
+
+func validateRuntimeName(runtime string) error {
+	var err error
+	isValid, err := IsValidName(runtime)
+	if err != nil {
+		err = fmt.Errorf("failed to check the validity of the runtime name: %w", err)
+	} else if !isValid {
+		err = fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+	}
+
+	return err
 }
 
 func getValueFromUserInput(label, defaultValue string) (string, error) {
@@ -272,6 +289,7 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
+		fmt.Println(err.Error())
 		if err != nil {
 			return err
 		}
@@ -280,7 +298,8 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	if verify {
 		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
 		if err != nil {
-			return fmt.Errorf("failed to verify git token: %w", err)
+			cloneOpts.Auth.Password = ""
+			return err
 		}
 	}
 
@@ -307,6 +326,9 @@ func getGitTokenFromUserInput(cmd *cobra.Command) error {
 		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
+	if err == promptui.ErrInterrupt {
+		os.Exit(0)
+	}
 	if err != nil {
 		return err
 	}
@@ -472,6 +494,9 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		opts.IngressHost = foundIngressHost
 	} else {
 		opts.IngressHost, err = getIngressHostFromUserInput(foundIngressHost)
+		if err == promptui.ErrInterrupt {
+			os.Exit(0)
+		}
 		if err != nil {
 			return err
 		}
@@ -590,4 +615,15 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type Callback func() error
+
+func handleValidationFailsWithRepeat(callback Callback) {
+	for {
+		err := callback()
+		if err == nil {
+			break
+		}
+	}
 }

@@ -300,7 +300,13 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
-			opts.RuntimeName, err = getRuntimeNameFromUserInput()
+			handleValidationFailsWithRepeat(func() error {
+				opts.RuntimeName, err = getRuntimeNameFromUserInput()
+				if err != nil {
+					fmt.Println("Runtime name is not valid, repeat please")
+				}
+				return err
+			})
 		} else {
 			err = fmt.Errorf("must enter a runtime name")
 		}
@@ -328,7 +334,13 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressHost(cmd, opts)
+	handleValidationFailsWithRepeat(func() error {
+		err = ensureIngressHost(cmd, opts)
+		if err != nil {
+			fmt.Println("Ingress host is not valid, repeat please")
+		}
+		return err
+	})
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
 	if err != nil {
 		return err
@@ -342,7 +354,13 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	inferProviderFromRepo(opts.InsCloneOpts)
 
-	err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+	handleValidationFailsWithRepeat(func() error {
+		err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+		if err != nil {
+			fmt.Println("Git token is not valid, repeat please")
+		}
+		return err
+	})
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
@@ -2582,18 +2600,6 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 	}
 
 	reporter.Init(user, flow)
-}
-
-func validateRuntimeName(runtime string) error {
-	var err error
-	isValid, err := IsValidName(runtime)
-	if err != nil {
-		err = fmt.Errorf("failed to check the validity of the runtime name: %w", err)
-	} else if !isValid {
-		err = fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
-	}
-
-	return err
 }
 
 func getVersionIfExists(versionStr string) (*semver.Version, error) {
