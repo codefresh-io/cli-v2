@@ -2308,7 +2308,7 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterS
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind: "Role",
+			Kind: roleKind,
 			Name: saName,
 		},
 	}
