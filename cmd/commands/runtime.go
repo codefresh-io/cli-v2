@@ -379,7 +379,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := ensureIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo: %w", err)
 		}
@@ -447,7 +447,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := ensureIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
 		}

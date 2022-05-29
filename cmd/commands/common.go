@@ -592,7 +592,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	return nil
 }
 
-func ensureIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
+func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
 	setIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
 	if err != nil {
 		return "", fmt.Errorf("failed to set shared config repo. Error: %w", err)
