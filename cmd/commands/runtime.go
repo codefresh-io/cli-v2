@@ -101,6 +101,7 @@ type (
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
 		NamespaceLabels                map[string]string
+		SuggestedSharedConfigRepo      string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -121,11 +122,12 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName      string
-		Version          *semver.Version
-		CloneOpts        *git.CloneOptions
-		CommonConfig     *runtime.CommonConfig
-		DisableTelemetry bool
+		RuntimeName               string
+		Version                   *semver.Version
+		CloneOpts                 *git.CloneOptions
+		CommonConfig              *runtime.CommonConfig
+		SuggestedSharedConfigRepo string
+		DisableTelemetry          bool
 	}
 
 	gvr struct {
@@ -257,6 +259,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
+	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
@@ -376,6 +379,14 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		}
 	}
 
+	if opts.SuggestedSharedConfigRepo != "" {
+		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		if err != nil {
+			return fmt.Errorf("failed to ensure shared config repo: %w", err)
+		}
+		log.G(cmd.Context()).Info("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+	}
+
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
@@ -434,6 +445,14 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
+	}
+
+	if opts.SuggestedSharedConfigRepo != "" {
+		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		if err != nil {
+			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
+		}
+		log.G(cmd.Context()).Info("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
 	return nil
@@ -934,7 +953,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while creating git integration: %w", err)
 	}
 
 	err = addDefaultGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
@@ -955,7 +974,7 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while removing git integration: %w", err)
 	}
 
 	integrations, err := appProxyClient.GitIntegrations().List(ctx)
@@ -1769,6 +1788,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
