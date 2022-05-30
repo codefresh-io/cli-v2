@@ -612,3 +612,11 @@ func handleValidationFailsWithRepeat(callback Callback) {
 func isValidationError(err error) bool {
 	return err != nil && err != promptui.ErrInterrupt
 }
+func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
+	setIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
+	if err != nil {
+		return "", fmt.Errorf("failed to set shared config repo. Error: %w", err)
+	}
+
+	return setIscRepoResponse, nil
+}
