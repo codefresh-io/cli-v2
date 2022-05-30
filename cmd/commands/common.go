@@ -223,15 +223,13 @@ func getRuntimeNameFromUserInput() (string, error) {
 }
 
 func validateRuntimeName(runtime string) error {
-	var err error
 	isValid, err := IsValidName(runtime)
 	if err != nil {
-		err = fmt.Errorf("failed to check the validity of the runtime name: %w", err)
+		return fmt.Errorf("failed to validate runtime name: %w", err)
 	} else if !isValid {
-		err = fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+		return fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
 	}
-
-	return err
+	return nil
 }
 
 func getValueFromUserInput(label, defaultValue string, validate promptui.ValidateFunc) (string, error) {
