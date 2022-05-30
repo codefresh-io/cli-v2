@@ -7,7 +7,7 @@ resources:
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.1.14-cap-CR-11708-send-app-deletion
+    newTag: v2.1.17-cap-CR-split-files
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
@@ -32,14 +32,13 @@ patches:
         path: /subjects/0/namespace
         value: default
 
+  # Service ports naming affects Istio protocol detection.
+  # Since this port may be used for http and grpc we decided to override the default name ("http").
   - target:
       version: v1
       kind: Service
       name: argocd-server
     patch: |
-      - op: add
-        path: /spec/ports/0/appProtocol
-        value: grpc
-      - op: add
-        path: /spec/ports/1/appProtocol
-        value: grpc
+      - op: replace
+        path: /spec/ports/0/name
+        value: main
