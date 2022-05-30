@@ -216,9 +216,6 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 
 func getRuntimeNameFromUserInput() (string, error) {
 	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh", validateRuntimeName)
-	if err != nil {
-		return runtimeName, err
-	}
 	return runtimeName, err
 }
 
@@ -601,7 +598,7 @@ func handleValidationFailsWithRepeat(callback Callback) {
 	var err error
 	for {
 		err = callback()
-		if err == nil || err == promptui.ErrInterrupt {
+		if !isValidationError(err) {
 			break
 		}
 	}
