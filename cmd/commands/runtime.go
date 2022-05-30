@@ -300,13 +300,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
-			handleValidationFailsWithRepeat(func() error {
-				opts.RuntimeName, err = getRuntimeNameFromUserInput()
-				if isValidationError(err) {
-					fmt.Println("Runtime name is not valid, repeat please")
-				}
-				return err
-			})
+			opts.RuntimeName, err = getRuntimeNameFromUserInput()
 		} else {
 			err = fmt.Errorf("must enter a runtime name")
 		}
@@ -334,13 +328,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	handleValidationFailsWithRepeat(func() error {
-		err = ensureIngressHost(cmd, opts)
-		if isValidationError(err) {
-			fmt.Println("Ingress host is not valid, repeat please")
-		}
-		return err
-	})
+	err = ensureIngressHost(cmd, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
 	if err != nil {
 		return err

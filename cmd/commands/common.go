@@ -215,11 +215,10 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
-	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh")
+	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh", validateRuntimeName)
 	if err != nil {
 		return runtimeName, err
 	}
-	err = validateRuntimeName(runtimeName)
 	return runtimeName, err
 }
 
@@ -235,18 +234,12 @@ func validateRuntimeName(runtime string) error {
 	return err
 }
 
-func getValueFromUserInput(label, defaultValue string) (string, error) {
+func getValueFromUserInput(label, defaultValue string, validate promptui.ValidateFunc) (string, error) {
 	prompt := promptui.Prompt{
-		Label:   label,
-		Default: defaultValue,
-		// Validate: func (value string) error {
-		// 	if value == "" {
-		// 		return fmt.Errorf("Must supply value for \"%s\"", label)
-		// 	}
-
-		// 	return nil
-		// },
-		Pointer: promptui.PipeCursor,
+		Label:    label,
+		Default:  defaultValue,
+		Validate: validate,
+		Pointer:  promptui.PipeCursor,
 	}
 
 	return prompt.Run()
@@ -301,7 +294,6 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -503,12 +495,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
-	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost)
-	if err != nil {
-		return "", err
-	}
-
-	err = validateIngressHost(ingressHostInput)
+	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost, validateIngressHost)
 	if err != nil {
 		return "", err
 	}
