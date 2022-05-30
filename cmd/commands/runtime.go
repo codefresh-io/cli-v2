@@ -352,7 +352,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		handleValidationFailsWithRepeat(func() error {
 			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
 			if isValidationError(err) {
-				fmt.Println("Git token is not valid, repeat please")
+				fmt.Println(err)
 			}
 			return err
 		})
