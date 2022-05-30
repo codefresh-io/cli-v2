@@ -216,8 +216,8 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 
 func getRuntimeNameFromUserInput() (string, error) {
 	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh")
-	if err == promptui.ErrInterrupt {
-		os.Exit(0)
+	if err != nil {
+		return runtimeName, err
 	}
 	err = validateRuntimeName(runtimeName)
 	return runtimeName, err
@@ -289,7 +289,6 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
-		fmt.Println(err.Error())
 		if err != nil {
 			return err
 		}
@@ -326,9 +325,6 @@ func getGitTokenFromUserInput(cmd *cobra.Command) error {
 		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
-	if err == promptui.ErrInterrupt {
-		os.Exit(0)
-	}
 	if err != nil {
 		return err
 	}
@@ -494,9 +490,6 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		opts.IngressHost = foundIngressHost
 	} else {
 		opts.IngressHost, err = getIngressHostFromUserInput(foundIngressHost)
-		if err == promptui.ErrInterrupt {
-			os.Exit(0)
-		}
 		if err != nil {
 			return err
 		}
@@ -620,9 +613,10 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 type Callback func() error
 
 func handleValidationFailsWithRepeat(callback Callback) {
+	var err error
 	for {
-		err := callback()
-		if err == nil {
+		err = callback()
+		if err == nil || err == promptui.ErrInterrupt {
 			break
 		}
 	}

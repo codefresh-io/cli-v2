@@ -302,7 +302,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		if !store.Get().Silent {
 			handleValidationFailsWithRepeat(func() error {
 				opts.RuntimeName, err = getRuntimeNameFromUserInput()
-				if err != nil {
+				if err != nil && err != promptui.ErrInterrupt {
 					fmt.Println("Runtime name is not valid, repeat please")
 				}
 				return err
@@ -336,7 +336,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	handleValidationFailsWithRepeat(func() error {
 		err = ensureIngressHost(cmd, opts)
-		if err != nil {
+		if err != nil && err != promptui.ErrInterrupt {
 			fmt.Println("Ingress host is not valid, repeat please")
 		}
 		return err
