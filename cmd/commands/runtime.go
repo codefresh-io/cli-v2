@@ -346,17 +346,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	inferProviderFromRepo(opts.InsCloneOpts)
 
-	if store.Get().Silent {
-		err = ensureGitToken(cmd, opts.InsCloneOpts, true)
-	} else {
-		handleValidationFailsWithRepeat(func() error {
-			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
-			if isValidationError(err) {
-				fmt.Println(err)
-			}
-			return err
-		})
-	}
+	err = getGitToken(cmd, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
@@ -401,6 +391,23 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
 	return nil
+}
+
+func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	if store.Get().Silent {
+		err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+	} else {
+		handleValidationFailsWithRepeat(func() error {
+			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+			if isValidationError(err) && !store.Get().Silent {
+				fmt.Println(err)
+				return err
+			}
+			return nil
+		})
+	}
+	return err
 }
 
 func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUninstallOptions) error {
