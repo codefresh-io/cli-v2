@@ -223,7 +223,8 @@ func validateRuntimeName(runtime string) error {
 	isValid, err := IsValidName(runtime)
 	if err != nil {
 		return fmt.Errorf("failed to validate runtime name: %w", err)
-	} else if !isValid {
+	}
+	if !isValid {
 		return fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
 	}
 	return nil
@@ -285,6 +286,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	if verify {
 		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
 		if err != nil {
+			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""
 			return err
 		}

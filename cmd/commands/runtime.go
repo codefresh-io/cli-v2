@@ -346,13 +346,17 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	inferProviderFromRepo(opts.InsCloneOpts)
 
-	handleValidationFailsWithRepeat(func() error {
+	if store.Get().Silent {
 		err = ensureGitToken(cmd, opts.InsCloneOpts, true)
-		if isValidationError(err) {
-			fmt.Println("Git token is not valid, repeat please")
-		}
-		return err
-	})
+	} else {
+		handleValidationFailsWithRepeat(func() error {
+			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+			if isValidationError(err) {
+				fmt.Println("Git token is not valid, repeat please")
+			}
+			return err
+		})
+	}
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
