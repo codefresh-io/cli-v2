@@ -621,3 +621,7 @@ func handleValidationFailsWithRepeat(callback Callback) {
 		}
 	}
 }
+
+func isValidationError(err error) bool {
+	return err != nil && err != promptui.ErrInterrupt
+}
