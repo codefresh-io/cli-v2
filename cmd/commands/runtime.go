@@ -101,6 +101,7 @@ type (
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
 		NamespaceLabels                map[string]string
+		SuggestedSharedConfigRepo      string
 		versionStr                     string
 		kubeContext                    string
 		kubeconfig                     string
@@ -121,11 +122,12 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName      string
-		Version          *semver.Version
-		CloneOpts        *git.CloneOptions
-		CommonConfig     *runtime.CommonConfig
-		DisableTelemetry bool
+		RuntimeName               string
+		Version                   *semver.Version
+		CloneOpts                 *git.CloneOptions
+		CommonConfig              *runtime.CommonConfig
+		SuggestedSharedConfigRepo string
+		DisableTelemetry          bool
 	}
 
 	gvr struct {
@@ -139,6 +141,7 @@ type (
 		gvr          []gvr
 		saName       string
 		IsInternal   bool
+		clusterScope bool
 	}
 
 	summaryLogLevels string
@@ -256,6 +259,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
+	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
@@ -375,6 +379,14 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		}
 	}
 
+	if opts.SuggestedSharedConfigRepo != "" {
+		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		if err != nil {
+			return fmt.Errorf("failed to ensure shared config repo: %w", err)
+		}
+		log.G(cmd.Context()).Info("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+	}
+
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
@@ -433,6 +445,14 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
+	}
+
+	if opts.SuggestedSharedConfigRepo != "" {
+		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		if err != nil {
+			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
+		}
+		log.G(cmd.Context()).Info("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
 	return nil
@@ -933,7 +953,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while creating git integration: %w", err)
 	}
 
 	err = addDefaultGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
@@ -954,7 +974,7 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to build app-proxy client: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while removing git integration: %w", err)
 	}
 
 	integrations, err := appProxyClient.GitIntegrations().List(ctx)
@@ -1077,8 +1097,9 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 				version:      "v1alpha1",
 			},
 		},
-		saName:     store.Get().RolloutReporterServiceAccount,
-		IsInternal: true,
+		saName:       store.Get().RolloutReporterServiceAccount,
+		IsInternal:   true,
+		clusterScope: true,
 	}); err != nil {
 		return fmt.Errorf("failed to create rollout-reporter: %w", err)
 	}
@@ -1767,6 +1788,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
@@ -2144,11 +2166,11 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 		return err
 	}
 
-	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName); err != nil {
+	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
 		return err
 	}
 
-	if err := createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts); err != nil {
+	if err := createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
 		return err
 	}
 
@@ -2239,7 +2261,7 @@ func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, in
 	})
 }
 
-func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
+func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterScope bool) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -2251,15 +2273,25 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 		},
 	}
 
+	roleKind := "Role"
+	roleMeta := metav1.ObjectMeta{
+		Name:      saName,
+		Namespace: runtimeName,
+	}
+
+	if clusterScope {
+		roleKind = "ClusterRole"
+		roleMeta = metav1.ObjectMeta{
+			Name: saName,
+		}
+	}
+
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Role",
+			Kind:       roleKind,
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      saName,
-			Namespace: runtimeName,
-		},
+		ObjectMeta: roleMeta,
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"*"},
@@ -2269,15 +2301,25 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 		},
 	}
 
+	roleBindingKind := "RoleBinding"
+	roleBindingMeta := metav1.ObjectMeta{
+		Name:      saName,
+		Namespace: runtimeName,
+	}
+
+	if clusterScope {
+		roleBindingKind = "ClusterRoleBinding"
+		roleBindingMeta = metav1.ObjectMeta{
+			Name: saName,
+		}
+	}
+
 	roleBinding := rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "RoleBinding",
+			Kind:       roleBindingKind,
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      saName,
-			Namespace: runtimeName,
-		},
+		ObjectMeta: roleBindingMeta,
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
@@ -2286,7 +2328,7 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string) error {
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind: "Role",
+			Kind: roleKind,
 			Name: saName,
 		},
 	}
@@ -2316,7 +2358,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions) error {
+func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions, clusterScope bool) error {
 	var eventSource *aev1alpha1.EventSource
 	var options *eventsutil.CreateEventSourceOptions
 
@@ -2333,12 +2375,18 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 		Resource:           map[string]eventsutil.CreateResourceEventSourceOptions{},
 	}
 
+	resourceNamespace := namespace
+
+	if clusterScope {
+		resourceNamespace = ""
+	}
+
 	for i, name := range resourceNames {
 		options.Resource[name] = eventsutil.CreateResourceEventSourceOptions{
 			Group:     reporterCreateOpts.gvr[i].group,
 			Version:   reporterCreateOpts.gvr[i].version,
 			Resource:  reporterCreateOpts.gvr[i].resourceName,
-			Namespace: namespace,
+			Namespace: resourceNamespace,
 		}
 	}
 
