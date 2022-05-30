@@ -215,21 +215,27 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
-	return getValueFromUserInput("Runtime name", "codefresh")
+	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh", validateRuntimeName)
+	return runtimeName, err
 }
 
-func getValueFromUserInput(label, defaultValue string) (string, error) {
-	prompt := promptui.Prompt{
-		Label:   label,
-		Default: defaultValue,
-		// Validate: func (value string) error {
-		// 	if value == "" {
-		// 		return fmt.Errorf("Must supply value for \"%s\"", label)
-		// 	}
+func validateRuntimeName(runtime string) error {
+	isValid, err := IsValidName(runtime)
+	if err != nil {
+		return fmt.Errorf("failed to validate runtime name: %w", err)
+	}
+	if !isValid {
+		return fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+	}
+	return nil
+}
 
-		// 	return nil
-		// },
-		Pointer: promptui.PipeCursor,
+func getValueFromUserInput(label, defaultValue string, validate promptui.ValidateFunc) (string, error) {
+	prompt := promptui.Prompt{
+		Label:    label,
+		Default:  defaultValue,
+		Validate: validate,
+		Pointer:  promptui.PipeCursor,
 	}
 
 	return prompt.Run()
@@ -270,8 +276,10 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 }
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
+	errMessage := "Value from environment variable TOKEN is not valid, enter another value"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
+		errMessage = "Entered git token is not valid, enter another value please"
 		if err != nil {
 			return err
 		}
@@ -280,10 +288,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	if verify {
 		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
 		if err != nil {
-			return fmt.Errorf("failed to verify git token: %w", err)
+			// in case when we get invalid value from env variable TOKEN we clean
+			cloneOpts.Auth.Password = ""
+			return fmt.Errorf(errMessage)
 		}
 	}
-
 	return nil
 }
 
@@ -485,12 +494,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
-	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost)
-	if err != nil {
-		return "", err
-	}
-
-	err = validateIngressHost(ingressHostInput)
+	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost, validateIngressHost)
 	if err != nil {
 		return "", err
 	}
@@ -590,6 +594,22 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type Callback func() error
+
+func handleValidationFailsWithRepeat(callback Callback) {
+	var err error
+	for {
+		err = callback()
+		if !isValidationError(err) {
+			break
+		}
+	}
+}
+
+func isValidationError(err error) bool {
+	return err != nil && err != promptui.ErrInterrupt
 }
 
 func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {

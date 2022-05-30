@@ -346,7 +346,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	inferProviderFromRepo(opts.InsCloneOpts)
 
-	err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+	err = getGitToken(cmd, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
@@ -391,6 +391,23 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
 
 	return nil
+}
+
+func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	if store.Get().Silent {
+		err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+	} else {
+		handleValidationFailsWithRepeat(func() error {
+			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+			if isValidationError(err) && !store.Get().Silent {
+				fmt.Println(err)
+				return err
+			}
+			return nil
+		})
+	}
+	return err
 }
 
 func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUninstallOptions) error {
@@ -2630,18 +2647,6 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 	}
 
 	reporter.Init(user, flow)
-}
-
-func validateRuntimeName(runtime string) error {
-	var err error
-	isValid, err := IsValidName(runtime)
-	if err != nil {
-		err = fmt.Errorf("failed to check the validity of the runtime name: %w", err)
-	} else if !isValid {
-		err = fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
-	}
-
-	return err
 }
 
 func getVersionIfExists(versionStr string) (*semver.Version, error) {
