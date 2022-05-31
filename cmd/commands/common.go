@@ -34,6 +34,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	autoPilotUtil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -149,6 +150,13 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
+		Validate: func(value string) error {
+			host, orgRepo, _, _, _, _, _ := autoPilotUtil.ParseGitUrl(value)
+			if host != "" && orgRepo != "" {
+				return nil
+			}
+			return fmt.Errorf("Invalid git repository")
+		},
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
@@ -486,6 +494,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 		_, err := http.Get(opts.IngressHost)
 		if err != nil {
+			opts.IngressHost = ""
 			return err
 		}
 	}
