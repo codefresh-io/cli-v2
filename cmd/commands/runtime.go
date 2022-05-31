@@ -401,7 +401,7 @@ func getIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		handleValidationFailsWithRepeat(func() error {
 			err = ensureIngressHost(cmd, opts)
 			if isValidationError(err) {
-				fmt.Println("Ingress host was not resolved, enter another value")
+				fmt.Println("Could not resolve the URL for ingress host; enter a valid URL")
 				return err
 			}
 			return nil
