@@ -484,6 +484,10 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		if err != nil {
 			return err
 		}
+		_, err := http.Get(opts.IngressHost)
+		if err != nil {
+			return err
+		}
 	}
 
 	if opts.IngressHost == "" {

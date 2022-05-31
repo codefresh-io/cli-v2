@@ -332,7 +332,14 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressHost(cmd, opts)
+	handleValidationFailsWithRepeat(func () error {
+		err = ensureIngressHost(cmd, opts)
+		if isValidationError(err) && !store.Get().Silent {
+			fmt.Println(err)
+			return err
+		}
+		return nil
+	})
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
 	if err != nil {
 		return err
