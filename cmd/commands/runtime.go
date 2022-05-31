@@ -332,7 +332,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressHost(cmd, opts)
+	err = getIngressHost(cmd, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
 	if err != nil {
 		return err
@@ -393,6 +393,23 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	return nil
 }
 
+func getIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	if store.Get().Silent {
+		err = ensureIngressHost(cmd, opts)
+	} else {
+		handleValidationFailsWithRepeat(func() error {
+			err = ensureIngressHost(cmd, opts)
+			if isValidationError(err) {
+				fmt.Println("Could not resolve the URL for ingress host; enter a valid URL")
+				return err
+			}
+			return nil
+		})
+	}
+	return err
+}
+
 func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
 	if store.Get().Silent {
@@ -400,7 +417,7 @@ func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	} else {
 		handleValidationFailsWithRepeat(func() error {
 			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
-			if isValidationError(err) && !store.Get().Silent {
+			if isValidationError(err) {
 				fmt.Println(err)
 				return err
 			}

@@ -34,6 +34,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	autoPilotUtil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -83,7 +84,11 @@ func IsValidName(s string) (bool, error) {
 }
 
 func isValidIngressHost(ingressHost string) (bool, error) {
-	return regexp.MatchString(`^(http|https)://`, ingressHost)
+	pattern := `^https://`
+	if store.Get().InsecureIngressHost {
+		pattern = `^(http|https)://`
+	}
+	return regexp.MatchString(pattern, ingressHost)
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
@@ -149,6 +154,13 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
+		Validate: func(value string) error {
+			host, orgRepo, _, _, _, _, _ := autoPilotUtil.ParseGitUrl(value)
+			if host != "" && orgRepo != "" {
+				return nil
+			}
+			return fmt.Errorf("Invalid URL for Git repository")
+		},
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
@@ -225,7 +237,7 @@ func validateRuntimeName(runtime string) error {
 		return fmt.Errorf("failed to validate runtime name: %w", err)
 	}
 	if !isValid {
-		return fmt.Errorf("runtime name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
+		return fmt.Errorf("Runtime name must start with a lower-case character, and can include up to 62 lower-case characters and numbers")
 	}
 	return nil
 }
@@ -276,10 +288,10 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 }
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
-	errMessage := "Value from environment variable TOKEN is not valid, enter another value"
+	errMessage := "Value stored in environment variable TOKEN is invalid; enter a valid runtime token"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
-		errMessage = "Entered git token is not valid, enter another value please"
+		errMessage = "Invalid runtime token; enter a valid token"
 		if err != nil {
 			return err
 		}
@@ -440,7 +452,7 @@ func validateIngressHost(ingressHost string) error {
 	if err != nil {
 		err = fmt.Errorf("could not verify ingress host: %w", err)
 	} else if !isValid {
-		err = fmt.Errorf("ingress host must begin with protocol 'http://' or 'https://'")
+		err = fmt.Errorf("Ingress host must begin with a protocol, either http:// or https://")
 	}
 
 	return err
@@ -482,6 +494,11 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	} else {
 		opts.IngressHost, err = getIngressHostFromUserInput(foundIngressHost)
 		if err != nil {
+			return err
+		}
+		_, err := http.Get(opts.IngressHost)
+		if err != nil {
+			opts.IngressHost = ""
 			return err
 		}
 	}
