@@ -34,6 +34,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	autoPilotUtil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -83,7 +84,11 @@ func IsValidName(s string) (bool, error) {
 }
 
 func isValidIngressHost(ingressHost string) (bool, error) {
-	return regexp.MatchString(`^(http|https)://`, ingressHost)
+	pattern := `^https://`
+	if store.Get().InsecureIngressHost {
+		pattern = `^(http|https)://`
+	}
+	return regexp.MatchString(pattern, ingressHost)
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
@@ -149,6 +154,13 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
+		Validate: func(value string) error {
+			host, orgRepo, _, _, _, _, _ := autoPilotUtil.ParseGitUrl(value)
+			if host != "" && orgRepo != "" {
+				return nil
+			}
+			return fmt.Errorf("Invalid URL for Git repository")
+		},
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
@@ -215,21 +227,27 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
-	return getValueFromUserInput("Runtime name", "codefresh")
+	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh", validateRuntimeName)
+	return runtimeName, err
 }
 
-func getValueFromUserInput(label, defaultValue string) (string, error) {
-	prompt := promptui.Prompt{
-		Label:   label,
-		Default: defaultValue,
-		// Validate: func (value string) error {
-		// 	if value == "" {
-		// 		return fmt.Errorf("Must supply value for \"%s\"", label)
-		// 	}
+func validateRuntimeName(runtime string) error {
+	isValid, err := IsValidName(runtime)
+	if err != nil {
+		return fmt.Errorf("failed to validate runtime name: %w", err)
+	}
+	if !isValid {
+		return fmt.Errorf("Runtime name must start with a lower-case character, and can include up to 62 lower-case characters and numbers")
+	}
+	return nil
+}
 
-		// 	return nil
-		// },
-		Pointer: promptui.PipeCursor,
+func getValueFromUserInput(label, defaultValue string, validate promptui.ValidateFunc) (string, error) {
+	prompt := promptui.Prompt{
+		Label:    label,
+		Default:  defaultValue,
+		Validate: validate,
+		Pointer:  promptui.PipeCursor,
 	}
 
 	return prompt.Run()
@@ -270,8 +288,10 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 }
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
+	errMessage := "Value stored in environment variable TOKEN is invalid; enter a valid runtime token"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
+		errMessage = "Invalid runtime token; enter a valid token"
 		if err != nil {
 			return err
 		}
@@ -280,10 +300,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	if verify {
 		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
 		if err != nil {
-			return fmt.Errorf("failed to verify git token: %w", err)
+			// in case when we get invalid value from env variable TOKEN we clean
+			cloneOpts.Auth.Password = ""
+			return fmt.Errorf(errMessage)
 		}
 	}
-
 	return nil
 }
 
@@ -431,7 +452,7 @@ func validateIngressHost(ingressHost string) error {
 	if err != nil {
 		err = fmt.Errorf("could not verify ingress host: %w", err)
 	} else if !isValid {
-		err = fmt.Errorf("ingress host must begin with protocol 'http://' or 'https://'")
+		err = fmt.Errorf("Ingress host must begin with a protocol, either http:// or https://")
 	}
 
 	return err
@@ -475,6 +496,11 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		if err != nil {
 			return err
 		}
+		_, err := http.Get(opts.IngressHost)
+		if err != nil {
+			opts.IngressHost = ""
+			return err
+		}
 	}
 
 	if opts.IngressHost == "" {
@@ -485,12 +511,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
-	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost)
-	if err != nil {
-		return "", err
-	}
-
-	err = validateIngressHost(ingressHostInput)
+	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost, validateIngressHost)
 	if err != nil {
 		return "", err
 	}
@@ -590,6 +611,22 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type Callback func() error
+
+func handleValidationFailsWithRepeat(callback Callback) {
+	var err error
+	for {
+		err = callback()
+		if !isValidationError(err) {
+			break
+		}
+	}
+}
+
+func isValidationError(err error) bool {
+	return err != nil && err != promptui.ErrInterrupt
 }
 
 func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
