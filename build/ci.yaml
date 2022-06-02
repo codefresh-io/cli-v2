@@ -246,7 +246,7 @@ steps:
       - sed -e "s/{{ version }}/${{VERSION}}/g" -e "s/{{ revision }}/${{CF_REVISION}}/g" ./brew/template.rb > ${{BREW_NAME}}.rb
       - echo "Updating file in GitHub"
       - |
-        FORMULA_SHA256=$(curl -X GET https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb -H 'Authorization: token '$GITHUB_TOKEN'' | jq .sha)
+        FORMULA_SHA256=$(curl -X GET https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb -H "Authorization: token $GITHUB_TOKEN" | jq .sha)
       - echo "sha - ${FORMULA_SHA256}"
       - |
         STATUS_CODE=$(curl -v -i -X PUT -H 'Authorization: token '$GITHUB_TOKEN'' -d "{ \
