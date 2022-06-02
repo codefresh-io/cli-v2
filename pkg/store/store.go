@@ -31,7 +31,7 @@ var (
 	gitCommit        = ""
 	segmentWriteKey  = ""
 	maxDefVersion    = "1.0.1"
-	RuntimeDefURL    = "../manifests/runtime.yaml"
+	RuntimeDefURL    = "manifests/runtime.yaml"
 	AddClusterDefURL = "../manifests/add-cluster/kustomize"
 )
 
