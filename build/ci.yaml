@@ -245,21 +245,13 @@ steps:
       - echo "generate formula from template ..."
       - sed -e "s/{{ version }}/${{VERSION}}/g" -e "s/{{ revision }}/${{CF_REVISION}}/g" ./brew/template.rb > ${{BREW_NAME}}.rb
       - echo "Updating file in GitHub"
+      - FORMULA_SHA256=$(curl -X GET https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb | jq .sha)
       - |
-        FORMULA_SHA256=$(curl -X GET https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb -H "Authorization: token $GITHUB_TOKEN" | jq .sha)
-      - echo "sha - ${FORMULA_SHA256}"
-      - |
-        STATUS_CODE=$(curl -v -i -X PUT -H 'Authorization: token '$GITHUB_TOKEN'' -d "{ \
+        curl -v -i -X PUT -H 'Authorization: token '$GITHUB_TOKEN'' -d "{ \
           \"message\": \"update formula version $VERSION\", \
           \"content\": \"$(openssl base64 -A -in ${{BREW_NAME}}.rb)\", \
           \"sha\": $FORMULA_SHA256 \
-          }" https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb \
-          -s -w "%{http_code}")
-      - echo "STATUS_CODE - ${STATUS_CODE}"
-      - |
-        if [[ "$STATUS_CODE" -gte 300 ]]; then
-          exit 1
-        fi
+          }" https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb
     when:
       steps:
         - name: create_release_bin
