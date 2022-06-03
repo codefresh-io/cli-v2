@@ -288,7 +288,7 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 }
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
-	errMessage := "Value stored in environment variable TOKEN is invalid; enter a valid runtime token"
+	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
 		errMessage = "Invalid runtime token; enter a valid token"
