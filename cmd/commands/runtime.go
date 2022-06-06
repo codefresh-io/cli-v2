@@ -384,7 +384,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo: %w", err)
 		}
-		log.G(cmd.Context()).Info("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+		log.G(cmd.Context()).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
@@ -486,7 +486,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
 		}
-		log.G(cmd.Context()).Info("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+		log.G(cmd.Context()).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
 	return nil
