@@ -113,6 +113,7 @@ type (
 		RuntimeName      string
 		Timeout          time.Duration
 		CloneOpts        *git.CloneOptions
+		IscCloneOpts     *git.CloneOptions
 		KubeFactory      kube.Factory
 		SkipChecks       bool
 		Force            bool
@@ -451,6 +452,12 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 
 	err = ensureGitToken(cmd, opts.CloneOpts, false)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	opts.IscCloneOpts.Repo, err = setIscRepo(cmd.Context(), "")
+	handleCliStep(reporter.UninstallStepPreCheckGetIscRepo, "Getting internal shared config repo", err, true, false)
 	if err != nil {
 		return err
 	}
@@ -1509,6 +1516,11 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UninstallFlow, opts.DisableTelemetry)
 
+			opts.IscCloneOpts = &git.CloneOptions{
+				FS:               fs.Create(memfs.New()),
+				CreateIfNotExist: false,
+			}
+
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, true, false)
 			if err != nil {
@@ -1532,7 +1544,12 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			opts.Timeout = store.Get().WaitTimeout
+
+			inferProviderFromRepo(opts.IscCloneOpts)
+			opts.IscCloneOpts.Auth = opts.CloneOpts.Auth
+			opts.IscCloneOpts.Progress = opts.CloneOpts.Progress
 			opts.CloneOpts.Parse()
+			opts.IscCloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -1605,6 +1622,12 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if err != nil {
 		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 		return err
+	}
+
+	err = removeRuntimeIsc(ctx, opts)
+	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, true)
+	if err != nil {
+		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
 
 	err = deleteRuntimeFromPlatform(ctx, opts)
@@ -1730,6 +1753,32 @@ func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, ru
 	}
 
 	return state, []string{name, status}
+}
+
+func removeRuntimeIsc(ctx context.Context, opts *RuntimeUninstallOptions) error {
+	if opts.IscCloneOpts.Repo == "" {
+		return nil
+	}
+
+	log.G(ctx).Info("removing runtime isc")
+
+	r, fs, err := opts.IscCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to clone isc repo. error: %w", err)
+	}
+
+	err = billyUtils.RemoveAll(fs, fs.Join(store.Get().IscRuntimesDir, opts.RuntimeName))
+	if err != nil {
+		return fmt.Errorf("failed to remove runtime dir '%s' from shared config repo. error: %w", opts.RuntimeName, err)
+	}
+
+	pushMsg := fmt.Sprintf("Removing runtime dir '%s'", opts.RuntimeName)
+	err = apu.PushWithMessage(ctx, r, pushMsg)
+	if err != nil {
+		return fmt.Errorf("failed to push to git while removing runtime '%s' dir: %w", opts.RuntimeName, err)
+	}
+
+	return nil
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
