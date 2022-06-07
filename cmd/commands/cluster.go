@@ -24,6 +24,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 
 	"github.com/Masterminds/semver/v3"
@@ -139,7 +140,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 
 	manifests, err := kustutil.BuildKustomization(k)
 	if err != nil {
-		return fmt.Errorf("failed building kustomization:%w", err)
+		return fmt.Errorf("failed building kustomization: %w", err)
 	}
 
 	if opts.dryRun {
@@ -147,7 +148,12 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return nil
 	}
 
-	return opts.kubeFactory.Apply(ctx, manifests)
+	err = opts.kubeFactory.Apply(ctx, manifests)
+	if err != nil {
+		return fmt.Errorf("failed applying manifests to cluster: %w", err)
+	}
+
+	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", "csdp-add-cluster-job")
 }
 
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
@@ -376,7 +382,7 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	err = appProxy.AppProxyClusters().CreateArgoRollouts(ctx, opts.server, opts.namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create argo-rollouts on \"%s'\": %w", opts.server, err)
-	} 
+	}
 
 	log.G(ctx).Infof("created argo-rollouts component on \"%s\"", opts.server)
 

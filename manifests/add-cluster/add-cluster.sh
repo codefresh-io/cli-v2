@@ -37,12 +37,12 @@ STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -H 'Authorization: '${CSDP_TOKEN}'' \
   -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'" }' \
   -s -o response -w "%{http_code}")
-cat response
 echo "STATUS_CODE: ${STATUS_CODE}"
+cat ./response
 
-if [ $STATUS_CODE -ge 300 ]; then
+if [[ $STATUS_CODE -ge 300 || $STATUS_CODE == 000 ]]; then
   echo "error creating cluster in runtime"
-  exit $STATUS_CODE
+  exit $STATUS_CODE || 1
 fi
 
 echo "deleting token secret ${CSDP_TOKEN_SECRET}"
