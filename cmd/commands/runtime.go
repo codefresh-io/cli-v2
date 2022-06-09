@@ -1480,6 +1480,7 @@ func RunRuntimeList(ctx context.Context) error {
 	return tb.Flush()
 }
 
+
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
 		opts            RuntimeUninstallOptions
