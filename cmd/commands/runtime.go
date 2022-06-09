@@ -1027,6 +1027,7 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 	return nil
 }
 
+
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
 		commandAdd := util.Doc(fmt.Sprintf(
