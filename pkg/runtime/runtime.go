@@ -110,6 +110,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		devMode = true
 	}
 
+	
 	runtime := &Runtime{}
 	err = yaml.Unmarshal(body, runtime)
 	if err != nil {

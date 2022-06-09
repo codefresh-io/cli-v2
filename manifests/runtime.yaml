@@ -24,3 +24,6 @@ spec:
     - name: sealed-secrets
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
+    - name: USING-LOCAL-MANIFESTS
+      type: USING-LOCAL-MANIFESTS
+      url: USING-LOCAL-MANIFESTS
