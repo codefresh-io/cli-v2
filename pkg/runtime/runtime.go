@@ -121,7 +121,10 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 		log.G().Info("SUCCESSFULLY READ FILE")
 
-		readLines(file)
+		err = readLines(file)
+		if err != nil {
+			return nil, err
+		}
 
 
 		body, err = ioutil.ReadFile(store.RuntimeDefURL)
@@ -132,6 +135,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		devMode = true
 	}
 
+	
 
 	runtime := &Runtime{}
 	err = yaml.Unmarshal(body, runtime)
