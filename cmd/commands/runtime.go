@@ -1915,7 +1915,7 @@ func NewRuntimeLogsCommand() *cobra.Command {
 				err = downloadRuntimeLogs()
 				if err == nil {
 					green := "\033[32m"
-					fmt.Printf("%sRuntime logs was downloaded successfully", green)
+					fmt.Printf("%sRuntime logs was downloaded successfully\n", green)
 				}
 			}
 			return err
