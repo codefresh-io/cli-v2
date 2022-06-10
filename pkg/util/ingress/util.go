@@ -65,9 +65,10 @@ const (
 	IngressControllerTraefik         ingressControllerType = "traefik.io/ingress-controller"
 	IngressControllerAmbassador      ingressControllerType = "getambassador.io/ingress-controller"
 	IngressControllerALB             ingressControllerType = "ingress.k8s.aws/alb"
+	IngressControllerNginxCodefresh  ingressControllerType = "k8s.io/ingress-nginx-codefresh"
 )
 
-var SupportedControllers = []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB}
+var SupportedControllers = []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB, IngressControllerNginxCodefresh}
 
 func (c baseController) Name() string {
 	return c.name
