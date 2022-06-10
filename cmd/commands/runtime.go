@@ -1920,6 +1920,9 @@ func NewRuntimeLogsCommand() *cobra.Command {
 			}
 			defer response.Body.Close()
 			fullFileName, err := getFullFilename(response)
+			if err != nil {
+				return err
+			}
 			err = downloadFile(response, fullFileName)
 			return err
 		},
