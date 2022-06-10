@@ -1949,7 +1949,7 @@ func getDownloadFileUrl() string {
 	ingressHost := store.Get().IngressHost
 	appProxyPath := store.Get().AppProxyIngressPath
 	regularExpression := regexp.MustCompile(`([^:])/{2,}`)
-	url := fmt.Sprintf("%s/%sapi/applications/logs", ingressHost, appProxyPath)
+	url := fmt.Sprintf("%s/%s/api/applications/logs", ingressHost, appProxyPath)
 	return regularExpression.ReplaceAllString(url, `$1/`)
 }
 
