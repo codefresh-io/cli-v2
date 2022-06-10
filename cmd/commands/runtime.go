@@ -21,9 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -175,6 +178,7 @@ func NewRuntimeCommand() *cobra.Command {
 	cmd.AddCommand(NewRuntimeListCommand())
 	cmd.AddCommand(NewRuntimeUninstallCommand())
 	cmd.AddCommand(NewRuntimeUpgradeCommand())
+	cmd.AddCommand(NewRuntimeLogsCommand())
 
 	cmd.PersistentFlags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
 
@@ -1899,6 +1903,63 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
 
 	return nil
+}
+
+func NewRuntimeLogsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "logs [--download]",
+		Short: "Work with current runtime logs",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if !store.Get().IsDownloadRuntimeLogs {
+				return nil
+			}
+			downloadFileUrl := getDownloadFileUrl()
+			response, err := http.Get(downloadFileUrl)
+			if err != nil {
+				return err
+			}
+			defer response.Body.Close()
+			fullFileName, err := getFullFilename(response)
+			err = downloadFile(response, fullFileName)
+			return err
+		},
+	}
+	cmd.Flags().BoolVar(&store.Get().IsDownloadRuntimeLogs, "download", false, "If true, will download logs from all componnents that consist of current runtime")
+	cmd.Flags().StringVar(&store.Get().IngressHost, "ingress-host", "", "Set runtime ingress host")
+	return cmd
+}
+
+func getDownloadFileUrl() string {
+	ingressHost := store.Get().IngressHost
+	appProxyPath := store.Get().AppProxyIngressPath
+	regularExpression := regexp.MustCompile(`([^:])/{2,}`)
+	url := fmt.Sprintf("%s/%sapi/applications/logs", ingressHost, appProxyPath)
+	return regularExpression.ReplaceAllString(url, `$1/`)
+}
+
+func getFullFilename(response *http.Response) (string, error) {
+	contentDisposition := response.Header.Get("Content-Disposition")
+	_, params, err := mime.ParseMediaType(contentDisposition)
+	if err != nil {
+		return "", err
+	}
+	filename := params["filename"]
+	processWorkingDirectory, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	fullFileName := fmt.Sprintf("%s/%s", processWorkingDirectory, filename)
+	return fullFileName, err
+}
+
+func downloadFile(response *http.Response, fullFileName string) error {
+	fileDescriptor, err := os.Create(fullFileName)
+	if err != nil {
+		return err
+	}
+	defer fileDescriptor.Close()
+	_, err = io.Copy(fileDescriptor, response.Body)
+	return err
 }
 
 func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime, rtConf *runtime.CommonConfig) error {

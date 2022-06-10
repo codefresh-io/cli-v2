@@ -143,6 +143,8 @@ type Store struct {
 	InstallationFlow                    string
 	GsCreateFlow                        string
 	InCluster                           string
+	IsDownloadRuntimeLogs               bool
+	IngressHost                         string
 }
 
 // Get returns the global store
