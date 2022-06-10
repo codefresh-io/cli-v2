@@ -1907,29 +1907,42 @@ func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 func NewRuntimeLogsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "logs [--download]",
+		Use:   "logs [--ingress-host <url>] [--download]",
 		Short: "Work with current runtime logs",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if !store.Get().IsDownloadRuntimeLogs {
-				return nil
+			var err error = nil
+			if isAllRequiredFlagsForDownloadRuntimeLogs() {
+				err = downloadRuntimeLogs()
+				if err == nil {
+					green := "\033[32m"
+					fmt.Printf("%sRuntime logs was downloaded successfully", green)
+				}
 			}
-			downloadFileUrl := getDownloadFileUrl()
-			response, err := http.Get(downloadFileUrl)
-			if err != nil {
-				return err
-			}
-			defer response.Body.Close()
-			fullFileName, err := getFullFilename(response)
-			if err != nil {
-				return err
-			}
-			err = downloadFile(response, fullFileName)
 			return err
 		},
 	}
 	cmd.Flags().BoolVar(&store.Get().IsDownloadRuntimeLogs, "download", false, "If true, will download logs from all componnents that consist of current runtime")
 	cmd.Flags().StringVar(&store.Get().IngressHost, "ingress-host", "", "Set runtime ingress host")
 	return cmd
+}
+
+func isAllRequiredFlagsForDownloadRuntimeLogs() bool {
+	return store.Get().IsDownloadRuntimeLogs && store.Get().IngressHost != ""
+}
+
+func downloadRuntimeLogs() error {
+	downloadFileUrl := getDownloadFileUrl()
+	response, err := http.Get(downloadFileUrl)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	fullFileName, err := getFullFilename(response)
+	if err != nil {
+		return err
+	}
+	err = downloadFile(response, fullFileName)
+	return err
 }
 
 func getDownloadFileUrl() string {
