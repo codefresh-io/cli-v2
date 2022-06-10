@@ -1937,11 +1937,11 @@ func downloadRuntimeLogs() error {
 		return err
 	}
 	defer response.Body.Close()
-	fullFileName, err := getFullFilename(response)
+	fullFilename, err := getFullFilename(response)
 	if err != nil {
 		return err
 	}
-	err = downloadFile(response, fullFileName)
+	err = downloadFile(response, fullFilename)
 	return err
 }
 
@@ -1964,12 +1964,12 @@ func getFullFilename(response *http.Response) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fullFileName := fmt.Sprintf("%s/%s", processWorkingDirectory, filename)
-	return fullFileName, err
+	fullFilename := fmt.Sprintf("%s/%s", processWorkingDirectory, filename)
+	return fullFilename, err
 }
 
-func downloadFile(response *http.Response, fullFileName string) error {
-	fileDescriptor, err := os.Create(fullFileName)
+func downloadFile(response *http.Response, fullFilename string) error {
+	fileDescriptor, err := os.Create(fullFilename)
 	if err != nil {
 		return err
 	}
