@@ -1914,8 +1914,7 @@ func NewRuntimeLogsCommand() *cobra.Command {
 			if isAllRequiredFlagsForDownloadRuntimeLogs() {
 				err = downloadRuntimeLogs()
 				if err == nil {
-					green := "\033[32m"
-					fmt.Printf("%sRuntime logs was downloaded successfully\n", green)
+					log.G(cmd.Context()).Info("Runtime logs was downloaded successfully")
 				}
 			}
 			return err
@@ -1941,8 +1940,7 @@ func downloadRuntimeLogs() error {
 	if err != nil {
 		return err
 	}
-	err = downloadFile(response, fullFilename)
-	return err
+	return downloadFile(response, fullFilename)
 }
 
 func getDownloadFileUrl() string {
