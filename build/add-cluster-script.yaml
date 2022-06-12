@@ -71,6 +71,10 @@ steps:
     registry: ${{REGISTRY_INTEGRATION_QUAY}}
     buildkit: true
     when:
+      steps:
+        - name: compare_versions
+          on:
+            - success
       branch:
         ignore: ["main"]
 
