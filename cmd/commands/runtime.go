@@ -832,8 +832,6 @@ To complete the installation:
 		}
 	}
 
-	return util.DecorateErrorWithDocsLink(fmt.Errorf("failing intentionally in order to see logs"))
-
 	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
 	if timeoutErr != nil {
 		installationSuccessMsg = fmt.Sprintf("Runtime \"%s\" installed with some issues", opts.RuntimeName)
@@ -1028,7 +1026,6 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 
 	return nil
 }
-
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
@@ -1482,7 +1479,6 @@ func RunRuntimeList(ctx context.Context) error {
 
 	return tb.Flush()
 }
-
 
 func NewRuntimeUninstallCommand() *cobra.Command {
 	var (
