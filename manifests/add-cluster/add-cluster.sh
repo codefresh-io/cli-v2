@@ -38,9 +38,9 @@ STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'" }' \
   -s -o response -w "%{http_code}")
 echo "STATUS_CODE: ${STATUS_CODE}"
-cat ./response
+cat response
 
-if [[ $STATUS_CODE == 000]]; then
+if [[ $STATUS_CODE == 000 ]]; then
   echo "error sending request to runtime"
   exit 1
 fi
