@@ -832,6 +832,8 @@ To complete the installation:
 		}
 	}
 
+	return util.DecorateErrorWithDocsLink(fmt.Errorf("failing intentionally in order to see logs"))
+
 	installationSuccessMsg := fmt.Sprintf("Runtime \"%s\" installed successfully", opts.RuntimeName)
 	if timeoutErr != nil {
 		installationSuccessMsg = fmt.Sprintf("Runtime \"%s\" installed with some issues", opts.RuntimeName)
