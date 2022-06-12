@@ -220,7 +220,7 @@ func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
 	var attempt int32
 	return f.Wait(ctx, &kube.WaitOptions{
 		Interval: time.Second * 10,
-		Timeout:  0,
+		Timeout:  time.Minute * 11, // BackOffLimit of 6 is a total of 630s, or 10m30s
 		Resources: []kube.Resource{
 			{
 				Name:      jobName,
@@ -238,11 +238,11 @@ func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
 
 					if j.Status.Failed > attempt {
 						attempt = j.Status.Failed
-						log.G(ctx).Infof("Attempt #%d failed:%n=====", attempt)
+						log.G(ctx).Warnf("Attempt #%d/%d failed:", attempt, *j.Spec.BackoffLimit)
 						printJobLogs(ctx, cs, j)
 					} else if j.Status.Succeeded == 1 {
 						attempt += 1
-						log.G(ctx).Infof("Attempt #%d succeeded:%n=====", attempt)
+						log.G(ctx).Infof("Attempt #%d/%d succeeded:", attempt, *j.Spec.BackoffLimit)
 						printJobLogs(ctx, cs, j)
 					}
 
@@ -273,7 +273,7 @@ func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1
 		return
 	}
 
-	log.G(ctx).Infof("%s%n=====%n%n", logs)
+	fmt.Printf("=====\n%s\n=====\n\n", logs)
 }
 
 func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {

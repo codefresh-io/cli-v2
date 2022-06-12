@@ -39,6 +39,7 @@ STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -s -o response -w "%{http_code}")
 echo "STATUS_CODE: ${STATUS_CODE}"
 cat response
+echo
 
 if [[ $STATUS_CODE == 000 ]]; then
   echo "error sending request to runtime"
