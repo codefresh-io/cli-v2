@@ -85,7 +85,6 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 	devMode := false
 	if strings.HasPrefix(store.RuntimeDefURL, "http") {
-
 		urlString := store.RuntimeDefURL
 		if version != nil {
 			urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
