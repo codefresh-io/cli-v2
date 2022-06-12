@@ -40,9 +40,14 @@ STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
 echo "STATUS_CODE: ${STATUS_CODE}"
 cat ./response
 
-if [[ $STATUS_CODE -ge 300 || $STATUS_CODE == 000 ]]; then
+if [[ $STATUS_CODE == 000]]; then
+  echo "error sending request to runtime"
+  exit 1
+fi
+
+if [[ $STATUS_CODE -ge 300 ]]; then
   echo "error creating cluster in runtime"
-  exit $STATUS_CODE || 1
+  exit $STATUS_CODE
 fi
 
 echo "deleting token secret ${CSDP_TOKEN_SECRET}"
