@@ -153,7 +153,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("failed applying manifests to cluster: %w", err)
 	}
 
-	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", "csdp-add-cluster-job")
+	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", store.Get().AddClusterJobName)
 }
 
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
