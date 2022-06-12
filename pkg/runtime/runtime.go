@@ -24,6 +24,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/pkg/util"
+	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
@@ -31,10 +36,6 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	v1 "k8s.io/api/core/v1"
