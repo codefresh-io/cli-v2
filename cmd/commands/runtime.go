@@ -456,7 +456,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	opts.IscCloneOpts.Repo, err = setIscRepo(cmd.Context(), "")
+	opts.IscCloneOpts.Repo, err = getIscRepo(cmd.Context())
 	handleCliStep(reporter.UninstallStepPreCheckGetIscRepo, "Getting internal shared config repo", err, true, false)
 	if err != nil {
 		return err

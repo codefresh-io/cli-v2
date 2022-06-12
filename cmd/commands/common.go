@@ -637,3 +637,12 @@ func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, 
 
 	return setIscRepoResponse, nil
 }
+
+func getIscRepo(ctx context.Context) (string, error) {
+	getIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().GetSharedConfigRepo(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get shared config repo. Error: %w", err)
+	}
+
+	return getIscRepoResponse, nil
+}
