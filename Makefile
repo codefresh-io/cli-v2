@@ -29,7 +29,7 @@ ifeq (${DEV_MODE},true)
 endif
 
 ifdef (${LOCAL_MANIFESTS})
-	RUNTIME_DEF_URL=LOCAL_MANIFESTS
+	RUNTIME_DEF_URL=${LOCAL_MANIFESTS}
 endif
 
 ifndef GOBIN
