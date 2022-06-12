@@ -216,6 +216,66 @@ func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace s
 	return res, nil
 }
 
+func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
+	var attempt int32
+	return f.Wait(ctx, &kube.WaitOptions{
+		Interval: time.Second * 10,
+		Timeout:  time.Minute * 11, // BackOffLimit of 6 is a total of 630s, or 10m30s
+		Resources: []kube.Resource{
+			{
+				Name:      jobName,
+				Namespace: ns,
+				WaitFunc: func(ctx context.Context, f kube.Factory, ns, name string) (bool, error) {
+					cs, err := f.KubernetesClientSet()
+					if err != nil {
+						return false, err
+					}
+
+					j, err := cs.BatchV1().Jobs(ns).Get(ctx, name, metav1.GetOptions{})
+					if err != nil {
+						return false, err
+					}
+
+					if j.Status.Failed > attempt {
+						attempt = j.Status.Failed
+						log.G(ctx).Warnf("Attempt #%d/%d failed:", attempt, *j.Spec.BackoffLimit)
+						printJobLogs(ctx, cs, j)
+					} else if j.Status.Succeeded == 1 {
+						attempt += 1
+						log.G(ctx).Infof("Attempt #%d/%d succeeded:", attempt, *j.Spec.BackoffLimit)
+						printJobLogs(ctx, cs, j)
+					}
+
+					for _, cond := range j.Status.Conditions {
+						if cond.Type == batchv1.JobFailed {
+							err = fmt.Errorf("add-cluster-job failed after %d attempts", j.Status.Failed)
+							break
+						}
+					}
+
+					return j.Status.Succeeded == 1 || j.Status.Failed == *j.Spec.BackoffLimit, err
+				},
+			},
+		},
+	})
+}
+
+func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) {
+	p, err := getPodByJob(ctx, client, job)
+	if err != nil {
+		log.G(ctx).Errorf("Failed getting pod for job: $s", err.Error())
+		return
+	}
+
+	logs, err := getPodLogs(ctx, client, p.GetNamespace(), p.GetName())
+	if err != nil {
+		log.G(ctx).Errorf("Failed getting logs for pod: $s", err.Error())
+		return
+	}
+
+	fmt.Printf("=====\n%s\n=====\n\n", logs)
+}
+
 func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
 
@@ -426,8 +486,8 @@ func deleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Jo
 }
 
 func getPodByJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) (*v1.Pod, error) {
-	pods, err := client.CoreV1().Pods(store.Get().DefaultNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "controller-uid=" + job.GetLabels()["controller-uid"],
+	pods, err := client.CoreV1().Pods(job.GetNamespace()).List(ctx, metav1.ListOptions{
+		LabelSelector: "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"],
 	})
 	if err != nil {
 		return nil, err

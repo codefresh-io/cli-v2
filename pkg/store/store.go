@@ -45,6 +45,7 @@ type Version struct {
 }
 
 type Store struct {
+	AddClusterJobName                   string
 	ArgoCDServerName                    string
 	ArgoCDTokenKey                      string
 	ArgoCDTokenSecret                   string
@@ -151,6 +152,7 @@ func Get() *Store {
 }
 
 func init() {
+	s.AddClusterJobName = "csdp-add-cluster-job"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
