@@ -238,11 +238,11 @@ func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
 
 					if j.Status.Failed > attempt {
 						attempt = j.Status.Failed
-						log.G(ctx).Infof("Attempt #%d failed:", attempt)
+						log.G(ctx).Infof("Attempt #%d failed:%n=====", attempt)
 						printJobLogs(ctx, cs, j)
 					} else if j.Status.Succeeded == 1 {
 						attempt += 1
-						log.G(ctx).Infof("Attempt #%d succeeded:", attempt)
+						log.G(ctx).Infof("Attempt #%d succeeded:%n=====", attempt)
 						printJobLogs(ctx, cs, j)
 					}
 
@@ -273,7 +273,7 @@ func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1
 		return
 	}
 
-	log.G(ctx).Info(logs)
+	log.G(ctx).Infof("%s%n=====%n%n", logs)
 }
 
 func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {

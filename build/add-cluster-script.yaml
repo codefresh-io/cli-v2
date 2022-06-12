@@ -58,6 +58,21 @@ steps:
         - name: compare_versions
           on:
             - success
+      branch:
+        only: ["main"]
+
+  build_dev_image:
+    stage: Release
+    type: build
+    title: build and push add-cluster dev image
+    working_directory: manifests/add-cluster
+    image_name: codefresh/csdp-add-cluster
+    tag: ${{CF_BRANCH}}
+    registry: ${{REGISTRY_INTEGRATION_QUAY}}
+    buildkit: true
+    when:
+      branch:
+        ignore: ["main"]
 
   publish_chart:
     stage: Release
