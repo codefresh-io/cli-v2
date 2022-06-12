@@ -639,10 +639,10 @@ func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, 
 }
 
 func getIscRepo(ctx context.Context) (string, error) {
-	getIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().GetSharedConfigRepo(ctx)
+	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrentV2(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get shared config repo. Error: %w", err)
 	}
 
-	return getIscRepoResponse, nil
+	return *user.ActiveAccount.SharedConfigRepo, nil
 }
