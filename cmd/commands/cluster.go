@@ -98,6 +98,9 @@ func newClusterAddCommand() *cobra.Command {
 			}
 
 			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+			setClusterName(&opts)
+			err = validateClusterName(opts.clusterName)
+
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -138,12 +141,6 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	setClusterName(opts)
-	err = validateClusterName(opts.clusterName)
-	if err != nil {
-		return err
-	}
-
 	k := createAddClusterKustomization(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
 
 	manifests, err := kustutil.BuildKustomization(k)
