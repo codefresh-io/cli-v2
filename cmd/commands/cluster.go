@@ -41,6 +41,8 @@ type (
 		kubeconfig  string
 		dryRun      bool
 		kubeFactory kube.Factory
+		annotations string
+		labels      string
 	}
 
 	ClusterRemoveOptions struct {
@@ -104,6 +106,8 @@ func newClusterAddCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&opts.annotations, "annotations", "", "Set metadata annotations (e.g. --annotations key=value)")
+	cmd.Flags().StringVar(&opts.labels, "labels", "", "Set metadata labels (e.g. --labels key=value)")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 
@@ -136,7 +140,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	k := createAddClusterKustomization(ingressUrl, opts.kubeContext, server, csdpToken, *runtime.RuntimeVersion)
+	k := createAddClusterKustomization(ingressUrl, opts.kubeContext, server, opts.annotations, opts.labels, csdpToken, *runtime.RuntimeVersion)
 
 	manifests, err := kustutil.BuildKustomization(k)
 	if err != nil {
@@ -156,7 +160,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", store.Get().AddClusterJobName)
 }
 
-func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
+func createAddClusterKustomization(ingressUrl, contextName, server, annotations, labels, csdpToken, version string) *kusttypes.Kustomization {
 	resourceUrl := store.AddClusterDefURL
 	if strings.HasPrefix(resourceUrl, "http") {
 		resourceUrl = fmt.Sprintf("%s?ref=v%s", resourceUrl, version)
@@ -197,6 +201,9 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 			resourceUrl,
 		},
 	}
+	// if len(annotations) > 0 {
+	// 	k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources
+	// }
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
 	return k
