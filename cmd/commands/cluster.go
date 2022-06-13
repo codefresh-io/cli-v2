@@ -98,6 +98,10 @@ func newClusterAddCommand() *cobra.Command {
 			}
 
 			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+			if err != nil {
+				return err
+			}
+			
 			setClusterName(&opts)
 			err = validateClusterName(opts.clusterName)
 
