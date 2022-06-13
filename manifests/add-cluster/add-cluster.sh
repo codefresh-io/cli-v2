@@ -11,6 +11,8 @@ echo "Ingress URL: ${INGRESS_URL}"
 echo "Context Name: ${CONTEXT_NAME}"
 echo "Server: ${SERVER}"
 
+echo "this is test *********************************************************"
+
 # Path to ServiceAccount token
 SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
 
@@ -32,6 +34,8 @@ kubectl config set-credentials ${SERVICE_ACCOUNT_NAME} --token ${BEARER_TOKEN}
 kubectl config set-context "${CONTEXT_NAME}" --cluster="${CLUSTER_NAME}" --user=${SERVICE_ACCOUNT_NAME}
 KUBE_CONFIG_B64=$(kubectl config view --minify --flatten --output json --context="${CONTEXT_NAME}" | base64 -w 0)
 
+
+
 STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -H 'Content-Type: application/json' \
   -H 'Authorization: '${CSDP_TOKEN}'' \
@@ -41,10 +45,14 @@ echo "STATUS_CODE: ${STATUS_CODE}"
 cat response
 echo
 
+echo "this is test *********************************************************"
+
 if [[ $STATUS_CODE == 000 ]]; then
   echo "error sending request to runtime"
   exit 1
 fi
+
+echo "status code: ${STATUS_CODE}"
 
 if [[ $STATUS_CODE -ge 300 ]]; then
   echo "error creating cluster in runtime"
