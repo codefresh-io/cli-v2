@@ -172,8 +172,8 @@ func setClusterName(opts *ClusterAddOptions) {
 }
 
 func validateClusterName(name string) error {
-	if strings.Contains(name, "%") {
-		return fmt.Errorf("cluster name '%s' is invalid. '%%' is not allowed", name)
+	if strings.ContainsAny(name, "%`") {
+		return fmt.Errorf("cluster name '%s' is invalid. '%%' and '`' are not allowed", name)
 	}
 	return nil
 }
