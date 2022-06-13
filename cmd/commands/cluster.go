@@ -37,6 +37,7 @@ import (
 type (
 	ClusterAddOptions struct {
 		runtimeName string
+		clusterName string
 		kubeContext string
 		kubeconfig  string
 		dryRun      bool
@@ -97,6 +98,13 @@ func newClusterAddCommand() *cobra.Command {
 			}
 
 			opts.kubeContext, err = ensureKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+			if err != nil {
+				return err
+			}
+			
+			setClusterName(&opts)
+			err = validateClusterName(opts.clusterName)
+
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -104,6 +112,7 @@ func newClusterAddCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 
@@ -136,7 +145,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	k := createAddClusterKustomization(ingressUrl, opts.kubeContext, server, csdpToken, *runtime.RuntimeVersion)
+	k := createAddClusterKustomization(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
 
 	manifests, err := kustutil.BuildKustomization(k)
 	if err != nil {
@@ -154,6 +163,20 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", store.Get().AddClusterJobName)
+}
+
+func setClusterName(opts *ClusterAddOptions) {
+	if opts.clusterName != "" {
+		return
+	}
+	opts.clusterName = opts.kubeContext
+}
+
+func validateClusterName(name string) error {
+	if strings.ContainsAny(name, "%`") {
+		return fmt.Errorf("cluster name '%s' is invalid. '%%' and '`' are not allowed", name)
+	}
+	return nil
 }
 
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
