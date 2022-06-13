@@ -10,6 +10,8 @@ echo "ServiceAccount: ${SERVICE_ACCOUNT_NAME}"
 echo "Ingress URL: ${INGRESS_URL}"
 echo "Context Name: ${CONTEXT_NAME}"
 echo "Server: ${SERVER}"
+echo "Annotations: ${ANNOTATIONS}"
+echo "Labels: ${LABELS}"
 
 # Path to ServiceAccount token
 SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
@@ -35,7 +37,7 @@ KUBE_CONFIG_B64=$(kubectl config view --minify --flatten --output json --context
 STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -H 'Content-Type: application/json' \
   -H 'Authorization: '${CSDP_TOKEN}'' \
-  -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'" }' \
+  -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'", "annotations": "'${ANNOTATIONS}'", "labels": "'${LABELS}'" }' \
   -skL -o response -w "%{http_code}")
 echo "STATUS_CODE: ${STATUS_CODE}"
 cat response

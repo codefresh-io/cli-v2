@@ -201,9 +201,15 @@ func createAddClusterKustomization(ingressUrl, contextName, server, annotations,
 			resourceUrl,
 		},
 	}
-	// if len(annotations) > 0 {
-	// 	k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources
-	// }
+	
+	if annotations != "" {
+		k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("annotations=" + annotations))
+	}
+
+	if labels != "" {
+		k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("labels=" + labels))
+	}
+
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
 	return k
