@@ -139,6 +139,11 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 
 	csdpToken := cfConfig.GetCurrentContext().Token
 	setClusterName(opts)
+	err = validateClusterName(opts.clusterName)
+	if err != nil {
+		return err
+	}
+
 	k := createAddClusterKustomization(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
 
 	manifests, err := kustutil.BuildKustomization(k)
@@ -164,6 +169,13 @@ func setClusterName(opts *ClusterAddOptions) {
 		return
 	}
 	opts.clusterName = opts.kubeContext
+}
+
+func validateClusterName(name string) error {
+	if strings.Contains(name, "%") {
+		return fmt.Errorf("cluster name '%s' is invalid. '%%' is not allowed", name)
+	}
+	return nil
 }
 
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {

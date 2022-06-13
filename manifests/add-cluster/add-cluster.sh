@@ -11,7 +11,6 @@ echo "Ingress URL: ${INGRESS_URL}"
 echo "Context Name: ${CONTEXT_NAME}"
 echo "Server: ${SERVER}"
 
-echo "this is test *********************************************************"
 
 # Path to ServiceAccount token
 SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
@@ -45,14 +44,12 @@ echo "STATUS_CODE: ${STATUS_CODE}"
 cat response
 echo
 
-echo "this is test *********************************************************"
 
 if [[ $STATUS_CODE == 000 ]]; then
   echo "error sending request to runtime"
   exit 1
 fi
 
-echo "status code: ${STATUS_CODE}"
 
 if [[ $STATUS_CODE -ge 300 ]]; then
   echo "error creating cluster in runtime"
