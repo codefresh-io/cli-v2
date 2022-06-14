@@ -82,7 +82,11 @@ func NewClusterCommand() *cobra.Command {
 }
 
 func newClusterAddCommand() *cobra.Command {
-	var opts ClusterAddOptions
+	var (
+		opts ClusterAddOptions
+		annotationsArr []string
+		labelsArr []string
+	)
 
 	cmd := &cobra.Command{
 		Use:     "add [RUNTIME_NAME]",
@@ -107,6 +111,9 @@ func newClusterAddCommand() *cobra.Command {
 			setClusterName(&opts)
 			err = validateClusterName(opts.clusterName)
 
+			opts.annotations = strings.Join(annotationsArr, ",")
+			opts.labels = strings.Join(labelsArr, ",")
+
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,8 +121,8 @@ func newClusterAddCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.annotations, "annotations", "", "Set metadata annotations (e.g. --annotations key=value)")
-	cmd.Flags().StringVar(&opts.labels, "labels", "", "Set metadata labels (e.g. --labels key=value)")
+	cmd.Flags().StringSliceVar(&annotationsArr, "annotations", nil, "Set metadata annotations (e.g. --annotations key=value)")
+	cmd.Flags().StringSliceVar(&labelsArr, "labels", nil, "Set metadata labels (e.g. --labels key=value)")
 	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
@@ -201,6 +208,8 @@ func createAddClusterKustomization(ingressUrl, contextName, server, annotations,
 							fmt.Sprintf("ingressUrl=" + ingressUrl),
 							fmt.Sprintf("contextName=" + contextName),
 							fmt.Sprintf("server=" + server),
+							fmt.Sprintf("annotations=" + annotations),
+							fmt.Sprintf("labels=" + labels),
 						},
 					},
 				},
@@ -225,13 +234,13 @@ func createAddClusterKustomization(ingressUrl, contextName, server, annotations,
 		},
 	}
 	
-	if annotations != "" {
-		k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("annotations=" + annotations))
-	}
+	// if annotations != "" {
+	// 	k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("annotations=" + annotations))
+	// }
 
-	if labels != "" {
-		k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("labels=" + labels))
-	}
+	// if labels != "" {
+	// 	k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("labels=" + labels))
+	// }
 
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
