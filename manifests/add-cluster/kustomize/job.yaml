@@ -43,6 +43,16 @@ spec:
                 configMapKeyRef:
                   name: csdp-add-cluster-cm
                   key: server
+            - name: ANNOTATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: csdp-add-cluster-cm
+                  key: annotations
+            - name: LABELS
+              valueFrom:
+                configMapKeyRef:
+                  name: csdp-add-cluster-cm
+                  key: labels
             - name: CSDP_TOKEN_SECRET
               value: $(CSDP_ADD_CLUSTER_SECRET)
           resources:
