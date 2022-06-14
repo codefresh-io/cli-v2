@@ -144,6 +144,8 @@ type Store struct {
 	InstallationFlow                    string
 	GsCreateFlow                        string
 	InCluster                           string
+	IsDownloadRuntimeLogs               bool
+	IngressHost                         string
 	IscRuntimesDir                      string
 }
 
