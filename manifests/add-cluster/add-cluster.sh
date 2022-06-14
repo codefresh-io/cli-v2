@@ -27,20 +27,26 @@ BEARER_TOKEN=$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.
 
 # write KUBE_COPNFIG_DATA to local file
 CLUSTER_NAME=$(echo ${SERVER} | sed s/'http[s]\?:\/\/'//)
-kubectl config set-cluster ${CLUSTER_NAME} --server=${SERVER} --certificate-authority=${CACERT}
+kubectl config set-cluster "${CLUSTER_NAME}" --server=${SERVER} --certificate-authority=${CACERT}
 kubectl config set-credentials ${SERVICE_ACCOUNT_NAME} --token ${BEARER_TOKEN}
-kubectl config set-context ${CONTEXT_NAME} --cluster=${CLUSTER_NAME} --user=${SERVICE_ACCOUNT_NAME}
-KUBE_CONFIG_B64=$(kubectl config view --minify --flatten --output json --context=${CONTEXT_NAME} | base64 -w 0)
+kubectl config set-context "${CONTEXT_NAME}" --cluster="${CLUSTER_NAME}" --user=${SERVICE_ACCOUNT_NAME}
+KUBE_CONFIG_B64=$(kubectl config view --minify --flatten --output json --context="${CONTEXT_NAME}" | base64 -w 0)
 
 STATUS_CODE=$(curl -X POST ${INGRESS_URL}/app-proxy/api/clusters \
   -H 'Content-Type: application/json' \
   -H 'Authorization: '${CSDP_TOKEN}'' \
   -d '{ "name": "'${CONTEXT_NAME}'", "kubeConfig": "'${KUBE_CONFIG_B64}'" }' \
-  -s -o response -w "%{http_code}")
-cat response
+  -skL -o response -w "%{http_code}")
 echo "STATUS_CODE: ${STATUS_CODE}"
+cat response
+echo
 
-if [ $STATUS_CODE -ge 300 ]; then
+if [[ $STATUS_CODE == 000 ]]; then
+  echo "error sending request to runtime"
+  exit 1
+fi
+
+if [[ $STATUS_CODE -ge 300 ]]; then
   echo "error creating cluster in runtime"
   exit $STATUS_CODE
 fi

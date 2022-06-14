@@ -45,6 +45,7 @@ type Version struct {
 }
 
 type Store struct {
+	AddClusterJobName                   string
 	ArgoCDServerName                    string
 	ArgoCDTokenKey                      string
 	ArgoCDTokenSecret                   string
@@ -145,6 +146,7 @@ type Store struct {
 	InCluster                           string
 	IsDownloadRuntimeLogs               bool
 	IngressHost                         string
+	IscRuntimesDir                      string
 }
 
 // Get returns the global store
@@ -153,6 +155,7 @@ func Get() *Store {
 }
 
 func init() {
+	s.AddClusterJobName = "csdp-add-cluster-job"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
@@ -243,6 +246,7 @@ func init() {
 	s.InstallationFlow = "install-runtime"
 	s.GsCreateFlow = "git-source-create"
 	s.InCluster = "https://kubernetes.default.svc"
+	s.IscRuntimesDir = "runtimes"
 
 	initVersion()
 }
