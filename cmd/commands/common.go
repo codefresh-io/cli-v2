@@ -84,11 +84,7 @@ func IsValidName(s string) (bool, error) {
 }
 
 func isValidIngressHost(ingressHost string) (bool, error) {
-	pattern := `^https://`
-	if store.Get().InsecureIngressHost {
-		pattern = `^(http|https)://`
-	}
-	return regexp.MatchString(pattern, ingressHost)
+	return regexp.MatchString(`^(http|https)://`, ingressHost)
 }
 
 func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
@@ -496,11 +492,12 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		if err != nil {
 			return err
 		}
-		_, err := http.Get(opts.IngressHost)
+		response, err := http.Get(opts.IngressHost)
 		if err != nil {
 			opts.IngressHost = ""
 			return err
 		}
+		response.Body.Close()
 	}
 
 	if opts.IngressHost == "" {
