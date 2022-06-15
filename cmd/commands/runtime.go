@@ -785,7 +785,32 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed editing the application set. %w", err))
 	}
-	editAppSet(ctx, r, fs, opts.RuntimeName)
+
+	projPath := fs.Join(apstore.Default.ProjectsDir, opts.RuntimeName + ".yaml")
+	appProj, appset, err := getProjectInfoFromFile(fs, projPath)
+	if err != nil {
+		return err
+	}
+
+	// in order to prevent resource-adjustment made by gke autopilot
+	appset.Spec.Template.Spec.IgnoreDifferences = append(appset.Spec.Template.Spec.IgnoreDifferences, argocdv1alpha1.ResourceIgnoreDifferences{
+			Group: "apps",
+			Kind:  "Deployment",
+			Name: "cap-app-proxy",
+			JSONPointers: []string{
+				"/spec",
+			},
+	})
+	
+	err = fs.WriteYamls(projPath, appProj, appset)
+	if err != nil {
+		return err
+	}
+
+	err = apu.PushWithMessage(ctx, r, "edited the application-set")
+	if err != nil {
+		return err
+	}
 
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
@@ -2353,36 +2378,6 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 	pushMessage := "Created Codefresh" + titleCase.String(reporterCreateOpts.reporterName) + "Reporter"
 
 	return apu.PushWithMessage(ctx, r, pushMessage)
-}
-
-func editAppSet(ctx context.Context, r git.Repository, repofs fs.FS, rtName string) error {
-	projPath := repofs.Join(apstore.Default.ProjectsDir, rtName + ".yaml")
-	appProj, appset, err := getProjectInfoFromFile(repofs, projPath)
-	if err != nil {
-		return err
-	}
-
-	// in order to prevent resource-adjustment made by gke autopilot
-	appset.Spec.Template.Spec.IgnoreDifferences = append(appset.Spec.Template.Spec.IgnoreDifferences, argocdv1alpha1.ResourceIgnoreDifferences{
-			Group: "apps",
-			Kind:  "Deployment",
-			Name: "cap-app-proxy",
-			JSONPointers: []string{
-				"/spec",
-			},
-	})
-	
-	err = repofs.WriteYamls(projPath, appProj, appset)
-	if err != nil {
-		return err
-	}
-
-	err = apu.PushWithMessage(ctx, r, "edited the application-set")
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
