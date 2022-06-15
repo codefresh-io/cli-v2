@@ -84,8 +84,8 @@ func NewClusterCommand() *cobra.Command {
 func newClusterAddCommand() *cobra.Command {
 	var (
 		opts ClusterAddOptions
-		annotationsArr []string
-		labelsArr []string
+		annotations []string
+		labels []string
 	)
 
 	cmd := &cobra.Command{
@@ -111,8 +111,8 @@ func newClusterAddCommand() *cobra.Command {
 			setClusterName(&opts)
 			err = validateClusterName(opts.clusterName)
 
-			opts.annotations = strings.Join(annotationsArr, ",")
-			opts.labels = strings.Join(labelsArr, ",")
+			opts.annotations = strings.Join(annotations, ",")
+			opts.labels = strings.Join(labels, ",")
 
 			return err
 		},
@@ -121,8 +121,8 @@ func newClusterAddCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringSliceVar(&annotationsArr, "annotations", nil, "Set metadata annotations (e.g. --annotations key=value)")
-	cmd.Flags().StringSliceVar(&labelsArr, "labels", nil, "Set metadata labels (e.g. --labels key=value)")
+	cmd.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
+	cmd.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
