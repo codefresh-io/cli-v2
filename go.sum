@@ -156,8 +156,8 @@ github.com/argoproj-labs/argocd-autopilot v0.3.7 h1:7GAWOvgWh93wTcoMHkafVwQTtZKD
 github.com/argoproj-labs/argocd-autopilot v0.3.7/go.mod h1:KFbmBBjYrK355/0iXYoLAbNt0TaomSlKrUWda+KVlAw=
 github.com/argoproj/applicationset v0.4.1 h1:PzTn77TK7XQB3CdpCDPbwU4pQgip0x4qvuJQ8XiBk5E=
 github.com/argoproj/applicationset v0.4.1/go.mod h1:cJZ7CWG80kBII4QNalyAvSr8eVifo8jKkyXoVl9qXaA=
-github.com/argoproj/argo-cd/v2 v2.3.3 h1:SE1Cb8MDqP5T2iUtyL9bwpKYIvpGkVUsgzKCAqZZ5Vc=
-github.com/argoproj/argo-cd/v2 v2.3.3/go.mod h1:EuPH0/rLe/FdHGwQ/EVucspMnF3v4qd7da6N6CG+oJA=
+github.com/argoproj/argo-cd/v2 v2.3.4 h1:mj+snMMf9LoHWMH3rLCkBWSRETv1Sq8lxuuyLxH+76A=
+github.com/argoproj/argo-cd/v2 v2.3.4/go.mod h1:EuPH0/rLe/FdHGwQ/EVucspMnF3v4qd7da6N6CG+oJA=
 github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec h1:95S2LPUUdPO2jYxuR5z1uk1GL2m/u+ud2iFAr5gK6VI=
 github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec/go.mod h1:dF9hehH+HaEqz+OvQb0iXG8ynj4sQlISIQoettdl05Y=
 github.com/argoproj/argo-workflows/v3 v3.3.1 h1:cNhY6JRlMvwu0qhfCWtS/XmQ8nm2OjR7CBZ3K6zbcKI=
