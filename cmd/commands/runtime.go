@@ -783,13 +783,13 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed editing the application set. %w", err))
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed getting the installation repo. %w", err))
 	}
 
 	projPath := fs.Join(apstore.Default.ProjectsDir, opts.RuntimeName + ".yaml")
 	appProj, appset, err := getProjectInfoFromFile(fs, projPath)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed getting the project. %w", err))
 	}
 
 	// in order to prevent resource-adjustment made by gke autopilot
@@ -804,7 +804,7 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	
 	err = fs.WriteYamls(projPath, appProj, appset)
 	if err != nil {
-		return err
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed editing the application set. %w", err))
 	}
 
 	err = apu.PushWithMessage(ctx, r, "edited the application-set")
