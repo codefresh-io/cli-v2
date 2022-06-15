@@ -2710,7 +2710,6 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		iscCloneOpts.Auth = opts.InsCloneOpts.Auth
 		iscCloneOpts.Progress = opts.InsCloneOpts.Progress
 		iscCloneOpts.Parse()
-		iscCloneOpts.Parse()
 
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName:  opts.RuntimeName,
