@@ -2697,13 +2697,14 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-			RuntimeName: opts.RuntimeName,
-			Timeout:     store.Get().WaitTimeout,
-			CloneOpts:   opts.InsCloneOpts,
-			KubeFactory: opts.KubeFactory,
-			SkipChecks:  true,
-			Force:       true,
-			FastExit:    false,
+			RuntimeName:  opts.RuntimeName,
+			Timeout:      store.Get().WaitTimeout,
+			CloneOpts:    opts.InsCloneOpts,
+			IscCloneOpts: opts.InsCloneOpts,
+			KubeFactory:  opts.KubeFactory,
+			SkipChecks:   true,
+			Force:        true,
+			FastExit:     false,
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {
