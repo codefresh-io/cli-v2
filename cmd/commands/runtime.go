@@ -2357,7 +2357,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 
 func editAppSet(ctx context.Context, r git.Repository, repofs fs.FS, rtName string) error {
 	projPath := repofs.Join(apstore.Default.ProjectsDir, rtName + ".yaml")
-	_, appset, err := getProjectInfoFromFile(repofs, projPath)
+	appProj, appset, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
 		return err
 	}
@@ -2372,7 +2372,7 @@ func editAppSet(ctx context.Context, r git.Repository, repofs fs.FS, rtName stri
 			},
 	})
 	
-	err = repofs.WriteYamls(projPath, appset)
+	err = repofs.WriteYamls(projPath, appProj, appset)
 	if err != nil {
 		return err
 	}
