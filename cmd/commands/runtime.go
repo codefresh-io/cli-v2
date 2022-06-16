@@ -781,37 +781,6 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
 	}
 
-	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed getting the installation repo. %w", err))
-	}
-
-	projPath := fs.Join(apstore.Default.ProjectsDir, opts.RuntimeName + ".yaml")
-	appProj, appset, err := getProjectInfoFromFile(fs, projPath)
-	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed getting the project. %w", err))
-	}
-
-	// in order to prevent resource-adjustment made by gke autopilot
-	appset.Spec.Template.Spec.IgnoreDifferences = append(appset.Spec.Template.Spec.IgnoreDifferences, argocdv1alpha1.ResourceIgnoreDifferences{
-			Group: "apps",
-			Kind:  "Deployment",
-			Name: "cap-app-proxy",
-			JSONPointers: []string{
-				"/spec",
-			},
-	})
-	
-	err = fs.WriteYamls(projPath, appProj, appset)
-	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed editing the application set. %w", err))
-	}
-
-	err = apu.PushWithMessage(ctx, r, "edited the application-set")
-	if err != nil {
-		return err
-	}
-
 	// persists codefresh-cm, this must be created before events-reporter eventsource
 	// otherwise it will not start and no events will get to the platform.
 	if !opts.FromRepo {
