@@ -203,7 +203,11 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 	runtimeNames := make([]string, len(runtimes))
 
 	for index, rt := range runtimes {
-		runtimeNames[index] = rt.Metadata.Name
+		rtDisplay := rt.Metadata.Name
+		if rt.Managed {
+			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
+		}
+		runtimeNames[index] = rtDisplay
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -219,7 +223,8 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 	}
 
 	_, result, err := prompt.Run()
-	return result, err
+	resultSplit := strings.Split(result, " ")
+	return resultSplit[0], err
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
@@ -642,4 +647,13 @@ func getIscRepo(ctx context.Context) (string, error) {
 	}
 
 	return *user.ActiveAccount.SharedConfigRepo, nil
+}
+
+func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get runtime from platform. error: %w", err)
+	}
+
+	return rt.Managed, nil
 }
