@@ -1,7 +1,7 @@
 ### Installed Applications:
 
-- Argo CD [v2.1.14](https://github.com/argoproj/argo-cd/releases/tag/v2.1.14)
-- Argo CD ApplicationSet Controller [v0.2.0](https://github.com/argoproj-labs/applicationset/releases/tag/v0.2.0)
+- Argo CD [v2.3.4](https://github.com/argoproj/argo-cd/releases/tag/v2.3.4)
+- Argo CD ApplicationSet Controller [v0.4.0](https://github.com/argoproj-labs/applicationset/releases/tag/v0.4.0)
 - Argo Events [v1.5.5](https://github.com/argoproj/argo-events/releases/tag/v1.5.5)
 - Argo Rollouts [v1.2.0](https://github.com/argoproj/argo-rollouts/releases/tag/v1.2.0)
 - Argo Workflows [v3.2.6](https://github.com/argoproj/argo-workflows/releases/tag/v3.2.6)
@@ -23,7 +23,7 @@ cf version
 
 ```bash
 # download and extract the binary
-curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.389/cf-linux-amd64.tar.gz | tar zx
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.392/cf-linux-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
 mv ./cf-linux-amd64 /usr/local/bin/cf
@@ -36,7 +36,7 @@ cf version
 
 ```bash
 # download and extract the binary
-curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.389/cf-darwin-amd64.tar.gz | tar zx
+curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.392/cf-darwin-amd64.tar.gz | tar zx
 
 # move the binary to your $PATH
 mv ./cf-darwin-amd64 /usr/local/bin/cf
