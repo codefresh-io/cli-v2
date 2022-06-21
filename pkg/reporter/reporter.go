@@ -102,7 +102,6 @@ const (
 	UninstallStepPreCheckRuntimeNameValidation    CliStep = "uninstall.pre-check.step.runtime-name-validation"
 	UninstallStepPreCheckEnsureRuntimeRepo        CliStep = "uninstall.pre-check.step.ensure-runtime-repo"
 	UninstallStepPreCheckEnsureGitToken           CliStep = "uninstall.pre-check.step.ensure-git-token"
-	UninstallStepPreCheckGetIscRepoFromPlatform   CliStep = "uninstall.run.step.get-isc-repo-from-platform"
 	UninstallPhasePreCheckFinish                  CliStep = "uninstall.pre-check.phase.finish"
 	UninstallPhaseStart                           CliStep = "uninstall.run.phase.start"
 	UninstallStepCheckRuntimeExists               CliStep = "uninstall.run.step.check-runtime-exists"

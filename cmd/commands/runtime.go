@@ -471,12 +471,6 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	// opts.IscCloneOpts.Repo, err = getIscRepo(cmd.Context())
-	// handleCliStep(reporter.UninstallStepPreCheckGetIscRepo, "Getting internal shared config repo", err, true, false)
-	// if err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
 
@@ -2705,20 +2699,6 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
-		iscCloneOpts := &git.CloneOptions{
-			FS:               fs.Create(memfs.New()),
-			CreateIfNotExist: false,
-		}
-		iscCloneOpts.Repo, err = getIscRepo(ctx)
-		handleCliStep(reporter.UninstallStepPreCheckGetIscRepoFromPlatform, "Getting isc repo from platform before rollback", err, false, true)
-		if err != nil {
-			log.G(ctx).Errorf("failed to get isc repo from platform before installation rollback: %s", err.Error())
-		}
-
-		inferProviderFromRepo(opts.InsCloneOpts)
-		iscCloneOpts.Auth = opts.InsCloneOpts.Auth
-		iscCloneOpts.Progress = opts.InsCloneOpts.Progress
-		iscCloneOpts.Parse()
 
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName:  opts.RuntimeName,
