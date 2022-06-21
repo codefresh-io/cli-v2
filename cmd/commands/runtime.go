@@ -1629,6 +1629,9 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	err = removeRuntimeIsc(ctx, opts)
+	if opts.Force {
+		err = nil
+	}
 	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, true)
 	if err != nil {
 		return fmt.Errorf("failed to remove runtime isc: %w", err)
