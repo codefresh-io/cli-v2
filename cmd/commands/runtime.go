@@ -1531,11 +1531,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UninstallFlow, opts.DisableTelemetry)
 
-			// opts.IscCloneOpts = &git.CloneOptions{
-			// 	FS:               fs.Create(memfs.New()),
-			// 	CreateIfNotExist: false,
-			// }
-
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, true, false)
 			if err != nil {
@@ -1617,7 +1612,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if opts.Force {
 		err = nil
 	}
-	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, !opts.Managed)
+	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, true)
 	if err != nil {
 		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
