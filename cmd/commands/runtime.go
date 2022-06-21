@@ -1613,6 +1613,15 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
+	err = removeRuntimeIsc(ctx, opts.RuntimeName)
+	if opts.Force {
+		err = nil
+	}
+	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, !opts.Managed)
+	if err != nil {
+		return fmt.Errorf("failed to remove runtime isc: %w", err)
+	}
+
 	subCtx, cancel := context.WithCancel(ctx)
 	go func() {
 		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory, opts.Managed); err != nil {
@@ -1638,14 +1647,6 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if err != nil {
 		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 		return err
-	}
-
-	if !opts.Managed {
-		err = removeRuntimeIsc(ctx, opts.RuntimeName)
-	}
-	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, !opts.Managed)
-	if err != nil {
-		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
 
 	if !opts.Managed {
@@ -2714,7 +2715,7 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 			CreateIfNotExist: false,
 		}
 		iscCloneOpts.Repo, err = getIscRepo(ctx)
-		handleCliStep(reporter.UninstallStepGetIscRepoFromPlatform, "Getting isc repo from platform before rollback", err, false, true)
+		handleCliStep(reporter.UninstallStepPreCheckGetIscRepoFromPlatform, "Getting isc repo from platform before rollback", err, false, true)
 		if err != nil {
 			log.G(ctx).Errorf("failed to get isc repo from platform before installation rollback: %s", err.Error())
 		}

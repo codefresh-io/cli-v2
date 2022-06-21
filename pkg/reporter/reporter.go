@@ -102,6 +102,7 @@ const (
 	UninstallStepPreCheckRuntimeNameValidation    CliStep = "uninstall.pre-check.step.runtime-name-validation"
 	UninstallStepPreCheckEnsureRuntimeRepo        CliStep = "uninstall.pre-check.step.ensure-runtime-repo"
 	UninstallStepPreCheckEnsureGitToken           CliStep = "uninstall.pre-check.step.ensure-git-token"
+	UninstallStepPreCheckGetIscRepoFromPlatform   CliStep = "uninstall.run.step.get-isc-repo-from-platform"
 	UninstallPhasePreCheckFinish                  CliStep = "uninstall.pre-check.phase.finish"
 	UninstallPhaseStart                           CliStep = "uninstall.run.phase.start"
 	UninstallStepCheckRuntimeExists               CliStep = "uninstall.run.step.check-runtime-exists"
@@ -110,7 +111,6 @@ const (
 	UninstallStepRemoveRuntimeIsc                 CliStep = "uninstall.run.step.remove-runtime-isc"
 	UninstallStepDeleteRuntimeFromPlatform        CliStep = "uninstall.run.step.delete-runtime-from-platform"
 	UninstallStepDeleteManagedRuntimeFromPlatform CliStep = "uninstall.run.step.delete-managed-runtime-from-platform"
-	UninstallStepGetIscRepoFromPlatform           CliStep = "uninstall.run.step.get-isc-repo-from-platform"
 	UninstallPhaseFinish                          CliStep = "uninstall.run.phase.finish"
 
 	// Upgrade
