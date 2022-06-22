@@ -1576,7 +1576,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CloneForWrite: true,
-		Optional: false,
+		Optional: true,
 	})
 	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
