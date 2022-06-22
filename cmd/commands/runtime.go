@@ -1429,13 +1429,14 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
+	_, err = fmt.Fprintln(tb, "NAME\tRUNTIME_TYPE\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
 	if err != nil {
 		return err
 	}
 
 	for _, rt := range runtimes {
 		name := rt.Metadata.Name
+		runtimeType := "Hybrid"
 		namespace := "N/A"
 		cluster := "N/A"
 		version := "N/A"
@@ -1446,6 +1447,10 @@ func RunRuntimeList(ctx context.Context) error {
 		ingressHost := "N/A"
 		internalIngressHost := "N/A"
 		ingressClass := "N/A"
+
+		if rt.Managed {
+			runtimeType = "Hosted"
+		}
 
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
@@ -1475,8 +1480,9 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressClass = *rt.IngressClass
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
+			runtimeType,
 			namespace,
 			cluster,
 			version,
