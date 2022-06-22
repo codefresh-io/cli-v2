@@ -141,7 +141,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 	}
 
 	if cloneOpts.Repo == "" {
-		return fmt.Errorf("must enter a valid installation repository URL")
+		return fmt.Errorf("must enter a valid installation repository URL via --repo")
 	}
 
 	return nil
@@ -306,6 +306,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 			return fmt.Errorf(errMessage)
 		}
 	}
+
+	if cloneOpts.Auth.Password == "" {
+		return fmt.Errorf("must provide a git token via --git-token")
+	}
+
 	return nil
 }
 

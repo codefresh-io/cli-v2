@@ -1574,7 +1574,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
 
-	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
+		CloneForWrite: true,
+		Optional: false,
+	})
 	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
