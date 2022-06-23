@@ -153,12 +153,17 @@ type (
 		message string
 		level   summaryLogLevels
 	}
+
+	CommandFlow string
 )
 
 const (
 	Success summaryLogLevels = "Success"
 	Failed  summaryLogLevels = "Failed"
 	Info    summaryLogLevels = "Info"
+
+	Uninstall CommandFlow = "Uninstall"
+	Upgrade   CommandFlow = "Upgrade"
 )
 
 var summaryArr []summaryLog
@@ -436,7 +441,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, Uninstall)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
@@ -479,13 +484,14 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, Upgrade)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
 	}
 
 	isManaged, err := isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+	handleCliStep(reporter.UpgradeStepPreCheckIsManagedRuntime, "Checking if runtime is hosted", err, true, false)
 	if err != nil {
 		return err
 	}
@@ -1585,7 +1591,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CloneForWrite: true,
-		Optional: true,
+		Optional:      true,
 	})
 	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
@@ -2721,13 +2727,13 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
 
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-			RuntimeName:  opts.RuntimeName,
-			Timeout:      store.Get().WaitTimeout,
-			CloneOpts:    opts.InsCloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			SkipChecks:   true,
-			Force:        true,
-			FastExit:     false,
+			RuntimeName: opts.RuntimeName,
+			Timeout:     store.Get().WaitTimeout,
+			CloneOpts:   opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks:  true,
+			Force:       true,
+			FastExit:    false,
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {

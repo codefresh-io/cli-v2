@@ -166,7 +166,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	return cmd.Flags().Set("repo", repoInput)
 }
 
-func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
+func ensureRuntimeName(ctx context.Context, args []string, cmdFlow CommandFlow) (string, error) {
 	var (
 		runtimeName string
 		err         error
@@ -177,7 +177,7 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	}
 
 	if !store.Get().Silent {
-		runtimeName, err = getRuntimeNameFromUserSelect(ctx)
+		runtimeName, err = getRuntimeNameFromUserSelect(ctx, cmdFlow)
 		if err != nil {
 			return "", err
 		}
@@ -190,7 +190,7 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	return runtimeName, nil
 }
 
-func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
+func getRuntimeNameFromUserSelect(ctx context.Context, cmdFlow CommandFlow) (string, error) {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return "", err
@@ -205,8 +205,12 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 	for index, rt := range runtimes {
 		rtDisplay := rt.Metadata.Name
 		if rt.Managed {
+			if cmdFlow == Upgrade {
+				// preventing hosted runtimes to prompt on upgrade command
+				continue
+			}
 			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
-		}
+		} 
 		runtimeNames[index] = rtDisplay
 	}
 

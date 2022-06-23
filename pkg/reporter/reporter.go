@@ -115,6 +115,7 @@ const (
 	// Upgrade
 	UpgradePhasePreCheckStart              CliStep = "upgrade.pre-check.phase.start"
 	UpgradeStepPreCheckEnsureRuntimeName   CliStep = "upgrade.pre-check.step.ensure-runtime-name"
+	UpgradeStepPreCheckIsManagedRuntime    CliStep = "upgrade.pre-check.step.is-managed-runtime"
 	UpgradeStepPreCheckEnsureRuntimeRepo   CliStep = "upgrade.pre-check.step.ensure-runtime-repo"
 	UpgradeStepPreCheckEnsureGitToken      CliStep = "upgrade.pre-check.step.ensure-git-token"
 	UpgradePhasePreCheckFinish             CliStep = "upgrade.pre-check.phase.finish"
