@@ -1656,6 +1656,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	if opts.Managed {
+		log.G(ctx).Infof("Deleting runtime '%s' from platform")
 		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
 	}
 	handleCliStep(reporter.UninstallStepDeleteManagedRuntimeFromPlatform, "Deleting hosted runtime from platform", err, false, opts.Managed)
@@ -1793,6 +1794,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 	}
 
 	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx, runtimeName)
+	log.G(ctx).Info("Removed runtime from isc repo")
 
 	return err
 }
