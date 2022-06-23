@@ -92,7 +92,7 @@ func newClusterAddCommand() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			opts.runtimeName, err = ensureRuntimeName(ctx, args)
+			opts.runtimeName, err = ensureRuntimeName(ctx, args, ClusterAdd)
 			if err != nil {
 				return err
 			}
@@ -238,7 +238,7 @@ func newClusterRemoveCommand() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			opts.runtimeName, err = ensureRuntimeName(ctx, args)
+			opts.runtimeName, err = ensureRuntimeName(ctx, args, ClusterRemove)
 			if err != nil {
 				return err
 			}
@@ -380,7 +380,7 @@ func newClusterCreateArgoRolloutsCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
-			opts.runtimeName, err = ensureRuntimeName(cmd.Context(), args)
+			opts.runtimeName, err = ensureRuntimeName(cmd.Context(), args, ClusterCreateArgoRollouts)
 			return err
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {

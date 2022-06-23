@@ -205,7 +205,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, cmdFlow CommandFlow) (str
 	for index, rt := range runtimes {
 		rtDisplay := rt.Metadata.Name
 		if rt.Managed {
-			if cmdFlow == Upgrade {
+			if cmdFlow == RuntimeUpgrade {
 				// preventing hosted runtimes to prompt on upgrade command
 				continue
 			}
