@@ -485,6 +485,15 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return err
 	}
 
+	isManaged, err := isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+	if err != nil {
+		return err
+	}
+
+	if isManaged {
+		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
+	}
+
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
 	if err != nil {
