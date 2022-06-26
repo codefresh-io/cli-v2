@@ -1811,7 +1811,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
 	}
 
-	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx, runtimeName)
+	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
 	log.G(ctx).Info("Removed runtime from isc repo")
 
 	return err
