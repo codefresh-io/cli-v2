@@ -141,7 +141,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 	}
 
 	if cloneOpts.Repo == "" {
-		return fmt.Errorf("must enter a valid installation repository URL via --repo")
+		return fmt.Errorf("must enter a valid installation repository URL, using --repo")
 	}
 
 	return nil
