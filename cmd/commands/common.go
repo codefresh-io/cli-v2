@@ -200,9 +200,9 @@ func getRuntimeNameFromUserSelect(ctx context.Context, cmdFlow CommandFlow) (str
 		return "", fmt.Errorf("no runtimes were found")
 	}
 
-	runtimeNames := make([]string, len(runtimes))
+	var runtimeNames []string
 
-	for index, rt := range runtimes {
+	for _, rt := range runtimes {
 		rtDisplay := rt.Metadata.Name
 		if rt.Managed {
 			if cmdFlow == RuntimeUpgrade {
@@ -211,7 +211,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, cmdFlow CommandFlow) (str
 			}
 			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
 		} 
-		runtimeNames[index] = rtDisplay
+		runtimeNames = append(runtimeNames, rtDisplay)
 	}
 
 	templates := &promptui.SelectTemplates{
