@@ -312,7 +312,7 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	}
 
 	if cloneOpts.Auth.Password == "" {
-		return fmt.Errorf("must provide a git token via --git-token")
+		return fmt.Errorf("must provide a git token using --git-token")
 	}
 
 	return nil
