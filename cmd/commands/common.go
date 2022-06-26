@@ -649,15 +649,6 @@ func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, 
 	return setIscRepoResponse, nil
 }
 
-func getIscRepo(ctx context.Context) (string, error) {
-	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get shared config repo. Error: %w", err)
-	}
-
-	return *user.ActiveAccount.SharedConfigRepo, nil
-}
-
 func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
 	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 	if err != nil {
