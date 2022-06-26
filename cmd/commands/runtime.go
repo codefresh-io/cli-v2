@@ -1447,14 +1447,13 @@ func RunRuntimeList(ctx context.Context) error {
 	}
 
 	tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	_, err = fmt.Fprintln(tb, "NAME\tTYPE\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
+	_, err = fmt.Fprintln(tb, "NAME\tNAMESPACE\tCLUSTER\tVERSION\tSYNC_STATUS\tHEALTH_STATUS\tHEALTH_MESSAGE\tINSTALLATION_STATUS\tINGRESS_HOST\tINGRESS_CLASS")
 	if err != nil {
 		return err
 	}
 
 	for _, rt := range runtimes {
 		name := rt.Metadata.Name
-		runtimeType := "Hybrid"
 		namespace := "N/A"
 		cluster := "N/A"
 		version := "N/A"
@@ -1467,7 +1466,7 @@ func RunRuntimeList(ctx context.Context) error {
 		ingressClass := "N/A"
 
 		if rt.Managed {
-			runtimeType = "Hosted"
+			name = fmt.Sprintf("%s (hosted)", rt.Metadata.Name)
 		}
 
 		if rt.Metadata.Namespace != nil {
@@ -1498,9 +1497,8 @@ func RunRuntimeList(ctx context.Context) error {
 			ingressClass = *rt.IngressClass
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			name,
-			runtimeType,
 			namespace,
 			cluster,
 			version,
@@ -1812,7 +1810,9 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 	}
 
 	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
-	log.G(ctx).Info("Removed runtime from isc repo")
+	if err != nil {
+		log.G(ctx).Info("Removed runtime from isc repo")
+	}
 
 	return err
 }
