@@ -116,12 +116,12 @@ type (
 		RuntimeName      string
 		Timeout          time.Duration
 		CloneOpts        *git.CloneOptions
-		IscCloneOpts     *git.CloneOptions
 		KubeFactory      kube.Factory
 		SkipChecks       bool
 		Force            bool
 		FastExit         bool
 		DisableTelemetry bool
+		Managed          bool
 		kubeContext      string
 	}
 
@@ -436,32 +436,37 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
-	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, true)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
+	opts.Managed, err = isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+	if err != nil {
+		return err
+	}
+
+	if !opts.Managed {
+		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+	}
+	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	if !opts.Managed {
+		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
+	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts, false)
-	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
-	if err != nil {
-		return err
+	if !opts.Managed {
+		err = ensureGitToken(cmd, opts.CloneOpts, false)
 	}
-
-	opts.IscCloneOpts.Repo, err = getIscRepo(cmd.Context())
-	handleCliStep(reporter.UninstallStepPreCheckGetIscRepo, "Getting internal shared config repo", err, true, false)
+	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
 	}
@@ -474,10 +479,20 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
+	}
+
+	isManaged, err := isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+	handleCliStep(reporter.UpgradeStepPreCheckIsManagedRuntime, "Checking if runtime is hosted", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	if isManaged {
+		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
@@ -1442,6 +1457,10 @@ func RunRuntimeList(ctx context.Context) error {
 		internalIngressHost := "N/A"
 		ingressClass := "N/A"
 
+		if rt.Managed {
+			name = fmt.Sprintf("%s (hosted)", rt.Metadata.Name)
+		}
+
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
 		}
@@ -1520,11 +1539,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UninstallFlow, opts.DisableTelemetry)
 
-			opts.IscCloneOpts = &git.CloneOptions{
-				FS:               fs.Create(memfs.New()),
-				CreateIfNotExist: false,
-			}
-
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, true, false)
 			if err != nil {
@@ -1537,9 +1551,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.CurrentContext,
-				"Kube context":      opts.kubeContext,
 				"Runtime name":      opts.RuntimeName,
-				"Repository URL":    opts.CloneOpts.Repo,
+			}
+
+			if !opts.Managed {
+				finalParameters["Kube context"] = opts.kubeContext
+				finalParameters["Repository URL"] = opts.CloneOpts.Repo
+				opts.CloneOpts.Parse()
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
@@ -1549,11 +1567,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			opts.Timeout = store.Get().WaitTimeout
 
-			inferProviderFromRepo(opts.IscCloneOpts)
-			opts.IscCloneOpts.Auth = opts.CloneOpts.Auth
-			opts.IscCloneOpts.Progress = opts.CloneOpts.Progress
-			opts.CloneOpts.Parse()
-			opts.IscCloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -1569,7 +1582,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
 
-	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
+		CloneForWrite: true,
+		Optional:      true,
+	})
 	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
@@ -1603,32 +1619,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	subCtx, cancel := context.WithCancel(ctx)
-	go func() {
-		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory); err != nil {
-			log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
-		}
-	}()
-
-	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-		Namespace:    opts.RuntimeName,
-		Timeout:      opts.Timeout,
-		CloneOptions: opts.CloneOpts,
-		KubeFactory:  opts.KubeFactory,
-		Force:        opts.Force,
-		FastExit:     opts.FastExit,
-	})
-	cancel() // to tell the progress to stop displaying even if it's not finished
-	if opts.Force {
-		err = nil
-	}
-	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, true)
-	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
-		return err
-	}
-
-	err = removeRuntimeIsc(ctx, opts)
+	err = removeRuntimeIsc(ctx, opts.RuntimeName)
 	if opts.Force {
 		err = nil
 	}
@@ -1637,10 +1628,48 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
 
-	err = deleteRuntimeFromPlatform(ctx, opts)
-	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, true)
+	subCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory, opts.Managed); err != nil {
+			log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
+		}
+	}()
+
+	if !opts.Managed {
+		err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+			Namespace:    opts.RuntimeName,
+			Timeout:      opts.Timeout,
+			CloneOptions: opts.CloneOpts,
+			KubeFactory:  opts.KubeFactory,
+			Force:        opts.Force,
+			FastExit:     opts.FastExit,
+		})
+	}
+	cancel() // to tell the progress to stop displaying even if it's not finished
+	if opts.Force {
+		err = nil
+	}
+	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, !opts.Managed)
+	if err != nil {
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+		return err
+	}
+
+	if !opts.Managed {
+		err = deleteRuntimeFromPlatform(ctx, opts)
+	}
+	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, !opts.Managed)
 	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
+	}
+
+	if opts.Managed {
+		log.G(ctx).Infof("Deleting runtime '%s' from platform", opts.RuntimeName)
+		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
+	}
+	handleCliStep(reporter.UninstallStepDeleteManagedRuntimeFromPlatform, "Deleting hosted runtime from platform", err, false, opts.Managed)
+	if err != nil {
+		return fmt.Errorf("failed to delete hosted runtime from the platform: %w", err)
 	}
 
 	if cfConfig.GetCurrentContext().DefaultRuntime == opts.RuntimeName {
@@ -1653,7 +1682,11 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	return nil
 }
 
-func printApplicationsState(ctx context.Context, runtime string, f kube.Factory) error {
+func printApplicationsState(ctx context.Context, runtime string, f kube.Factory, managed bool) error {
+	if managed {
+		return nil
+	}
+
 	apps := map[string]*argocdv1alpha1.Application{}
 	lock := sync.Mutex{}
 
@@ -1762,30 +1795,18 @@ func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, ru
 	return state, []string{name, status}
 }
 
-func removeRuntimeIsc(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	if opts.IscCloneOpts.Repo == "" {
-		return nil
-	}
-
-	log.G(ctx).Info("removing runtime isc")
-
-	r, fs, err := opts.IscCloneOpts.GetRepo(ctx)
+func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to clone isc repo. error: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
 	}
 
-	err = billyUtils.RemoveAll(fs, fs.Join(store.Get().IscRuntimesDir, opts.RuntimeName))
-	if err != nil {
-		return fmt.Errorf("failed to remove runtime dir '%s' from shared config repo. error: %w", opts.RuntimeName, err)
+	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
+	if err == nil {
+		log.G(ctx).Info("Removed runtime from isc repo")
 	}
 
-	pushMsg := fmt.Sprintf("Removing runtime dir '%s'", opts.RuntimeName)
-	err = apu.PushWithMessage(ctx, r, pushMsg)
-	if err != nil {
-		return fmt.Errorf("failed to push to git while removing runtime '%s' dir: %w", opts.RuntimeName, err)
-	}
-
-	return nil
+	return err
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
@@ -2699,30 +2720,15 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
-		iscCloneOpts := &git.CloneOptions{
-			FS:               fs.Create(memfs.New()),
-			CreateIfNotExist: false,
-		}
-		iscCloneOpts.Repo, err = getIscRepo(ctx)
-		handleCliStep(reporter.UninstallStepGetIscRepoFromPlatform, "Getting isc repo from platform before rollback", err, false, true)
-		if err != nil {
-			log.G(ctx).Errorf("failed to get isc repo from platform before installation rollback: %s", err.Error())
-		}
-
-		inferProviderFromRepo(opts.InsCloneOpts)
-		iscCloneOpts.Auth = opts.InsCloneOpts.Auth
-		iscCloneOpts.Progress = opts.InsCloneOpts.Progress
-		iscCloneOpts.Parse()
 
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-			RuntimeName:  opts.RuntimeName,
-			Timeout:      store.Get().WaitTimeout,
-			CloneOpts:    opts.InsCloneOpts,
-			IscCloneOpts: iscCloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			SkipChecks:   true,
-			Force:        true,
-			FastExit:     false,
+			RuntimeName: opts.RuntimeName,
+			Timeout:     store.Get().WaitTimeout,
+			CloneOpts:   opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks:  true,
+			Force:       true,
+			FastExit:    false,
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {

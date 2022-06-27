@@ -305,7 +305,7 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI,
 		return fmt.Errorf("failed to remove git integration: %w", err)
 	}
 
-	log.G(ctx).Infof("removed git integration: %s", name)
+	log.G(ctx).Infof("Removed git integration: %s", name)
 
 	return nil
 }
