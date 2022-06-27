@@ -153,20 +153,12 @@ type (
 		message string
 		level   summaryLogLevels
 	}
-
-	CommandFlow string
 )
 
 const (
 	Success summaryLogLevels = "Success"
 	Failed  summaryLogLevels = "Failed"
 	Info    summaryLogLevels = "Info"
-
-	RuntimeUninstall          CommandFlow = "RuntimeUninstall"
-	RuntimeUpgrade            CommandFlow = "RuntimeUpgrade"
-	ClusterAdd                CommandFlow = "ClusterAdd"
-	ClusterRemove             CommandFlow = "ClusterRemove"
-	ClusterCreateArgoRollouts CommandFlow = "ClusterCreateArgoRollouts"
 )
 
 var summaryArr []summaryLog
@@ -444,7 +436,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, RuntimeUninstall)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, true)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
@@ -487,7 +479,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, RuntimeUpgrade)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
