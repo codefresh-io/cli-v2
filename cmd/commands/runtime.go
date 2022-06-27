@@ -1810,7 +1810,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 	}
 
 	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
-	if err != nil {
+	if err == nil {
 		log.G(ctx).Info("Removed runtime from isc repo")
 	}
 
