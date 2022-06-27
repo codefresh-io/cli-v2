@@ -53,8 +53,8 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	appset "github.com/argoproj/applicationset/api/v1alpha1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appset "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
@@ -126,12 +126,11 @@ type (
 	}
 
 	RuntimeUpgradeOptions struct {
-		RuntimeName               string
-		Version                   *semver.Version
-		CloneOpts                 *git.CloneOptions
-		CommonConfig              *runtime.CommonConfig
-		SuggestedSharedConfigRepo string
-		DisableTelemetry          bool
+		RuntimeName      string
+		Version          *semver.Version
+		CloneOpts        *git.CloneOptions
+		CommonConfig     *runtime.CommonConfig
+		DisableTelemetry bool
 	}
 
 	gvr struct {
@@ -1635,16 +1634,15 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		}
 	}()
 
-	if !opts.Managed {
-		err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-			Namespace:    opts.RuntimeName,
-			Timeout:      opts.Timeout,
-			CloneOptions: opts.CloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			Force:        opts.Force,
-			FastExit:     opts.FastExit,
-		})
-	}
+	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+		Namespace:       opts.RuntimeName,
+		Timeout:         opts.Timeout,
+		CloneOptions:    opts.CloneOpts,
+		KubeFactory:     opts.KubeFactory,
+		Force:           opts.Force,
+		FastExit:        opts.FastExit,
+		KubeContextName: opts.kubeContext,
+	})
 	cancel() // to tell the progress to stop displaying even if it's not finished
 	if opts.Force {
 		err = nil

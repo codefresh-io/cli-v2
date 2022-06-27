@@ -4,9 +4,8 @@ go 1.18
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/argoproj-labs/argocd-autopilot v0.3.7
-	github.com/argoproj/applicationset v0.4.1
-	github.com/argoproj/argo-cd/v2 v2.3.4
+	github.com/argoproj-labs/argocd-autopilot v0.0.5-0.20220411092200-d029b4700f98
+	github.com/argoproj/argo-cd/v2 v2.3.3
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
 	github.com/argoproj/argo-workflows/v3 v3.3.1
 	github.com/briandowns/spinner v1.18.1
@@ -248,6 +247,7 @@ require (
 )
 
 replace (
+	github.com/argoproj/argo-cd/v2 => github.com/argoproj/argo-cd/v2 v2.0.0-20220407135446-5c2391f71fe0
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
@@ -263,12 +263,12 @@ replace (
 	google.golang.org/grpc => google.golang.org/grpc v1.15.0
 
 	// https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505627280
-	k8s.io/api => k8s.io/api v0.23.3
+	k8s.io/api => k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
-	k8s.io/apimachinery => k8s.io/apimachinery v0.23.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.23.1
 	k8s.io/apiserver => k8s.io/apiserver v0.23.1
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.23.1
-	k8s.io/client-go => k8s.io/client-go v0.23.3
+	k8s.io/client-go => k8s.io/client-go v0.23.1
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.23.1
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.23.1
 	k8s.io/code-generator => k8s.io/code-generator v0.23.1
