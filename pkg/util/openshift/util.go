@@ -18,13 +18,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	ocsecurityv1 "github.com/openshift/api/security/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

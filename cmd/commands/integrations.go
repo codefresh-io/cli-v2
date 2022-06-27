@@ -17,17 +17,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
 	sdk "github.com/codefresh-io/go-sdk/pkg/codefresh"
 	model "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
 )
 
 type (
@@ -303,7 +305,7 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI,
 		return fmt.Errorf("failed to remove git integration: %w", err)
 	}
 
-	log.G(ctx).Infof("removed git integration: %s", name)
+	log.G(ctx).Infof("Removed git integration: %s", name)
 
 	return nil
 }

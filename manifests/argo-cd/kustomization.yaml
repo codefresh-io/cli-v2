@@ -1,13 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://raw.githubusercontent.com/codefresh-io/argo-cd/release-2.1/manifests/install.yaml
-  - https://raw.githubusercontent.com/argoproj-labs/applicationset/master/manifests/install.yaml?ref=2c62537a8e5a # TODO: switch to the next release when available
+  - https://raw.githubusercontent.com/codefresh-io/argo-cd/release-2.3/manifests/install.yaml
   - default-rbac.yaml
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.1.14-cap-CR-rev-logs
+    newTag: v2.3.4-cap-CR-12110-helm-resources-yaml
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
@@ -31,3 +30,14 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: default
+
+  # Istio protocol selection: https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/
+  # Ovveride the default protocol selection which is done by the port name (http), since this port is being used for both http and grpc.
+  - target:
+      version: v1
+      kind: Service
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/ports/0/appProtocol
+        value: tcp

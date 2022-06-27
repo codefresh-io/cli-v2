@@ -45,6 +45,7 @@ type Version struct {
 }
 
 type Store struct {
+	AddClusterJobName                   string
 	ArgoCDServerName                    string
 	ArgoCDTokenKey                      string
 	ArgoCDTokenSecret                   string
@@ -140,6 +141,12 @@ type Store struct {
 	SccName                             string
 	CFInternalGitSources                []string
 	CFInternalReporters                 []string
+	InstallationFlow                    string
+	GsCreateFlow                        string
+	InCluster                           string
+	IsDownloadRuntimeLogs               bool
+	IngressHost                         string
+	IscRuntimesDir                      string
 }
 
 // Get returns the global store
@@ -148,6 +155,7 @@ func Get() *Store {
 }
 
 func init() {
+	s.AddClusterJobName = "csdp-add-cluster-job"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
@@ -229,12 +237,16 @@ func init() {
 	s.NetworkTesterGenerateName = "cf-network-tester-"
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.MinKubeVersion = "v1.18.0"
-	s.MaxKubeVersion = "v1.23.4"
+	s.MaxKubeVersion = "v1.25.0"
 	s.MasterIngressName = "-master"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
+	s.InstallationFlow = "install-runtime"
+	s.GsCreateFlow = "git-source-create"
+	s.InCluster = "https://kubernetes.default.svc"
+	s.IscRuntimesDir = "runtimes"
 
 	initVersion()
 }

@@ -20,10 +20,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	aplog "github.com/argoproj-labs/argocd-autopilot/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	aplog "github.com/argoproj-labs/argocd-autopilot/pkg/log"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/sirupsen/logrus"

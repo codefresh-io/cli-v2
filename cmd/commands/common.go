@@ -27,19 +27,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	autoPilotUtil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -141,7 +141,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 	}
 
 	if cloneOpts.Repo == "" {
-		return fmt.Errorf("must enter a valid installation repository URL")
+		return fmt.Errorf("must enter a valid installation repository URL, using --repo")
 	}
 
 	return nil
@@ -150,6 +150,13 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
+		Validate: func(value string) error {
+			host, orgRepo, _, _, _, _, _ := autoPilotUtil.ParseGitUrl(value)
+			if host != "" && orgRepo != "" {
+				return nil
+			}
+			return fmt.Errorf("Invalid URL for Git repository")
+		},
 	}
 	repoInput, err := repoPrompt.Run()
 	if err != nil {
@@ -159,7 +166,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	return cmd.Flags().Set("repo", repoInput)
 }
 
-func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
+func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (string, error) {
 	var (
 		runtimeName string
 		err         error
@@ -170,20 +177,20 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	}
 
 	if !store.Get().Silent {
-		runtimeName, err = getRuntimeNameFromUserSelect(ctx)
+		runtimeName, err = getRuntimeNameFromUserSelect(ctx, allowManaged)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	if runtimeName == "" {
-		return "", fmt.Errorf("Must supply value for \"Runtime name\"")
+		return "", fmt.Errorf("must supply value for \"Runtime name\"")
 	}
 
 	return runtimeName, nil
 }
 
-func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
+func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (string, error) {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return "", err
@@ -193,10 +200,18 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("no runtimes were found")
 	}
 
-	runtimeNames := make([]string, len(runtimes))
+	var runtimeNames []string
 
-	for index, rt := range runtimes {
-		runtimeNames[index] = rt.Metadata.Name
+	for _, rt := range runtimes {
+		rtDisplay := rt.Metadata.Name
+		if rt.Managed {
+			if !allowManaged {
+				// preventing hosted runtimes to prompt
+				continue
+			}
+			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
+		} 
+		runtimeNames = append(runtimeNames, rtDisplay)
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -212,25 +227,32 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 	}
 
 	_, result, err := prompt.Run()
-	return result, err
+	resultSplit := strings.Split(result, " ")
+	return resultSplit[0], err
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
-	return getValueFromUserInput("Runtime name", "codefresh")
+	runtimeName, err := getValueFromUserInput("Runtime name", "codefresh", validateRuntimeName)
+	return runtimeName, err
 }
 
-func getValueFromUserInput(label, defaultValue string) (string, error) {
-	prompt := promptui.Prompt{
-		Label:   label,
-		Default: defaultValue,
-		// Validate: func (value string) error {
-		// 	if value == "" {
-		// 		return fmt.Errorf("Must supply value for \"%s\"", label)
-		// 	}
+func validateRuntimeName(runtime string) error {
+	isValid, err := IsValidName(runtime)
+	if err != nil {
+		return fmt.Errorf("failed to validate runtime name: %w", err)
+	}
+	if !isValid {
+		return fmt.Errorf("Runtime name must start with a lower-case character, and can include up to 62 lower-case characters and numbers")
+	}
+	return nil
+}
 
-		// 	return nil
-		// },
-		Pointer: promptui.PipeCursor,
+func getValueFromUserInput(label, defaultValue string, validate promptui.ValidateFunc) (string, error) {
+	prompt := promptui.Prompt{
+		Label:    label,
+		Default:  defaultValue,
+		Validate: validate,
+		Pointer:  promptui.PipeCursor,
 	}
 
 	return prompt.Run()
@@ -271,8 +293,10 @@ func inferProviderFromRepo(opts *git.CloneOptions) {
 }
 
 func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
+	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
+		errMessage = "Invalid runtime token; enter a valid token"
 		if err != nil {
 			return err
 		}
@@ -281,8 +305,14 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 	if verify {
 		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
 		if err != nil {
-			return fmt.Errorf("failed to verify git token: %w", err)
+			// in case when we get invalid value from env variable TOKEN we clean
+			cloneOpts.Auth.Password = ""
+			return fmt.Errorf(errMessage)
 		}
+	}
+
+	if cloneOpts.Auth.Password == "" {
+		return fmt.Errorf("must provide a git token using --git-token")
 	}
 
 	return nil
@@ -432,7 +462,7 @@ func validateIngressHost(ingressHost string) error {
 	if err != nil {
 		err = fmt.Errorf("could not verify ingress host: %w", err)
 	} else if !isValid {
-		err = fmt.Errorf("ingress host must begin with protocol 'http://' or 'https://'")
+		err = fmt.Errorf("Ingress host must begin with a protocol, either http:// or https://")
 	}
 
 	return err
@@ -451,7 +481,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	for _, s := range ServicesList.Items {
-		if s.ObjectMeta.Name == opts.IngressController && s.Spec.Type == "LoadBalancer" {
+		if s.ObjectMeta.Name == opts.IngressController.Name() && s.Spec.Type == "LoadBalancer" {
 			if len(s.Status.LoadBalancer.Ingress) > 0 {
 				ingress := s.Status.LoadBalancer.Ingress[0]
 				if ingress.Hostname != "" {
@@ -476,6 +506,12 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		if err != nil {
 			return err
 		}
+		response, err := http.Get(opts.IngressHost)
+		if err != nil {
+			opts.IngressHost = ""
+			return err
+		}
+		response.Body.Close()
 	}
 
 	if opts.IngressHost == "" {
@@ -486,12 +522,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
-	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost)
-	if err != nil {
-		return "", err
-	}
-
-	err = validateIngressHost(ingressHostInput)
+	ingressHostInput, err := getValueFromUserInput("Ingress host", foundIngressHost, validateIngressHost)
 	if err != nil {
 		return "", err
 	}
@@ -591,4 +622,38 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type Callback func() error
+
+func handleValidationFailsWithRepeat(callback Callback) {
+	var err error
+	for {
+		err = callback()
+		if !isValidationError(err) {
+			break
+		}
+	}
+}
+
+func isValidationError(err error) bool {
+	return err != nil && err != promptui.ErrInterrupt
+}
+
+func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
+	setIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
+	if err != nil {
+		return "", fmt.Errorf("failed to set shared config repo. Error: %w", err)
+	}
+
+	return setIscRepoResponse, nil
+}
+
+func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get runtime from platform. error: %w", err)
+	}
+
+	return rt.Managed, nil
 }

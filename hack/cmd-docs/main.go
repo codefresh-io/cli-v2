@@ -22,9 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra/doc"
-
 	"github.com/codefresh-io/cli-v2/cmd/commands"
+
+	"github.com/spf13/cobra/doc"
 )
 
 const (
