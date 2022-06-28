@@ -455,6 +455,9 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
+	//if !opts.Managed
+	// ensureRuntimeOnKubeContext
+
 	if !opts.Managed {
 		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	}
@@ -1637,12 +1640,13 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	if !opts.Managed {
 		err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-			Namespace:    opts.RuntimeName,
-			Timeout:      opts.Timeout,
-			CloneOptions: opts.CloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			Force:        opts.Force,
-			FastExit:     opts.FastExit,
+			Namespace:       opts.RuntimeName,
+			KubeContextName: opts.kubeContext,
+			Timeout:         opts.Timeout,
+			CloneOptions:    opts.CloneOpts,
+			KubeFactory:     opts.KubeFactory,
+			Force:           opts.Force,
+			FastExit:        opts.FastExit,
 		})
 	}
 	cancel() // to tell the progress to stop displaying even if it's not finished

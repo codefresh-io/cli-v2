@@ -425,6 +425,10 @@ func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 		}
 	}
 
+	if contextName == "" {
+		contextName = util.KubeCurrentContextName(kubeconfigPath)
+	}
+
 	return contextName, context.Value.Set(contextName)
 }
 
