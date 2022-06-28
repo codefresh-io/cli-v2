@@ -1839,6 +1839,16 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
 	}
 
+	intg, err := appProxyClient.GitIntegrations().List(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list git integrations: %w", err)
+	}
+
+	if len(intg) == 0 {
+		log.G(ctx).Info("Skipped removing runtime from ISC repo. No git integrations")
+		return nil
+	}
+
 	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
 	if err == nil {
 		log.G(ctx).Info("Removed runtime from ISC repo")
