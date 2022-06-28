@@ -874,8 +874,8 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 		return nil, "", fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	server, err := util.KubeCurrentServer(opts.kubeconfig)
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, false, true)
+	server, err := util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get current server address: %w", err)
 	}
