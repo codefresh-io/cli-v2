@@ -427,6 +427,7 @@ func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 
 	if contextName == "" {
 		contextName = util.KubeCurrentContextName(kubeconfigPath)
+		log.G().Infof("Using current kube context '%s'", contextName)
 	}
 
 	return contextName, context.Value.Set(contextName)
@@ -678,7 +679,7 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig *pflag.Flag, run
 	}
 
 	if *runtimeClusterServer != kubeContextServer {
-		return fmt.Errorf("runtime '%s' does not exist on context '%s'. make sure you are choosing the right kube context", runtimeName, kubeContextName)
+		return fmt.Errorf("runtime '%s' does not exist on context '%s'. make sure you are providing the right kube context", runtimeName, kubeContextName)
 	}
 
 	return nil
