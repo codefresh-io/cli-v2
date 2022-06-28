@@ -122,7 +122,9 @@ type (
 		FastExit         bool
 		DisableTelemetry bool
 		Managed          bool
-		kubeContext      string
+
+		kubeContext            string
+		skipAutopilotUninstall bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -462,8 +464,9 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		err = ensureRuntimeOnKubeContext(cmd.Context(), kubeconfig, opts.RuntimeName, opts.kubeContext)
 
 		if err != nil && opts.Force {
-			log.G(cmd.Context()).Warn("Failed to verify runtime is installed on the selected kubernetes context, skipping because --force is used")
+			log.G(cmd.Context()).Warn("Failed to verify runtime is installed on the selected kubernetes context, installation repository will not be cleaned")
 			err = nil
+			opts.skipAutopilotUninstall = true // will not touch the cluster and repo
 		}
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeOnKubeContext, "Ensuring runtime is on the kube context", err, true, false)
@@ -1654,49 +1657,45 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
 
-	subCtx, cancel := context.WithCancel(ctx)
-	go func() {
-		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory, opts.Managed); err != nil {
-			log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
-		}
-	}()
+	if !opts.skipAutopilotUninstall {
+		subCtx, cancel := context.WithCancel(ctx)
+		go func() {
+			if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory, opts.Managed); err != nil {
+				log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
+			}
+		}()
 
-	if !opts.Managed {
-		err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-			Namespace:       opts.RuntimeName,
-			KubeContextName: opts.kubeContext,
-			Timeout:         opts.Timeout,
-			CloneOptions:    opts.CloneOpts,
-			KubeFactory:     opts.KubeFactory,
-			Force:           opts.Force,
-			FastExit:        opts.FastExit,
-		})
+		if !opts.Managed {
+			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+				Namespace:       opts.RuntimeName,
+				KubeContextName: opts.kubeContext,
+				Timeout:         opts.Timeout,
+				CloneOptions:    opts.CloneOpts,
+				KubeFactory:     opts.KubeFactory,
+				Force:           opts.Force,
+				FastExit:        opts.FastExit,
+			})
+		}
+		cancel() // to tell the progress to stop displaying even if it's not finished
+		if opts.Force {
+			err = nil
+		}
 	}
-	cancel() // to tell the progress to stop displaying even if it's not finished
-	if opts.Force {
-		err = nil
-	}
-	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, !opts.Managed)
+	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, !opts.Managed && !opts.skipAutopilotUninstall)
 	if err != nil {
 		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 		return err
 	}
 
-	if !opts.Managed {
+	log.G(ctx).Infof("Deleting runtime '%s' from platform", opts.RuntimeName)
+	if opts.Managed {
+		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
+	} else {
 		err = deleteRuntimeFromPlatform(ctx, opts)
 	}
 	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, !opts.Managed)
 	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
-	}
-
-	if opts.Managed {
-		log.G(ctx).Infof("Deleting runtime '%s' from platform", opts.RuntimeName)
-		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
-	}
-	handleCliStep(reporter.UninstallStepDeleteManagedRuntimeFromPlatform, "Deleting hosted runtime from platform", err, false, opts.Managed)
-	if err != nil {
-		return fmt.Errorf("failed to delete hosted runtime from the platform: %w", err)
 	}
 
 	if cfConfig.GetCurrentContext().DefaultRuntime == opts.RuntimeName {
