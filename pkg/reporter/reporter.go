@@ -110,7 +110,6 @@ const (
 	UninstallStepRemoveGitIntegrations              CliStep = "uninstall.run.step.remove-git-integrations"
 	UninstallStepRemoveRuntimeIsc                   CliStep = "uninstall.run.step.remove-runtime-isc"
 	UninstallStepDeleteRuntimeFromPlatform          CliStep = "uninstall.run.step.delete-runtime-from-platform"
-	UninstallStepDeleteManagedRuntimeFromPlatform   CliStep = "uninstall.run.step.delete-managed-runtime-from-platform"
 	UninstallPhaseFinish                            CliStep = "uninstall.run.phase.finish"
 
 	// Upgrade
