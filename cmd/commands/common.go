@@ -210,7 +210,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (strin
 				continue
 			}
 			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
-		} 
+		}
 		runtimeNames = append(runtimeNames, rtDisplay)
 	}
 
@@ -677,7 +677,7 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeN
 	}
 
 	if *runtimeClusterServer != kubeContextServer {
-		return fmt.Errorf("runtime '%s' does not exist on context '%s'. make sure you are providing the right kube context", runtimeName, kubeContextName)
+		return fmt.Errorf("runtime '%s' does not exist on context '%s'. Make sure you are providing the right kube context or use --force to bypass this check", runtimeName, kubeContextName)
 	}
 
 	return nil
