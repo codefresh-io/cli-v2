@@ -460,6 +460,11 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	if !opts.Managed {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
 		err = ensureRuntimeOnKubeContext(cmd.Context(), kubeconfig, opts.RuntimeName, opts.kubeContext)
+
+		if err != nil && opts.Force {
+			log.G(cmd.Context()).WithError(err).Warn("Failed to verify runtime is installed on the selected kubernetes context, skipping because --force is used")
+			err = nil
+		}
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeOnKubeContext, "Ensuring runtime is on the kube context", err, true, false)
 	if err != nil {
