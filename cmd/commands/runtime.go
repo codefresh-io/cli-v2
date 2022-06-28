@@ -852,19 +852,24 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, false, true)
 		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped-", err, false, true)
 
+		var apiURL string
+		if opts.GitIntegrationCreationOpts.APIURL != nil {
+			apiURL = fmt.Sprintf("--api-url %s", *opts.GitIntegrationCreationOpts.APIURL)
+		}
+
 		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
 To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and \"%s\"
 2. Create and register Git integration using the commands:
 
-<BIN> integration git add default --runtime %s --api-url %s
+<BIN> integration git add default --runtime %s %s
 
 <BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
 `,
 			store.Get().AppProxyIngressPath,
 			util.GenerateIngressEventSourcePath(opts.RuntimeName),
 			opts.RuntimeName,
-			opts.GitIntegrationCreationOpts.APIURL,
+			apiURL,
 			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {
@@ -1071,11 +1076,16 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
+		var apiURL string
+		if opts.APIURL != nil {
+			apiURL = fmt.Sprintf("--api-url %s", *opts.APIURL)
+		}
+
 		commandAdd := util.Doc(fmt.Sprintf(
-			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
+			"\t<BIN> integration git add default --runtime %s --provider %s %s",
 			runtime,
 			strings.ToLower(opts.Provider.String()),
-			opts.APIURL,
+			apiURL,
 		))
 
 		commandRegister := util.Doc(fmt.Sprintf(
