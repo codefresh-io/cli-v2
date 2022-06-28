@@ -156,8 +156,8 @@ github.com/argoproj-labs/argocd-autopilot v0.3.7 h1:7GAWOvgWh93wTcoMHkafVwQTtZKD
 github.com/argoproj-labs/argocd-autopilot v0.3.7/go.mod h1:KFbmBBjYrK355/0iXYoLAbNt0TaomSlKrUWda+KVlAw=
 github.com/argoproj/applicationset v0.4.1 h1:PzTn77TK7XQB3CdpCDPbwU4pQgip0x4qvuJQ8XiBk5E=
 github.com/argoproj/applicationset v0.4.1/go.mod h1:cJZ7CWG80kBII4QNalyAvSr8eVifo8jKkyXoVl9qXaA=
-github.com/argoproj/argo-cd/v2 v2.3.4 h1:mj+snMMf9LoHWMH3rLCkBWSRETv1Sq8lxuuyLxH+76A=
-github.com/argoproj/argo-cd/v2 v2.3.4/go.mod h1:EuPH0/rLe/FdHGwQ/EVucspMnF3v4qd7da6N6CG+oJA=
+github.com/argoproj/argo-cd/v2 v2.3.5 h1:6wGLsPf7Az4ywq4fJdatnjvcmnrJoHv2jedE01V98ow=
+github.com/argoproj/argo-cd/v2 v2.3.5/go.mod h1:/NEz/DjIrcKC+8AFa4KNFO7I9lOIhdM9N2GP7YRo8sA=
 github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec h1:95S2LPUUdPO2jYxuR5z1uk1GL2m/u+ud2iFAr5gK6VI=
 github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec/go.mod h1:dF9hehH+HaEqz+OvQb0iXG8ynj4sQlISIQoettdl05Y=
 github.com/argoproj/argo-workflows/v3 v3.3.1 h1:cNhY6JRlMvwu0qhfCWtS/XmQ8nm2OjR7CBZ3K6zbcKI=
@@ -1235,7 +1235,6 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802/go.mod h1
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
-github.com/undefinedlabs/go-mpatch v1.0.6 h1:h8q5ORH/GaOE1Se1DMhrOyljXZEhRcROO7agMqWXCOY=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli v1.22.2/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
