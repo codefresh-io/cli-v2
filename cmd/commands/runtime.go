@@ -188,8 +188,10 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		gitIntegrationApiURL       = ""
 		gitIntegrationCreationOpts = apmodel.AddGitIntegrationArgs{
 			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
+			APIURL:        &gitIntegrationApiURL,
 		}
 		installationOpts = RuntimeInstallOptions{
 			GitIntegrationCreationOpts:     &gitIntegrationCreationOpts,
@@ -269,7 +271,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
-	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
+	cmd.Flags().StringVar(&gitIntegrationApiURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
@@ -1806,6 +1808,16 @@ func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, ru
 }
 
 func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
+	me, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current user information: %w", err)
+	}
+
+	if me.ActiveAccount.SharedConfigRepo == nil || *me.ActiveAccount.SharedConfigRepo == "" {
+		log.G(ctx).Info("Skipped removing runtime from ISC repo. ISC repo not defined")
+		return nil
+	}
+
 	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
@@ -1813,7 +1825,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 
 	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
 	if err == nil {
-		log.G(ctx).Info("Removed runtime from isc repo")
+		log.G(ctx).Info("Removed runtime from ISC repo")
 	}
 
 	return err
@@ -2611,7 +2623,7 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 		opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(opts.InsCloneOpts.Provider))
 	}
 
-	if opts.GitIntegrationCreationOpts.APIURL == "" {
+	if opts.GitIntegrationCreationOpts.APIURL == nil || *opts.GitIntegrationCreationOpts.APIURL == "" {
 		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
@@ -2637,17 +2649,20 @@ func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
 	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
 }
 
-func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
+func inferAPIURLForGitProvider(provider apmodel.GitProviders) (*string, error) {
 	const suggest = "you can specify a git provider explicitly with --provider-api-url"
+	var res string
 
 	switch provider {
 	case apmodel.GitProvidersGithub:
-		return "https://api.github.com", nil
+		res = "https://api.github.com"
+		return &res, nil
 	case apmodel.GitProvidersGitlab:
-		return "https://gitlab.com/api/v4", nil
+		res = "https://gitlab.com/api/v4"
+		return &res, nil
 	}
 
-	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
+	return nil, fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
 // display the user the old vs. the new configurations that will be changed upon recovery
