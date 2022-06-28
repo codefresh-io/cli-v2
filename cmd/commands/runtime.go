@@ -455,8 +455,13 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	//if !opts.Managed
-	// ensureRuntimeOnKubeContext
+	if !opts.Managed {
+		err = ensureRuntimeOnKubeContext(cmd.Context(), cmd.Flag("kubeconfig"), opts.RuntimeName, opts.kubeContext)
+	}
+	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeOnKubeContext, "Ensuring runtime is on the kube context", err, true, false)
+	if err != nil {
+		return err
+	}
 
 	if !opts.Managed {
 		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)

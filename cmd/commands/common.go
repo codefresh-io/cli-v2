@@ -661,3 +661,25 @@ func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
 
 	return rt.Managed, nil
 }
+
+func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig *pflag.Flag, runtimeName string, kubeContextName string) error {
+	kubeconfigPath := kubeconfig.Value.String()
+
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime from platform. error: %w", err)
+	}
+
+	runtimeClusterServer := rt.Cluster
+
+	kubeContextServer, err := util.KubeServerByContextName(kubeContextName, kubeconfigPath)
+	if err != nil {
+		return err
+	}
+
+	if *runtimeClusterServer != kubeContextServer {
+		return fmt.Errorf("runtime '%s' does not exist on context '%s'. make sure you are choosing the right kube context", runtimeName, kubeContextName)
+	}
+
+	return nil
+}
