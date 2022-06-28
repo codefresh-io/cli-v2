@@ -446,9 +446,11 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	opts.Managed, err = isRuntimeManaged(cmd.Context(), opts.RuntimeName)
-	if err != nil {
-		return err
+	if !opts.SkipChecks {
+		opts.Managed, err = isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !opts.Managed {
@@ -459,7 +461,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed {
+	if !opts.Managed && !opts.SkipChecks {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
 		err = ensureRuntimeOnKubeContext(cmd.Context(), kubeconfig, opts.RuntimeName, opts.kubeContext)
 
