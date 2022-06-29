@@ -6,7 +6,7 @@ resources:
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.3.4-cap-CR-12110-helm-resources-yaml
+    newTag: v2.3.4-cap-CR-report-condition-errors
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
