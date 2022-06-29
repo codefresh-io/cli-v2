@@ -101,7 +101,7 @@ func newClusterAddCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			setClusterName(&opts)
 			err = validateClusterName(opts.clusterName)
 
@@ -296,7 +296,7 @@ func newClusterListCommand() *cobra.Command {
 func runClusterList(ctx context.Context, runtimeName string) error {
 	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list clusters: %w", err)
 	}
 
 	if len(clusters) == 0 {
