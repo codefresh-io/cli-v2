@@ -46,7 +46,19 @@ func Test_getSuffixToClusterName(t *testing.T) {
 		Namespaces:   []string{},
 	}
 
-	clusters1 := []model.Cluster{}
+	cluster1 := baseCluster
+	cluster2 := baseCluster
+	cluster3 := baseCluster
+	
+	cluster1.Metadata.Name = "test-cluster"
+	cluster2.Metadata.Name = "test-cluster-1"
+	cluster3.Metadata.Name = "test-cluster-2"
+
+	clusters := []model.Cluster{
+		cluster1,
+		cluster2,
+		cluster3,
+	}
 
 	type args struct {
 		clusters []model.Cluster
@@ -59,7 +71,16 @@ func Test_getSuffixToClusterName(t *testing.T) {
 		args args
 		want int
 	}{
-		// TODO: Add test cases.
+		{
+			name: "should return 3",
+			args: args{
+				clusters: clusters,
+				name: "test-cluster",
+				tempName: "test-cluster",
+				counter: 0,
+			},
+			want: 3,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
