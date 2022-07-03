@@ -155,7 +155,7 @@ func Get() *Store {
 }
 
 func init() {
-	s.AddClusterJobName = "csdp-add-cluster-job"
+	s.AddClusterJobName = "csdp-add-cluster-job-"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"

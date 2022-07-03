@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -163,7 +164,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("failed applying manifests to cluster: %w", err)
 	}
 
-	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", fmt.Sprintf("%s-%s", store.Get().AddClusterJobName, nameSuffix))
+	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", fmt.Sprintf("%s%s", store.Get().AddClusterJobName, nameSuffix))
 }
 
 func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
@@ -238,7 +239,7 @@ func getSuffixToClusterName(clusters []model.Cluster, name string, tempName stri
 }
 
 func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) (*kusttypes.Kustomization, string) {
-	nameSuffix := "123"
+	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
 	if strings.HasPrefix(resourceUrl, "http") {
 		resourceUrl = fmt.Sprintf("%s?ref=v%s", resourceUrl, version)
@@ -283,6 +284,11 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
 	return k, nameSuffix
+}
+
+func getClusterResourcesNameSuffix() string {
+	now := time.Now()
+	return fmt.Sprintf("%d", now.UnixMilli())
 }
 
 func newClusterRemoveCommand() *cobra.Command {
