@@ -24,7 +24,7 @@ func Test_getSuffixToClusterName(t *testing.T) {
 	cluster1 := getEmptyClusterEntity()
 	cluster2 := getEmptyClusterEntity()
 	cluster3 := getEmptyClusterEntity()
-	
+
 	cluster1.Metadata.Name = "test-cluster"
 	cluster2.Metadata.Name = "test-cluster-1"
 	cluster3.Metadata.Name = "test-cluster-2"
@@ -50,9 +50,9 @@ func Test_getSuffixToClusterName(t *testing.T) {
 			name: "should return 3",
 			args: args{
 				clusters: clusters,
-				name: "test-cluster",
+				name:     "test-cluster",
 				tempName: "test-cluster",
-				counter: 0,
+				counter:  0,
 			},
 			want: 3,
 		},
@@ -61,6 +61,32 @@ func Test_getSuffixToClusterName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := getSuffixToClusterName(tt.args.clusters, tt.args.name, tt.args.tempName, tt.args.counter); got != tt.want {
 				t.Errorf("getSuffixToClusterName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_sanitizeClusterName(t *testing.T) {
+	type args struct {
+		name        string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "should return sanitized string",
+			args: args {
+				name: "^-.test!@-:cluster&*`;')(-12_3=+::±§.",
+			},
+			want: "test----cluster--------12-3",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sanitizeClusterName(tt.args.name); got != tt.want {
+				t.Errorf("sanitizeClusterName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -92,3 +118,5 @@ func getEmptyClusterEntity() model.Cluster {
 		Namespaces:   []string{},
 	}
 }
+
+

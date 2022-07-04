@@ -173,7 +173,7 @@ func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	var err error
-	sanitizedName := sanitizeClusterName(opts.kubeContext, opts.runtimeName)
+	sanitizedName := sanitizeClusterName(opts.kubeContext)
 	opts.clusterName, err = ensureNoClusterNameDuplicates(ctx, sanitizedName, opts.runtimeName)
 
 	return err
@@ -197,7 +197,7 @@ func validateClusterName(name string) error {
 	return nil
 }
 
-func sanitizeClusterName(name string, runtimeName string) string {
+func sanitizeClusterName(name string) string {
 	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
 	maxDNSNameLength := 253
 
