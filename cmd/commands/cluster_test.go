@@ -21,34 +21,11 @@ import (
 )
 
 func Test_getSuffixToClusterName(t *testing.T) {
-	empty := ""
-	baseCluster := model.Cluster{
-		Metadata: &model.ObjectMeta{
-			Group:       "",
-			Version:     "",
-			Kind:        "",
-			Name:        "",
-			Description: &empty,
-			Namespace:   &empty,
-			Runtime:     "",
-			Cluster:     &empty,
-			Account:     "",
-			Labels:      nil,
-			Annotations: nil,
-			LastUpdated: &empty,
-			Created:     &empty,
-			UID:         &empty,
-		},
-		Errors:       []model.Error{},
-		ReferencedBy: []model.BaseEntity{},
-		References:   []model.BaseEntity{},
-		Server:       "",
-		Namespaces:   []string{},
-	}
+	
 
-	cluster1 := baseCluster
-	cluster2 := baseCluster
-	cluster3 := baseCluster
+	cluster1 := getEmptyClusterEntity()
+	cluster2 := getEmptyClusterEntity()
+	cluster3 := getEmptyClusterEntity()
 	
 	cluster1.Metadata.Name = "test-cluster"
 	cluster2.Metadata.Name = "test-cluster-1"
@@ -88,5 +65,32 @@ func Test_getSuffixToClusterName(t *testing.T) {
 				t.Errorf("getSuffixToClusterName() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func getEmptyClusterEntity() model.Cluster {
+	empty := ""
+	return model.Cluster{
+		Metadata: &model.ObjectMeta{
+			Group:       "",
+			Version:     "",
+			Kind:        "",
+			Name:        "",
+			Description: &empty,
+			Namespace:   &empty,
+			Runtime:     "",
+			Cluster:     &empty,
+			Account:     "",
+			Labels:      nil,
+			Annotations: nil,
+			LastUpdated: &empty,
+			Created:     &empty,
+			UID:         &empty,
+		},
+		Errors:       []model.Error{},
+		ReferencedBy: []model.BaseEntity{},
+		References:   []model.BaseEntity{},
+		Server:       "",
+		Namespaces:   []string{},
 	}
 }
