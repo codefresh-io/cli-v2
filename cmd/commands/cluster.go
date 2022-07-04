@@ -251,7 +251,7 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 			{
 				GeneratorArgs: kusttypes.GeneratorArgs{
 					Namespace: "kube-system",
-					Name:      "csdp-add-cluster-cm-",
+					Name:      "csdp-add-cluster-cm",
 					Behavior:  "merge",
 					KvPairSources: kusttypes.KvPairSources{
 						LiteralSources: []string{
@@ -267,7 +267,7 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 			{
 				GeneratorArgs: kusttypes.GeneratorArgs{
 					Namespace: "kube-system",
-					Name:      "csdp-add-cluster-secret-",
+					Name:      "csdp-add-cluster-secret",
 					Behavior:  "merge",
 					KvPairSources: kusttypes.KvPairSources{
 						LiteralSources: []string{
