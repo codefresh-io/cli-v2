@@ -21,8 +21,6 @@ import (
 )
 
 func Test_getSuffixToClusterName(t *testing.T) {
-	
-
 	cluster1 := getEmptyClusterEntity()
 	cluster2 := getEmptyClusterEntity()
 	cluster3 := getEmptyClusterEntity()
