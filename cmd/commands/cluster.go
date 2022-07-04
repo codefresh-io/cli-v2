@@ -185,7 +185,7 @@ func validateClusterName(name string) error {
 		return fmt.Errorf("cluster name can contain no more than 253 characters")
 	}
 
-	match, err := regexp.MatchString("^[a-z\\d]([-a-z\\d]{0,61}[a-z\\d])?$", name)
+	match, err := regexp.MatchString("^[a-z\\d]([-a-z\\d\\.]{0,251}[a-z\\d])?$", name)
 	if err != nil {
 		return err
 	}

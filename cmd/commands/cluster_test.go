@@ -68,7 +68,7 @@ func Test_getSuffixToClusterName(t *testing.T) {
 
 func Test_sanitizeClusterName(t *testing.T) {
 	type args struct {
-		name        string
+		name string
 	}
 	tests := []struct {
 		name string
@@ -77,16 +77,70 @@ func Test_sanitizeClusterName(t *testing.T) {
 	}{
 		{
 			name: "should return sanitized string",
-			args: args {
-				name: "^-.test!@-:cluster&*`;')(-12_3=+::±§.",
+			args: args{
+				name: "^-.test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
-			want: "test----cluster--------12-3",
+			want: "test----cluster------test.cluster--12-3",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := sanitizeClusterName(tt.args.name); got != tt.want {
 				t.Errorf("sanitizeClusterName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_validateClusterName(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "name should be valid",
+			args: args{
+				name: "1test-cluster.test.cluster123z",
+			},
+			wantErr: false,
+		},
+		{
+			name: "name should not be valid",
+			args: args{
+				name: ".test-cluster",
+			},
+			wantErr: true,
+		},
+		{
+			name: "name should not be valid",
+			args: args{
+				name: "test-cluster.",
+			},
+			wantErr: true,
+		},
+		{
+			name: "name should not be valid",
+			args: args{
+				name: "Test-cluster",
+			},
+			wantErr: true,
+		},
+		{
+			name: "name should not be valid",
+			args: args{
+				name: "test-cluster:test/cluster",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateClusterName(tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("validateClusterName() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -118,5 +172,3 @@ func getEmptyClusterEntity() model.Cluster {
 		Namespaces:   []string{},
 	}
 }
-
-
