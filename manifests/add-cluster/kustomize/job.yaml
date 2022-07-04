@@ -3,6 +3,7 @@ kind: Job
 metadata:
   name: csdp-add-cluster-job
 spec:
+  backoffLimit: 1
   ttlSecondsAfterFinished: 600  # stick around for 10m
   template:
     metadata:
