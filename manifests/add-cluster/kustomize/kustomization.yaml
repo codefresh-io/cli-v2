@@ -19,4 +19,4 @@ vars:
     objref:
       apiVersion: v1
       kind: Secret
-      name: csdp-add-cluster-secret-
+      name: csdp-add-cluster-secret

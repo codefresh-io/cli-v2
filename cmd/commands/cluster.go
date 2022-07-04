@@ -197,6 +197,7 @@ func validateClusterName(name string) error {
 	return nil
 }
 
+// copied from https://github.com/argoproj/argo-cd/blob/master/applicationset/generators/cluster.go#L214
 func sanitizeClusterName(name string) string {
 	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
 	maxDNSNameLength := 253
@@ -288,7 +289,7 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 
 func getClusterResourcesNameSuffix() string {
 	now := time.Now()
-	return fmt.Sprintf("%d", now.UnixMilli())
+	return fmt.Sprintf("-%d", now.UnixMilli())
 }
 
 func newClusterRemoveCommand() *cobra.Command {
