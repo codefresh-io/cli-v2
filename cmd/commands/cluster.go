@@ -146,12 +146,12 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("failed getting server for context \"%s\": %w", opts.kubeContext, err)
 	}
 
-	csdpToken := cfConfig.GetCurrentContext().Token
-	k, nameSuffix := createAddClusterKustomization(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
+	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
-	manifests, err := kustutil.BuildKustomization(k)
+	csdpToken := cfConfig.GetCurrentContext().Token
+	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
 	if err != nil {
-		return fmt.Errorf("failed building kustomization: %w", err)
+		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
 
 	if opts.dryRun {
@@ -164,7 +164,9 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("failed applying manifests to cluster: %w", err)
 	}
 
-	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", fmt.Sprintf("%s%s", store.Get().AddClusterJobName, nameSuffix))
+	jobName := strings.TrimSuffix(store.Get().AddClusterJobName, "-") + nameSuffix
+
+	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", jobName)
 }
 
 func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
@@ -204,7 +206,7 @@ func sanitizeClusterName(name string) string {
 
 	name = strings.ToLower(name)
 	name = invalidDNSNameChars.ReplaceAllString(name, "-")
-	// saving space for 2 chars in case a cluster with the sanitized name already exists 
+	// saving space for 2 chars in case a cluster with the sanitized name already exists
 	if len(name) > (maxDNSNameLength - 2) {
 		name = name[:(maxDNSNameLength - 2)]
 	}
@@ -217,7 +219,7 @@ func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName
 	if err != nil {
 		return "", fmt.Errorf("failed to get clusters list: %w", err)
 	}
-	
+
 	suffix := getSuffixToClusterName(clusters, name, name, 0)
 	if suffix != 0 {
 		return fmt.Sprintf("%s-%d", name, suffix), nil
@@ -239,11 +241,11 @@ func getSuffixToClusterName(clusters []model.Cluster, name string, tempName stri
 	return counter
 }
 
-func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) (*kusttypes.Kustomization, string) {
+func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, version string) ([]byte, string, error) {
 	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
-	if strings.HasPrefix(resourceUrl, "http") {
-		resourceUrl = fmt.Sprintf("%s?ref=v%s", resourceUrl, version)
+	if strings.HasPrefix(resourceUrl, "http") && !strings.Contains(resourceUrl, "?ref=") {
+		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
 	}
 
 	k := &kusttypes.Kustomization{
@@ -284,7 +286,23 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 	}
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
-	return k, nameSuffix
+
+	manifests, err := kustutil.BuildKustomization(k)
+	if err != nil {
+		// go to fallback add-cluster manifests
+		// remove this once all manifests has been moved official-csdp repo.
+		// once we are sure no one will be looking for those manifests in cli-v2 we can remove this.
+		fallbackResourceUrl := fmt.Sprintf("%s?ref=v%s", store.FallbackAddClusterDefURL, version)
+		k.Resources[0] = fallbackResourceUrl
+		log.G().Warnf("Failed to get \"add-cluster\" manifests from %s, using fallback of %s", resourceUrl, fallbackResourceUrl)
+
+		manifests, err = kustutil.BuildKustomization(k)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to build kustomization: %w", err)
+		}
+	}
+
+	return manifests, nameSuffix, nil
 }
 
 func getClusterResourcesNameSuffix() string {

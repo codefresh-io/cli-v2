@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/codefresh-io/csdp-official/add-cluster/kustomize
+# This file is here for users with runtime version > 0.0.417 but with clis < 0.0.417
+# That will try to look for the add-cluster manifests in this location instead of
+# csdp-official repo. We should remove this when we think clis < 0.0.417 are no longer
+# in use.
