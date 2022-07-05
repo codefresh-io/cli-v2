@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: csdp-add-cluster-cm
-  namespace: kube-system
-data:
-  ingressUrl: <ingressUrl>
-  contextName: <contextName>
-  server: <server>
