@@ -676,6 +676,10 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeN
 		return err
 	}
 
+	if runtimeClusterServer == nil { // in case Cluster field does not exist on runtime
+		return fmt.Errorf("failed to verify runtime is installed on the selected kubernetes context. you can use --force to bypass this check")
+	}
+
 	if *runtimeClusterServer != kubeContextServer {
 		return fmt.Errorf("runtime '%s' does not exist on context '%s'. Make sure you are providing the right kube context or use --force to bypass this check", runtimeName, kubeContextName)
 	}
