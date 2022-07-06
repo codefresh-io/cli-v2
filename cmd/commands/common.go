@@ -676,6 +676,12 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeN
 		return err
 	}
 
+	// in case Cluster field does not exist on runtime
+	// this is a temp solution. need to figure out why runtime is deleted from platform when uninstall fails
+	if runtimeClusterServer == nil {
+		return fmt.Errorf("failed to verify runtime is installed on the selected kubernetes context. you can use --force to bypass this check")
+	}
+
 	if *runtimeClusterServer != kubeContextServer {
 		return fmt.Errorf("runtime '%s' does not exist on context '%s'. Make sure you are providing the right kube context or use --force to bypass this check", runtimeName, kubeContextName)
 	}
