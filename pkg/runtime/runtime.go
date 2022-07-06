@@ -135,6 +135,8 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 		}
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
+		log.G().Infof("FULL URL of COMPONENT: %s, is: %s.", runtime.Spec.Components[i].Name, runtime.Spec.Components[i].URL)
+
 	}
 
 	return runtime, nil
@@ -269,6 +271,9 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
 	}
+
+	// we can print the actual AppName and AppSpecifierUrl here, to test
+	log.G().Infof("creating app. appName: %s. appSpecifier: %s", a.Name, a.URL)
 
 	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
 		CloneOpts:     cloneOpts,
