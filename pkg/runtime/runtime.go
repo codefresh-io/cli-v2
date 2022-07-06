@@ -132,8 +132,13 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	for i := range runtime.Spec.Components {
 		url := runtime.Spec.Components[i].URL
 		if store.Get().SetDefaultResources {
-			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1) // 
 		}
+
+		if devMode {
+			url = strings.Replace(url, "github.com/codefresh-io/cli-v2/", "", 1)
+		}
+
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
 		log.G().Infof("FULL URL of COMPONENT: %s, is: %s.", runtime.Spec.Components[i].Name, runtime.Spec.Components[i].URL)
 
