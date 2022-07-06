@@ -270,6 +270,9 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		timeout = store.Get().WaitTimeout
 	}
 
+	// we can print the actual AppName and AppSpecifierUrl here, to test
+	log.G().Infof("creating app. appName: %s. appSpecifier: %s", a.Name, a.URL)
+
 	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
 		CloneOpts:     cloneOpts,
 		AppsCloneOpts: &git.CloneOptions{},
