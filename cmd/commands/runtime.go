@@ -2395,6 +2395,7 @@ func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *Runt
 	if err != nil {
 		return err
 	}
+	
 
 	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
 		return err

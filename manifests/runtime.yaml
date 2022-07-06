@@ -8,6 +8,9 @@ spec:
   version: 0.0.420
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
+    - name: a-very-much-local-thing
+      type: shtoot
+      url: yourl
     - name: events
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-events
