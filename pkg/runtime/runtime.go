@@ -135,6 +135,8 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 		}
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
+		log.G().Infof("FULL URL of COMPONENT: %s, is: %s.", runtime.Spec.Components[i].Name, runtime.Spec.Components[i].URL)
+
 	}
 
 	return runtime, nil
