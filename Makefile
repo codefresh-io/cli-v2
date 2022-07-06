@@ -1,4 +1,4 @@
-VERSION=v0.0.391
+VERSION=v0.0.420
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -8,10 +8,11 @@ IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
 RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
-ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
+FALLBACK_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
-DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
+DEV_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize" # specify dev branch using ?ref=<branch> here if you want to test a change
 
 CLI_SRCS := $(shell find . -name '*.go')
 
@@ -105,6 +106,7 @@ $(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \
 	RUNTIME_DEF_URL=$(RUNTIME_DEF_URL) \
 	ADD_CLUSTER_DEF_URL=$(ADD_CLUSTER_DEF_URL) \
+	FALLBACK_ADD_CLUSTER_DEF_URL=$(FALLBACK_ADD_CLUSTER_DEF_URL) \
 	SEGMENT_WRITE_KEY=$(SEGMENT_WRITE_KEY) \
 	MAIN=./cmd \
 	./hack/build.sh

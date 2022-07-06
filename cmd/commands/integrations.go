@@ -193,6 +193,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
 		opts              model.AddGitIntegrationArgs
 		provider          string
+		apiURL            string
 		accountAdminsOnly bool
 	)
 
@@ -206,6 +207,8 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 			if len(args) > 0 {
 				opts.Name = &args[0]
 			}
+
+			opts.APIURL = &apiURL
 
 			if opts.Provider, err = parseGitProvider(provider); err != nil {
 				return err
@@ -221,7 +224,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&provider, "provider", "github", "One of github|gitlab")
-	cmd.Flags().StringVar(&opts.APIURL, "api-url", "", "Git provider API Url")
+	cmd.Flags().StringVar(&apiURL, "api-url", "", "Git provider API Url")
 	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false,
 		"If true, this integration would only be visible to account admins (default: false)")
 
@@ -244,6 +247,7 @@ func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, op
 func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
 		opts              model.EditGitIntegrationArgs
+		apiURL            string
 		accountAdminsOnly bool
 	)
 
@@ -256,6 +260,8 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 				opts.Name = &args[0]
 			}
 
+			opts.APIURL = &apiURL
+
 			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
 				opts.SharingPolicy = model.SharingPolicyAccountAdmins
@@ -265,7 +271,7 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.APIURL, "api-url", "", "Git provider API Url")
+	cmd.Flags().StringVar(&apiURL, "api-url", "", "Git provider API Url")
 	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false,
 		"If true, this integration would only be visible to account admins (default: false)")
 
@@ -305,7 +311,7 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI,
 		return fmt.Errorf("failed to remove git integration: %w", err)
 	}
 
-	log.G(ctx).Infof("removed git integration: %s", name)
+	log.G(ctx).Infof("Removed git integration: %s", name)
 
 	return nil
 }

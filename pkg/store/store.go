@@ -25,14 +25,15 @@ import (
 var s Store
 
 var (
-	binaryName       = "cli-v2"
-	version          = "v99.99.99"
-	buildDate        = ""
-	gitCommit        = ""
-	segmentWriteKey  = ""
-	maxDefVersion    = "1.0.1"
-	RuntimeDefURL    = "manifests/runtime.yaml"
-	AddClusterDefURL = "../manifests/add-cluster/kustomize"
+	binaryName               = "cli-v2"
+	version                  = "v99.99.99"
+	buildDate                = ""
+	gitCommit                = ""
+	segmentWriteKey          = ""
+	maxDefVersion            = "1.0.1"
+	RuntimeDefURL            = "manifests/runtime.yaml"
+	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
+	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 )
 
 type Version struct {
@@ -155,7 +156,7 @@ func Get() *Store {
 }
 
 func init() {
-	s.AddClusterJobName = "csdp-add-cluster-job"
+	s.AddClusterJobName = "csdp-add-cluster-job-"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"

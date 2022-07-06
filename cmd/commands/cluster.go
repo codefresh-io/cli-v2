@@ -18,14 +18,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
@@ -92,7 +95,7 @@ func newClusterAddCommand() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			opts.runtimeName, err = ensureRuntimeName(ctx, args)
+			opts.runtimeName, err = ensureRuntimeName(ctx, args, true)
 			if err != nil {
 				return err
 			}
@@ -101,9 +104,8 @@ func newClusterAddCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
-			setClusterName(&opts)
-			err = validateClusterName(opts.clusterName)
+
+			err = setClusterName(cmd.Context(), &opts)
 
 			return err
 		},
@@ -144,12 +146,12 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("failed getting server for context \"%s\": %w", opts.kubeContext, err)
 	}
 
-	csdpToken := cfConfig.GetCurrentContext().Token
-	k := createAddClusterKustomization(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
+	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
-	manifests, err := kustutil.BuildKustomization(k)
+	csdpToken := cfConfig.GetCurrentContext().Token
+	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
 	if err != nil {
-		return fmt.Errorf("failed building kustomization: %w", err)
+		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
 
 	if opts.dryRun {
@@ -162,27 +164,88 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("failed applying manifests to cluster: %w", err)
 	}
 
-	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", store.Get().AddClusterJobName)
+	jobName := strings.TrimSuffix(store.Get().AddClusterJobName, "-") + nameSuffix
+
+	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", jobName)
 }
 
-func setClusterName(opts *ClusterAddOptions) {
+func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
 	if opts.clusterName != "" {
-		return
+		return validateClusterName(opts.clusterName)
 	}
-	opts.clusterName = opts.kubeContext
+
+	var err error
+	sanitizedName := sanitizeClusterName(opts.kubeContext)
+	opts.clusterName, err = ensureNoClusterNameDuplicates(ctx, sanitizedName, opts.runtimeName)
+
+	return err
 }
 
 func validateClusterName(name string) error {
-	if strings.ContainsAny(name, "%`") {
-		return fmt.Errorf("cluster name '%s' is invalid. '%%' and '`' are not allowed", name)
+	maxDNSNameLength := 253
+	if len(name) > maxDNSNameLength {
+		return fmt.Errorf("cluster name can contain no more than 253 characters")
 	}
+
+	match, err := regexp.MatchString("^[a-z\\d]([-a-z\\d\\.]{0,251}[a-z\\d])?$", name)
+	if err != nil {
+		return err
+	}
+
+	if !match {
+		return fmt.Errorf("cluster name must be according to k8s resource naming rules")
+	}
+
 	return nil
 }
 
-func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, version string) *kusttypes.Kustomization {
+// copied from https://github.com/argoproj/argo-cd/blob/master/applicationset/generators/cluster.go#L214
+func sanitizeClusterName(name string) string {
+	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
+	maxDNSNameLength := 253
+
+	name = strings.ToLower(name)
+	name = invalidDNSNameChars.ReplaceAllString(name, "-")
+	// saving space for 2 chars in case a cluster with the sanitized name already exists
+	if len(name) > (maxDNSNameLength - 2) {
+		name = name[:(maxDNSNameLength - 2)]
+	}
+
+	return strings.Trim(name, "-.")
+}
+
+func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName string) (string, error) {
+	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get clusters list: %w", err)
+	}
+
+	suffix := getSuffixToClusterName(clusters, name, name, 0)
+	if suffix != 0 {
+		return fmt.Sprintf("%s-%d", name, suffix), nil
+	}
+
+	return name, nil
+}
+
+func getSuffixToClusterName(clusters []model.Cluster, name string, tempName string, counter int) int {
+	for _, cluster := range clusters {
+		if cluster.Metadata.Name == tempName {
+			counter++
+			tempName = fmt.Sprintf("%s-%d", name, counter)
+			counter = getSuffixToClusterName(clusters, name, tempName, counter)
+			break
+		}
+	}
+
+	return counter
+}
+
+func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, version string) ([]byte, string, error) {
+	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
-	if strings.HasPrefix(resourceUrl, "http") {
-		resourceUrl = fmt.Sprintf("%s?ref=v%s", resourceUrl, version)
+	if strings.HasPrefix(resourceUrl, "http") && !strings.Contains(resourceUrl, "?ref=") {
+		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
 	}
 
 	k := &kusttypes.Kustomization{
@@ -219,10 +282,32 @@ func createAddClusterKustomization(ingressUrl, contextName, server, csdpToken, v
 		Resources: []string{
 			resourceUrl,
 		},
+		NameSuffix: nameSuffix,
 	}
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
-	return k
+
+	manifests, err := kustutil.BuildKustomization(k)
+	if err != nil {
+		// go to fallback add-cluster manifests
+		// remove this once all manifests has been moved official-csdp repo.
+		// once we are sure no one will be looking for those manifests in cli-v2 we can remove this.
+		fallbackResourceUrl := fmt.Sprintf("%s?ref=v%s", store.FallbackAddClusterDefURL, version)
+		k.Resources[0] = fallbackResourceUrl
+		log.G().Warnf("Failed to get \"add-cluster\" manifests from %s, using fallback of %s", resourceUrl, fallbackResourceUrl)
+
+		manifests, err = kustutil.BuildKustomization(k)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to build kustomization: %w", err)
+		}
+	}
+
+	return manifests, nameSuffix, nil
+}
+
+func getClusterResourcesNameSuffix() string {
+	now := time.Now()
+	return fmt.Sprintf("-%d", now.UnixMilli())
 }
 
 func newClusterRemoveCommand() *cobra.Command {
@@ -238,7 +323,7 @@ func newClusterRemoveCommand() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			opts.runtimeName, err = ensureRuntimeName(ctx, args)
+			opts.runtimeName, err = ensureRuntimeName(ctx, args, true)
 			if err != nil {
 				return err
 			}
@@ -296,7 +381,7 @@ func newClusterListCommand() *cobra.Command {
 func runClusterList(ctx context.Context, runtimeName string) error {
 	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list clusters: %w", err)
 	}
 
 	if len(clusters) == 0 {
@@ -380,7 +465,7 @@ func newClusterCreateArgoRolloutsCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
-			opts.runtimeName, err = ensureRuntimeName(cmd.Context(), args)
+			opts.runtimeName, err = ensureRuntimeName(cmd.Context(), args, true)
 			return err
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
