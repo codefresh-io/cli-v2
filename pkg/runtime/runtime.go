@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -135,12 +136,12 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1) // 
 		}
 
-		if devMode {
-			url = strings.Replace(url, "github.com/codefresh-io/cli-v2/", "", 1)
-		}
+		// if devMode {
+		// 	url = strings.Replace(url, "github.com/codefresh-io/cli-v2/", "", 1)
+		// }
 
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
-		log.G().Infof("FULL URL of COMPONENT: %s, is: %s.", runtime.Spec.Components[i].Name, runtime.Spec.Components[i].URL)
+		log.G().Infof("FULL URL of COMPONENT: %s, is: %s", runtime.Spec.Components[i].Name, runtime.Spec.Components[i].URL)
 	}
 
 	return runtime, nil
@@ -263,11 +264,11 @@ func (r *RuntimeSpec) FullSpecifier() string {
 	if store.Get().SetDefaultResources {
 		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 	}
-	return buildFullURL(url, r.Version, r.devMode)
+	return buildFullURL(url, r.Version, r.devMode, store.Get().Branch)
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
-	return buildFullURL(url, r.Version, r.devMode)
+	return buildFullURL(url, r.Version, r.devMode, store.Get().Branch)
 }
 
 func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType, include, exclude string) error {
@@ -313,22 +314,38 @@ func updateKustomization(fs fs.FS, directory, fromURL, toURL string) error {
 	if err = kustutil.ReplaceResource(kust, fromURL, toURL); err != nil {
 		return err
 	}
-	
+
 
 	return kustutil.WriteKustomization(fs, kust, directory)
 }
 
-func buildFullURL(urlString string, version *semver.Version, devMode bool) string {
+func buildFullURL(urlString string, version *semver.Version, devMode bool, branch string) string {
+	log.G().Infof("INSIDE BUILDFULLURL")
+	log.G().Infof("branch: %s", branch)
+	
+
+	urlObj, _ := url.Parse(urlString)
+	v := urlObj.Query()
+	
+	if branch != "main" {
+		v.Add("ref", branch)
+		urlObj.RawQuery = v.Encode()
+		
+		log.G().Infof("url: %s", urlObj.String())
+		return urlObj.String()
+	}
+
 	if devMode || version == nil {
 		return urlString
 	}
 
-	urlObj, _ := url.Parse(urlString)
-	v := urlObj.Query()
 	if v.Get("ref") == "" {
 		v.Add("ref", "v"+version.String())
 		urlObj.RawQuery = v.Encode()
 	}
+
+	log.G().Infof("exisiting!")
+	os.Exit(3)
 
 	return urlObj.String()
 }

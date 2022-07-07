@@ -32,6 +32,7 @@ var (
 	segmentWriteKey          = ""
 	maxDefVersion            = "1.0.1"
 	RuntimeDefURL            = "manifests/runtime.yaml"
+	Branch                   = "main" // to be overridden
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 )
@@ -85,6 +86,7 @@ type Store struct {
 	MarketplaceRepo                     string
 	MaxDefVersion                       *semver.Version
 	RuntimeDefURL                       string
+	Branch                              string
 	Version                             Version
 	WaitTimeout                         time.Duration
 	WorkflowName                        string
@@ -192,6 +194,7 @@ func init() {
 	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
+	s.Branch = Branch
 	s.MarketplaceGitSourceName = "marketplace-git-source"
 	s.MarketplaceRepo = "https://github.com/codefresh-io/argo-hub.git"
 	s.WaitTimeout = 8 * time.Minute

@@ -10,6 +10,7 @@ IMAGE_NAMESPACE?=codefresh
 RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
 ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 FALLBACK_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+BRANCH="main"
 
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize" # specify dev branch using ?ref=<branch> here if you want to test a change
@@ -31,6 +32,7 @@ endif
 
 ifdef LOCAL_MANIFESTS
 	RUNTIME_DEF_URL=${LOCAL_MANIFESTS}
+	BRANCH=${BRANCH}
 endif
 
 ifndef GOBIN
