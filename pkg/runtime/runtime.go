@@ -141,7 +141,6 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
 		log.G().Infof("FULL URL of COMPONENT: %s, is: %s.", runtime.Spec.Components[i].Name, runtime.Spec.Components[i].URL)
-
 	}
 
 	return runtime, nil
@@ -314,6 +313,7 @@ func updateKustomization(fs fs.FS, directory, fromURL, toURL string) error {
 	if err = kustutil.ReplaceResource(kust, fromURL, toURL); err != nil {
 		return err
 	}
+	
 
 	return kustutil.WriteKustomization(fs, kust, directory)
 }
