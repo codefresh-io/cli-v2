@@ -225,6 +225,11 @@ func KubeCurrentServer(kubeconfig string) (string, error) {
 	return KubeServerByContextName("", kubeconfig)
 }
 
+func KubeCurrentContextName(kubeconfig string) string {
+	conf := kubeConfig(kubeconfig)
+	return conf.CurrentContext
+}
+
 func CurrentAccount(user *codefresh.User) (string, error) {
 	for i := range user.Accounts {
 		if user.Accounts[i].Name == user.ActiveAccountName {

@@ -116,13 +116,15 @@ type (
 		RuntimeName      string
 		Timeout          time.Duration
 		CloneOpts        *git.CloneOptions
-		IscCloneOpts     *git.CloneOptions
 		KubeFactory      kube.Factory
 		SkipChecks       bool
 		Force            bool
 		FastExit         bool
 		DisableTelemetry bool
-		kubeContext      string
+		Managed          bool
+
+		kubeContext            string
+		skipAutopilotUninstall bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -188,8 +190,10 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
+		gitIntegrationApiURL       = ""
 		gitIntegrationCreationOpts = apmodel.AddGitIntegrationArgs{
 			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
+			APIURL:        &gitIntegrationApiURL,
 		}
 		installationOpts = RuntimeInstallOptions{
 			GitIntegrationCreationOpts:     &gitIntegrationCreationOpts,
@@ -269,7 +273,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
-	cmd.Flags().StringVar(&gitIntegrationCreationOpts.APIURL, "provider-api-url", "", "Git provider API url")
+	cmd.Flags().StringVar(&gitIntegrationApiURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&store.Get().SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
@@ -436,32 +440,54 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	var err error
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
-	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, true)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
+	if !opts.SkipChecks {
+		opts.Managed, err = isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !opts.Managed {
+		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+	}
+	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	if !opts.Managed && !opts.SkipChecks {
+		kubeconfig := cmd.Flag("kubeconfig").Value.String()
+		err = ensureRuntimeOnKubeContext(cmd.Context(), kubeconfig, opts.RuntimeName, opts.kubeContext)
+
+		if err != nil && opts.Force {
+			log.G(cmd.Context()).Warn("Failed to verify runtime is installed on the selected kubernetes context, installation repository will not be cleaned")
+			err = nil
+			opts.skipAutopilotUninstall = true // will not touch the cluster and repo
+		}
+	}
+	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeOnKubeContext, "Ensuring runtime is on the kube context", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	if !opts.Managed {
+		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
+	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts, false)
-	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
-	if err != nil {
-		return err
+	if !opts.Managed {
+		err = ensureGitToken(cmd, opts.CloneOpts, false)
 	}
-
-	opts.IscCloneOpts.Repo, err = getIscRepo(cmd.Context())
-	handleCliStep(reporter.UninstallStepPreCheckGetIscRepo, "Getting internal shared config repo", err, true, false)
+	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
 	}
@@ -474,10 +500,20 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args)
+	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
+	}
+
+	isManaged, err := isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+	handleCliStep(reporter.UpgradeStepPreCheckIsManagedRuntime, "Checking if runtime is hosted", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	if isManaged {
+		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
@@ -821,19 +857,24 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, false, true)
 		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped-", err, false, true)
 
+		var apiURL string
+		if opts.GitIntegrationCreationOpts.APIURL != nil {
+			apiURL = fmt.Sprintf("--api-url %s", *opts.GitIntegrationCreationOpts.APIURL)
+		}
+
 		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
 To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and \"%s\"
 2. Create and register Git integration using the commands:
 
-<BIN> integration git add default --runtime %s --api-url %s
+<BIN> integration git add default --runtime %s %s
 
 <BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
 `,
 			store.Get().AppProxyIngressPath,
 			util.GenerateIngressEventSourcePath(opts.RuntimeName),
 			opts.RuntimeName,
-			opts.GitIntegrationCreationOpts.APIURL,
+			apiURL,
 			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {
@@ -859,8 +900,8 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 		return nil, "", fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	server, err := util.KubeCurrentServer(opts.kubeconfig)
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting current server address", err, false, true)
+	server, err := util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get current server address: %w", err)
 	}
@@ -1040,11 +1081,16 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
+		var apiURL string
+		if opts.APIURL != nil {
+			apiURL = fmt.Sprintf("--api-url %s", *opts.APIURL)
+		}
+
 		commandAdd := util.Doc(fmt.Sprintf(
-			"\t<BIN> integration git add default --runtime %s --provider %s --api-url %s",
+			"\t<BIN> integration git add default --runtime %s --provider %s %s",
 			runtime,
 			strings.ToLower(opts.Provider.String()),
-			opts.APIURL,
+			apiURL,
 		))
 
 		commandRegister := util.Doc(fmt.Sprintf(
@@ -1442,6 +1488,10 @@ func RunRuntimeList(ctx context.Context) error {
 		internalIngressHost := "N/A"
 		ingressClass := "N/A"
 
+		if rt.Managed {
+			name = fmt.Sprintf("%s (hosted)", rt.Metadata.Name)
+		}
+
 		if rt.Metadata.Namespace != nil {
 			namespace = *rt.Metadata.Namespace
 		}
@@ -1520,11 +1570,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UninstallFlow, opts.DisableTelemetry)
 
-			opts.IscCloneOpts = &git.CloneOptions{
-				FS:               fs.Create(memfs.New()),
-				CreateIfNotExist: false,
-			}
-
 			err := runtimeUninstallCommandPreRunHandler(cmd, args, &opts)
 			handleCliStep(reporter.UninstallPhasePreCheckFinish, "Finished pre run checks", err, true, false)
 			if err != nil {
@@ -1537,9 +1582,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.CurrentContext,
-				"Kube context":      opts.kubeContext,
 				"Runtime name":      opts.RuntimeName,
-				"Repository URL":    opts.CloneOpts.Repo,
+			}
+
+			if !opts.Managed {
+				finalParameters["Kube context"] = opts.kubeContext
+				finalParameters["Repository URL"] = opts.CloneOpts.Repo
+				opts.CloneOpts.Parse()
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
@@ -1549,11 +1598,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 
 			opts.Timeout = store.Get().WaitTimeout
 
-			inferProviderFromRepo(opts.IscCloneOpts)
-			opts.IscCloneOpts.Auth = opts.CloneOpts.Auth
-			opts.IscCloneOpts.Progress = opts.CloneOpts.Progress
-			opts.CloneOpts.Parse()
-			opts.IscCloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -1569,7 +1613,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
 
-	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
+	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
+		CloneForWrite: true,
+		Optional:      true,
+	})
 	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
@@ -1603,32 +1650,7 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	subCtx, cancel := context.WithCancel(ctx)
-	go func() {
-		if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory); err != nil {
-			log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
-		}
-	}()
-
-	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-		Namespace:    opts.RuntimeName,
-		Timeout:      opts.Timeout,
-		CloneOptions: opts.CloneOpts,
-		KubeFactory:  opts.KubeFactory,
-		Force:        opts.Force,
-		FastExit:     opts.FastExit,
-	})
-	cancel() // to tell the progress to stop displaying even if it's not finished
-	if opts.Force {
-		err = nil
-	}
-	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, true)
-	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
-		return err
-	}
-
-	err = removeRuntimeIsc(ctx, opts)
+	err = removeRuntimeIsc(ctx, opts.RuntimeName)
 	if opts.Force {
 		err = nil
 	}
@@ -1637,8 +1659,43 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
 
-	err = deleteRuntimeFromPlatform(ctx, opts)
-	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, true)
+	if !opts.skipAutopilotUninstall {
+		subCtx, cancel := context.WithCancel(ctx)
+		go func() {
+			if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory, opts.Managed); err != nil {
+				log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
+			}
+		}()
+
+		if !opts.Managed {
+			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+				Namespace:       opts.RuntimeName,
+				KubeContextName: opts.kubeContext,
+				Timeout:         opts.Timeout,
+				CloneOptions:    opts.CloneOpts,
+				KubeFactory:     opts.KubeFactory,
+				Force:           opts.Force,
+				FastExit:        opts.FastExit,
+			})
+		}
+		cancel() // to tell the progress to stop displaying even if it's not finished
+		if opts.Force {
+			err = nil
+		}
+	}
+	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, !opts.Managed && !opts.skipAutopilotUninstall)
+	if err != nil {
+		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
+		return err
+	}
+
+	log.G(ctx).Infof("Deleting runtime '%s' from platform", opts.RuntimeName)
+	if opts.Managed {
+		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
+	} else {
+		err = deleteRuntimeFromPlatform(ctx, opts)
+	}
+	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, !opts.Managed)
 	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
@@ -1653,7 +1710,11 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	return nil
 }
 
-func printApplicationsState(ctx context.Context, runtime string, f kube.Factory) error {
+func printApplicationsState(ctx context.Context, runtime string, f kube.Factory, managed bool) error {
+	if managed {
+		return nil
+	}
+
 	apps := map[string]*argocdv1alpha1.Application{}
 	lock := sync.Mutex{}
 
@@ -1762,30 +1823,38 @@ func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, ru
 	return state, []string{name, status}
 }
 
-func removeRuntimeIsc(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	if opts.IscCloneOpts.Repo == "" {
+func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
+	me, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current user information: %w", err)
+	}
+
+	if me.ActiveAccount.SharedConfigRepo == nil || *me.ActiveAccount.SharedConfigRepo == "" {
+		log.G(ctx).Info("Skipped removing runtime from ISC repo. ISC repo not defined")
 		return nil
 	}
 
-	log.G(ctx).Info("removing runtime isc")
-
-	r, fs, err := opts.IscCloneOpts.GetRepo(ctx)
+	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
-		return fmt.Errorf("failed to clone isc repo. error: %w", err)
+		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
 	}
 
-	err = billyUtils.RemoveAll(fs, fs.Join(store.Get().IscRuntimesDir, opts.RuntimeName))
+	intg, err := appProxyClient.GitIntegrations().List(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to remove runtime dir '%s' from shared config repo. error: %w", opts.RuntimeName, err)
+		return fmt.Errorf("failed to list git integrations: %w", err)
 	}
 
-	pushMsg := fmt.Sprintf("Removing runtime dir '%s'", opts.RuntimeName)
-	err = apu.PushWithMessage(ctx, r, pushMsg)
-	if err != nil {
-		return fmt.Errorf("failed to push to git while removing runtime '%s' dir: %w", opts.RuntimeName, err)
+	if len(intg) == 0 {
+		log.G(ctx).Info("Skipped removing runtime from ISC repo. No git integrations")
+		return nil
 	}
 
-	return nil
+	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
+	if err == nil {
+		log.G(ctx).Info("Removed runtime from ISC repo")
+	}
+
+	return err
 }
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
@@ -2580,7 +2649,7 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 		opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(opts.InsCloneOpts.Provider))
 	}
 
-	if opts.GitIntegrationCreationOpts.APIURL == "" {
+	if opts.GitIntegrationCreationOpts.APIURL == nil || *opts.GitIntegrationCreationOpts.APIURL == "" {
 		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
@@ -2606,17 +2675,20 @@ func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
 	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
 }
 
-func inferAPIURLForGitProvider(provider apmodel.GitProviders) (string, error) {
+func inferAPIURLForGitProvider(provider apmodel.GitProviders) (*string, error) {
 	const suggest = "you can specify a git provider explicitly with --provider-api-url"
+	var res string
 
 	switch provider {
 	case apmodel.GitProvidersGithub:
-		return "https://api.github.com", nil
+		res = "https://api.github.com"
+		return &res, nil
 	case apmodel.GitProvidersGitlab:
-		return "https://gitlab.com/api/v4", nil
+		res = "https://gitlab.com/api/v4"
+		return &res, nil
 	}
 
-	return "", fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
+	return nil, fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
 }
 
 // display the user the old vs. the new configurations that will be changed upon recovery
@@ -2699,30 +2771,15 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
 		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
-		iscCloneOpts := &git.CloneOptions{
-			FS:               fs.Create(memfs.New()),
-			CreateIfNotExist: false,
-		}
-		iscCloneOpts.Repo, err = getIscRepo(ctx)
-		handleCliStep(reporter.UninstallStepGetIscRepoFromPlatform, "Getting isc repo from platform before rollback", err, false, true)
-		if err != nil {
-			log.G(ctx).Errorf("failed to get isc repo from platform before installation rollback: %s", err.Error())
-		}
-
-		inferProviderFromRepo(opts.InsCloneOpts)
-		iscCloneOpts.Auth = opts.InsCloneOpts.Auth
-		iscCloneOpts.Progress = opts.InsCloneOpts.Progress
-		iscCloneOpts.Parse()
 
 		err := RunRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-			RuntimeName:  opts.RuntimeName,
-			Timeout:      store.Get().WaitTimeout,
-			CloneOpts:    opts.InsCloneOpts,
-			IscCloneOpts: iscCloneOpts,
-			KubeFactory:  opts.KubeFactory,
-			SkipChecks:   true,
-			Force:        true,
-			FastExit:     false,
+			RuntimeName: opts.RuntimeName,
+			Timeout:     store.Get().WaitTimeout,
+			CloneOpts:   opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks:  true,
+			Force:       true,
+			FastExit:    false,
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {

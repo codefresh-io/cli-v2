@@ -1,9 +1,0 @@
-apiVersion: v2
-name: csdp-add-cluster
-description: This helm chart adds a remote cluster to an existing Codefresh runtime
-
-type: application
-
-version: 0.2.0
-
-appVersion: 0.3.1

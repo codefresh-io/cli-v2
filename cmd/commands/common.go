@@ -141,7 +141,7 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOpti
 	}
 
 	if cloneOpts.Repo == "" {
-		return fmt.Errorf("must enter a valid installation repository URL")
+		return fmt.Errorf("must enter a valid installation repository URL, using --repo")
 	}
 
 	return nil
@@ -166,7 +166,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	return cmd.Flags().Set("repo", repoInput)
 }
 
-func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
+func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (string, error) {
 	var (
 		runtimeName string
 		err         error
@@ -177,7 +177,7 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	}
 
 	if !store.Get().Silent {
-		runtimeName, err = getRuntimeNameFromUserSelect(ctx)
+		runtimeName, err = getRuntimeNameFromUserSelect(ctx, allowManaged)
 		if err != nil {
 			return "", err
 		}
@@ -190,7 +190,7 @@ func ensureRuntimeName(ctx context.Context, args []string) (string, error) {
 	return runtimeName, nil
 }
 
-func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
+func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (string, error) {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return "", err
@@ -200,10 +200,18 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("no runtimes were found")
 	}
 
-	runtimeNames := make([]string, len(runtimes))
+	var runtimeNames []string
 
-	for index, rt := range runtimes {
-		runtimeNames[index] = rt.Metadata.Name
+	for _, rt := range runtimes {
+		rtDisplay := rt.Metadata.Name
+		if rt.Managed {
+			if !allowManaged {
+				// preventing hosted runtimes to prompt
+				continue
+			}
+			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
+		}
+		runtimeNames = append(runtimeNames, rtDisplay)
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -219,7 +227,8 @@ func getRuntimeNameFromUserSelect(ctx context.Context) (string, error) {
 	}
 
 	_, result, err := prompt.Run()
-	return result, err
+	resultSplit := strings.Split(result, " ")
+	return resultSplit[0], err
 }
 
 func getRuntimeNameFromUserInput() (string, error) {
@@ -301,6 +310,11 @@ func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool
 			return fmt.Errorf(errMessage)
 		}
 	}
+
+	if cloneOpts.Auth.Password == "" {
+		return fmt.Errorf("must provide a git token using --git-token")
+	}
+
 	return nil
 }
 
@@ -409,6 +423,11 @@ func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 		if err != nil {
 			return "", err
 		}
+	}
+
+	if contextName == "" {
+		contextName = util.KubeCurrentContextName(kubeconfigPath)
+		log.G().Infof("Using current kube context '%s'", contextName)
 	}
 
 	return contextName, context.Value.Set(contextName)
@@ -635,11 +654,37 @@ func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, 
 	return setIscRepoResponse, nil
 }
 
-func getIscRepo(ctx context.Context) (string, error) {
-	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
 	if err != nil {
-		return "", fmt.Errorf("failed to get shared config repo. Error: %w", err)
+		return false, fmt.Errorf("failed to get runtime from platform. error: %w", err)
 	}
 
-	return *user.ActiveAccount.SharedConfigRepo, nil
+	return rt.Managed, nil
+}
+
+func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime from platform. error: %w", err)
+	}
+
+	runtimeClusterServer := rt.Cluster
+
+	kubeContextServer, err := util.KubeServerByContextName(kubeContextName, kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	// in case Cluster field does not exist on runtime
+	// this is a temp solution. need to figure out why runtime is deleted from platform when uninstall fails
+	if runtimeClusterServer == nil {
+		return fmt.Errorf("failed to verify runtime is installed on the selected kubernetes context. you can use --force to bypass this check")
+	}
+
+	if *runtimeClusterServer != kubeContextServer {
+		return fmt.Errorf("runtime '%s' does not exist on context '%s'. Make sure you are providing the right kube context or use --force to bypass this check", runtimeName, kubeContextName)
+	}
+
+	return nil
 }
