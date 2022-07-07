@@ -320,9 +320,8 @@ func updateKustomization(fs fs.FS, directory, fromURL, toURL string) error {
 }
 
 func buildFullURL(urlString string, version *semver.Version, devMode bool, branch string) string {
-	log.G().Infof("INSIDE BUILDFULLURL")
+	log.G().Infof("INSIDE BuildFullURL")
 	log.G().Infof("branch: %s", branch)
-	
 
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()

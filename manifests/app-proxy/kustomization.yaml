@@ -3,7 +3,7 @@ kind: Kustomization
 images:
   - name: quay.io/codefresh/cap-app-proxy
     newName: quay.io/codefresh/cap-app-proxy
-    newTag: 1.1asdfk23r
+    newTag: wrong-intentionally
 resources:
   - app-proxy.deploy.yaml
   - app-proxy.svc.yaml
