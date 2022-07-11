@@ -878,7 +878,7 @@ To complete the installation:
 			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {
-		gitIntegrationErr := createGitIntegration(ctx, opts)
+		gitIntegrationErr := intervalCheckIsGitIntegrationCreated(ctx, opts)
 		if gitIntegrationErr != nil {
 			return gitIntegrationErr
 		}
@@ -1055,6 +1055,35 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 	}
 
 	return nil
+}
+
+func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInstallOptions) error{
+	maxRetries := 6 // up to a minute
+	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
+	_, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for triesLeft := maxRetries; triesLeft > 0; triesLeft-- {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+
+		err := createGitIntegration(ctx, opts)
+		if err != nil {
+			if err == ctx.Err() {
+				return ctx.Err()
+			}
+
+			log.G(ctx).Debugf("Retrying to create the default git integration. Error: %s", err.Error())
+		} else {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("timed ot while waiting for git integration to be created")
 }
 
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
