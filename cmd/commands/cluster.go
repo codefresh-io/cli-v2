@@ -35,6 +35,7 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -149,7 +150,8 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
+	tempVer := "0.0.425"
+	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, tempVer)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -248,6 +250,8 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
 	}
 
+	resourceUrl = "https://github.com/rotem-codefresh/add-cluster-test"
+
 	k := &kusttypes.Kustomization{
 		ConfigMapGenerator: []kusttypes.ConfigMapArgs{
 			{
@@ -283,6 +287,54 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 			resourceUrl,
 		},
 		NameSuffix: nameSuffix,
+		Replacements: []kusttypes.ReplacementField{
+			{
+				Replacement: kusttypes.Replacement{
+					Source: &kusttypes.SourceSelector{
+						ResId: resid.ResId{
+							Gvk: resid.Gvk{
+								Version: "v1",
+								Kind: "ServiceAccount",
+							},
+							Name: "argocd-manager",
+						},
+						FieldPath: "metadata.name",
+					},
+					Targets: []*kusttypes.TargetSelector{
+						{
+							Select: &kusttypes.Selector{
+								ResId: resid.ResId{
+									Gvk: resid.Gvk{
+										Group: "batch",
+										Version: "v1",
+										Kind: "Job",
+									},
+									Name: "csdp-add-cluster-job",
+								},
+							},
+							FieldPaths: []string{
+								"spec.template.spec.serviceAccount",
+							},
+						},
+						{
+							Select: &kusttypes.Selector{
+								ResId: resid.ResId{
+									Gvk: resid.Gvk{
+										Group: "rbac.authorization.k8s.io",
+										Version: "v1",
+										Kind: "ClusterRoleBinding",
+									},
+									Name: "argocd-manager-role-binding",
+								},
+							},
+							FieldPaths: []string{
+								"subjects.[name=argocd-manager].name",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
