@@ -35,6 +35,7 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -59,7 +60,24 @@ type (
 	}
 )
 
-var minAddClusterSupportedVersion = semver.MustParse("0.0.283")
+var (
+	minAddClusterSupportedVersion = semver.MustParse("0.0.283")
+
+	serviceAccountGVK = resid.Gvk{
+		Version: "v1",
+		Kind:    "ServiceAccount",
+	}
+	jobGVK = resid.Gvk{
+		Group:   "batch",
+		Version: "v1",
+		Kind:    "Job",
+	}
+	clusterRoleBindinGVK = resid.Gvk{
+		Group:   "rbac.authorization.k8s.io",
+		Version: "v1",
+		Kind:    "ClusterRoleBinding",
+	}
+)
 
 func NewClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -283,6 +301,43 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 			resourceUrl,
 		},
 		NameSuffix: nameSuffix,
+		Replacements: []kusttypes.ReplacementField{
+			{
+				Replacement: kusttypes.Replacement{
+					Source: &kusttypes.SourceSelector{
+						ResId: resid.ResId{
+							Gvk:  serviceAccountGVK,
+							Name: "argocd-manager",
+						},
+						FieldPath: "metadata.name",
+					},
+					Targets: []*kusttypes.TargetSelector{
+						{
+							Select: &kusttypes.Selector{
+								ResId: resid.ResId{
+									Gvk:  jobGVK,
+									Name: "csdp-add-cluster-job",
+								},
+							},
+							FieldPaths: []string{
+								"spec.template.spec.serviceAccount",
+							},
+						},
+						{
+							Select: &kusttypes.Selector{
+								ResId: resid.ResId{
+									Gvk:  clusterRoleBindinGVK,
+									Name: "argocd-manager-role-binding",
+								},
+							},
+							FieldPaths: []string{
+								"subjects.[name=argocd-manager].name",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
