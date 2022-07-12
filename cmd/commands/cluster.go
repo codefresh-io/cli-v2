@@ -150,8 +150,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	tempVer := "0.0.425"
-	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, tempVer)
+	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -249,8 +248,6 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 	if strings.HasPrefix(resourceUrl, "http") && !strings.Contains(resourceUrl, "?ref=") {
 		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
 	}
-
-	resourceUrl = "https://github.com/rotem-codefresh/add-cluster-test/kustomize"
 
 	k := &kusttypes.Kustomization{
 		ConfigMapGenerator: []kusttypes.ConfigMapArgs{
