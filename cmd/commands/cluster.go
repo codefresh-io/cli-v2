@@ -60,7 +60,24 @@ type (
 	}
 )
 
-var minAddClusterSupportedVersion = semver.MustParse("0.0.283")
+var (
+	minAddClusterSupportedVersion = semver.MustParse("0.0.283")
+	
+	serviceAccountGVK             = resid.Gvk{
+		Version: "v1",
+		Kind:    "ServiceAccount",
+	}
+	jobGVK = resid.Gvk{
+		Group:   "batch",
+		Version: "v1",
+		Kind:    "Job",
+	}
+	clusterRoleBindinGVK = resid.Gvk{
+		Group:   "rbac.authorization.k8s.io",
+		Version: "v1",
+		Kind:    "ClusterRoleBinding",
+	}
+)
 
 func NewClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -289,10 +306,7 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 				Replacement: kusttypes.Replacement{
 					Source: &kusttypes.SourceSelector{
 						ResId: resid.ResId{
-							Gvk: resid.Gvk{
-								Version: "v1",
-								Kind: "ServiceAccount",
-							},
+							Gvk:  serviceAccountGVK,
 							Name: "argocd-manager",
 						},
 						FieldPath: "metadata.name",
@@ -301,11 +315,7 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 						{
 							Select: &kusttypes.Selector{
 								ResId: resid.ResId{
-									Gvk: resid.Gvk{
-										Group: "batch",
-										Version: "v1",
-										Kind: "Job",
-									},
+									Gvk:  jobGVK,
 									Name: "csdp-add-cluster-job",
 								},
 							},
@@ -316,11 +326,7 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 						{
 							Select: &kusttypes.Selector{
 								ResId: resid.ResId{
-									Gvk: resid.Gvk{
-										Group: "rbac.authorization.k8s.io",
-										Version: "v1",
-										Kind: "ClusterRoleBinding",
-									},
+									Gvk:  clusterRoleBindinGVK,
 									Name: "argocd-manager-role-binding",
 								},
 							},
