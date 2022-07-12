@@ -62,8 +62,8 @@ type (
 
 var (
 	minAddClusterSupportedVersion = semver.MustParse("0.0.283")
-	
-	serviceAccountGVK             = resid.Gvk{
+
+	serviceAccountGVK = resid.Gvk{
 		Version: "v1",
 		Kind:    "ServiceAccount",
 	}
