@@ -6,7 +6,7 @@ resources:
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.3.4-cap-CR-12409-cache-key-update
+    newTag: v2.3.4-cap-CR-13031-fix-merge-logs
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
