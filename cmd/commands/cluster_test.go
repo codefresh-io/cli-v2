@@ -80,7 +80,14 @@ func Test_sanitizeClusterName(t *testing.T) {
 			args: args{
 				name: "^-.test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
-			want: "test----cluster------test.cluster--12-3",
+			want: "test----cluster------test-cluster--12-3",
+		},
+		{
+			name: "should return sanitized string",
+			args: args{
+				name: "^-.1test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
+			},
+			want: "a1test----cluster------test-cluster--12-3",
 		},
 	}
 	for _, tt := range tests {
@@ -104,35 +111,35 @@ func Test_validateClusterName(t *testing.T) {
 		{
 			name: "name should be valid",
 			args: args{
-				name: "1test-cluster.test.cluster123z",
+				name: "test-cluster-123",
 			},
 			wantErr: false,
 		},
 		{
-			name: "name should not be valid",
-			args: args{
-				name: ".test-cluster",
-			},
-			wantErr: true,
-		},
-		{
-			name: "name should not be valid",
-			args: args{
-				name: "test-cluster.",
-			},
-			wantErr: true,
-		},
-		{
-			name: "name should not be valid",
+			name: "name should not be valid (contains uppercase)",
 			args: args{
 				name: "Test-cluster",
 			},
 			wantErr: true,
 		},
 		{
-			name: "name should not be valid",
+			name: "name should not be valid (contains invalid chars)",
 			args: args{
-				name: "test-cluster:test/cluster",
+				name: "test-cluster:test/cluster.123#",
+			},
+			wantErr: true,
+		},
+		{
+			name: "name should not be valid (begins with numeric char)",
+			args: args{
+				name: "2test-cluster",
+			},
+			wantErr: true,
+		},
+		{
+			name: "name should not be valid (too long)",
+			args: args{
+				name: "this-cluster-name-is-too-long-1-this-cluster-name-is-too-long-1-this-cluster-name-is-too-long-1-123",
 			},
 			wantErr: true,
 		},
