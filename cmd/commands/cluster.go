@@ -193,43 +193,57 @@ func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	var err error
-	sanitizedName := sanitizeClusterName(opts.kubeContext)
+	sanitizedName, err := sanitizeClusterName(opts.kubeContext)
+	if err != nil {
+		return err
+	}
+
 	opts.clusterName, err = ensureNoClusterNameDuplicates(ctx, sanitizedName, opts.runtimeName)
 
 	return err
 }
 
 func validateClusterName(name string) error {
-	maxDNSNameLength := 253
-	if len(name) > maxDNSNameLength {
-		return fmt.Errorf("cluster name can contain no more than 253 characters")
+	maxNameLength := 63
+	if len(name) > maxNameLength {
+		return fmt.Errorf("cluster name can contain no more than 63 characters")
 	}
 
-	match, err := regexp.MatchString("^[a-z\\d]([-a-z\\d\\.]{0,251}[a-z\\d])?$", name)
+	match, err := regexp.MatchString("^[a-z]([-a-z\\d]{0,61}[a-z\\d])?$", name)
 	if err != nil {
 		return err
 	}
 
 	if !match {
-		return fmt.Errorf("cluster name must be according to k8s resource naming rules")
+		return fmt.Errorf("cluster name must be according to k8s RFC 1035 label names rules")
 	}
 
 	return nil
 }
 
-// copied from https://github.com/argoproj/argo-cd/blob/master/applicationset/generators/cluster.go#L214
-func sanitizeClusterName(name string) string {
-	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
-	maxDNSNameLength := 253
+// partially copied from https://github.com/argoproj/argo-cd/blob/master/applicationset/generators/cluster.go#L214
+func sanitizeClusterName(name string) (string, error) {
+	nameKeeper := name
+	invalidNameChars := regexp.MustCompile("[^-a-z0-9]")
+	maxNameLength := 63
 
 	name = strings.ToLower(name)
-	name = invalidDNSNameChars.ReplaceAllString(name, "-")
+	name = invalidNameChars.ReplaceAllString(name, "-")
 	// saving space for 2 chars in case a cluster with the sanitized name already exists
-	if len(name) > (maxDNSNameLength - 2) {
-		name = name[:(maxDNSNameLength - 2)]
+	if len(name) > (maxNameLength - 2) {
+		name = name[:(maxNameLength - 2)]
 	}
 
-	return strings.Trim(name, "-.")
+	name = strings.Trim(name, "-.")
+	
+	beginsWithNum := regexp.MustCompile(`^\d+`)
+	name = beginsWithNum.ReplaceAllString(name, "")
+
+	if name == "" {
+		return "", fmt.Errorf("failed sanitizing cluster name \"%s\". please use --name flag manually", nameKeeper)
+	}
+
+	return name, nil
 }
 
 func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName string) (string, error) {
