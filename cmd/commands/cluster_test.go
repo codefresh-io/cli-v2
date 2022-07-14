@@ -74,6 +74,7 @@ func Test_sanitizeClusterName(t *testing.T) {
 		name string
 		args args
 		want string
+		wantErr bool
 	}{
 		{
 			name: "should return sanitized string",
@@ -81,18 +82,33 @@ func Test_sanitizeClusterName(t *testing.T) {
 				name: "^-.Test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
 			want: "test----cluster------test-cluster--12-3",
+			wantErr: false,
 		},
 		{
 			name: "should return sanitized string",
 			args: args{
-				name: "^-.1test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
+				name: "^-.123test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
-			want: "a1test----cluster------test-cluster--12-3",
+			want: "test----cluster------test-cluster--12-3",
+			wantErr: false,
+		},
+		{
+			name: "should return error of sanitization failed",
+			args: args{
+				name: "12345",
+			},
+			want: "",
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := sanitizeClusterName(tt.args.name); got != tt.want {
+			got, err := sanitizeClusterName(tt.args.name)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("sanitizeClusterName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
 				t.Errorf("sanitizeClusterName() = %v, want %v", got, tt.want)
 			}
 		})

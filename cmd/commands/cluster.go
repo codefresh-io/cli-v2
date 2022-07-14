@@ -193,7 +193,11 @@ func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
 	}
 
 	var err error
-	sanitizedName := sanitizeClusterName(opts.kubeContext)
+	sanitizedName, err := sanitizeClusterName(opts.kubeContext)
+	if err != nil {
+		return err
+	}
+	
 	opts.clusterName, err = ensureNoClusterNameDuplicates(ctx, sanitizedName, opts.runtimeName)
 
 	return err
@@ -217,8 +221,9 @@ func validateClusterName(name string) error {
 	return nil
 }
 
-// copied from https://github.com/argoproj/argo-cd/blob/master/applicationset/generators/cluster.go#L214
-func sanitizeClusterName(name string) string {
+// partially copied from https://github.com/argoproj/argo-cd/blob/master/applicationset/generators/cluster.go#L214
+func sanitizeClusterName(name string) (string, error) {
+	nameKeeper := name
 	invalidNameChars := regexp.MustCompile("[^-a-z0-9]")
 	maxNameLength := 63
 
@@ -230,13 +235,17 @@ func sanitizeClusterName(name string) string {
 	}
 
 	name = strings.Trim(name, "-.")
-	beginsWithNum := regexp.MustCompile(`^\d`)
+	beginsWithNum := regexp.MustCompile(`^\d+`)
 	
 	if beginsWithNum.MatchString(name) {
-		name = fmt.Sprint("a", name)
+		name = beginsWithNum.ReplaceAllString(name, "")
 	}
 
-	return name
+	if name == "" {
+		return "", fmt.Errorf("failed sanitizing cluster name \"%s\". please use --name flag manually", nameKeeper)
+	}
+
+	return name, nil
 }
 
 func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName string) (string, error) {
