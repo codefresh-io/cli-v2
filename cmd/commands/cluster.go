@@ -197,7 +197,7 @@ func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
 	if err != nil {
 		return err
 	}
-	
+
 	opts.clusterName, err = ensureNoClusterNameDuplicates(ctx, sanitizedName, opts.runtimeName)
 
 	return err
@@ -235,11 +235,9 @@ func sanitizeClusterName(name string) (string, error) {
 	}
 
 	name = strings.Trim(name, "-.")
-	beginsWithNum := regexp.MustCompile(`^\d+`)
 	
-	if beginsWithNum.MatchString(name) {
-		name = beginsWithNum.ReplaceAllString(name, "")
-	}
+	beginsWithNum := regexp.MustCompile(`^\d+`)
+	name = beginsWithNum.ReplaceAllString(name, "")
 
 	if name == "" {
 		return "", fmt.Errorf("failed sanitizing cluster name \"%s\". please use --name flag manually", nameKeeper)
