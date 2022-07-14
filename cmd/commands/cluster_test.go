@@ -78,7 +78,7 @@ func Test_sanitizeClusterName(t *testing.T) {
 		{
 			name: "should return sanitized string",
 			args: args{
-				name: "^-.test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
+				name: "^-.Test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
 			want: "test----cluster------test-cluster--12-3",
 		},
