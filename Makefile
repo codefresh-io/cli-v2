@@ -31,8 +31,6 @@ endif
 
 ifdef LOCAL_MANIFESTS
 	RUNTIME_DEF_URL=${LOCAL_MANIFESTS}
-	cat /codefresh/volume/cli-v2/manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
-	cp /tmp/tmp_runtime.yaml manifests/runtime.yaml
 endif
 
 ifndef GOBIN
@@ -183,7 +181,7 @@ $(GOBIN)/golangci-lint:
 	@echo installing: golangci-lint
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.45.2
 
-.PHONY: flatten-manifests-base-paths
-flatten-manifests-base-paths:
-	cat manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
-	cp /tmp/tmp_runtime.yaml manifests/runtime.yaml
+.PHONY: e2e-local-manifests
+e2e-local-manifests:
+	cat /codefresh/volume/cli-v2/manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
+	mv /tmp/tmp_runtime.yaml manifests/runtime.yaml
