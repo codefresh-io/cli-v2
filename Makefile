@@ -185,3 +185,4 @@ $(GOBIN)/golangci-lint:
 e2e-local-manifests:
 	cat /codefresh/volume/cli-v2/manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
 	mv /tmp/tmp_runtime.yaml manifests/runtime.yaml
+
