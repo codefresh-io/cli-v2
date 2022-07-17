@@ -29,10 +29,9 @@ ifeq (${DEV_MODE},true)
 	ADD_CLUSTER_DEF_URL=${DEV_ADD_CLUSTER_DEF_URL}
 endif
 
-
 ifdef LOCAL_MANIFESTS
 	RUNTIME_DEF_URL=${LOCAL_MANIFESTS}
-	cat manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
+	cat /codefresh/volume/cli-v2/manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
 	cp /tmp/tmp_runtime.yaml manifests/runtime.yaml
 endif
 
