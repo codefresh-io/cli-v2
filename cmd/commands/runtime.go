@@ -810,6 +810,9 @@ func RunRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 				store.Get().LabelKeyCFType:     fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFType)),
 				store.Get().LabelKeyCFInternal: fmt.Sprintf("{{ labels.%s }}", util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)),
 			},
+			Annotations: map[string]string{
+				store.Get().AnnotationKeySyncWave: fmt.Sprintf("{{ annotations.%s }}", util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave)),
+			},
 		})
 	}
 	handleCliStep(reporter.InstallStepCreateProject, "Creating Project", err, false, true)
@@ -1057,7 +1060,7 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 	return nil
 }
 
-func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInstallOptions) error{
+func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInstallOptions) error {
 	maxRetries := 6 // up to a minute
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()

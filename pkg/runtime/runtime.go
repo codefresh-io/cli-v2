@@ -73,6 +73,7 @@ type (
 		Name       string `json:"name"`
 		Type       string `json:"type"`
 		URL        string `json:"url"`
+		SyncWave   string `json:"syncWave"`
 		Wait       bool   `json:"wait"`
 		IsInternal bool   `json:"isInternal"`
 	}
@@ -270,7 +271,11 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		timeout = store.Get().WaitTimeout
 	}
 
-	return apcmd.RunAppCreate(ctx, &apcmd.AppCreateOptions{
+	if a.SyncWave == "" {
+		a.SyncWave = "0"
+	}
+
+	appCreateOpts := &apcmd.AppCreateOptions{
 		CloneOpts:     cloneOpts,
 		AppsCloneOpts: &git.CloneOptions{},
 		ProjectName:   projectName,
@@ -283,12 +288,17 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
 			},
+			Annotations: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): a.SyncWave,
+			},
 			Exclude: exclude,
 			Include: include,
 		},
 		KubeFactory: f,
 		Timeout:     timeout,
-	})
+	}
+
+	return apcmd.RunAppCreate(ctx, appCreateOpts)
 }
 
 func (a *AppDef) delete(fs fs.FS) error {

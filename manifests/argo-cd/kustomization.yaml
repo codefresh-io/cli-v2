@@ -41,3 +41,15 @@ patches:
       - op: add
         path: /spec/ports/0/appProtocol
         value: tcp
+
+  - target:
+      version: v1
+      group: apps
+      kind: Deployment
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: ARGOCD_SYNC_WAVE_DELAY
+          value: "10"
