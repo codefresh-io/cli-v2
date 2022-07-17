@@ -146,6 +146,7 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 		return nil, fmt.Errorf("failed to load runtime from \"%s\": %w", filename, err)
 	}
 
+	
 	data := cm.Data["runtime"]
 	runtime := &Runtime{}
 	if err := yaml.Unmarshal([]byte(data), runtime); err != nil {
