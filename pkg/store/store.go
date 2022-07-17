@@ -35,7 +35,6 @@ var (
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 )
-
 type Version struct {
 	Version    *semver.Version
 	BuildDate  string
