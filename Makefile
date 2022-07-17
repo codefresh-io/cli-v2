@@ -1,4 +1,4 @@
-VERSION=v0.0.433
+VERSION=v0.0.434
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -184,4 +184,4 @@ $(GOBIN)/golangci-lint:
 .PHONY: flatten-manifests-base-paths
 flatten-manifests-base-paths:
 	cat manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@@' > /tmp/tmp_runtime.yaml
-	mv /tmp/tmp_runtime.yaml manifests/runtime.yaml
+	cp /tmp/tmp_runtime.yaml manifests/runtime.yaml

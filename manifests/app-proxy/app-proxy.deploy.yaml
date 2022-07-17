@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   labels:
     app: cap-app-proxy
+    local-manifest: 'true'
   name: cap-app-proxy
 spec:
   selector:
