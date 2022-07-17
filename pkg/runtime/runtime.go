@@ -152,7 +152,6 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 		return nil, fmt.Errorf("failed to unmarshal runtime from \"%s\": %w", filename, err)
 	}
 
-	
 	for i := range runtime.Spec.Components {
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(runtime.Spec.Components[i].URL)
 	}

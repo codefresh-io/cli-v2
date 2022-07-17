@@ -45,7 +45,6 @@ type Version struct {
 	GoCompiler string
 	Platform   string
 }
-
 type Store struct {
 	AddClusterJobName                   string
 	ArgoCDServerName                    string
