@@ -73,7 +73,7 @@ type (
 		Name       string `json:"name"`
 		Type       string `json:"type"`
 		URL        string `json:"url"`
-		SyncWave   string `json:"syncWave"`
+		SyncWave   int    `json:"syncWave"`
 		Wait       bool   `json:"wait"`
 		IsInternal bool   `json:"isInternal"`
 	}
@@ -271,10 +271,6 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		timeout = store.Get().WaitTimeout
 	}
 
-	if a.SyncWave == "" {
-		a.SyncWave = "0"
-	}
-
 	appCreateOpts := &apcmd.AppCreateOptions{
 		CloneOpts:     cloneOpts,
 		AppsCloneOpts: &git.CloneOptions{},
@@ -289,7 +285,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
 			},
 			Annotations: map[string]string{
-				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): a.SyncWave,
+				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
 			},
 			Exclude: exclude,
 			Include: include,
