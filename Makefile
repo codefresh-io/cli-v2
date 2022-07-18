@@ -1,4 +1,4 @@
-VERSION=v0.0.386
+VERSION=v0.0.438
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -8,10 +8,11 @@ IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
 RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
-ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
+FALLBACK_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
 DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
-DEV_ADD_CLUSTER_DEF_URL="../manifests/add-cluster/kustomize"
+DEV_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize" # specify dev branch using ?ref=<branch> here if you want to test a change
 
 CLI_SRCS := $(shell find . -name '*.go')
 
@@ -105,6 +106,7 @@ $(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \
 	RUNTIME_DEF_URL=$(RUNTIME_DEF_URL) \
 	ADD_CLUSTER_DEF_URL=$(ADD_CLUSTER_DEF_URL) \
+	FALLBACK_ADD_CLUSTER_DEF_URL=$(FALLBACK_ADD_CLUSTER_DEF_URL) \
 	SEGMENT_WRITE_KEY=$(SEGMENT_WRITE_KEY) \
 	MAIN=./cmd \
 	./hack/build.sh
@@ -179,7 +181,7 @@ $(GOBIN)/golangci-lint:
 	@echo installing: golangci-lint
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.45.2
 
-.PHONY: flatten-manifests-base-paths
-flatten-manifests-base-paths:
-	cat manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@@' > /tmp/tmp_runtime.yaml
+.PHONY: e2e-local-manifests
+e2e-local-manifests:
+	cat /codefresh/volume/cli-v2/manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
 	mv /tmp/tmp_runtime.yaml manifests/runtime.yaml

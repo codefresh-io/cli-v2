@@ -1,13 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://raw.githubusercontent.com/codefresh-io/argo-cd/release-2.1/manifests/install.yaml
-  - https://raw.githubusercontent.com/argoproj-labs/applicationset/master/manifests/install.yaml?ref=2c62537a8e5a # TODO: switch to the next release when available
+  - https://raw.githubusercontent.com/codefresh-io/argo-cd/release-2.3/manifests/install.yaml
   - default-rbac.yaml
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.1.17-cap-CR-split-files
+    newTag: v2.3.4-cap-CR-13068-fix-app-deletion
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
@@ -42,3 +41,15 @@ patches:
       - op: add
         path: /spec/ports/0/appProtocol
         value: tcp
+
+  - target:
+      version: v1
+      group: apps
+      kind: Deployment
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: ARGOCD_SYNC_WAVE_DELAY
+          value: "10"

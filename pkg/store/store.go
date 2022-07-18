@@ -25,16 +25,16 @@ import (
 var s Store
 
 var (
-	binaryName       = "cli-v2"
-	version          = "v99.99.99"
-	buildDate        = ""
-	gitCommit        = ""
-	segmentWriteKey  = ""
-	maxDefVersion    = "1.0.1"
-	RuntimeDefURL    = "manifests/runtime.yaml"
-	AddClusterDefURL = "../manifests/add-cluster/kustomize"
+	binaryName               = "cli-v2"
+	version                  = "v99.99.99"
+	buildDate                = ""
+	gitCommit                = ""
+	segmentWriteKey          = ""
+	maxDefVersion            = "1.0.1"
+	RuntimeDefURL            = "manifests/runtime.yaml"
+	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
+	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 )
-
 type Version struct {
 	Version    *semver.Version
 	BuildDate  string
@@ -43,7 +43,6 @@ type Version struct {
 	GoCompiler string
 	Platform   string
 }
-
 type Store struct {
 	AddClusterJobName                   string
 	ArgoCDServerName                    string
@@ -80,6 +79,7 @@ type Store struct {
 	DocsLink                            string
 	LabelKeyCFType                      string
 	LabelKeyCFInternal                  string
+	AnnotationKeySyncWave               string
 	MarketplaceGitSourceName            string
 	MarketplaceRepo                     string
 	MaxDefVersion                       *semver.Version
@@ -155,7 +155,7 @@ func Get() *Store {
 }
 
 func init() {
-	s.AddClusterJobName = "csdp-add-cluster-job"
+	s.AddClusterJobName = "csdp-add-cluster-job-"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
@@ -189,6 +189,7 @@ func init() {
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
+	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
 	s.MarketplaceGitSourceName = "marketplace-git-source"
