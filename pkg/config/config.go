@@ -90,7 +90,6 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	f.BoolVar(&conf.insecure, "insecure", false, "Disable certificate validation for TLS connections (e.g. to g.codefresh.io)")
 	f.BoolVar(&store.Get().InsecureIngressHost, "insecure-ingress-host", false, "Disable certificate validation of ingress host (default: false)")
 	f.DurationVar(&conf.requestTimeout, "request-timeout", defaultRequestTimeout, "Request timeout")
-	f.MarkHidden("features")
 	return conf
 }
 
