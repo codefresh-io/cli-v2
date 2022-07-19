@@ -16,6 +16,7 @@ package git
 
 import (
 	"context"
+	"fmt"
 	"strings"
 )
 
@@ -50,6 +51,10 @@ var (
 func GetProvider(providerType ProviderType, cloneURL string) (Provider, error) {
 	if providerType != "" {
 		fn := providers[providerType]
+		if fn == nil {
+			return nil, fmt.Errorf("invalid git provider %s", providerType)
+		}
+
 		return fn(cloneURL)
 	}
 
@@ -61,5 +66,5 @@ func GetProvider(providerType ProviderType, cloneURL string) (Provider, error) {
 		return NewGitlabCloudProvider(cloneURL)
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("failed getting provider for clone url %s", cloneURL)
 }
