@@ -332,6 +332,7 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
 	}
 
+	opts.InsCloneOpts.Provider = string(opts.gitProvider.Type())
 	err = getGitToken(cmd, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
