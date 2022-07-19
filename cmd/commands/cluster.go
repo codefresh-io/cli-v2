@@ -81,7 +81,6 @@ var (
 
 func NewClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Hidden:            true, // until app-proxy is working correctly
 		Use:               "cluster",
 		Short:             "Manage clusters of Codefresh runtimes",
 		PersistentPreRunE: cfConfig.RequireAuthentication,
