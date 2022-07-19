@@ -16,6 +16,8 @@ package commands
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -129,12 +131,22 @@ func newClusterAddCommand() *cobra.Command {
 				return err
 			}
 
-			err = setClusterName(cmd.Context(), &opts)
+ 			err = setClusterName(cmd.Context(), &opts)
+			if err != nil {
+				return err
+			}
 
-			opts.annotations = strings.Join(annotations, ",")
-			opts.labels = strings.Join(labels, ",")
+			opts.labels, err = prepareLabels(labels)
+			if err != nil {
+				return fmt.Errorf("failed to prepare labels: %w", err)
+			}
 
-			return err
+			opts.annotations, err = prepareLabels(annotations)
+			if err != nil {
+				return fmt.Errorf("failed to prepare annotations: %w", err)
+			}
+
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runClusterAdd(cmd.Context(), &opts)
@@ -291,6 +303,8 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, annot
 		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
 	}
 
+	resourceUrl = "https://github.com/rotem-codefresh/add-cluster-test"
+
 	k := &kusttypes.Kustomization{
 		ConfigMapGenerator: []kusttypes.ConfigMapArgs{
 			{
@@ -366,14 +380,6 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, annot
 			},
 		},
 	}
-	
-	// if annotations != "" {
-	// 	k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("annotations=" + annotations))
-	// }
-
-	// if labels != "" {
-	// 	k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].GeneratorArgs.KvPairSources.LiteralSources, fmt.Sprintf("labels=" + labels))
-	// }
 
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
@@ -586,4 +592,18 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	log.G(ctx).Infof("created argo-rollouts component on \"%s\"", opts.server)
 
 	return nil
+}
+
+func prepareLabels(labels []string) (string, error) {
+	labelsMap, err := util.ParseLabels(labels)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse labels/annotations. error: %w", err)
+	}
+
+	labelsByte, err := json.Marshal(labelsMap)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal labels/annotations. error: %w", err)
+	}
+
+	return base64.RawStdEncoding.EncodeToString(labelsByte), nil
 }
