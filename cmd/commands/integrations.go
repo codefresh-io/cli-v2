@@ -40,7 +40,7 @@ type (
 	}
 )
 
-var gitProvidersByName = map[string]model.GitProviders{
+var GitProvidersByName = map[string]model.GitProviders{
 	"bitbucket-server": model.GitProvidersBitbucketServer,
 	"github":           model.GitProvidersGithub,
 	"gitlab":           model.GitProvidersGitlab,
@@ -480,7 +480,7 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 }
 
 func parseGitProvider(provider string) (model.GitProviders, error) {
-	p, ok := gitProvidersByName[provider]
+	p, ok := GitProvidersByName[provider]
 	if !ok {
 		return model.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
 	}

@@ -311,7 +311,9 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
 
-	ensureGitIntegrationOpts(opts)
+	if err := ensureGitIntegrationOpts(opts); err != nil {
+		return err
+	}
 
 	if opts.FromRepo {
 		if err := getInstallationFromRepoApproval(ctx, opts); err != nil {
@@ -2019,10 +2021,17 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
 
-func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) {
-	opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(string(opts.gitProvider.Type())))
+func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
+	provider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	if err != nil {
+		return err
+	}
+
+	opts.GitIntegrationCreationOpts.Provider = provider
 	apiUrl := opts.gitProvider.ApiUrl()
 	opts.GitIntegrationCreationOpts.APIURL = &apiUrl
+
+	return nil
 }
 
 // display the user the old vs. the new configurations that will be changed upon recovery
