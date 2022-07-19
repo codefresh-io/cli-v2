@@ -33,7 +33,7 @@ var (
 	maxDefVersion            = "1.0.1"
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
-	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster"
+	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 )
 type Version struct {
 	Version    *semver.Version
