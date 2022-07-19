@@ -117,7 +117,7 @@ func NewRuntimeCommand() *cobra.Command {
 		},
 	}
 
-	//cmd.AddCommand(NewRuntimeInstallCommand()) // TODO: uncomment
+	cmd.AddCommand(NewRuntimeInstallCommand()) // TODO: uncomment
 	cmd.AddCommand(NewRuntimeListCommand())
 	cmd.AddCommand(NewRuntimeUninstallCommand())
 	cmd.AddCommand(NewRuntimeUpgradeCommand())
