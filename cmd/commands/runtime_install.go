@@ -273,30 +273,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureRepo(cmd, opts.RuntimeName, opts.InsCloneOpts, false)
-	handleCliStep(reporter.InstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
-	if err != nil {
-		return err
-	}
-
-	if opts.gitProvider.Type() != cfgit.GITHUB_CLOUD && !opts.EnableGitProviders {
-		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
-	}
-
-	err = getGitToken(cmd, opts)
-	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	err = ensureGitPAT(ctx, opts)
-	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, true, false)
-	if err != nil {
+	if err = ensureGitData(cmd, opts); err != nil {
 		return err
 	}
 
@@ -332,6 +309,40 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
+
+	return nil
+}
+
+func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	var err error
+	ctx := cmd.Context()
+
+	err = ensureRepo(cmd, opts.RuntimeName, opts.InsCloneOpts, false)
+	handleCliStep(reporter.InstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
+	if err != nil {
+		return err
+	}
+
+	if opts.gitProvider.Type() != cfgit.GITHUB_CLOUD && !opts.EnableGitProviders {
+		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
+	}
+
+	err = getGitToken(cmd, opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	err = ensureGitPAT(ctx, opts)
+	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, true, false)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
