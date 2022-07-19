@@ -28,28 +28,20 @@ type (
 
 const (
 	GITLAB_CLOUD_DOMAIN               = "gitlab.com"
-	GITLAB_CLOUD_URL                  = "https://gitlab.com"
 	GITLAB_REST_ENDPOINT              = "/api/v4"
-	GITLAB_CLOUD         ProviderType = "gitlab"
-	GITLAB_SELF_MANAGED  ProviderType = "gitlab-self-managed"
+	GITLAB               ProviderType = "gitlab"
 )
 
-func NewGitlabCloudProvider(_ string) (Provider, error) {
-	return &gitlab{
-		providerType: GITLAB_CLOUD,
-		apiURL:       GITLAB_CLOUD_URL,
-	}, nil
-}
-
-func NewGitlabSelfManagedProvider(cloneURL string) (Provider, error) {
+func NewGitlabProvider(cloneURL string) (Provider, error) {
 	u, err := url.Parse(cloneURL)
 	if err != nil {
 		return nil, err
 	}
 
+	u.Path = ""
 	return &gitlab{
-		providerType: GITLAB_SELF_MANAGED,
-		apiURL:       u.Host,
+		providerType: GITLAB,
+		apiURL:       u.String(),
 	}, nil
 }
 

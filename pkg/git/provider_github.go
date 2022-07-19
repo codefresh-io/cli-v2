@@ -55,9 +55,10 @@ func NewGithubEnterpriseProvider(cloneURL string) (Provider, error) {
 		return nil, err
 	}
 
+	u.Path = ""
 	return &github{
 		providerType: GITHUB_ENT,
-		apiURL:       u.Host,
+		apiURL:       u.String(),
 	}, nil
 }
 

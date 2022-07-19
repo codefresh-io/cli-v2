@@ -36,8 +36,9 @@ func NewBitbucketServerProvider(cloneURL string) (Provider, error) {
 		return nil, err
 	}
 
+	u.Path = ""
 	return &bitbucketServer{
-		apiURL: u.Host,
+		apiURL: u.String(),
 	}, nil
 }
 

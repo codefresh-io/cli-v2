@@ -40,11 +40,10 @@ const (
 
 var (
 	providers = map[ProviderType]func(string) (Provider, error){
-		BITBUCKET_SERVER:    NewBitbucketServerProvider,
-		GITHUB_CLOUD:        NewGithubCloudProvider,
-		GITHUB_ENT:          NewGithubEnterpriseProvider,
-		GITLAB_CLOUD:        NewGitlabCloudProvider,
-		GITLAB_SELF_MANAGED: NewGitlabSelfManagedProvider,
+		BITBUCKET_SERVER: NewBitbucketServerProvider,
+		GITHUB_CLOUD:     NewGithubCloudProvider,
+		GITHUB_ENT:       NewGithubEnterpriseProvider,
+		GITLAB:           NewGitlabProvider,
 	}
 )
 
@@ -63,7 +62,7 @@ func GetProvider(providerType ProviderType, cloneURL string) (Provider, error) {
 	}
 
 	if strings.Contains(cloneURL, GITLAB_CLOUD_DOMAIN) {
-		return NewGitlabCloudProvider(cloneURL)
+		return NewGitlabProvider(cloneURL)
 	}
 
 	return nil, fmt.Errorf("failed getting provider for clone url %s", cloneURL)
