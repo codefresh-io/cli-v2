@@ -2672,17 +2672,24 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	var err error
+	cloudRepo := true
+	inferredProvider := inferProviderFromCloneURL(opts.InsCloneOpts.URL())
+	if inferredProvider == "" {
+		cloudRepo = false
+	}
 
 	if opts.InsCloneOpts.Provider == "" {
-		if opts.GitIntegrationCreationOpts.Provider, err = inferProviderFromCloneURL(opts.InsCloneOpts.URL()); err != nil {
-			return err
-		}
+		opts.GitIntegrationCreationOpts.Provider = inferredProvider
 	} else {
 		opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(opts.InsCloneOpts.Provider))
 	}
 
-	if opts.GitIntegrationCreationOpts.APIURL == nil || *opts.GitIntegrationCreationOpts.APIURL == "" {
-		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLForGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
+	if cloudRepo {
+		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLFromGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
+			return err
+		}
+	} else {
+		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLFromCloneURLAndGitProvider(opts.InsCloneOpts.URL(), opts.GitIntegrationCreationOpts.Provider); err != nil {
 			return err
 		}
 	}
@@ -2694,33 +2701,48 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	return nil
 }
 
-func inferProviderFromCloneURL(cloneURL string) (apmodel.GitProviders, error) {
-	const suggest = "you can specify a git provider explicitly with --provider"
-
+func inferProviderFromCloneURL(cloneURL string) apmodel.GitProviders {
 	if strings.Contains(cloneURL, "github.com") {
-		return apmodel.GitProvidersGithub, nil
-	}
-	if strings.Contains(cloneURL, "gitlab.com") {
-		return apmodel.GitProvidersGitlab, nil
+		return apmodel.GitProvidersGithub
 	}
 
-	return apmodel.GitProviders(""), fmt.Errorf("failed to infer git provider from clone url: %s, %s", cloneURL, suggest)
+	if strings.Contains(cloneURL, "gitlab.com") {
+		return apmodel.GitProvidersGitlab
+	}
+
+	return apmodel.GitProviders("")
 }
 
-func inferAPIURLForGitProvider(provider apmodel.GitProviders) (*string, error) {
-	const suggest = "you can specify a git provider explicitly with --provider-api-url"
-	var res string
+func inferAPIURLFromGitProvider(provider apmodel.GitProviders) (*string, error) {
+	switch provider {
+	case apmodel.GitProvidersGithub:
+		res := "https://api.github.com"
+		return &res, nil
+	case apmodel.GitProvidersGitlab:
+		res := "https://gitlab.com/api/v4"
+		return &res, nil
+	}
+
+	return nil, fmt.Errorf("cannot infer api-url for git provider %s, you can specify a git provider explicitly with --provider-api-url", provider)
+}
+
+func inferAPIURLFromCloneURLAndGitProvider(cloneURL string, provider apmodel.GitProviders) (*string, error) {
+	u, err := url.Parse(cloneURL)
+	if err != nil {
+		return nil, err
+	}
 
 	switch provider {
 	case apmodel.GitProvidersGithub:
-		res = "https://api.github.com"
-		return &res, nil
+		u.Path = "/api/v3"
 	case apmodel.GitProvidersGitlab:
-		res = "https://gitlab.com/api/v4"
-		return &res, nil
+		u.Path = "api/scim/v2"
+	case "BITBUCKET-SERVER":
+		u.Path = "rest/api/1.0"
 	}
 
-	return nil, fmt.Errorf("cannot infer api-url for git provider %s, %s", provider, suggest)
+	res := u.String()
+	return &res, nil
 }
 
 // display the user the old vs. the new configurations that will be changed upon recovery
