@@ -105,7 +105,7 @@ func NewGitIntegrationListCommand(client *sdk.AppProxyAPI) *cobra.Command {
 		Use:   "list",
 		Short: "List your git integrations",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := verifyOutputFormat(format, allowedFormats...); err != nil {
 				return err
 			}

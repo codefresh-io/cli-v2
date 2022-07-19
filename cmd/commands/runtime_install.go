@@ -311,9 +311,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.InsCloneOpts.Parse()
 	opts.GsCloneOpts.Parse()
 
-	if err := ensureGitIntegrationOpts(opts); err != nil {
-		return err
-	}
+	ensureGitIntegrationOpts(opts)
 
 	if opts.FromRepo {
 		if err := getInstallationFromRepoApproval(ctx, opts); err != nil {
@@ -703,7 +701,7 @@ To complete the installation:
 1. Configure your cluster's routing service with path to '/%s' and \"%s\"
 2. Create and register Git integration using the commands:
 
-<BIN> integration git add default --runtime %s %s
+<BIN> integration git add default --runtime %s %s --provider %s
 
 <BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
 `,
@@ -711,6 +709,7 @@ To complete the installation:
 			util.GenerateIngressEventSourcePath(opts.RuntimeName),
 			opts.RuntimeName,
 			apiURL,
+			opts.GitIntegrationCreationOpts.Provider,
 			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {
@@ -2020,12 +2019,10 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 	return repofs.WriteYamls(repofs.Join(path, "sensor.yaml"), sensor)
 }
 
-func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
+func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) {
 	opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(string(opts.gitProvider.Type())))
 	apiUrl := opts.gitProvider.ApiUrl()
 	opts.GitIntegrationCreationOpts.APIURL = &apiUrl
-
-	return nil
 }
 
 // display the user the old vs. the new configurations that will be changed upon recovery
@@ -2088,7 +2085,7 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 	return nil
 }
 
-func getRuntimeDataFromCodefreshCM(ctx context.Context, repofs fs.FS, runtimeName string, codefreshCM *v1.ConfigMap) (*runtime.Runtime, error) {
+func getRuntimeDataFromCodefreshCM(_ context.Context, repofs fs.FS, runtimeName string, codefreshCM *v1.ConfigMap) (*runtime.Runtime, error) {
 	err := repofs.ReadYamls(repofs.Join(apstore.Default.BootsrtrapDir, runtimeName+".yaml"), codefreshCM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file '%s': %w", runtimeName+".yaml", err)

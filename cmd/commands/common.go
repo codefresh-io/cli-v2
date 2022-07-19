@@ -279,19 +279,6 @@ func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 	return result, nil
 }
 
-func inferProviderFromRepo(opts *apgit.CloneOptions) {
-	if opts.Provider != "" {
-		return
-	}
-
-	if strings.Contains(opts.Repo, "github.com") {
-		opts.Provider = "github"
-	}
-	if strings.Contains(opts.Repo, "gitlab.com") {
-		opts.Provider = "gitlab"
-	}
-}
-
 func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
 	ctx := cmd.Context()
 	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"

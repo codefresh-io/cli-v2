@@ -864,7 +864,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string, _ string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
 	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,
