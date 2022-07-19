@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
@@ -49,7 +50,7 @@ import (
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
@@ -97,25 +98,27 @@ type (
 		DisableTelemetry               bool
 		FromRepo                       bool
 		Version                        *semver.Version
-		GsCloneOpts                    *git.CloneOptions
-		InsCloneOpts                   *git.CloneOptions
+		GsCloneOpts                    *apgit.CloneOptions
+		InsCloneOpts                   *apgit.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
 		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
 		NamespaceLabels                map[string]string
 		SuggestedSharedConfigRepo      string
-		versionStr                     string
-		kubeContext                    string
-		kubeconfig                     string
 		InternalIngressAnnotation      map[string]string
 		ExternalIngressAnnotation      map[string]string
+
+		versionStr  string
+		kubeContext string
+		kubeconfig  string
+		gitProvider cfgit.Provider
 	}
 
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
 		Timeout          time.Duration
-		CloneOpts        *git.CloneOptions
+		CloneOpts        *apgit.CloneOptions
 		KubeFactory      kube.Factory
 		SkipChecks       bool
 		Force            bool
@@ -130,7 +133,7 @@ type (
 	RuntimeUpgradeOptions struct {
 		RuntimeName               string
 		Version                   *semver.Version
-		CloneOpts                 *git.CloneOptions
+		CloneOpts                 *apgit.CloneOptions
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
@@ -190,13 +193,12 @@ func NewRuntimeCommand() *cobra.Command {
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
-		gitIntegrationApiURL       = ""
-		gitIntegrationCreationOpts = apmodel.AddGitIntegrationArgs{
-			SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
-			APIURL:        &gitIntegrationApiURL,
-		}
-		installationOpts = RuntimeInstallOptions{
-			GitIntegrationCreationOpts:     &gitIntegrationCreationOpts,
+		gitIntegrationApiURL = ""
+		installationOpts     = &RuntimeInstallOptions{
+			GitIntegrationCreationOpts: &apmodel.AddGitIntegrationArgs{
+				SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
+				APIURL:        &gitIntegrationApiURL,
+			},
 			GitIntegrationRegistrationOpts: &apmodel.RegisterToGitIntegrationArgs{},
 		}
 		finalParameters map[string]string
@@ -226,7 +228,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
 
-			err := runtimeInstallCommandPreRunHandler(cmd, &installationOpts)
+			err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, true, false)
 			if err != nil {
 				if errors.Is(err, promptui.ErrInterrupt) {
@@ -257,7 +259,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := RunRuntimeInstall(cmd.Context(), &installationOpts)
+			err := RunRuntimeInstall(cmd.Context(), installationOpts)
 			handleCliStep(reporter.InstallPhaseFinish, "Runtime installation phase finished", err, false, false)
 			return err
 		},
@@ -288,7 +290,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		CloneForWrite:    true,
 	})
 
-	installationOpts.GsCloneOpts = &git.CloneOptions{
+	installationOpts.GsCloneOpts = &apgit.CloneOptions{
 		FS:               fs.Create(memfs.New()),
 		CreateIfNotExist: true,
 	}
@@ -303,6 +305,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
+	ctx := cmd.Context()
+
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
 	opts.Version, err = getVersionIfExists(opts.versionStr)
@@ -335,13 +339,13 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressClass(cmd.Context(), opts)
+	err = ensureIngressClass(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	err = getIngressHost(cmd, opts)
+	err = getIngressHost(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
 	if err != nil {
 		return err
@@ -353,7 +357,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	inferProviderFromRepo(opts.InsCloneOpts)
+	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
+	if err != nil {
+		return err
+	}
 
 	err = getGitToken(cmd, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
@@ -361,7 +368,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureGitPAT(cmd, opts)
+	err = ensureGitPAT(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, true, false)
 	if err != nil {
 		return err
@@ -383,17 +390,18 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if opts.FromRepo {
-		if err := getInstallationFromRepoApproval(cmd.Context(), opts); err != nil {
+		if err := getInstallationFromRepoApproval(ctx, opts); err != nil {
 			return err
 		}
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := setIscRepo(ctx, opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo: %w", err)
 		}
-		log.G(cmd.Context()).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+
+		log.G(ctx).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
@@ -402,13 +410,14 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	return nil
 }
 
-func getIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+func getIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
+
 	if store.Get().Silent {
-		err = ensureIngressHost(cmd, opts)
+		err = ensureIngressHost(ctx, opts)
 	} else {
 		handleValidationFailsWithRepeat(func() error {
-			err = ensureIngressHost(cmd, opts)
+			err = ensureIngressHost(ctx, opts)
 			if isValidationError(err) {
 				fmt.Println("Could not resolve the URL for ingress host; enter a valid URL")
 				return err
@@ -421,11 +430,12 @@ func getIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
+
 	if store.Get().Silent {
-		err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+		err = ensureGitToken(cmd, opts.gitProvider, opts.InsCloneOpts)
 	} else {
 		handleValidationFailsWithRepeat(func() error {
-			err = ensureGitToken(cmd, opts.InsCloneOpts, true)
+			err = ensureGitToken(cmd, opts.gitProvider, opts.InsCloneOpts)
 			if isValidationError(err) {
 				fmt.Println(err)
 				return err
@@ -438,16 +448,18 @@ func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 
 func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUninstallOptions) error {
 	var err error
+	ctx := cmd.Context()
+
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, true)
+	opts.RuntimeName, err = ensureRuntimeName(ctx, args, true)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
 	}
 
 	if !opts.SkipChecks {
-		opts.Managed, err = isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+		opts.Managed, err = isRuntimeManaged(ctx, opts.RuntimeName)
 		if err != nil {
 			return err
 		}
@@ -463,10 +475,10 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 
 	if !opts.Managed && !opts.SkipChecks {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
-		err = ensureRuntimeOnKubeContext(cmd.Context(), kubeconfig, opts.RuntimeName, opts.kubeContext)
+		err = ensureRuntimeOnKubeContext(ctx, kubeconfig, opts.RuntimeName, opts.kubeContext)
 
 		if err != nil && opts.Force {
-			log.G(cmd.Context()).Warn("Failed to verify runtime is installed on the selected kubernetes context, installation repository will not be cleaned")
+			log.G(ctx).Warn("Failed to verify runtime is installed on the selected kubernetes context, installation repository will not be cleaned")
 			err = nil
 			opts.skipAutopilotUninstall = true // will not touch the cluster and repo
 		}
@@ -485,7 +497,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	}
 
 	if !opts.Managed {
-		err = ensureGitToken(cmd, opts.CloneOpts, false)
+		err = ensureGitToken(cmd, nil, opts.CloneOpts)
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
@@ -497,16 +509,17 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 
 func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUpgradeOptions) error {
 	var err error
+	ctx := cmd.Context()
 
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(cmd.Context(), args, false)
+	opts.RuntimeName, err = ensureRuntimeName(ctx, args, false)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	isManaged, err := isRuntimeManaged(cmd.Context(), opts.RuntimeName)
+	isManaged, err := isRuntimeManaged(ctx, opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepPreCheckIsManagedRuntime, "Checking if runtime is hosted", err, true, false)
 	if err != nil {
 		return err
@@ -522,26 +535,26 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return err
 	}
 
-	err = ensureGitToken(cmd, opts.CloneOpts, false)
+	err = ensureGitToken(cmd, nil, opts.CloneOpts)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := setIscRepo(cmd.Context(), opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := setIscRepo(ctx, opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
 		}
-		log.G(cmd.Context()).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+		log.G(ctx).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
 	return nil
 }
 
-func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+func ensureIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.IngressHost == "" { // ingress host not provided by flag
-		if err := setIngressHost(cmd.Context(), opts); err != nil {
+		if err := setIngressHost(ctx, opts); err != nil {
 			return err
 		}
 	}
@@ -556,22 +569,22 @@ func ensureIngressHost(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		}
 	}
 
-	log.G(cmd.Context()).Infof("Using ingress host: %s", opts.IngressHost)
+	log.G(ctx).Infof("Using ingress host: %s", opts.IngressHost)
 
 	if !opts.SkipClusterChecks {
 		return nil
 	}
 
-	log.G(cmd.Context()).Info("Validating ingress host")
+	log.G(ctx).Info("Validating ingress host")
 
 	if opts.InternalIngressHost != "" {
-		if err := validateIngressHostCertificate(cmd, opts.InternalIngressHost); err != nil {
+		if err := validateIngressHostCertificate(ctx, opts.InternalIngressHost); err != nil {
 			return err
 		}
-		log.G(cmd.Context()).Infof("Using internal ingress host: %s", opts.InternalIngressHost)
+		log.G(ctx).Infof("Using internal ingress host: %s", opts.InternalIngressHost)
 	}
 
-	return validateIngressHostCertificate(cmd, opts.IngressHost)
+	return validateIngressHostCertificate(ctx, opts.IngressHost)
 }
 
 func parseHostName(ingressHost string, hostName *string) error {
@@ -595,14 +608,14 @@ func parseHostName(ingressHost string, hostName *string) error {
 	return nil
 }
 
-func validateIngressHostCertificate(cmd *cobra.Command, ingressHost string) error {
+func validateIngressHostCertificate(ctx context.Context, ingressHost string) error {
 	certValid, err := checkIngressHostCertificate(ingressHost)
 	if err != nil {
-		log.G(cmd.Context()).Fatalf("failed to check ingress host: %v", err)
+		log.G(ctx).Fatalf("failed to check ingress host: %v", err)
 	}
 
 	if !certValid {
-		if err = askUserIfToProceedWithInsecure(cmd.Context()); err != nil {
+		if err = askUserIfToProceedWithInsecure(ctx); err != nil {
 			return err
 		}
 	}
@@ -1012,24 +1025,28 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	if !opts.FromRepo {
-		mpCloneOpts := &git.CloneOptions{
-			Repo: store.Get().MarketplaceRepo,
-			FS:   fs.Create(memfs.New()),
+		if opts.gitProvider.SupportsMarketplace() {
+			mpCloneOpts := &apgit.CloneOptions{
+				Repo: store.Get().MarketplaceRepo,
+				FS:   fs.Create(memfs.New()),
+			}
+			mpCloneOpts.Parse()
+
+			createGitSrcMessgae = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+
+			err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
+				InsCloneOpts:        opts.InsCloneOpts,
+				GsCloneOpts:         mpCloneOpts,
+				GsName:              store.Get().MarketplaceGitSourceName,
+				RuntimeName:         opts.RuntimeName,
+				CreateDemoResources: false,
+				Exclude:             "**/images/**/*",
+				Include:             "workflows/**/*.yaml",
+				Flow:                store.Get().InstallationFlow,
+			})
+		} else {
+			createGitSrcMessgae = fmt.Sprintf("Skipping %s with git provider %s", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
 		}
-		mpCloneOpts.Parse()
-
-		createGitSrcMessgae = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
-
-		err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-			InsCloneOpts:        opts.InsCloneOpts,
-			GsCloneOpts:         mpCloneOpts,
-			GsName:              store.Get().MarketplaceGitSourceName,
-			RuntimeName:         opts.RuntimeName,
-			CreateDemoResources: false,
-			Exclude:             "**/images/**/*",
-			Include:             "workflows/**/*.yaml",
-			Flow:                store.Get().InstallationFlow,
-		})
 	}
 	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
 	if err != nil {
@@ -2129,7 +2146,7 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	return err
 }
 
-func persistRuntime(ctx context.Context, cloneOpts *git.CloneOptions, rt *runtime.Runtime, rtConf *runtime.CommonConfig) error {
+func persistRuntime(ctx context.Context, cloneOpts *apgit.CloneOptions, rt *runtime.Runtime, rtConf *runtime.CommonConfig) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -2304,7 +2321,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime, server string) error {
 	var repofs fs.FS
 	var marshalRuntime []byte
-	var r git.Repository
+	var r apgit.Repository
 	var err error
 
 	r, repofs, err = opts.InsCloneOpts.GetRepo(ctx)
@@ -2362,7 +2379,7 @@ func applySecretsToCluster(ctx context.Context, opts *RuntimeInstallOptions) err
 	return nil
 }
 
-func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions) error {
+func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *RuntimeInstallOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
 	u, err := url.Parse(cloneOpts.URL())
 	if err != nil {
@@ -2402,7 +2419,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts
 	return apu.PushWithMessage(ctx, r, "Created Codefresh Event Reporter")
 }
 
-func createReporter(ctx context.Context, cloneOpts *git.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
+func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
 	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
 	u, err := url.Parse(cloneOpts.URL())
 	if err != nil {
@@ -2671,79 +2688,61 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 }
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
-	var err error
-	cloudRepo := true
-	inferredProvider := inferProviderFromCloneURL(opts.InsCloneOpts.URL())
-	if inferredProvider == "" {
-		cloudRepo = false
+	provider, err := cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
+	if err != nil {
+		return err
 	}
 
-	if opts.InsCloneOpts.Provider == "" {
-		opts.GitIntegrationCreationOpts.Provider = inferredProvider
-	} else {
-		opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(opts.InsCloneOpts.Provider))
-	}
-
-	if cloudRepo {
-		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLFromGitProvider(opts.GitIntegrationCreationOpts.Provider); err != nil {
-			return err
-		}
-	} else {
-		if opts.GitIntegrationCreationOpts.APIURL, err = inferAPIURLFromCloneURLAndGitProvider(opts.InsCloneOpts.URL(), opts.GitIntegrationCreationOpts.Provider); err != nil {
-			return err
-		}
-	}
-
-	if opts.GitIntegrationRegistrationOpts.Token == "" {
-		return fmt.Errorf("git personal access token is missing")
-	}
+	opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(string(provider.Type())))
+	apiUrl := provider.ApiUrl()
+	opts.GitIntegrationCreationOpts.APIURL = &apiUrl
 
 	return nil
 }
 
-func inferProviderFromCloneURL(cloneURL string) apmodel.GitProviders {
-	if strings.Contains(cloneURL, "github.com") {
-		return apmodel.GitProvidersGithub
-	}
+// func inferProviderFromCloneURL(cloneURL string) apmodel.GitProviders {
+// 	if strings.Contains(cloneURL, "github.com") {
+// 		return apmodel.GitProvidersGithub
+// 	}
 
-	if strings.Contains(cloneURL, "gitlab.com") {
-		return apmodel.GitProvidersGitlab
-	}
+// 	if strings.Contains(cloneURL, "gitlab.com") {
+// 		return apmodel.GitProvidersGitlab
+// 	}
 
-	return apmodel.GitProviders("")
-}
+// 	return apmodel.GitProviders("")
+// }
 
-func inferAPIURLFromGitProvider(provider apmodel.GitProviders) (*string, error) {
-	switch provider {
-	case apmodel.GitProvidersGithub:
-		res := "https://api.github.com"
-		return &res, nil
-	case apmodel.GitProvidersGitlab:
-		res := "https://gitlab.com/api/v4"
-		return &res, nil
-	}
+// func inferAPIURLFromGitProvider(provider apmodel.GitProviders) (*string, error) {
+// 	switch provider {
+// 	case apmodel.GitProvidersGithub:
+// 		res := "https://api.github.com"
+// 		return &res, nil
+// 	case apmodel.GitProvidersGitlab:
+// 		res := "https://gitlab.com/api/v4"
+// 		return &res, nil
+// 	}
 
-	return nil, fmt.Errorf("cannot infer api-url for git provider %s, you can specify a git provider explicitly with --provider-api-url", provider)
-}
+// 	return nil, fmt.Errorf("cannot infer api-url for git provider %s, you can specify a git provider explicitly with --provider-api-url", provider)
+// }
 
-func inferAPIURLFromCloneURLAndGitProvider(cloneURL string, provider apmodel.GitProviders) (*string, error) {
-	u, err := url.Parse(cloneURL)
-	if err != nil {
-		return nil, err
-	}
+// func inferAPIURLFromCloneURLAndGitProvider(cloneURL string, provider apmodel.GitProviders) (*string, error) {
+// 	u, err := url.Parse(cloneURL)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	switch provider {
-	case apmodel.GitProvidersGithub:
-		u.Path = "/api/v3"
-	case apmodel.GitProvidersGitlab:
-		u.Path = "api/scim/v2"
-	case "BITBUCKET-SERVER":
-		u.Path = "rest/api/1.0"
-	}
+// 	switch provider {
+// 	case apmodel.GitProvidersGithub:
+// 		u.Path = "/api/v3"
+// 	case apmodel.GitProvidersGitlab:
+// 		u.Path = "api/scim/v2"
+// 	case "BITBUCKET-SERVER":
+// 		u.Path = "rest/api/1.0"
+// 	}
 
-	res := u.String()
-	return &res, nil
-}
+// 	res := u.String()
+// 	return &res, nil
+// }
 
 // display the user the old vs. the new configurations that will be changed upon recovery
 // and asks for permission to proceed
