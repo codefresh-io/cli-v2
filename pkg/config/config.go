@@ -69,7 +69,6 @@ type Config struct {
 	requestTimeout  time.Duration
 	CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
 	Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
-	features       []string
 }
 
 type AuthContext struct {
@@ -91,7 +90,6 @@ func AddFlags(f *pflag.FlagSet) *Config {
 	f.BoolVar(&conf.insecure, "insecure", false, "Disable certificate validation for TLS connections (e.g. to g.codefresh.io)")
 	f.BoolVar(&store.Get().InsecureIngressHost, "insecure-ingress-host", false, "Disable certificate validation of ingress host (default: false)")
 	f.DurationVar(&conf.requestTimeout, "request-timeout", defaultRequestTimeout, "Request timeout")
-	f.StringArrayVar(&conf.features, "features", []string{}, "Hidden flag for feature flags")
 	f.MarkHidden("features")
 	return conf
 }
@@ -310,16 +308,6 @@ func (c *Config) validate() {
 	if _, ok := c.Contexts[c.CurrentContext]; !ok && c.CurrentContext != "" {
 		log.G().Fatalf("%s: current context \"%s\" does not exist in config file", ErrInvalidConfig, c.CurrentContext)
 	}
-}
-
-func (c *Config) IsFeatureEnabled(feature string) bool {
-	for _, f := range c.features {
-		if f == feature {
-			return true
-		}
-	}
-
-	return false
 }
 
 func isAdminUser(usr *codefresh.User) bool {

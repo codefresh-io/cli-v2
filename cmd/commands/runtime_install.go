@@ -102,6 +102,7 @@ type (
 		SuggestedSharedConfigRepo      string
 		InternalIngressAnnotation      map[string]string
 		ExternalIngressAnnotation      map[string]string
+		EnableGitProviders             bool
 
 		versionStr  string
 		kubeContext string
@@ -203,6 +204,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
+	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket-server|gitlab)")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -218,6 +220,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
+	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
 
 	return cmd
 }
@@ -279,6 +282,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
 	if err != nil {
 		return err
+	}
+
+	if opts.gitProvider.Type() != cfgit.GITHUB_CLOUD && !opts.EnableGitProviders {
+		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
 	}
 
 	err = getGitToken(cmd, opts)
@@ -2014,13 +2021,8 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 }
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
-	provider, err := cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
-	if err != nil {
-		return err
-	}
-
-	opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(string(provider.Type())))
-	apiUrl := provider.ApiUrl()
+	opts.GitIntegrationCreationOpts.Provider = apmodel.GitProviders(strings.ToUpper(string(opts.gitProvider.Type())))
+	apiUrl := opts.gitProvider.ApiUrl()
 	opts.GitIntegrationCreationOpts.APIURL = &apiUrl
 
 	return nil

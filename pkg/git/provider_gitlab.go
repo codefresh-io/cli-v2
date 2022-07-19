@@ -47,7 +47,7 @@ func NewGitlabSelfManagedProvider(cloneURL string) (Provider, error) {
 
 	return &gitlab{
 		providerType: GITLAB_SELF_MANAGED,
-		apiURL: u.Host + "/api/scim/v2",
+		apiURL: u.Host + "/api/v4",
 	}, nil
 }
 
