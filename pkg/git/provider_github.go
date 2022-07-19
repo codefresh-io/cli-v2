@@ -30,9 +30,11 @@ type (
 )
 
 const (
-	GITHUB_CLOUD_DOMAIN              = "github.com"
-	GITHUB_CLOUD        ProviderType = "github"
-	GITHUB_ENT          ProviderType = "github-enterprise"
+	GITHUB_CLOUD_DOMAIN               = "github.com"
+	GITHUB_CLOUD_URL                  = "https://api.github.com"
+	GITHUB_REST_ENDPOINT              = "/api/v3"
+	GITHUB_CLOUD         ProviderType = "github"
+	GITHUB_ENT           ProviderType = "github-enterprise"
 )
 
 var requiredScopes = map[TokenType][]string{
@@ -43,7 +45,7 @@ var requiredScopes = map[TokenType][]string{
 func NewGithubCloudProvider(_ string) (Provider, error) {
 	return &github{
 		providerType: GITHUB_CLOUD,
-		apiURL:       "https://api.github.com",
+		apiURL:       GITHUB_CLOUD_URL,
 	}, nil
 }
 
@@ -55,7 +57,7 @@ func NewGithubEnterpriseProvider(cloneURL string) (Provider, error) {
 
 	return &github{
 		providerType: GITHUB_ENT,
-		apiURL:       u.Host + "/api/v3",
+		apiURL:       u.Host,
 	}, nil
 }
 
@@ -68,7 +70,8 @@ func (g *github) ApiUrl() string {
 }
 
 func (g *github) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
-	req, err := http.NewRequestWithContext(ctx, "HEAD", g.apiURL, nil)
+	fullURL := g.apiURL + GITHUB_REST_ENDPOINT
+	req, err := http.NewRequestWithContext(ctx, "HEAD", fullURL, nil)
 	if err != nil {
 		return err
 	}

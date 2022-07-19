@@ -26,7 +26,8 @@ type (
 )
 
 const (
-	BITBUCKET_SERVER ProviderType = "bitbucket-server"
+	BITBUCKET_REST_ENDPOINT              = "/rest/api/1.0"
+	BITBUCKET_SERVER        ProviderType = "bitbucket-server"
 )
 
 func NewBitbucketServerProvider(cloneURL string) (Provider, error) {
@@ -36,7 +37,7 @@ func NewBitbucketServerProvider(cloneURL string) (Provider, error) {
 	}
 
 	return &bitbucketServer{
-		apiURL: u.Host + "/rest/api/1.0",
+		apiURL: u.Host,
 	}, nil
 }
 

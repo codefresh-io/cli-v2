@@ -27,15 +27,17 @@ type (
 )
 
 const (
-	GITLAB_CLOUD_DOMAIN              = "gitlab.com"
-	GITLAB_CLOUD        ProviderType = "gitlab"
-	GITLAB_SELF_MANAGED ProviderType = "gitlab-self-managed"
+	GITLAB_CLOUD_DOMAIN               = "gitlab.com"
+	GITLAB_CLOUD_URL                  = "https://gitlab.com"
+	GITLAB_REST_ENDPOINT              = "/api/v4"
+	GITLAB_CLOUD         ProviderType = "gitlab"
+	GITLAB_SELF_MANAGED  ProviderType = "gitlab-self-managed"
 )
 
 func NewGitlabCloudProvider(_ string) (Provider, error) {
 	return &gitlab{
 		providerType: GITLAB_CLOUD,
-		apiURL: "https://gitlab.com/api/v4",
+		apiURL:       GITLAB_CLOUD_URL,
 	}, nil
 }
 
@@ -47,7 +49,7 @@ func NewGitlabSelfManagedProvider(cloneURL string) (Provider, error) {
 
 	return &gitlab{
 		providerType: GITLAB_SELF_MANAGED,
-		apiURL: u.Host + "/api/v4",
+		apiURL:       u.Host,
 	}, nil
 }
 
