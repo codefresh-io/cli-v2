@@ -1,18 +1,22 @@
-## cli-v2 integration git add
+## cli-v2 cluster remove
 
-Add a new git integration
+Removes a cluster from a given runtime
 
 ```
-cli-v2 integration git add [NAME] [flags]
+cli-v2 cluster remove [RUNTIME_NAME] [flags]
+```
+
+### Examples
+
+```
+cli-v2 cluster remove my-runtime --server-url https://<some-hash>.gr7.us-east-1.eks.amazonaws.com
 ```
 
 ### Options
 
 ```
-      --account-admins-only   If true, this integration would only be visible to account admins (default: false)
-      --api-url string        Git provider API Url
-  -h, --help                  help for add
-      --provider string       One of bitbucket-server|github|gitlab (default "github")
+  -h, --help                help for remove
+      --server-url string   The cluster's server url
 ```
 
 ### Options inherited from parent commands
@@ -23,10 +27,9 @@ cli-v2 integration git add [NAME] [flags]
       --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
       --insecure-ingress-host      Disable certificate validation of ingress host (default: false)
       --request-timeout duration   Request timeout (default 30s)
-      --runtime string             Name of runtime to use
 ```
 
 ### SEE ALSO
 
-* [cli-v2 integration git](cli-v2_integration_git.md)	 - Manage your git integrations
+* [cli-v2 cluster](cli-v2_cluster.md)	 - Manage clusters of Codefresh runtimes
 
