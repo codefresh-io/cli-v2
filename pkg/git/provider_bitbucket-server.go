@@ -17,6 +17,8 @@ package git
 import (
 	"context"
 	"net/url"
+
+	"github.com/codefresh-io/cli-v2/pkg/log"
 )
 
 type (
@@ -51,6 +53,7 @@ func (bbs *bitbucketServer) ApiUrl() string {
 }
 
 func (bbs *bitbucketServer) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
+	log.G(ctx).Debug("Skip verifying token for bitbucket, to be implemented later")
 	return nil
 }
 

@@ -17,6 +17,8 @@ package git
 import (
 	"context"
 	"net/url"
+
+	"github.com/codefresh-io/cli-v2/pkg/log"
 )
 
 type (
@@ -54,6 +56,7 @@ func (g *gitlab) ApiUrl() string {
 }
 
 func (g *gitlab) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
+	log.G(ctx).Debug("Skip verifying token for gitlab, to be implemented later")
 	return nil
 }
 

@@ -279,6 +279,7 @@ func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 	return result, nil
 }
 
+// ensureGitToken gets the runtime token from the user (if !silent), and verifys it witht he provider (if available)
 func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
 	ctx := cmd.Context()
 	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"
@@ -304,6 +305,7 @@ func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *a
 	return nil
 }
 
+// ensureGitPAT verifys the user's Personal Access Token (if it is different from the Runtime Token)
 func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
@@ -316,7 +318,11 @@ func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return nil
 	}
 
-	return opts.gitProvider.VerifyToken(ctx, cfgit.PersonalToken, opts.InsCloneOpts.Auth.Password)
+	if opts.gitProvider != nil {
+		return opts.gitProvider.VerifyToken(ctx, cfgit.PersonalToken, opts.InsCloneOpts.Auth.Password)
+	}
+
+	return nil
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
