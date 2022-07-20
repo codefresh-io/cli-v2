@@ -154,8 +154,8 @@ github.com/antonmedv/expr v1.9.0/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj-labs/argocd-autopilot v0.4.1 h1:/PnPpxzDdcGhjPzkhq6z2R2BgKc0vVZB2OuET0PE3hM=
-github.com/argoproj-labs/argocd-autopilot v0.4.1/go.mod h1:FV6AIgKWXubDwGAZfPzwWpQLNOneVS78qWdDRJUnAII=
+github.com/argoproj-labs/argocd-autopilot v0.4.2 h1:lL8yU/cu5vqrIIpfVXwHzxbdCUQDlFw5V3YFQIbzxKs=
+github.com/argoproj-labs/argocd-autopilot v0.4.2/go.mod h1:FV6AIgKWXubDwGAZfPzwWpQLNOneVS78qWdDRJUnAII=
 github.com/argoproj/applicationset v0.4.1 h1:PzTn77TK7XQB3CdpCDPbwU4pQgip0x4qvuJQ8XiBk5E=
 github.com/argoproj/applicationset v0.4.1/go.mod h1:cJZ7CWG80kBII4QNalyAvSr8eVifo8jKkyXoVl9qXaA=
 github.com/argoproj/argo-cd/v2 v2.4.6 h1:n3Y0UaAUVbdd8tBpSzwpH3iuLtzAbK1hmGXyk7ueKT4=
@@ -262,8 +262,8 @@ github.com/cockroachdb/datadriven v0.0.0-20200714090401-bf6692d28da5/go.mod h1:h
 github.com/cockroachdb/errors v1.2.4/go.mod h1:rQD95gz6FARkaKkQXUksEje/d9a6wBJoCr5oaCLELYA=
 github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f/go.mod h1:i/u985jwjWRlyHXQbwatDASoW0RMlZ/3i9yJHE2xLkI=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
-github.com/codefresh-io/go-sdk v0.44.2 h1:1hc9putocn8FTTlDxgeFaFid9aPHxLDpSfop7Egwods=
-github.com/codefresh-io/go-sdk v0.44.2/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
+github.com/codefresh-io/go-sdk v0.45.0 h1:mgQYkaA0lC5L60MBdkNS3UvpGyx6rYWo5WEWcKNSRNA=
+github.com/codefresh-io/go-sdk v0.45.0/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
 github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0/go.mod h1:4Zcjuz89kmFXt9morQgcfYZAYZ5n8WHjt81YYWIwtTM=
 github.com/codeskyblue/go-sh v0.0.0-20190412065543-76bd3d59ff27/go.mod h1:VQx0hjo2oUeQkQUET7wRwradO6f+fN5jzXgB/zROxxE=
 github.com/container-storage-interface/spec v1.5.0/go.mod h1:8K96oQNkJ7pFcC2R9Z1ynGGBB1I93kcS6PGg3SsOk8s=

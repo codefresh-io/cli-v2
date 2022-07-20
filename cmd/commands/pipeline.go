@@ -61,7 +61,7 @@ func NewPipelineGetCommand() *cobra.Command {
 
 			<BIN> pipeline -r runtime_name -N namespace -n pipeline_name
 		`),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			return RunPipelineGet(ctx, name, namespace, runtime)
@@ -97,7 +97,7 @@ func NewPipelineListCommand() *cobra.Command {
 
 			<BIN> pipelines list -r <runtime>
 		`),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			filterArgs := model.PipelinesFilterArgs{

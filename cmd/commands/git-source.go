@@ -811,7 +811,7 @@ func createDemoWorkflowTemplate(gsFs fs.FS) error {
 func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the github eventsource service
-		ingress := createGithubExampleIngress(opts.ingressClass, opts.ingressHost, opts.hostName, opts.ingressController, opts.runtimeName)
+		ingress := createGithubExampleIngress(opts.ingressClass, opts.hostName, opts.ingressController, opts.runtimeName)
 		ingressFilePath := opts.gsFs.Join(opts.gsCloneOpts.Path(), store.Get().GithubExampleIngressFileName)
 
 		ingressRedundanded, err := cleanUpFieldsIngressGithub(&ingress)
@@ -864,7 +864,7 @@ func createGithubExamplePipeline(opts *gitSourceGithubExampleOptions) error {
 	return nil
 }
 
-func createGithubExampleIngress(ingressClass string, ingressHost string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
+func createGithubExampleIngress(ingressClass string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
 	ingressOptions := ingressutil.CreateIngressOptions{
 		Name:             store.Get().CodefreshDeliveryPipelines,
 		IngressClassName: ingressClass,

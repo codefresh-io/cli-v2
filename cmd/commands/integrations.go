@@ -41,8 +41,9 @@ type (
 )
 
 var gitProvidersByName = map[string]model.GitProviders{
-	"github": model.GitProvidersGithub,
-	"gitlab": model.GitProvidersGitlab,
+	"bitbucket-server": model.GitProvidersBitbucketServer,
+	"github":           model.GitProvidersGithub,
+	"gitlab":           model.GitProvidersGitlab,
 }
 
 func NewIntegrationCommand() *cobra.Command {
@@ -104,7 +105,7 @@ func NewGitIntegrationListCommand(client *sdk.AppProxyAPI) *cobra.Command {
 		Use:   "list",
 		Short: "List your git integrations",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := verifyOutputFormat(format, allowedFormats...); err != nil {
 				return err
 			}
@@ -223,7 +224,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&provider, "provider", "github", "One of github|gitlab")
+	cmd.Flags().StringVar(&provider, "provider", "github", "One of bitbucket-server|github|gitlab")
 	cmd.Flags().StringVar(&apiURL, "api-url", "", "Git provider API Url")
 	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false,
 		"If true, this integration would only be visible to account admins (default: false)")
