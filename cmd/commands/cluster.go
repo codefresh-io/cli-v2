@@ -303,8 +303,6 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, annot
 		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
 	}
 
-	resourceUrl = "https://github.com/rotem-codefresh/add-cluster-test"
-
 	k := &kusttypes.Kustomization{
 		ConfigMapGenerator: []kusttypes.ConfigMapArgs{
 			{
