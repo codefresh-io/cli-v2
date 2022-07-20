@@ -108,6 +108,7 @@ type (
 		kubeContext string
 		kubeconfig  string
 		gitProvider cfgit.Provider
+		branch      string
 	}
 )
 
@@ -205,6 +206,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
 	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket-server|gitlab)")
+	cmd.Flags().StringVar(&installationOpts.branch, "branch", "", "Install runtime from a specific branch (dev-time only)")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -221,6 +223,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
+	util.Die(cmd.Flags().MarkHidden("branch"))
 
 	return cmd
 }
@@ -552,7 +555,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *model.RuntimeInstallatio
 }
 
 func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	err := preInstallationChecks(ctx, opts)
+	rt, err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
@@ -560,9 +563,10 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	handleCliStep(reporter.InstallPhaseStart, "Runtime installation phase started", nil, false, true)
 
-	rt, server, err := runtimeInstallPreparations(opts)
+	server, err := util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get current server address: %w", err)
 	}
 
 	runtimeVersion := rt.Spec.Version.String()
@@ -740,22 +744,6 @@ To complete the installation:
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	return nil
-}
-
-func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, string, error) {
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false, true)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to download runtime definition: %w", err)
-	}
-
-	server, err := util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to get current server address: %w", err)
-	}
-
-	return rt, server, nil
 }
 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
@@ -1058,15 +1046,15 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return nil
 }
 
-func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.branch)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
-		return fmt.Errorf("failed to download runtime definition: %w", err)
+		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
@@ -1074,13 +1062,13 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
+		return nil, util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
 	err = checkRuntimeCollisions(ctx, opts.KubeFactory, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckRuntimeCollision, "Checking for runtime collisions", err, true, false)
 	if err != nil {
-		return fmt.Errorf("runtime collision check failed: %w", err)
+		return nil, fmt.Errorf("runtime collision check failed: %w", err)
 	}
 
 	if !opts.FromRepo {
@@ -1088,7 +1076,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, true, false)
 	if err != nil {
-		return fmt.Errorf("existing runtime check failed: %w", err)
+		return nil, fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
 	if !opts.SkipClusterChecks {
@@ -1096,10 +1084,10 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, true, false)
 	if err != nil {
-		return fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
+		return nil, fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
 	}
 
-	return nil
+	return rt, nil
 }
 
 func checkRuntimeCollisions(ctx context.Context, kube kube.Factory, runtime string) error {
@@ -1427,77 +1415,6 @@ func RunRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)
 	appendLogToSummary(uninstallDoneStr, nil)
-
-	return nil
-}
-
-func RunRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
-	handleCliStep(reporter.UpgradePhaseStart, "Runtime upgrade phase started", nil, false, true)
-
-	log.G(ctx).Info("Downloading runtime definition")
-	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
-	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
-	if err != nil {
-		return fmt.Errorf("failed to download runtime definition: %w", err)
-	}
-
-	if newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
-	}
-	handleCliStep(reporter.UpgradeStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Cloning installation repository")
-	r, fs, err := opts.CloneOpts.GetRepo(ctx)
-	handleCliStep(reporter.UpgradeStepGetRepo, "Getting repository", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Loading current runtime definition")
-	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
-	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Loading runtime definition", err, true, false)
-	if err != nil {
-		return fmt.Errorf("failed to load current runtime definition: %w", err)
-	}
-
-	if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
-		err = fmt.Errorf("current runtime version (%s) is greater than or equal to the specified version (%s)", curRt.Spec.Version, newRt.Spec.Version)
-	}
-	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Comparing runtime versions", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	log.G(ctx).Infof("Upgrading runtime \"%s\" to version: v%s", opts.RuntimeName, newRt.Spec.Version)
-	newComponents, err := curRt.Upgrade(fs, newRt, opts.CommonConfig)
-	handleCliStep(reporter.UpgradeStepUpgradeRuntime, "Upgrading runtime", err, false, false)
-	if err != nil {
-		return fmt.Errorf("failed to upgrade runtime: %w", err)
-	}
-
-	log.G(ctx).Info("Pushing new runtime definition")
-	err = apu.PushWithMessage(ctx, r, fmt.Sprintf("Upgraded to %s", newRt.Spec.Version))
-	handleCliStep(reporter.UpgradeStepPushRuntimeDefinition, "Pushing new runtime definition", err, false, false)
-	if err != nil {
-		return err
-	}
-
-	for _, component := range newComponents {
-		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
-		component.IsInternal = true
-		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		if err != nil {
-			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
-			break
-		}
-	}
-
-	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
-
-	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
 
 	return nil
 }

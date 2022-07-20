@@ -62,6 +62,7 @@ type (
 		IngressController   string          `json:"ingressController"`
 		Repo                string          `json:"repo"`
 
+		ref     string
 		devMode bool
 	}
 
@@ -79,7 +80,7 @@ type (
 	}
 )
 
-func Download(version *semver.Version, name string) (*Runtime, error) {
+func Download(version *semver.Version, name, branch string) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
@@ -130,11 +131,13 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		runtime.Spec.Version = runtimeVersionDevMode
 	}
 
+	runtime.Spec.ref = "v" + runtime.Spec.Version.String()
+	if branch != "" {
+		runtime.Spec.ref = branch
+	}
+
 	for i := range runtime.Spec.Components {
 		url := runtime.Spec.Components[i].URL
-		if store.Get().SetDefaultResources {
-			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-		}
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
 	}
 
@@ -258,11 +261,16 @@ func (r *RuntimeSpec) FullSpecifier() string {
 	if store.Get().SetDefaultResources {
 		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 	}
-	return buildFullURL(url, r.Version, r.devMode)
+
+	return buildFullURL(url, r.ref, r.devMode)
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
-	return buildFullURL(url, r.Version, r.devMode)
+	if store.Get().SetDefaultResources {
+		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+	}
+
+	return buildFullURL(url, r.ref, r.devMode)
 }
 
 func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType, include, exclude string) error {
@@ -314,15 +322,15 @@ func updateKustomization(fs fs.FS, directory, fromURL, toURL string) error {
 	return kustutil.WriteKustomization(fs, kust, directory)
 }
 
-func buildFullURL(urlString string, version *semver.Version, devMode bool) string {
-	if devMode || version == nil {
+func buildFullURL(urlString, ref string, devMode bool) string {
+	if devMode && ref == "" {
 		return urlString
 	}
 
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", "v"+version.String())
+		v.Add("ref", ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
