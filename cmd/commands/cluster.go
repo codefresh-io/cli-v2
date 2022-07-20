@@ -16,6 +16,8 @@ package commands
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -46,6 +48,8 @@ type (
 		kubeconfig  string
 		dryRun      bool
 		kubeFactory kube.Factory
+		annotations string
+		labels      string
 	}
 
 	ClusterRemoveOptions struct {
@@ -100,7 +104,11 @@ func NewClusterCommand() *cobra.Command {
 }
 
 func newClusterAddCommand() *cobra.Command {
-	var opts ClusterAddOptions
+	var (
+		opts ClusterAddOptions
+		annotations []string
+		labels []string
+	)
 
 	cmd := &cobra.Command{
 		Use:     "add [RUNTIME_NAME]",
@@ -122,15 +130,30 @@ func newClusterAddCommand() *cobra.Command {
 				return err
 			}
 
-			err = setClusterName(cmd.Context(), &opts)
+ 			err = setClusterName(cmd.Context(), &opts)
+			if err != nil {
+				return err
+			}
 
-			return err
+			opts.labels, err = prepareLabels(labels)
+			if err != nil {
+				return fmt.Errorf("failed to prepare labels: %w", err)
+			}
+
+			opts.annotations, err = prepareLabels(annotations)
+			if err != nil {
+				return fmt.Errorf("failed to prepare annotations: %w", err)
+			}
+
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runClusterAdd(cmd.Context(), &opts)
 		},
 	}
 
+	cmd.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
+	cmd.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
@@ -166,7 +189,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, *runtime.RuntimeVersion)
+	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, opts.annotations, opts.labels, *runtime.RuntimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -272,7 +295,7 @@ func getSuffixToClusterName(clusters []model.Cluster, name string, tempName stri
 	return counter
 }
 
-func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, version string) ([]byte, string, error) {
+func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, annotations, labels, version string) ([]byte, string, error) {
 	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
 	if strings.HasPrefix(resourceUrl, "http") && !strings.Contains(resourceUrl, "?ref=") {
@@ -291,6 +314,8 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 							fmt.Sprintf("ingressUrl=" + ingressUrl),
 							fmt.Sprintf("contextName=" + contextName),
 							fmt.Sprintf("server=" + server),
+							fmt.Sprintf("annotations=" + annotations),
+							fmt.Sprintf("labels=" + labels),
 						},
 					},
 				},
@@ -352,6 +377,7 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, versi
 			},
 		},
 	}
+
 	k.FixKustomizationPostUnmarshalling()
 	util.Die(k.FixKustomizationPreMarshalling())
 
@@ -563,4 +589,18 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	log.G(ctx).Infof("created argo-rollouts component on \"%s\"", opts.server)
 
 	return nil
+}
+
+func prepareLabels(labels []string) (string, error) {
+	labelsMap, err := util.ParseLabels(labels)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse labels/annotations. error: %w", err)
+	}
+
+	labelsByte, err := json.Marshal(labelsMap)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal labels/annotations. error: %w", err)
+	}
+
+	return base64.RawStdEncoding.EncodeToString(labelsByte), nil
 }
