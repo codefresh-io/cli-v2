@@ -936,7 +936,7 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 		}
 	}
 
-	return fmt.Errorf("timed ot while waiting for git integration to be created")
+	return fmt.Errorf("timed out while waiting for git integration to be created")
 }
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
