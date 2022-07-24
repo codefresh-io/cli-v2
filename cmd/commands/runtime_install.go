@@ -299,7 +299,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := setIscRepo(ctx, opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := suggestIscRepo(ctx, opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo: %w", err)
 		}
@@ -1059,9 +1059,14 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var err error
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
+
+	if err = checkIscProvider(ctx, opts.InsCloneOpts); err != nil {
+		return fmt.Errorf("failed checking Internal Shared Config provider: %w", err)
+	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
@@ -1097,6 +1102,33 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, true, false)
 	if err != nil {
 		return fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
+	}
+
+	return nil
+}
+
+func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
+	iscRepo, err := getIscRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check Internal Shared Config provider: %w", err)
+	}
+
+	if iscRepo == "" {
+		return nil
+	}
+
+	iscUrl, err := url.Parse(iscRepo)
+	if err != nil {
+		return fmt.Errorf("failed to check Internal Shared Config provider: %w", err)
+	}
+
+	insUrl, err := url.Parse(opts.URL())
+	if err != nil {
+		return fmt.Errorf("failed to check Internal Shared Config provider: %w", err)
+	}
+
+	if iscUrl.Host != insUrl.Host {
+		return fmt.Errorf("can not install runtime in \"%s\" when Internal Shared Config repo is in \"%s\"", insUrl.Host, iscUrl.Host)
 	}
 
 	return nil

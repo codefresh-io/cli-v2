@@ -224,7 +224,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := setIscRepo(ctx, opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := suggestIscRepo(ctx, opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
 		}
