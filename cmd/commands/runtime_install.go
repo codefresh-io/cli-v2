@@ -1126,11 +1126,11 @@ func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
 
 	insUrl, err := url.Parse(opts.URL())
 	if err != nil {
-		return fmt.Errorf("failed to check account gi provider: %w", err)
+		return fmt.Errorf("failed to check account git provider: %w", err)
 	}
 
 	if iscUrl.Host != insUrl.Host {
-		return fmt.Errorf("can not install runtime in \"%s\" when Account git provider is in \"%s\"", insUrl.Host, iscUrl.Host)
+		return fmt.Errorf("cannot install runtime in \"%s\" when Account git provider is in \"%s\"", insUrl.Host, iscUrl.Host)
 	}
 
 	return nil
