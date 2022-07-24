@@ -398,7 +398,7 @@ func newClusterRemoveCommand() *cobra.Command {
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			// this is a temp solution for too short timeout when removing a cluster
 			// (on app-proxy it is waiting for the isc to finalize which can take a while)
 			// this should be removed after implementing a scalable solution (CR-13259)
