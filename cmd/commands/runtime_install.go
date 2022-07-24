@@ -1064,8 +1064,10 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
 
-	if err = checkIscProvider(ctx, opts.InsCloneOpts); err != nil {
-		return fmt.Errorf("failed checking Internal Shared Config provider: %w", err)
+	err = checkIscProvider(ctx, opts.InsCloneOpts)
+	handleCliStep(reporter.InstallStepRunPreCheckGitProvider, "Checking Account Git Provider", err, true, true)
+	if err != nil {
+		return err
 	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
@@ -1110,7 +1112,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
 	iscRepo, err := getIscRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to check Internal Shared Config provider: %w", err)
+		return fmt.Errorf("failed to check account git provider: %w", err)
 	}
 
 	if iscRepo == "" {
@@ -1119,16 +1121,16 @@ func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
 
 	iscUrl, err := url.Parse(iscRepo)
 	if err != nil {
-		return fmt.Errorf("failed to check Internal Shared Config provider: %w", err)
+		return fmt.Errorf("failed to check account git provider: %w", err)
 	}
 
 	insUrl, err := url.Parse(opts.URL())
 	if err != nil {
-		return fmt.Errorf("failed to check Internal Shared Config provider: %w", err)
+		return fmt.Errorf("failed to check account gi provider: %w", err)
 	}
 
 	if iscUrl.Host != insUrl.Host {
-		return fmt.Errorf("can not install runtime in \"%s\" when Internal Shared Config repo is in \"%s\"", insUrl.Host, iscUrl.Host)
+		return fmt.Errorf("can not install runtime in \"%s\" when Account git provider is in \"%s\"", insUrl.Host, iscUrl.Host)
 	}
 
 	return nil
