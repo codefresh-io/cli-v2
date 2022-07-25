@@ -183,7 +183,13 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 
 	jobName := strings.TrimSuffix(store.Get().AddClusterJobName, "-") + nameSuffix
 
-	return kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", jobName)
+	err = kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", jobName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%vcluster %s was added successfully to runtime %s%v\n", GREEN, opts.clusterName, opts.runtimeName, COLOR_RESET)
+	return nil
 }
 
 func setClusterName(ctx context.Context, opts *ClusterAddOptions) error {
@@ -234,7 +240,7 @@ func sanitizeClusterName(name string) (string, error) {
 	}
 
 	name = strings.Trim(name, "-.")
-	
+
 	beginsWithNum := regexp.MustCompile(`^\d+`)
 	name = beginsWithNum.ReplaceAllString(name, "")
 
