@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+configMapGenerator:
+- behavior: merge
+  literals:
+  - ingressUrl=https://kim.hybrid-team.cf-cd.com
+  - contextName=arn-aws-eks-us-east-1-705921569962-cluster-kim-test
+  - server=https://F13D98FB21ACBD4A23DE40278E4963BD.gr7.us-east-1.eks.amazonaws.com
+  name: csdp-add-cluster-cm
+  namespace: kube-system
+kind: Kustomization
+nameSuffix: "-1658751416396"
+replacements:
+- source:
+    fieldPath: metadata.name
+    kind: ServiceAccount
+    name: argocd-manager
+    version: v1
+  targets:
+  - fieldPaths:
+    - spec.template.spec.serviceAccount
+    select:
+      group: batch
+      kind: Job
+      name: csdp-add-cluster-job
+      version: v1
+  - fieldPaths:
+    - subjects.[name=argocd-manager].name
+    select:
+      group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+      name: argocd-manager-role-binding
+      version: v1
+resources:
+- https://github.com/codefresh-io/csdp-official/add-cluster/kustomize?ref=0.0.444
+secretGenerator:
+- behavior: merge
+  literals:
+  - csdpToken=626a7efe1f450b5d6652839e.b83f5f45713a2df95964164d45d3990e
+  name: csdp-add-cluster-secret
+  namespace: kube-system
