@@ -311,7 +311,7 @@ func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
 		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to retrieve username from platform: %w", err)
+			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}
 
 		log.G(ctx).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
@@ -638,7 +638,20 @@ func isValidationError(err error) bool {
 	return err != nil && err != promptui.ErrInterrupt
 }
 
-func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
+func getIscRepo(ctx context.Context) (string, error) {
+	currentUser, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user from platform: %w", err)
+	}
+
+	if currentUser.ActiveAccount.SharedConfigRepo == nil {
+		return "", nil
+	}
+
+	return *currentUser.ActiveAccount.SharedConfigRepo, nil
+}
+
+func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
 	setIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
 	if err != nil {
 		return "", fmt.Errorf("failed to set shared config repo. Error: %w", err)
