@@ -72,6 +72,7 @@ const (
 	InstallStepPreCheckShouldInstallDemoResources     CliStep = "install.pre-check.step.should-install-demo-resources"
 	InstallPhasePreCheckFinish                        CliStep = "install.pre-check.phase.finish"
 	InstallPhaseRunPreCheckStart                      CliStep = "install.run.pre-check.phase.start"
+	InstallStepRunPreCheckGitProvider                 CliStep = "install.run.pre-check.step.check-git-provider"
 	InstallStepRunPreCheckDownloadRuntimeDefinition   CliStep = "install.run.pre-check.step.download-runtime-definition"
 	InstallStepRunPreCheckEnsureCliVersion            CliStep = "install.run.pre-check.step.ensure-cli-version"
 	InstallStepRunPreCheckRuntimeCollision            CliStep = "install.run.pre-check.step.runtime-collision"

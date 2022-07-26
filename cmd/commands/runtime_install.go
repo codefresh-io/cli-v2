@@ -299,7 +299,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := setIscRepo(ctx, opts.SuggestedSharedConfigRepo)
+		sharedConfigRepo, err := suggestIscRepo(ctx, opts.SuggestedSharedConfigRepo)
 		if err != nil {
 			return fmt.Errorf("failed to ensure shared config repo: %w", err)
 		}
@@ -936,7 +936,7 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 		}
 	}
 
-	return fmt.Errorf("timed ot while waiting for git integration to be created")
+	return fmt.Errorf("timed out while waiting for git integration to be created")
 }
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
@@ -1059,9 +1059,16 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var err error
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
+
+	err = checkIscProvider(ctx, opts.InsCloneOpts)
+	handleCliStep(reporter.InstallStepRunPreCheckGitProvider, "Checking Account Git Provider", err, true, true)
+	if err != nil {
+		return err
+	}
 
 	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
@@ -1097,6 +1104,33 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, true, false)
 	if err != nil {
 		return fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
+	}
+
+	return nil
+}
+
+func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
+	iscRepo, err := getIscRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check account git provider: %w", err)
+	}
+
+	if iscRepo == "" {
+		return nil
+	}
+
+	iscUrl, err := url.Parse(iscRepo)
+	if err != nil {
+		return fmt.Errorf("failed to check account git provider: %w", err)
+	}
+
+	insUrl, err := url.Parse(opts.URL())
+	if err != nil {
+		return fmt.Errorf("failed to check account git provider: %w", err)
+	}
+
+	if iscUrl.Host != insUrl.Host {
+		return fmt.Errorf("cannot install runtime in \"%s\" when Account git provider is in \"%s\"", insUrl.Host, iscUrl.Host)
 	}
 
 	return nil
