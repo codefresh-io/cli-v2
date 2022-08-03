@@ -25,16 +25,17 @@ import (
 type (
 	github struct {
 		providerType ProviderType
-		apiURL       string
+		apiURL       *url.URL
 	}
 )
 
 const (
-	GITHUB_CLOUD_DOMAIN               = "github.com"
-	GITHUB_CLOUD_URL                  = "https://api.github.com"
-	GITHUB_REST_ENDPOINT              = "/api/v3"
-	GITHUB_CLOUD         ProviderType = "github"
-	GITHUB_ENT           ProviderType = "github-enterprise"
+	GITHUB_CLOUD_DOMAIN                = "github.com"
+	GITHUB_CLOUD_BASE_URL              = "https://github.com/"
+	GITHUB_CLOUD_API_URL               = "https://api.github.com"
+	GITHUB_REST_ENDPOINT               = "/api/v3"
+	GITHUB                ProviderType = "github"
+	GITHUB_ENT            ProviderType = "github-enterpeise" // for backward compatability
 )
 
 var requiredScopes = map[TokenType][]string{
@@ -42,23 +43,23 @@ var requiredScopes = map[TokenType][]string{
 	PersonalToken: {"repo"},
 }
 
-func NewGithubCloudProvider(_ string) (Provider, error) {
-	return &github{
-		providerType: GITHUB_CLOUD,
-		apiURL:       GITHUB_CLOUD_URL,
-	}, nil
-}
+func NewGithubProvider(baseURL string) (Provider, error) {
+	if baseURL == GITHUB_CLOUD_BASE_URL {
+		baseURL = GITHUB_CLOUD_API_URL
+	}
 
-func NewGithubEnterpriseProvider(cloneURL string) (Provider, error) {
-	u, err := url.Parse(cloneURL)
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	u.Path = ""
+	if baseURL != GITHUB_CLOUD_API_URL {
+		u.Path = GITHUB_REST_ENDPOINT
+	}
+
 	return &github{
-		providerType: GITHUB_ENT,
-		apiURL:       u.String(),
+		providerType: GITHUB,
+		apiURL:       u,
 	}, nil
 }
 
@@ -66,13 +67,15 @@ func (g *github) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *github) ApiUrl() string {
-	return g.apiURL
+func (g *github) BaseURL() string {
+	urlClone := *g.apiURL
+	urlClone.Path = ""
+	urlClone.RawQuery = ""
+	return urlClone.Host
 }
 
 func (g *github) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
-	fullURL := g.apiURL + GITHUB_REST_ENDPOINT
-	req, err := http.NewRequestWithContext(ctx, "HEAD", fullURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "HEAD", g.apiURL.String(), nil)
 	if err != nil {
 		return err
 	}

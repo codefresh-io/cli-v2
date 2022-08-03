@@ -23,7 +23,8 @@ import (
 
 type (
 	bitbucketServer struct {
-		apiURL string
+		providerType ProviderType
+		apiURL       *url.URL
 	}
 )
 
@@ -32,24 +33,28 @@ const (
 	BITBUCKET_SERVER        ProviderType = "bitbucket-server"
 )
 
-func NewBitbucketServerProvider(cloneURL string) (Provider, error) {
-	u, err := url.Parse(cloneURL)
+func NewBitbucketServerProvider(baseURL string) (Provider, error) {
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	u.Path = ""
+	u.Path = BITBUCKET_REST_ENDPOINT
 	return &bitbucketServer{
-		apiURL: u.String(),
+		providerType: BITBUCKET_SERVER,
+		apiURL:      u,
 	}, nil
 }
 
 func (bbs *bitbucketServer) Type() ProviderType {
-	return BITBUCKET_SERVER
+	return bbs.providerType
 }
 
-func (bbs *bitbucketServer) ApiUrl() string {
-	return bbs.apiURL
+func (bbs *bitbucketServer) BaseURL() string {
+	urlClone := *bbs.apiURL
+	urlClone.Path = ""
+	urlClone.RawQuery = ""
+	return urlClone.Host
 }
 
 func (bbs *bitbucketServer) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
