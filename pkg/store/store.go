@@ -35,6 +35,7 @@ var (
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 )
+
 type Version struct {
 	Version    *semver.Version
 	BuildDate  string
@@ -44,109 +45,109 @@ type Version struct {
 	Platform   string
 }
 type Store struct {
-	AddClusterJobName                   string
-	ArgoCDServerName                    string
-	ArgoCDTokenKey                      string
-	ArgoCDTokenSecret                   string
-	ArgoWFServiceName                   string
-	ArgoWFServicePort                   int32
-	BinaryName                          string
-	Codefresh                           string
-	CodefreshDeliveryPipelines          string
-	CFComponentType                     string
-	CFGitSourceType                     string
-	CFRuntimeDefType                    string
-	CFRuntimeType                       string
-	CFTokenSecret                       string
-	CFTokenSecretKey                    string
-	CFStoreIVSecretKey                  string
-	CodefreshCM                         string
-	CodefreshSA                         string
-	ComponentsReporterName              string
-	ComponentsReporterSA                string
-	ComponentsReporterURL               string
-	DefaultAPI                          string
-	EventBusName                        string
-	EventReportingEndpoint              string
-	EventsReporterName                  string
-	GitSourceName                       string
-	WorkflowsIngressName                string
-	WorkflowsIngressPath                string
-	AppProxyIngressName                 string
-	AppProxyIngressPath                 string
-	AppProxyServicePort                 int32
-	AppProxyServiceName                 string
-	DocsLink                            string
-	LabelKeyCFType                      string
-	LabelKeyCFInternal                  string
-	AnnotationKeySyncWave               string
-	MarketplaceGitSourceName            string
-	MarketplaceRepo                     string
-	MaxDefVersion                       *semver.Version
-	RuntimeDefURL                       string
-	Version                             Version
-	WaitTimeout                         time.Duration
-	WorkflowName                        string
-	WorkflowReporterName                string
-	WorkflowTriggerServiceAccount       string
-	CronExampleSensorFileName           string
-	CronExampleEventSourceFileName      string
-	CronExampleWfTemplateFileName       string
-	CronExampleEventSourceName          string
-	CronExampleEventName                string
-	CronExampleTriggerTemplateName      string
-	CronExampleDependencyName           string
-	GithubExampleEventSourceFileName    string
-	GithubExampleEventSourceObjectName  string
-	WebhooksRootPath                    string
-	GithubExampleEventSourceTargetPort  string
-	GithubExampleEventSourceServicePort int32
-	GithubExampleIngressFileName        string
-	GithubExampleIngressObjectName      string
-	GithubExampleSensorFileName         string
-	GithubExampleSensorObjectName       string
-	GithubExampleWfTemplateFileName     string
-	GithubExampleEventName              string
-	GithubExampleTriggerTemplateName    string
-	GithubExampleDependencyName         string
-	GithubAccessTokenSecretObjectName   string
-	GithubAccessTokenSecretKey          string
-	GithubEventTypeHeader               string
-	ArgoCD                              string
-	Silent                              bool
-	InsecureIngressHost                 bool
-	BypassIngressClassCheck             bool
-	SkipIngress                         bool
-	SetDefaultResources                 bool
-	MinimumMemorySizeRequired           string
-	MinimumCpuRequired                  string
-	MinimumLocalDiskSizeRequired        string
-	ReplicaSetResourceName              string
-	AnalysisRunResourceName             string
-	WorkflowResourceName                string
-	RequirementsLink                    string
-	DownloadCliLink                     string
-	RolloutReporterName                 string
-	RolloutResourceName                 string
-	RolloutReporterServiceAccount       string
-	SegmentWriteKey                     string
-	DefaultNamespace                    string
-	NetworkTesterName                   string
-	NetworkTesterGenerateName           string
-	NetworkTesterImage                  string
-	MinKubeVersion                      string
-	MaxKubeVersion                      string
-	MasterIngressName                   string
-	InClusterPath                       string
-	SccName                             string
-	CFInternalGitSources                []string
-	CFInternalReporters                 []string
-	InstallationFlow                    string
-	GsCreateFlow                        string
-	InCluster                           string
-	IsDownloadRuntimeLogs               bool
-	IngressHost                         string
-	IscRuntimesDir                      string
+	AddClusterJobName               string
+	ArgoCDServerName                string
+	ArgoCDTokenKey                  string
+	ArgoCDTokenSecret               string
+	ArgoWFServiceName               string
+	ArgoWFServicePort               int32
+	BinaryName                      string
+	Codefresh                       string
+	CodefreshDeliveryPipelines      string
+	CFComponentType                 string
+	CFGitSourceType                 string
+	CFRuntimeDefType                string
+	CFRuntimeType                   string
+	CFTokenSecret                   string
+	CFTokenSecretKey                string
+	CFStoreIVSecretKey              string
+	CodefreshCM                     string
+	CodefreshSA                     string
+	ComponentsReporterName          string
+	ComponentsReporterSA            string
+	ComponentsReporterURL           string
+	DefaultAPI                      string
+	EventBusName                    string
+	EventReportingEndpoint          string
+	EventsReporterName              string
+	GitSourceName                   string
+	WorkflowsIngressName            string
+	WorkflowsIngressPath            string
+	AppProxyIngressName             string
+	AppProxyIngressPath             string
+	AppProxyServicePort             int32
+	AppProxyServiceName             string
+	DocsLink                        string
+	LabelKeyCFType                  string
+	LabelKeyCFInternal              string
+	AnnotationKeySyncWave           string
+	MarketplaceGitSourceName        string
+	MarketplaceRepo                 string
+	MaxDefVersion                   *semver.Version
+	RuntimeDefURL                   string
+	Version                         Version
+	WaitTimeout                     time.Duration
+	WorkflowName                    string
+	WorkflowReporterName            string
+	WorkflowTriggerServiceAccount   string
+	DemoCalendarSensorFileName      string
+	DemoCalendarEventSourceFileName string
+	DemoCalendarEventSourceName     string
+	DemoCalendarEventName           string
+	DemoCalendarDependencyName      string
+	DemoWorkflowTemplateFileName    string
+	DemoWorkflowTemplateName        string
+	DemoGitEventSourceFileName      string
+	DemoGitEventSourceObjectName    string
+	WebhooksRootPath                string
+	DemoGitEventSourceTargetPort    string
+	DemoGitEventSourceServicePort   int32
+	DemoPipelinesIngressFileName    string
+	DemoPipelinesIngressObjectName  string
+	DemoGitSensorFileName           string
+	DemoGitSensorObjectName         string
+	DemoGitEventName                string
+	DemoGitTriggerTemplateName      string
+	DemoGitDependencyName           string
+	GitTokenSecretObjectName        string
+	GitTokenSecretKey               string
+	GithubEventTypeHeader           string
+	GitlabEventTypeHeader           string
+	ArgoCD                          string
+	Silent                          bool
+	InsecureIngressHost             bool
+	BypassIngressClassCheck         bool
+	SkipIngress                     bool
+	SetDefaultResources             bool
+	MinimumMemorySizeRequired       string
+	MinimumCpuRequired              string
+	MinimumLocalDiskSizeRequired    string
+	ReplicaSetResourceName          string
+	AnalysisRunResourceName         string
+	WorkflowResourceName            string
+	RequirementsLink                string
+	DownloadCliLink                 string
+	RolloutReporterName             string
+	RolloutResourceName             string
+	RolloutReporterServiceAccount   string
+	SegmentWriteKey                 string
+	DefaultNamespace                string
+	NetworkTesterName               string
+	NetworkTesterGenerateName       string
+	NetworkTesterImage              string
+	MinKubeVersion                  string
+	MaxKubeVersion                  string
+	MasterIngressName               string
+	InClusterPath                   string
+	SccName                         string
+	CFInternalGitSources            []string
+	CFInternalReporters             []string
+	InstallationFlow                string
+	GsCreateFlow                    string
+	InCluster                       string
+	IsDownloadRuntimeLogs           bool
+	IngressHost                     string
+	IscRuntimesDir                  string
 }
 
 // Get returns the global store
@@ -198,29 +199,29 @@ func init() {
 	s.WorkflowName = "workflow"
 	s.WorkflowReporterName = "workflow-reporter"
 	s.WorkflowTriggerServiceAccount = "argo"
-	s.CronExampleEventSourceFileName = "event-source.calendar.yaml"
-	s.CronExampleSensorFileName = "sensor.cron.yaml"
-	s.CronExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
-	s.CronExampleEventSourceName = "calendar"
-	s.CronExampleEventName = "example-with-interval"
-	s.CronExampleTriggerTemplateName = "hello-world"
-	s.CronExampleDependencyName = "calendar-dep"
-	s.GithubExampleEventSourceFileName = "push-github.event-source.yaml"
-	s.GithubExampleEventSourceObjectName = "push-github"
+	s.DemoCalendarEventSourceFileName = "calendar.event-source.yaml"
+	s.DemoCalendarSensorFileName = "calendar.sensor.yaml"
+	s.DemoCalendarEventSourceName = "calendar"
+	s.DemoCalendarEventName = "example-with-interval"
+	s.DemoCalendarDependencyName = "calendar-dep"
+	s.DemoWorkflowTemplateFileName = "echo-message.workflow-template.yaml"
+	s.DemoWorkflowTemplateName = "echo-message"
+	s.DemoGitEventSourceFileName = "push-commit.event-source.yaml"
+	s.DemoGitEventSourceObjectName = "push-commit"
 	s.WebhooksRootPath = "/webhooks"
-	s.GithubExampleEventSourceTargetPort = "80"
-	s.GithubExampleEventSourceServicePort = 80
-	s.GithubExampleIngressFileName = fmt.Sprintf("%s.ingress.yaml", s.CodefreshDeliveryPipelines)
-	s.GithubExampleIngressObjectName = "github"
-	s.GithubExampleSensorFileName = "push-github.sensor.yaml"
-	s.GithubExampleSensorObjectName = "push-github"
-	s.GithubExampleWfTemplateFileName = "workflow-template.hello-world.yaml"
-	s.GithubExampleEventName = "github-push-heads"
-	s.GithubExampleTriggerTemplateName = "hello-world"
-	s.GithubExampleDependencyName = "github-push-heads"
-	s.GithubAccessTokenSecretObjectName = "autopilot-secret"
-	s.GithubAccessTokenSecretKey = "git_token"
+	s.DemoGitEventSourceTargetPort = "80"
+	s.DemoGitEventSourceServicePort = 80
+	s.DemoPipelinesIngressFileName = fmt.Sprintf("%s.ingress.yaml", s.CodefreshDeliveryPipelines)
+	s.DemoPipelinesIngressObjectName = "github"
+	s.DemoGitSensorFileName = "push-commit.sensor.yaml"
+	s.DemoGitSensorObjectName = "push-commit"
+	s.DemoGitEventName = "push-commit"
+	s.DemoGitTriggerTemplateName = "push-commit"
+	s.DemoGitDependencyName = "push-commit"
+	s.GitTokenSecretObjectName = "autopilot-secret"
+	s.GitTokenSecretKey = "git_token"
 	s.GithubEventTypeHeader = "X-GitHub-Event"
+	s.GitlabEventTypeHeader = "X-Gitlab-Event"
 	s.ArgoCD = "argo-cd"
 	s.RolloutResourceName = "rollouts"
 	s.ReplicaSetResourceName = "replicasets"

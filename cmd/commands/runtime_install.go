@@ -720,7 +720,7 @@ To complete the installation:
 <BIN> integration git register default --runtime %s --token <AUTHENTICATION_TOKEN>
 `,
 			store.Get().AppProxyIngressPath,
-			util.GenerateIngressEventSourcePath(opts.RuntimeName),
+			util.GenerateIngressPathForDemoGitEventSource(opts.RuntimeName),
 			opts.RuntimeName,
 			apiURL,
 			opts.GitIntegrationCreationOpts.Provider,
@@ -835,13 +835,14 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
 	var gitSrcMessage string
-	var createGitSrcMessgae string
+	var createGitSrcMessage string
 
 	if !opts.FromRepo {
 		gitSrcMessage = fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
 		err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 			InsCloneOpts:        opts.InsCloneOpts,
 			GsCloneOpts:         opts.GsCloneOpts,
+			GitProvider:         opts.gitProvider,
 			GsName:              store.Get().GitSourceName,
 			RuntimeName:         opts.RuntimeName,
 			CreateDemoResources: opts.InstallDemoResources,
@@ -865,11 +866,12 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 			}
 			mpCloneOpts.Parse()
 
-			createGitSrcMessgae = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+			createGitSrcMessage = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
 
 			err = RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 				InsCloneOpts:        opts.InsCloneOpts,
 				GsCloneOpts:         mpCloneOpts,
+				GitProvider:         opts.gitProvider,
 				GsName:              store.Get().MarketplaceGitSourceName,
 				RuntimeName:         opts.RuntimeName,
 				CreateDemoResources: false,
@@ -878,10 +880,10 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 				Flow:                store.Get().InstallationFlow,
 			})
 		} else {
-			createGitSrcMessgae = fmt.Sprintf("Skipping %s with git provider %s", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
+			createGitSrcMessage = fmt.Sprintf("Skipping %s with git provider %s", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
 		}
 	}
-	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessgae, err, false, true)
+	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessage, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
 	}
