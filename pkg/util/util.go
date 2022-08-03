@@ -329,19 +329,3 @@ func StringIndexOf(slice []string, val string) int {
 func GenerateIngressEventSourcePath(runtimeName string) string {
 	return fmt.Sprintf("%s/%s/%s", store.Get().WebhooksRootPath, runtimeName, store.Get().GithubExampleEventSourceObjectName)
 }
-
-// copies from https://github.com/argoproj/argo-cd/blob/master/util/text/label/label.go
-func ParseLabels(labels []string) (map[string]string, error) {
-	var selectedLabels map[string]string
-	if labels != nil {
-		selectedLabels = map[string]string{}
-		for _, r := range labels {
-			fields := strings.Split(r, store.Get().LabelFieldDelimiter)
-			if len(fields) != 2 {
-				return nil, fmt.Errorf("labels should have key%svalue, but instead got: %s", store.Get().LabelFieldDelimiter, r)
-			}
-			selectedLabels[fields[0]] = fields[1]
-		}
-	}
-	return selectedLabels, nil
-}

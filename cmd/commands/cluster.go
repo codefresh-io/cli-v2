@@ -16,8 +16,6 @@ package commands
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -48,8 +46,8 @@ type (
 		kubeconfig  string
 		dryRun      bool
 		kubeFactory kube.Factory
-		annotations string
-		labels      string
+		annotations map[string]string
+		labels      map[string]string
 	}
 
 	ClusterRemoveOptions struct {
@@ -106,8 +104,6 @@ func NewClusterCommand() *cobra.Command {
 func newClusterAddCommand() *cobra.Command {
 	var (
 		opts ClusterAddOptions
-		annotations []string
-		labels []string
 	)
 
 	cmd := &cobra.Command{
@@ -135,16 +131,6 @@ func newClusterAddCommand() *cobra.Command {
 				return err
 			}
 
-			opts.labels, err = prepareLabels(labels)
-			if err != nil {
-				return fmt.Errorf("failed to prepare labels: %w", err)
-			}
-
-			opts.annotations, err = prepareLabels(annotations)
-			if err != nil {
-				return fmt.Errorf("failed to prepare annotations: %w", err)
-			}
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -152,8 +138,8 @@ func newClusterAddCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
-	cmd.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	cmd.Flags().StringToStringVar(&opts.labels, "labels", nil, "Set metadata labels (e.g. --label key=value)")
+	cmd.Flags().StringToStringVar(&opts.annotations, "annotations", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
@@ -189,7 +175,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(ingressUrl, opts.clusterName, server, csdpToken, opts.annotations, opts.labels, *runtime.RuntimeVersion)
+	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, *runtime.RuntimeVersion)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -301,7 +287,7 @@ func getSuffixToClusterName(clusters []model.Cluster, name string, tempName stri
 	return counter
 }
 
-func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, annotations, labels, version string) ([]byte, string, error) {
+func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdpToken, version string) ([]byte, string, error) {
 	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
 	if strings.HasPrefix(resourceUrl, "http") && !strings.Contains(resourceUrl, "?ref=") {
@@ -318,10 +304,10 @@ func createAddClusterManifests(ingressUrl, contextName, server, csdpToken, annot
 					KvPairSources: kusttypes.KvPairSources{
 						LiteralSources: []string{
 							fmt.Sprintf("ingressUrl=" + ingressUrl),
-							fmt.Sprintf("contextName=" + contextName),
+							fmt.Sprintf("contextName=" + opts.clusterName),
 							fmt.Sprintf("server=" + server),
-							fmt.Sprintf("annotations=" + annotations),
-							fmt.Sprintf("labels=" + labels),
+							fmt.Sprintf("annotations=" + mapToYaml(opts.annotations)),
+							fmt.Sprintf("labels=" + mapToYaml(opts.labels)),
 						},
 					},
 				},
@@ -601,16 +587,14 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	return nil
 }
 
-func prepareLabels(labels []string) (string, error) {
-	labelsMap, err := util.ParseLabels(labels)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse labels/annotations. error: %w", err)
+func mapToYaml(m map[string]string) string {
+	str := "''"
+	if len(m) > 0 {
+		str = ""
+		for key, value := range m {
+			str += key + ": " + value + "\n"
+		}
 	}
 
-	labelsByte, err := json.Marshal(labelsMap)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal labels/annotations. error: %w", err)
-	}
-
-	return base64.RawStdEncoding.EncodeToString(labelsByte), nil
+	return str
 }
