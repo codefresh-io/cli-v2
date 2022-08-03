@@ -44,10 +44,11 @@ type (
 		clusterName string
 		kubeContext string
 		kubeconfig  string
-		dryRun      bool
-		kubeFactory kube.Factory
 		annotations map[string]string
 		labels      map[string]string
+		tag         string
+		dryRun      bool
+		kubeFactory kube.Factory
 	}
 
 	ClusterRemoveOptions struct {
@@ -126,7 +127,7 @@ func newClusterAddCommand() *cobra.Command {
 				return err
 			}
 
- 			err = setClusterName(cmd.Context(), &opts)
+			err = setClusterName(cmd.Context(), &opts)
 			if err != nil {
 				return err
 			}
@@ -138,10 +139,13 @@ func newClusterAddCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringToStringVar(&opts.labels, "labels", nil, "Set metadata labels (e.g. --label key=value)")
-	cmd.Flags().StringToStringVar(&opts.annotations, "annotations", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
+	cmd.Flags().StringToStringVar(&opts.annotations, "annotations", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	cmd.Flags().StringToStringVar(&opts.labels, "labels", nil, "Set metadata labels (e.g. --label key=value)")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
+	cmd.Flags().StringVar(&opts.tag, "tag", "", "[dev only] - use a specific tag of the csdp-add-cluster image")
+
+	util.Die(cmd.Flags().MarkHidden("tag"))
 	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
@@ -153,13 +157,16 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return err
 	}
 
-	if runtime.RuntimeVersion == nil {
-		return fmt.Errorf("runtime \"%s\" has no version", opts.runtimeName)
-	}
+	version := opts.tag
+	if version == "" {
+		if runtime.RuntimeVersion == nil {
+			return fmt.Errorf("runtime \"%s\" has no version", opts.runtimeName)
+		}
 
-	version := semver.MustParse(*runtime.RuntimeVersion)
-	if version.LessThan(minAddClusterSupportedVersion) {
-		return fmt.Errorf("runtime \"%s\" does not support this command. Minimal required version is %s", opts.runtimeName, minAddClusterSupportedVersion)
+		version := semver.MustParse(*runtime.RuntimeVersion)
+		if version.LessThan(minAddClusterSupportedVersion) {
+			return fmt.Errorf("runtime \"%s\" does not support this command. Minimal required version is %s", opts.runtimeName, minAddClusterSupportedVersion)
+		}
 	}
 
 	if runtime.IngressHost == nil {
@@ -175,7 +182,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, *runtime.RuntimeVersion)
+	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, version)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -368,6 +375,15 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 				},
 			},
 		},
+	}
+
+	if opts.tag != "" {
+		k.Images = []kusttypes.Image{
+			{
+				Name:   "quay.io/codefresh/csdp-add-cluster",
+				NewTag: opts.tag,
+			},
+		}
 	}
 
 	k.FixKustomizationPostUnmarshalling()
