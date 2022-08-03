@@ -55,7 +55,7 @@ func (g *gitlab) BaseURL() string {
 	urlClone := *g.apiURL
 	urlClone.Path = ""
 	urlClone.RawQuery = ""
-	return urlClone.Host
+	return urlClone.String()
 }
 
 func (g *gitlab) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {

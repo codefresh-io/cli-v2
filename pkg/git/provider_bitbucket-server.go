@@ -54,7 +54,7 @@ func (bbs *bitbucketServer) BaseURL() string {
 	urlClone := *bbs.apiURL
 	urlClone.Path = ""
 	urlClone.RawQuery = ""
-	return urlClone.Host
+	return urlClone.String()
 }
 
 func (bbs *bitbucketServer) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
