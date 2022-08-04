@@ -1729,11 +1729,11 @@ func legacyGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) er
 	return nil
 }
 
-func writeObjectToYaml[Object any](
+func writeObjectToYaml[K8sObject any](
 	gsFs fs.FS,
 	filePath string,
-	object Object,
-	cleanUpFunc func(Object) (map[string]interface{}, error),
+	object K8sObject,
+	cleanUpFunc func(K8sObject) (map[string]interface{}, error),
 ) error {
 	var finalObject interface{} = object
 	cleanObject, err := cleanUpFunc(object)
