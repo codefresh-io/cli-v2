@@ -33,8 +33,8 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	autoPilotUtil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -115,7 +115,7 @@ func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) er
 	return nil
 }
 
-func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *git.CloneOptions, fromAPI bool) error {
+func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *apgit.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo != "" {
 		return nil
@@ -151,7 +151,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
 		Validate: func(value string) error {
-			host, orgRepo, _, _, _, _, _ := autoPilotUtil.ParseGitUrl(value)
+			host, orgRepo, _, _, _, _, _ := aputil.ParseGitUrl(value)
 			if host != "" && orgRepo != "" {
 				return nil
 			}
@@ -279,57 +279,50 @@ func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 	return result, nil
 }
 
-func inferProviderFromRepo(opts *git.CloneOptions) {
-	if opts.Provider != "" {
-		return
-	}
-
-	if strings.Contains(opts.Repo, "github.com") {
-		opts.Provider = "github"
-	}
-	if strings.Contains(opts.Repo, "gitlab.com") {
-		opts.Provider = "gitlab"
-	}
-}
-
-func ensureGitToken(cmd *cobra.Command, cloneOpts *git.CloneOptions, verify bool) error {
-	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token"
+// ensureGitToken gets the runtime token from the user (if !silent), and verifys it witht he provider (if available)
+func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
+	ctx := cmd.Context()
+	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
 		err := getGitTokenFromUserInput(cmd)
-		errMessage = "Invalid runtime token; enter a valid token"
+		errMessage = "Invalid runtime token; enter a valid token: %w"
 		if err != nil {
 			return err
 		}
 	}
 
-	if verify {
-		err := cfgit.VerifyToken(cmd.Context(), cloneOpts.Provider, cloneOpts.Auth.Password, cfgit.RuntimeToken)
+	if gitProvider != nil {
+		err := gitProvider.VerifyToken(ctx, cfgit.RuntimeToken, cloneOpts.Auth.Password)
 		if err != nil {
 			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""
-			return fmt.Errorf(errMessage)
+			return fmt.Errorf(errMessage, err)
 		}
-	}
-
-	if cloneOpts.Auth.Password == "" {
+	} else if cloneOpts.Auth.Password == "" {
 		return fmt.Errorf("must provide a git token using --git-token")
 	}
 
 	return nil
 }
 
-func ensureGitPAT(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+// ensureGitPAT verifys the user's Personal Access Token (if it is different from the Runtime Token)
+func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		currentUser, err := cfConfig.NewClient().Users().GetCurrent(cmd.Context())
+		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to retrieve username from platform: %w", err)
+			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}
 
-		log.G(cmd.Context()).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
+		log.G(ctx).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
+		return nil
 	}
 
-	return cfgit.VerifyToken(cmd.Context(), opts.InsCloneOpts.Provider, opts.GitIntegrationRegistrationOpts.Token, cfgit.PersonalToken)
+	if opts.gitProvider != nil {
+		return opts.gitProvider.VerifyToken(ctx, cfgit.PersonalToken, opts.InsCloneOpts.Auth.Password)
+	}
+
+	return nil
 }
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
@@ -645,7 +638,20 @@ func isValidationError(err error) bool {
 	return err != nil && err != promptui.ErrInterrupt
 }
 
-func setIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
+func getIscRepo(ctx context.Context) (string, error) {
+	currentUser, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user from platform: %w", err)
+	}
+
+	if currentUser.ActiveAccount.SharedConfigRepo == nil {
+		return "", nil
+	}
+
+	return *currentUser.ActiveAccount.SharedConfigRepo, nil
+}
+
+func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
 	setIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
 	if err != nil {
 		return "", fmt.Errorf("failed to set shared config repo. Error: %w", err)

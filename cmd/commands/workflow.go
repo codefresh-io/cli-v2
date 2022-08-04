@@ -84,7 +84,7 @@ func NewWorkflowListCommand() *cobra.Command {
 
 			<BIN> workflows list -r <runtime>
 		`),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			filterArgs := model.WorkflowsFilterArgs{

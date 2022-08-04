@@ -6,7 +6,7 @@ resources:
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.3.4-cap-CR-12409-cache-key-update
+    newTag: v2.3.4-cap-CR-13082-improve-validation
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
@@ -41,3 +41,15 @@ patches:
       - op: add
         path: /spec/ports/0/appProtocol
         value: tcp
+
+  - target:
+      version: v1
+      group: apps
+      kind: Deployment
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: ARGOCD_SYNC_WAVE_DELAY
+          value: "10"
