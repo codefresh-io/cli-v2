@@ -24,7 +24,7 @@ import (
 type (
 	gitlab struct {
 		providerType ProviderType
-		apiURL       string
+		apiURL       *url.URL
 	}
 )
 
@@ -34,16 +34,16 @@ const (
 	GITLAB               ProviderType = "gitlab"
 )
 
-func NewGitlabProvider(cloneURL string) (Provider, error) {
-	u, err := url.Parse(cloneURL)
+func NewGitlabProvider(baseURL string) (Provider, error) {
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	u.Path = ""
+	u.Path = GITLAB_REST_ENDPOINT
 	return &gitlab{
 		providerType: GITLAB,
-		apiURL:       u.String(),
+		apiURL:       u,
 	}, nil
 }
 
@@ -51,8 +51,11 @@ func (g *gitlab) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *gitlab) ApiUrl() string {
-	return g.apiURL
+func (g *gitlab) BaseURL() string {
+	urlClone := *g.apiURL
+	urlClone.Path = ""
+	urlClone.RawQuery = ""
+	return urlClone.String()
 }
 
 func (g *gitlab) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {

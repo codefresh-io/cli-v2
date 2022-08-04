@@ -27,7 +27,7 @@ type (
 	// Provider represents a git provider
 	Provider interface {
 		Type() ProviderType
-		ApiUrl() string
+		BaseURL() string
 		VerifyToken(ctx context.Context, tokenType TokenType, token string) error
 		SupportsMarketplace() bool
 	}
@@ -41,29 +41,29 @@ const (
 var (
 	providers = map[ProviderType]func(string) (Provider, error){
 		BITBUCKET_SERVER: NewBitbucketServerProvider,
-		GITHUB_CLOUD:     NewGithubCloudProvider,
-		GITHUB_ENT:       NewGithubEnterpriseProvider,
+		GITHUB:           NewGithubProvider,
+		GITHUB_ENT:       NewGithubProvider, // for backward compatability
 		GITLAB:           NewGitlabProvider,
 	}
 )
 
-func GetProvider(providerType ProviderType, cloneURL string) (Provider, error) {
+func GetProvider(providerType ProviderType, baseURL string) (Provider, error) {
 	if providerType != "" {
 		fn := providers[providerType]
 		if fn == nil {
 			return nil, fmt.Errorf("invalid git provider %s", providerType)
 		}
 
-		return fn(cloneURL)
+		return fn(baseURL)
 	}
 
-	if strings.Contains(cloneURL, GITHUB_CLOUD_DOMAIN) {
-		return NewGithubCloudProvider(cloneURL)
+	if strings.Contains(baseURL, GITHUB_CLOUD_DOMAIN) {
+		return NewGithubProvider(baseURL)
 	}
 
-	if strings.Contains(cloneURL, GITLAB_CLOUD_DOMAIN) {
-		return NewGitlabProvider(cloneURL)
+	if strings.Contains(baseURL, GITLAB_CLOUD_DOMAIN) {
+		return NewGitlabProvider(baseURL)
 	}
 
-	return nil, fmt.Errorf("failed getting provider for clone url %s", cloneURL)
+	return nil, fmt.Errorf("failed getting provider for clone url %s", baseURL)
 }
