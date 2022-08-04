@@ -323,12 +323,13 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), opts.InsCloneOpts.Repo)
+	baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
+	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), baseURL)
 	if err != nil {
 		return err
 	}
 
-	if opts.gitProvider.Type() != cfgit.GITHUB_CLOUD && !opts.EnableGitProviders {
+	if opts.gitProvider.Type() != cfgit.GITHUB && !opts.EnableGitProviders {
 		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
 	}
 
@@ -581,6 +582,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	ingressControllerName := opts.IngressController.Name()
 
+	repoURL := opts.InsCloneOpts.URL()
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:         opts.RuntimeName,
 		Cluster:             server,
@@ -590,7 +592,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressClass:        &opts.IngressClass,
 		IngressController:   &ingressControllerName,
 		ComponentNames:      componentNames,
-		Repo:                &opts.InsCloneOpts.Repo,
+		Repo:                &repoURL,
 		Recover:             &opts.FromRepo,
 	})
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
@@ -2076,8 +2078,8 @@ func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
 	}
 
 	opts.GitIntegrationCreationOpts.Provider = provider
-	apiUrl := opts.gitProvider.ApiUrl()
-	opts.GitIntegrationCreationOpts.APIURL = &apiUrl
+	baseURL := opts.gitProvider.BaseURL()
+	opts.GitIntegrationCreationOpts.APIURL = &baseURL
 
 	return nil
 }
