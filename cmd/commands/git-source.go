@@ -910,7 +910,7 @@ func createDemoGithubEventSource(repoURL string, ingressHost string, runtimeName
 					Repositories: []eventsourcev1alpha1.OwnedRepositories{
 						getGithubRepoFromGitURL(repoURL),
 					},
-					GithubBaseURL: fmt.Sprintf("%s/", gitProvider.ApiUrl()), // github base URL must have a trailing slash
+					GithubBaseURL: fmt.Sprintf("%s/", gitProvider.BaseURL()), // github base URL must have a trailing slash
 					Webhook: &eventsourcev1alpha1.WebhookContext{
 						Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
 						URL:      strings.Trim(ingressHost, "/"),
@@ -1082,7 +1082,7 @@ func createDemoBitbucketServerEventSource(repoURL string, ingressHost string, ru
 							Name: store.Get().GitTokenSecretObjectName,
 						},
 					},
-					BitbucketServerBaseURL: fmt.Sprintf("%s/rest", gitProvider.ApiUrl()),
+					BitbucketServerBaseURL: fmt.Sprintf("%s/rest", gitProvider.BaseURL()),
 					DeleteHookOnFinish:     true,
 				},
 			},
@@ -1239,7 +1239,7 @@ func createDemoGitlabEventSource(repoURL string, ingressHost string, runtimeName
 						},
 					},
 					EnableSSLVerification: true,
-					GitlabBaseURL:         gitProvider.ApiUrl(),
+					GitlabBaseURL:         gitProvider.BaseURL(),
 					DeleteHookOnFinish:    true,
 				},
 			},
