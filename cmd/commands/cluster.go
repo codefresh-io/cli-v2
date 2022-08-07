@@ -29,6 +29,7 @@ import (
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	"github.com/ghodss/yaml"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
@@ -65,6 +66,7 @@ type (
 
 var (
 	minAddClusterSupportedVersion = semver.MustParse("0.0.283")
+	minAddClusterLabelsSupportedVersion = semver.MustParse("0.0.500")
 
 	serviceAccountGVK = resid.Gvk{
 		Version: "v1",
@@ -157,17 +159,18 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return err
 	}
 
-	version := opts.tag
-	if version == "" {
-		if runtime.RuntimeVersion == nil {
-			return fmt.Errorf("runtime \"%s\" has no version", opts.runtimeName)
-		}
-
-		version := semver.MustParse(*runtime.RuntimeVersion)
-		if version.LessThan(minAddClusterSupportedVersion) {
-			return fmt.Errorf("runtime \"%s\" does not support this command. Minimal required version is %s", opts.runtimeName, minAddClusterSupportedVersion)
-		}
+	if runtime.RuntimeVersion == nil {
+		return fmt.Errorf("runtime \"%s\" has no version", opts.runtimeName)
 	}
+
+	version := semver.MustParse(*runtime.RuntimeVersion)
+	if version.LessThan(minAddClusterSupportedVersion) {
+		return fmt.Errorf("runtime \"%s\" does not support this command. Minimal required version is %s", opts.runtimeName, minAddClusterSupportedVersion)
+	}
+
+	// if (len(opts.annotations) > 0 || len(opts.labels) > 0) && version.LessThan(minAddClusterLabelsSupportedVersion) {
+	// 	return fmt.Errorf("runtime \"%s\" does not support adding clusters with annotations or labels. Minimal required version is %s", opts.runtimeName, minAddClusterLabelsSupportedVersion)
+	// }
 
 	if runtime.IngressHost == nil {
 		return fmt.Errorf("runtime \"%s\" is missing an ingress URL", opts.runtimeName)
@@ -182,7 +185,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, version)
+	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, version.String())
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -297,8 +300,13 @@ func getSuffixToClusterName(clusters []model.Cluster, name string, tempName stri
 func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdpToken, version string) ([]byte, string, error) {
 	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
-	if strings.HasPrefix(resourceUrl, "http") && !strings.Contains(resourceUrl, "?ref=") {
-		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, version)
+	if strings.HasPrefix(resourceUrl, "http") {
+		ref := version
+		if opts.tag != "" {
+			ref = opts.tag
+		}
+
+		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, ref)
 	}
 
 	k := &kusttypes.Kustomization{
@@ -313,8 +321,6 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 							fmt.Sprintf("ingressUrl=" + ingressUrl),
 							fmt.Sprintf("contextName=" + opts.clusterName),
 							fmt.Sprintf("server=" + server),
-							fmt.Sprintf("annotations=" + mapToYaml(opts.annotations)),
-							fmt.Sprintf("labels=" + mapToYaml(opts.labels)),
 						},
 					},
 				},
@@ -375,6 +381,24 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 				},
 			},
 		},
+	}
+
+	if len(opts.annotations) > 0 {
+		annotationsStr, err := mapToYaml(opts.annotations)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed encoding annotations: %w", err)
+		}
+
+		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("annotations=" + annotationsStr))
+	}
+
+	if len(opts.labels) > 0 {
+		labelsStr, err := mapToYaml(opts.labels)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed encoding labels: %w", err)
+		}
+
+		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("labels=" + labelsStr))
 	}
 
 	if opts.tag != "" {
@@ -603,14 +627,11 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	return nil
 }
 
-func mapToYaml(m map[string]string) string {
-	str := "''"
-	if len(m) > 0 {
-		str = ""
-		for key, value := range m {
-			str += key + ": " + value + "\n"
-		}
+func mapToYaml(m map[string]string) (string, err) {
+	data, err := yaml.Marshal(m)
+	if err != nil {
+		return "", err
 	}
 
-	return str
+	return string(data), nil
 }
