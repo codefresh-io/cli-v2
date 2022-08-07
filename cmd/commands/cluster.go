@@ -129,12 +129,7 @@ func newClusterAddCommand() *cobra.Command {
 				return err
 			}
 
-			err = setClusterName(cmd.Context(), &opts)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return setClusterName(cmd.Context(), &opts)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runClusterAdd(cmd.Context(), &opts)
