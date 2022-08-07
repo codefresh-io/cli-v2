@@ -680,67 +680,33 @@ func createDemoCalendarPipeline(opts *gitSourceCalendarDemoPipelineOptions) erro
 }
 
 func createDemoCalendarEventSource() *eventsourcev1alpha1.EventSource {
-	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+	name := store.Get().DemoCalendarEventSourceObjectName
+	es := createDemoEventSource(name)
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
+	es.Spec.Calendar = map[string]eventsourcev1alpha1.CalendarEventSource{
+		store.Get().DemoCalendarEventName: {
+			Interval: "30m",
+		},
 	}
 
-	return &eventsourcev1alpha1.EventSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsourcereg.Kind,
-			APIVersion: eventsourcereg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoCalendarEventSourceName,
-		},
-		Spec: eventsourcev1alpha1.EventSourceSpec{
-			Template:     tpl,
-			EventBusName: store.Get().EventBusName,
-			Calendar: map[string]eventsourcev1alpha1.CalendarEventSource{
-				store.Get().DemoCalendarEventName: {
-					Interval: "30m",
-				},
-			},
-		},
-	}
+	return es
 }
 
 func createDemoCalendarSensor() *sensorsv1alpha1.Sensor {
+	name := store.Get().DemoCalendarSensorObjectName
 	triggers := []sensorsv1alpha1.Trigger{
 		createDemoCalendarTrigger(),
 	}
 	dependencies := []sensorsv1alpha1.EventDependency{
 		{
 			Name:            store.Get().DemoCalendarDependencyName,
-			EventSourceName: store.Get().DemoCalendarEventSourceName,
+			EventSourceName: store.Get().DemoCalendarEventSourceObjectName,
 			EventName:       store.Get().DemoCalendarEventName,
 		},
 	}
-	tpl := &sensorsv1alpha1.Template{
-		ServiceAccountName: "argo-server",
-		Container:          &corev1.Container{},
-	}
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
+	return createDemoSensor(name, triggers, dependencies)
 
-	return &sensorsv1alpha1.Sensor{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sensorreg.Kind,
-			APIVersion: sensorreg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "calendar",
-		},
-		Spec: sensorsv1alpha1.SensorSpec{
-			EventBusName: "codefresh-eventbus",
-			Template:     tpl,
-			Dependencies: dependencies,
-			Triggers:     triggers,
-		},
-	}
 }
 
 func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
@@ -858,7 +824,7 @@ func createDemoBitbucketServerPipeline(opts *gitSourceGitDemoPipelineOptions) er
 
 func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
 	ingressOptions := ingressutil.CreateIngressOptions{
-		Name:             store.Get().CodefreshDeliveryPipelines,
+		Name:             store.Get().DemoPipelinesIngressObjectName,
 		IngressClassName: ingressClass,
 		Host:             hostName,
 		Paths: []ingressutil.IngressPath{
@@ -877,60 +843,46 @@ func createDemoPipelinesIngress(ingressClass string, hostName string, ingressCon
 }
 
 func createDemoGithubEventSource(repoURL string, ingressHost string, runtimeName string, gitProvider cfgit.Provider) *eventsourcev1alpha1.EventSource {
-	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+	name := store.Get().DemoGitEventSourceObjectName
+	es := createDemoEventSource(name)
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
-
-	return &eventsourcev1alpha1.EventSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsourcereg.Kind,
-			APIVersion: eventsourcereg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoGitEventSourceObjectName,
-		},
-		Spec: eventsourcev1alpha1.EventSourceSpec{
-			EventBusName: store.Get().EventBusName,
-			Template:     tpl,
-			Service: &eventsourcev1alpha1.Service{
-				Ports: []corev1.ServicePort{
-					{
-						Port:       store.Get().DemoGitEventSourceServicePort,
-						TargetPort: intstr.IntOrString{StrVal: store.Get().DemoGitEventSourceTargetPort},
-					},
-				},
-			},
-			Github: map[string]eventsourcev1alpha1.GithubEventSource{
-				store.Get().DemoGitEventName: {
-					Events: []string{
-						"push",
-					},
-					Repositories: []eventsourcev1alpha1.OwnedRepositories{
-						getGithubRepoFromGitURL(repoURL),
-					},
-					GithubBaseURL: fmt.Sprintf("%s/", gitProvider.BaseURL()), // github base URL must have a trailing slash
-					Webhook: &eventsourcev1alpha1.WebhookContext{
-						Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
-						URL:      strings.Trim(ingressHost, "/"),
-						Port:     store.Get().DemoGitEventSourceTargetPort,
-						Method:   "POST",
-					},
-					APIToken: &corev1.SecretKeySelector{
-						Key: store.Get().GitTokenSecretKey,
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: store.Get().GitTokenSecretObjectName,
-						},
-					},
-					ContentType:        "json",
-					Active:             true,
-					Insecure:           true,
-					DeleteHookOnFinish: true,
-				},
+	es.Spec.Service = &eventsourcev1alpha1.Service{
+		Ports: []corev1.ServicePort{
+			{
+				Port:       store.Get().DemoGitEventSourceServicePort,
+				TargetPort: intstr.IntOrString{StrVal: store.Get().DemoGitEventSourceTargetPort},
 			},
 		},
 	}
+	es.Spec.Github = map[string]eventsourcev1alpha1.GithubEventSource{
+		store.Get().DemoGitEventName: {
+			Events: []string{
+				"push",
+			},
+			Repositories: []eventsourcev1alpha1.OwnedRepositories{
+				getGithubRepoFromGitURL(repoURL),
+			},
+			GithubBaseURL: fmt.Sprintf("%s/", gitProvider.BaseURL()), // github base URL must have a trailing slash
+			Webhook: &eventsourcev1alpha1.WebhookContext{
+				Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
+				URL:      strings.Trim(ingressHost, "/"),
+				Port:     store.Get().DemoGitEventSourceTargetPort,
+				Method:   "POST",
+			},
+			APIToken: &corev1.SecretKeySelector{
+				Key: store.Get().GitTokenSecretKey,
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: store.Get().GitTokenSecretObjectName,
+				},
+			},
+			ContentType:        "json",
+			Active:             true,
+			Insecure:           true,
+			DeleteHookOnFinish: true,
+		},
+	}
+
+	return es
 }
 
 func createDemoGithubTrigger() sensorsv1alpha1.Trigger {
@@ -999,6 +951,7 @@ func createDemoGithubDataFilters() *sensorsv1alpha1.EventDependencyFilter {
 }
 
 func createDemoGithubSensor() *sensorsv1alpha1.Sensor {
+	name := store.Get().DemoGitSensorObjectName
 	triggers := []sensorsv1alpha1.Trigger{
 		createDemoGithubTrigger(),
 	}
@@ -1010,84 +963,48 @@ func createDemoGithubSensor() *sensorsv1alpha1.Sensor {
 			Filters:         createDemoGithubDataFilters(),
 		},
 	}
-	tpl := &sensorsv1alpha1.Template{
-		Container:          &corev1.Container{},
-		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
-	}
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
-
-	return &sensorsv1alpha1.Sensor{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sensorreg.Kind,
-			APIVersion: sensorreg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoGitSensorObjectName,
-		},
-		Spec: sensorsv1alpha1.SensorSpec{
-			EventBusName: store.Get().EventBusName,
-			Template:     tpl,
-			Dependencies: dependencies,
-			Triggers:     triggers,
-		},
-	}
+	return createDemoSensor(name, triggers, dependencies)
 }
 
 func createDemoBitbucketServerEventSource(repoURL string, ingressHost string, runtimeName string, gitProvider cfgit.Provider) *eventsourcev1alpha1.EventSource {
-	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+	name := store.Get().DemoGitEventSourceObjectName
+	es := createDemoEventSource(name)
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
-
-	return &eventsourcev1alpha1.EventSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsourcereg.Kind,
-			APIVersion: eventsourcereg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoGitEventSourceObjectName,
-		},
-		Spec: eventsourcev1alpha1.EventSourceSpec{
-			EventBusName: store.Get().EventBusName,
-			Template:     tpl,
-			Service: &eventsourcev1alpha1.Service{
-				Ports: []corev1.ServicePort{
-					{
-						Port:       store.Get().DemoGitEventSourceServicePort,
-						TargetPort: intstr.IntOrString{StrVal: store.Get().DemoGitEventSourceTargetPort},
-					},
-				},
-			},
-			BitbucketServer: map[string]eventsourcev1alpha1.BitbucketServerEventSource{
-				store.Get().DemoGitEventName: {
-					Events: []string{
-						"repo:refs_changed",
-					},
-					Repositories: []eventsourcev1alpha1.BitbucketServerRepository{
-						getBitbucketServerRepoFromGitURL(repoURL),
-					},
-					Webhook: &eventsourcev1alpha1.WebhookContext{
-						Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
-						URL:      strings.Trim(ingressHost, "/"),
-						Port:     store.Get().DemoGitEventSourceTargetPort,
-						Method:   "POST",
-					},
-					AccessToken: &corev1.SecretKeySelector{
-						Key: store.Get().GitTokenSecretKey,
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: store.Get().GitTokenSecretObjectName,
-						},
-					},
-					BitbucketServerBaseURL: fmt.Sprintf("%s/rest", gitProvider.BaseURL()),
-					DeleteHookOnFinish:     true,
-				},
+	es.Spec.Service = &eventsourcev1alpha1.Service{
+		Ports: []corev1.ServicePort{
+			{
+				Port:       store.Get().DemoGitEventSourceServicePort,
+				TargetPort: intstr.IntOrString{StrVal: store.Get().DemoGitEventSourceTargetPort},
 			},
 		},
 	}
+	es.Spec.BitbucketServer = map[string]eventsourcev1alpha1.BitbucketServerEventSource{
+		store.Get().DemoGitEventName: {
+			Events: []string{
+				"repo:refs_changed",
+			},
+			Repositories: []eventsourcev1alpha1.BitbucketServerRepository{
+				getBitbucketServerRepoFromGitURL(repoURL),
+			},
+			Webhook: &eventsourcev1alpha1.WebhookContext{
+				Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
+				URL:      strings.Trim(ingressHost, "/"),
+				Port:     store.Get().DemoGitEventSourceTargetPort,
+				Method:   "POST",
+			},
+			AccessToken: &corev1.SecretKeySelector{
+				Key: store.Get().GitTokenSecretKey,
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: store.Get().GitTokenSecretObjectName,
+				},
+			},
+			BitbucketServerBaseURL: fmt.Sprintf("%s/rest", gitProvider.BaseURL()),
+			DeleteHookOnFinish:     true,
+		},
+	}
+
+	return es
 }
 
 func createDemoBitbucketServerTrigger() sensorsv1alpha1.Trigger {
@@ -1155,6 +1072,7 @@ func createDemoBitbucketServerDataFilters() *sensorsv1alpha1.EventDependencyFilt
 }
 
 func createDemoBitbucketServerSensor() *sensorsv1alpha1.Sensor {
+	name := store.Get().DemoGitSensorObjectName
 	triggers := []sensorsv1alpha1.Trigger{
 		createDemoBitbucketServerTrigger(),
 	}
@@ -1166,85 +1084,49 @@ func createDemoBitbucketServerSensor() *sensorsv1alpha1.Sensor {
 			Filters:         createDemoBitbucketServerDataFilters(),
 		},
 	}
-	tpl := &sensorsv1alpha1.Template{
-		Container:          &corev1.Container{},
-		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
-	}
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
-
-	return &sensorsv1alpha1.Sensor{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sensorreg.Kind,
-			APIVersion: sensorreg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoGitSensorObjectName,
-		},
-		Spec: sensorsv1alpha1.SensorSpec{
-			EventBusName: store.Get().EventBusName,
-			Template:     tpl,
-			Dependencies: dependencies,
-			Triggers:     triggers,
-		},
-	}
+	return createDemoSensor(name, triggers, dependencies)
 }
 
 func createDemoGitlabEventSource(repoURL string, ingressHost string, runtimeName string, gitProvider cfgit.Provider) *eventsourcev1alpha1.EventSource {
-	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+	name := store.Get().DemoGitEventSourceObjectName
+	es := createDemoEventSource(name)
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
-
-	return &eventsourcev1alpha1.EventSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsourcereg.Kind,
-			APIVersion: eventsourcereg.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoGitEventSourceObjectName,
-		},
-		Spec: eventsourcev1alpha1.EventSourceSpec{
-			EventBusName: store.Get().EventBusName,
-			Template:     tpl,
-			Service: &eventsourcev1alpha1.Service{
-				Ports: []corev1.ServicePort{
-					{
-						Port:       store.Get().DemoGitEventSourceServicePort,
-						TargetPort: intstr.IntOrString{StrVal: store.Get().DemoGitEventSourceTargetPort},
-					},
-				},
-			},
-			Gitlab: map[string]eventsourcev1alpha1.GitlabEventSource{
-				store.Get().DemoGitEventName: {
-					Events: []string{
-						"PushEvents",
-					},
-					Projects: []string{
-						getGitlabProjectFromGitURL(repoURL),
-					},
-					Webhook: &eventsourcev1alpha1.WebhookContext{
-						Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
-						URL:      strings.Trim(ingressHost, "/"),
-						Port:     store.Get().DemoGitEventSourceTargetPort,
-						Method:   "POST",
-					},
-					AccessToken: &corev1.SecretKeySelector{
-						Key: store.Get().GitTokenSecretKey,
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: store.Get().GitTokenSecretObjectName,
-						},
-					},
-					EnableSSLVerification: true,
-					GitlabBaseURL:         gitProvider.BaseURL(),
-					DeleteHookOnFinish:    true,
-				},
+	es.Spec.Service = &eventsourcev1alpha1.Service{
+		Ports: []corev1.ServicePort{
+			{
+				Port:       store.Get().DemoGitEventSourceServicePort,
+				TargetPort: intstr.IntOrString{StrVal: store.Get().DemoGitEventSourceTargetPort},
 			},
 		},
 	}
+	es.Spec.Gitlab = map[string]eventsourcev1alpha1.GitlabEventSource{
+		store.Get().DemoGitEventName: {
+			Events: []string{
+				"PushEvents",
+			},
+			Projects: []string{
+				getGitlabProjectFromGitURL(repoURL),
+			},
+			Webhook: &eventsourcev1alpha1.WebhookContext{
+				Endpoint: fmt.Sprintf("%s/%s", util.GenerateIngressPathForDemoGitEventSource(runtimeName), store.Get().DemoGitEventName),
+				URL:      strings.Trim(ingressHost, "/"),
+				Port:     store.Get().DemoGitEventSourceTargetPort,
+				Method:   "POST",
+			},
+			AccessToken: &corev1.SecretKeySelector{
+				Key: store.Get().GitTokenSecretKey,
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: store.Get().GitTokenSecretObjectName,
+				},
+			},
+			EnableSSLVerification: true,
+			GitlabBaseURL:         gitProvider.BaseURL(),
+			DeleteHookOnFinish:    true,
+		},
+	}
+
+	return es
 }
 
 func createDemoGitlabTrigger() sensorsv1alpha1.Trigger {
@@ -1305,6 +1187,7 @@ func createDemoGitlabDataFilters() *sensorsv1alpha1.EventDependencyFilter {
 }
 
 func createDemoGitlabSensor() *sensorsv1alpha1.Sensor {
+	name := store.Get().DemoGitSensorObjectName
 	triggers := []sensorsv1alpha1.Trigger{
 		createDemoGitlabTrigger(),
 	}
@@ -1316,6 +1199,33 @@ func createDemoGitlabSensor() *sensorsv1alpha1.Sensor {
 			Filters:         createDemoGitlabDataFilters(),
 		},
 	}
+
+	return createDemoSensor(name, triggers, dependencies)
+}
+
+func createDemoEventSource(name string) *eventsourcev1alpha1.EventSource {
+	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
+
+	if store.Get().SetDefaultResources {
+		eventsutil.SetDefaultResourceRequirements(tpl.Container)
+	}
+
+	return &eventsourcev1alpha1.EventSource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       eventsourcereg.Kind,
+			APIVersion: eventsourcereg.Group + "/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: eventsourcev1alpha1.EventSourceSpec{
+			EventBusName: store.Get().EventBusName,
+			Template:     tpl,
+		},
+	}
+}
+
+func createDemoSensor(name string, triggers []sensorsv1alpha1.Trigger, dependencies []sensorsv1alpha1.EventDependency) *sensorsv1alpha1.Sensor {
 	tpl := &sensorsv1alpha1.Template{
 		Container:          &corev1.Container{},
 		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
@@ -1331,7 +1241,7 @@ func createDemoGitlabSensor() *sensorsv1alpha1.Sensor {
 			APIVersion: sensorreg.Group + "/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: store.Get().DemoGitSensorObjectName,
+			Name: name,
 		},
 		Spec: sensorsv1alpha1.SensorSpec{
 			EventBusName: store.Get().EventBusName,
