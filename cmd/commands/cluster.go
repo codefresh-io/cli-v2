@@ -66,7 +66,7 @@ type (
 
 var (
 	minAddClusterSupportedVersion = semver.MustParse("0.0.283")
-	minAddClusterLabelsSupportedVersion = semver.MustParse("0.0.500")
+	minAddClusterLabelsSupportedVersion = semver.MustParse("0.0.462")
 
 	serviceAccountGVK = resid.Gvk{
 		Version: "v1",
@@ -168,9 +168,9 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 		return fmt.Errorf("runtime \"%s\" does not support this command. Minimal required version is %s", opts.runtimeName, minAddClusterSupportedVersion)
 	}
 
-	// if (len(opts.annotations) > 0 || len(opts.labels) > 0) && version.LessThan(minAddClusterLabelsSupportedVersion) {
-	// 	return fmt.Errorf("runtime \"%s\" does not support adding clusters with annotations or labels. Minimal required version is %s", opts.runtimeName, minAddClusterLabelsSupportedVersion)
-	// }
+	if (len(opts.annotations) > 0 || len(opts.labels) > 0) && version.LessThan(minAddClusterLabelsSupportedVersion) {
+		return fmt.Errorf("runtime \"%s\" does not support adding clusters with annotations or labels. Minimal required version is %s", opts.runtimeName, minAddClusterLabelsSupportedVersion)
+	}
 
 	if runtime.IngressHost == nil {
 		return fmt.Errorf("runtime \"%s\" is missing an ingress URL", opts.runtimeName)
@@ -627,7 +627,7 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 	return nil
 }
 
-func mapToYaml(m map[string]string) (string, err) {
+func mapToYaml(m map[string]string) (string, error) {
 	data, err := yaml.Marshal(m)
 	if err != nil {
 		return "", err
