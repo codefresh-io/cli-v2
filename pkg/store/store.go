@@ -148,7 +148,6 @@ type Store struct {
 	IsDownloadRuntimeLogs               bool
 	IngressHost                         string
 	IscRuntimesDir                      string
-	                 string
 }
 
 // Get returns the global store
