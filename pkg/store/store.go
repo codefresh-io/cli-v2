@@ -148,7 +148,7 @@ type Store struct {
 	IsDownloadRuntimeLogs               bool
 	IngressHost                         string
 	IscRuntimesDir                      string
-	LabelFieldDelimiter                 string
+	                 string
 }
 
 // Get returns the global store
@@ -250,7 +250,6 @@ func init() {
 	s.GsCreateFlow = "git-source-create"
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
-	s.LabelFieldDelimiter = "="
 
 	initVersion()
 }
