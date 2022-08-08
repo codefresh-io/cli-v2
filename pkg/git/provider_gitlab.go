@@ -31,7 +31,7 @@ type (
 const (
 	GITLAB_CLOUD_DOMAIN               = "gitlab.com"
 	GITLAB_REST_ENDPOINT              = "/api/v4"
-	GITLAB               ProviderType = "gitlab"
+	GITLAB               ProviderType = "GITLAB"
 )
 
 func NewGitlabProvider(baseURL string) (Provider, error) {

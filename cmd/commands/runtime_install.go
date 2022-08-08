@@ -480,7 +480,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 				ingressClassNames = append(ingressClassNames, ic.Name)
 				ingressClassNameToController[ic.Name] = ingressutil.GetController(string(controller))
 
-				if opts.IngressClass == ic.Name { //if ingress class provided via flag
+				if opts.IngressClass == ic.Name { // if ingress class provided via flag
 					isValidClass = true
 				}
 				break
@@ -488,7 +488,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		}
 	}
 
-	if opts.IngressClass != "" { //if ingress class provided via flag
+	if opts.IngressClass != "" { // if ingress class provided via flag
 		if !isValidClass {
 			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
 		}
@@ -588,6 +588,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Cluster:             server,
 		RuntimeVersion:      runtimeVersion,
 		IngressHost:         &opts.IngressHost,
+		GitProvider:         model.GitProviders(opts.gitProvider.Type()),
 		InternalIngressHost: &opts.InternalIngressHost,
 		IngressClass:        &opts.IngressClass,
 		IngressController:   &ingressControllerName,

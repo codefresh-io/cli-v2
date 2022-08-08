@@ -34,8 +34,8 @@ const (
 	GITHUB_CLOUD_BASE_URL              = "https://github.com/"
 	GITHUB_CLOUD_API_URL               = "https://api.github.com"
 	GITHUB_REST_ENDPOINT               = "/api/v3"
-	GITHUB                ProviderType = "github"
-	GITHUB_ENT            ProviderType = "github-enterpeise" // for backward compatability
+	GITHUB                ProviderType = "GITHUB"
+	GITHUB_ENT            ProviderType = "GITHUB-ENTERPEISE" // for backward compatability
 )
 
 var requiredScopes = map[TokenType][]string{
