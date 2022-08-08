@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -144,7 +143,7 @@ func (c *Config) Save() error {
 		return err
 	}
 
-	return ioutil.WriteFile(filepath.Join(c.path, configFileName), data, 0644)
+	return os.WriteFile(filepath.Join(c.path, configFileName), data, 0644)
 }
 
 // GetCurrentContext returns current authentication context
