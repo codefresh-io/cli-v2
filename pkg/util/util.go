@@ -17,6 +17,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -326,6 +327,21 @@ func StringIndexOf(slice []string, val string) int {
 	return -1
 }
 
-func GenerateIngressEventSourcePath(runtimeName string) string {
-	return fmt.Sprintf("%s/%s/%s", store.Get().WebhooksRootPath, runtimeName, store.Get().GithubExampleEventSourceObjectName)
+func GenerateIngressPathForDemoGitEventSource(runtimeName string) string {
+	return fmt.Sprintf("%s/%s/%s", store.Get().WebhooksRootPath, runtimeName, store.Get().DemoGitEventSourceObjectName)
+}
+
+func StructToMap(obj interface{}) (map[string]interface{}, error) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, err
+	}
+	return crd, nil
 }
