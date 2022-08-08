@@ -42,7 +42,7 @@ func NewBitbucketServerProvider(baseURL string) (Provider, error) {
 	u.Path = BITBUCKET_REST_ENDPOINT
 	return &bitbucketServer{
 		providerType: BITBUCKET_SERVER,
-		apiURL:      u,
+		apiURL:       u,
 	}, nil
 }
 

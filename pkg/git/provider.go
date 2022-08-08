@@ -38,14 +38,12 @@ const (
 	PersonalToken TokenType = "personal token"
 )
 
-var (
-	providers = map[ProviderType]func(string) (Provider, error){
-		BITBUCKET_SERVER: NewBitbucketServerProvider,
-		GITHUB:           NewGithubProvider,
-		GITHUB_ENT:       NewGithubProvider, // for backward compatability
-		GITLAB:           NewGitlabProvider,
-	}
-)
+var providers = map[ProviderType]func(string) (Provider, error){
+	BITBUCKET_SERVER: NewBitbucketServerProvider,
+	GITHUB:           NewGithubProvider,
+	GITHUB_ENT:       NewGithubProvider, // for backward compatability
+	GITLAB:           NewGitlabProvider,
+}
 
 func GetProvider(providerType ProviderType, baseURL string) (Provider, error) {
 	if providerType != "" {

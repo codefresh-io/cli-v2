@@ -17,9 +17,10 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -98,12 +99,12 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		}
 
 		defer res.Body.Close()
-		body, err = ioutil.ReadAll(res.Body)
+		body, err = io.ReadAll(res.Body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 	} else {
-		body, err = ioutil.ReadFile(store.RuntimeDefURL)
+		body, err = os.ReadFile(store.RuntimeDefURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
