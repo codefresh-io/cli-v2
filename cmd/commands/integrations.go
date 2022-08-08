@@ -41,9 +41,9 @@ type (
 )
 
 var gitProvidersByName = map[string]model.GitProviders{
-	"BITBUCKET-SERVER": model.GitProvidersBitbucketServer,
-	"GITHUB":           model.GitProvidersGithub,
-	"GITLAB":           model.GitProvidersGitlab,
+	"bitbucket-server": model.GitProvidersBitbucketServer,
+	"github":           model.GitProvidersGithub,
+	"gitlab":           model.GitProvidersGitlab,
 }
 
 func NewIntegrationCommand() *cobra.Command {

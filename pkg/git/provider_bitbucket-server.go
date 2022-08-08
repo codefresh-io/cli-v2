@@ -30,7 +30,7 @@ type (
 
 const (
 	BITBUCKET_REST_ENDPOINT              = "/rest/api/1.0"
-	BITBUCKET_SERVER        ProviderType = "BITBUCKET-SERVER"
+	BITBUCKET_SERVER        ProviderType = "bitbucket-server"
 )
 
 func NewBitbucketServerProvider(baseURL string) (Provider, error) {

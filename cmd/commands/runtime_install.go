@@ -581,6 +581,10 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}()
 
 	ingressControllerName := opts.IngressController.Name()
+	gitProvider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	if err != nil {
+		return err
+	}
 
 	repoURL := opts.InsCloneOpts.URL()
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
@@ -588,7 +592,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Cluster:             server,
 		RuntimeVersion:      runtimeVersion,
 		IngressHost:         &opts.IngressHost,
-		GitProvider:         model.GitProviders(opts.gitProvider.Type()),
+		GitProvider:         model.GitProviders(gitProvider),
 		InternalIngressHost: &opts.InternalIngressHost,
 		IngressClass:        &opts.IngressClass,
 		IngressController:   &ingressControllerName,
