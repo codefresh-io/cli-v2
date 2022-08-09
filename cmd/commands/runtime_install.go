@@ -358,7 +358,7 @@ func getIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		handleValidationFailsWithRepeat(func() error {
 			err = ensureIngressHost(ctx, opts)
 			if isValidationError(err) {
-				fmt.Println("Could not resolve the URL for ingress host; enter a valid URL")
+				fmt.Fprintf(os.Stderr, "Ingress host validation failed: %s; enter a valid URL\n", err.Error())
 				return err
 			}
 			return nil
@@ -404,7 +404,7 @@ func ensureIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	log.G(ctx).Infof("Using ingress host: %s", opts.IngressHost)
 
-	if !opts.SkipClusterChecks {
+	if opts.SkipClusterChecks {
 		return nil
 	}
 

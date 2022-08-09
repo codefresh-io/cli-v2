@@ -59,6 +59,8 @@ var (
 	COLOR_RESET     = "\033[0m"
 	UNDERLINE_RESET = "\033[24m"
 	BOLD_RESET      = "\033[22m"
+
+	errUserCanceledInsecureInstall = fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 )
 
 func postInitCommands(commands []*cobra.Command) {
@@ -473,12 +475,12 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
-	ServicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
+	servicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
-	for _, s := range ServicesList.Items {
+	for _, s := range servicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController.Name() && s.Spec.Type == "LoadBalancer" {
 			if len(s.Status.LoadBalancer.Ingress) > 0 {
 				ingress := s.Status.LoadBalancer.Ingress[0]
@@ -498,25 +500,15 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	if store.Get().Silent {
+		if foundIngressHost == "" {
+			return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
+		}
 		opts.IngressHost = foundIngressHost
 	} else {
 		opts.IngressHost, err = getIngressHostFromUserInput(foundIngressHost)
-		if err != nil {
-			return err
-		}
-		response, err := http.Get(opts.IngressHost)
-		if err != nil {
-			opts.IngressHost = ""
-			return err
-		}
-		response.Body.Close()
 	}
 
-	if opts.IngressHost == "" {
-		return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
-	}
-
-	return nil
+	return err
 }
 
 func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
@@ -616,7 +608,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	if result == "Yes" {
 		store.Get().InsecureIngressHost = true
 	} else {
-		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
+		return errUserCanceledInsecureInstall
 	}
 
 	return nil
@@ -635,7 +627,9 @@ func handleValidationFailsWithRepeat(callback Callback) {
 }
 
 func isValidationError(err error) bool {
-	return err != nil && err != promptui.ErrInterrupt
+	return err != nil &&
+		err != promptui.ErrInterrupt &&
+		err != errUserCanceledInsecureInstall
 }
 
 func getIscRepo(ctx context.Context) (string, error) {
