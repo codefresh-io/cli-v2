@@ -95,6 +95,7 @@ func (ingressControllerALB) Decorate(ingress *netv1.Ingress) {
 	ingress.Annotations["alb.ingress.kubernetes.io/group.name"] = "csdp-ingress"
 	ingress.Annotations["alb.ingress.kubernetes.io/scheme"] = "internet-facing"
 	ingress.Annotations["alb.ingress.kubernetes.io/target-type"] = "ip"
+	ingress.Annotations["alb.ingress.kubernetes.io/listen-ports"] = "[{\"HTTP\": 80}, {\"HTTPS\": 443}]"
 }
 
 func (ingressControllerNginxEnterprise) Decorate(ingress *netv1.Ingress) {
