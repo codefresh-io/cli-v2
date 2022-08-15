@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
