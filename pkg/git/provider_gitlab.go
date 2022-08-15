@@ -16,9 +16,13 @@ package git
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
 type (
@@ -47,10 +51,6 @@ func NewGitlabProvider(baseURL string) (Provider, error) {
 	}, nil
 }
 
-func (g *gitlab) Type() ProviderType {
-	return g.providerType
-}
-
 func (g *gitlab) BaseURL() string {
 	urlClone := *g.apiURL
 	urlClone.Path = ""
@@ -58,11 +58,38 @@ func (g *gitlab) BaseURL() string {
 	return urlClone.String()
 }
 
-func (g *gitlab) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
-	log.G(ctx).Debug("Skip verifying token for gitlab, to be implemented later")
+func (g *gitlab) SupportsMarketplace() bool {
+	return false
+}
+
+func (g *gitlab) Type() ProviderType {
+	return g.providerType
+}
+
+func (g *gitlab) VerifyRuntimeToken(ctx context.Context, token string) error {
+	return g.checkApiScope(ctx, token)
+}
+
+func (g *gitlab) VerifyUserToken(ctx context.Context, token string) error {
+	log.G(ctx).Debug("Skip verifying user token for gitlab")
 	return nil
 }
 
-func (g *gitlab) SupportsMarketplace() bool {
-	return false
+func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
+	urlClone := *g.apiURL
+	urlClone.Path += "/projects"
+	headers := map[string]string{
+		"Authorization": "token " + token,
+	}
+	res, err := httputil.Request(ctx, http.MethodPost, urlClone.String(), headers, nil)
+	if err == nil {
+		return fmt.Errorf("failed checking token: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusBadRequest {
+		return errors.New("token is invalid or missing required \"api\" scope")
+	}
+
+	return nil
 }

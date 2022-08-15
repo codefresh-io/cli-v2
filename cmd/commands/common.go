@@ -281,8 +281,8 @@ func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 	return result, nil
 }
 
-// ensureGitToken gets the runtime token from the user (if !silent), and verifys it witht he provider (if available)
-func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
+// ensureGitRuntimeToken gets the runtime token from the user (if !silent), and verifys it with he provider (if available)
+func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
 	ctx := cmd.Context()
 	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
@@ -294,7 +294,7 @@ func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *a
 	}
 
 	if gitProvider != nil {
-		err := gitProvider.VerifyToken(ctx, cfgit.RuntimeToken, cloneOpts.Auth.Password)
+		err := gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth.Password)
 		if err != nil {
 			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""
@@ -307,8 +307,8 @@ func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *a
 	return nil
 }
 
-// ensureGitPAT verifys the user's Personal Access Token (if it is different from the Runtime Token)
-func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
+// ensureGitUserPAT verifys the user's Personal Access Token (if it is different from the Runtime Token)
+func ensureGitUserPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
 		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
@@ -321,7 +321,7 @@ func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	if opts.gitProvider != nil {
-		return opts.gitProvider.VerifyToken(ctx, cfgit.PersonalToken, opts.InsCloneOpts.Auth.Password)
+		return opts.gitProvider.VerifyUserToken(ctx, opts.InsCloneOpts.Auth.Password)
 	}
 
 	return nil
@@ -566,7 +566,7 @@ func checkIngressHostWithInsecure(ingress string) bool {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient.Transport = customTransport
-	req, err := http.NewRequest("GET", ingress, nil)
+	req, err := http.NewRequest(http.MethodGet, ingress, nil)
 	if err != nil {
 		return false
 	}

@@ -21,21 +21,16 @@ import (
 )
 
 type (
-	TokenType    string
 	ProviderType string
 
 	// Provider represents a git provider
 	Provider interface {
-		Type() ProviderType
 		BaseURL() string
-		VerifyToken(ctx context.Context, tokenType TokenType, token string) error
 		SupportsMarketplace() bool
+		Type() ProviderType
+		VerifyRuntimeToken(ctx context.Context, token string) error
+		VerifyUserToken(ctx context.Context, token string) error
 	}
-)
-
-const (
-	RuntimeToken  TokenType = "runtime token"
-	PersonalToken TokenType = "personal token"
 )
 
 var providers = map[ProviderType]func(string) (Provider, error){

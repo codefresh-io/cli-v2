@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
 type (
@@ -38,10 +40,10 @@ const (
 	GITHUB_ENT            ProviderType = "github-enterpeise" // for backward compatability
 )
 
-var requiredScopes = map[TokenType][]string{
-	RuntimeToken:  {"repo", "admin:repo_hook"},
-	PersonalToken: {"repo"},
-}
+var (
+	runtime_token_scopes = []string{"repo", "admin:repo_hook"}
+	user_token_scopes    = []string{"repo"}
+)
 
 func NewGithubProvider(baseURL string) (Provider, error) {
 	if baseURL == GITHUB_CLOUD_BASE_URL {
@@ -63,10 +65,6 @@ func NewGithubProvider(baseURL string) (Provider, error) {
 	}, nil
 }
 
-func (g *github) Type() ProviderType {
-	return g.providerType
-}
-
 func (g *github) BaseURL() string {
 	urlClone := *g.apiURL
 	urlClone.Path = ""
@@ -74,26 +72,49 @@ func (g *github) BaseURL() string {
 	return urlClone.String()
 }
 
-func (g *github) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
-	req, err := http.NewRequestWithContext(ctx, "HEAD", g.apiURL.String(), nil)
+func (g *github) SupportsMarketplace() bool {
+	return true
+}
+
+func (g *github) Type() ProviderType {
+	return g.providerType
+}
+
+func (g *github) VerifyRuntimeToken(ctx context.Context, token string) error {
+	err := g.verifyToken(ctx, token, runtime_token_scopes)
+	if err != nil {
+		return fmt.Errorf("Runtime token invalid: %w", err)
+	}
+
+	return nil
+}
+
+func (g *github) VerifyUserToken(ctx context.Context, token string) error {
+	err := g.verifyToken(ctx, token, user_token_scopes)
+	if err != nil {
+		return fmt.Errorf("User token invalid: %w", err)
+	}
+
+	return nil
+}
+
+func (g *github) verifyToken(ctx context.Context, token string, requiredScopes []string) error {
+	reqHeaders := map[string]string{
+		"Authorization": "token " + token,
+	}
+	res, err := httputil.Request(ctx, http.MethodHead, g.apiURL.String(), reqHeaders, nil)
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 
-	req.Header.Set("Authorization", "token "+token)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	rawScopes := resp.Header["X-Oauth-Scopes"]
+	rawScopes := res.Header["X-Oauth-Scopes"]
 	var scopes []string
 	if len(rawScopes) > 0 {
 		scopes = strings.Split(rawScopes[0], ", ")
 	}
 
-	for _, rs := range requiredScopes[tokenType] {
+	for _, rs := range requiredScopes {
 		var contained bool
 		for _, scope := range scopes {
 			if scope == rs {
@@ -103,13 +124,9 @@ func (g *github) VerifyToken(ctx context.Context, tokenType TokenType, token str
 		}
 
 		if !contained {
-			return fmt.Errorf("the provided %s is missing one or more of the required scopes: %s", tokenType, strings.Join(requiredScopes[tokenType], ", "))
+			return fmt.Errorf("the provided token is missing one or more of the required scopes: %s", strings.Join(requiredScopes, ", "))
 		}
 	}
 
 	return nil
-}
-
-func (g *github) SupportsMarketplace() bool {
-	return true
 }

@@ -340,7 +340,7 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	err = ensureGitPAT(ctx, opts)
+	err = ensureGitUserPAT(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, true, false)
 	if err != nil {
 		return err
@@ -371,10 +371,10 @@ func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
 
 	if store.Get().Silent {
-		err = ensureGitToken(cmd, opts.gitProvider, opts.InsCloneOpts)
+		err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts)
 	} else {
 		handleValidationFailsWithRepeat(func() error {
-			err = ensureGitToken(cmd, opts.gitProvider, opts.InsCloneOpts)
+			err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts)
 			if isValidationError(err) {
 				fmt.Println(err)
 				return err
