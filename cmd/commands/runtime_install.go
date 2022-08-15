@@ -340,7 +340,7 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	err = ensureGitUserPAT(ctx, opts)
+	err = ensureGitUserToken(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, true, false)
 	if err != nil {
 		return err

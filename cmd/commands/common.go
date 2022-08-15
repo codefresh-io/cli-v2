@@ -307,8 +307,8 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 	return nil
 }
 
-// ensureGitUserPAT verifys the user's Personal Access Token (if it is different from the Runtime Token)
-func ensureGitUserPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
+// ensureGitUserToken verifys the user's Personal Access Token (if it is different from the Runtime Token)
+func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
 		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
