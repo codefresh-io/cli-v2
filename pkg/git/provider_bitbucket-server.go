@@ -81,7 +81,7 @@ func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, token string) e
 }
 
 func (bbs *bitbucketServer) checkAdminScope(ctx context.Context, token string) error {
-	username, err := bbs.getCurrentUser(ctx, token)
+	username, err := bbs.getCurrentUsername(ctx, token)
 	if err != nil {
 		return err
 	}
@@ -102,8 +102,8 @@ func (bbs *bitbucketServer) checkAdminScope(ctx context.Context, token string) e
 	return nil
 }
 
-func (bbs *bitbucketServer) getCurrentUser(ctx context.Context, token string) (string, error) {
-	res, err := bbs.request(ctx, token, http.MethodGet, "application-properties", nil)
+func (bbs *bitbucketServer) getCurrentUsername(ctx context.Context, token string) (string, error) {
+	res, err := bbs.request(ctx, token, http.MethodHead, "application-properties", nil)
 	if err != nil {
 		return "", fmt.Errorf("failed getting current user: %w", err)
 	}
