@@ -114,12 +114,7 @@ func (bbs *bitbucketServer) getCurrentUsername(ctx context.Context, token string
 
 func (bbs *bitbucketServer) request(ctx context.Context, token, method, urlPath string, body interface{}) (*http.Response, error) {
 	urlClone := *bbs.apiURL
-	if strings.HasPrefix(urlPath, "/") {
-		urlClone.Path = urlPath
-	} else {
-		urlClone.Path = path.Join(urlClone.Path, urlPath)
-	}
-
+	urlClone.Path = path.Join(urlClone.Path, urlPath)
 	headers := map[string]string{
 		"Authorization": "Bearer " + token,
 		"Content-Type":  "application/json",
