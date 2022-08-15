@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -71,15 +70,14 @@ func (bbs *bitbucketServer) Type() ProviderType {
 }
 
 func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, token string) error {
-	return bbs.checkAdminScope(ctx, token)
+	return bbs.checkProjectAdminPermission(ctx, token)
 }
 
 func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, token string) error {
-	log.G(ctx).Debug("Skip verifying user token for bitbucket, to be implemented later")
-	return nil
+	return bbs.checkRepoReadPermission(ctx, token)
 }
 
-func (bbs *bitbucketServer) checkAdminScope(ctx context.Context, token string) error {
+func (bbs *bitbucketServer) checkProjectAdminPermission(ctx context.Context, token string) error {
 	username, err := bbs.getCurrentUsername(ctx, token)
 	if err != nil {
 		return err
@@ -91,11 +89,25 @@ func (bbs *bitbucketServer) checkAdminScope(ctx context.Context, token string) e
 	}
 	res, err := bbs.request(ctx, token, http.MethodPost, urlPath, body)
 	if err != nil {
-		return fmt.Errorf("failed creating user repo: %w", err)
+		return fmt.Errorf("failed checking Project admin permission: %w", err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusBadRequest {
-		return errors.New("token is invalid or missing required \"admin\" scope")
+		return errors.New("git-token is invalid or missing required \"Project admin\" scope")
+	}
+
+	return nil
+}
+
+func (bbs *bitbucketServer) checkRepoReadPermission(ctx context.Context, token string) error {
+	username, err := bbs.getCurrentUsername(ctx, token)
+	if err != nil {
+		return fmt.Errorf("failed checking Repo read permission: %w", err)
+	}
+
+	if username == "" {
+		return errors.New("personal-git-token is invalid")
 	}
 
 	return nil
@@ -116,8 +128,8 @@ func (bbs *bitbucketServer) request(ctx context.Context, token, method, urlPath 
 	urlClone.Path = path.Join(urlClone.Path, urlPath)
 	headers := map[string]string{
 		"Authorization": "Bearer " + token,
+		"Accept":        "application/json",
 		"Content-Type":  "application/json",
 	}
-
 	return httputil.Request(ctx, method, urlClone.String(), headers, body)
 }

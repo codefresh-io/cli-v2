@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -71,25 +71,44 @@ func (g *gitlab) VerifyRuntimeToken(ctx context.Context, token string) error {
 }
 
 func (g *gitlab) VerifyUserToken(ctx context.Context, token string) error {
-	log.G(ctx).Debug("Skip verifying user token for gitlab")
-	return nil
+	return g.checkReadRepositoryScope(ctx, token)
 }
 
 func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
-	urlClone := *g.apiURL
-	urlClone.Path += "/projects"
-	headers := map[string]string{
-		"Authorization": "token " + token,
-	}
-	res, err := httputil.Request(ctx, http.MethodPost, urlClone.String(), headers, nil)
-	if err == nil {
-		return fmt.Errorf("failed checking token: %w", err)
+	res, err := g.request(ctx, token, http.MethodPost, "projects")
+	if err != nil {
+		return fmt.Errorf("failed checking api scope: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusBadRequest {
-		return errors.New("token is invalid or missing required \"api\" scope")
+		return errors.New("git-token is invalid or missing required \"api\" scope")
 	}
 
 	return nil
+}
+
+func (g *gitlab) checkReadRepositoryScope(ctx context.Context, token string) error {
+	res, err := g.request(ctx, token, http.MethodHead, "projects")
+	if err != nil {
+		return fmt.Errorf("failed checking read_repository scope: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New("personal-git-token is invalid or missing required \"read_api\" or \"read_repository\" scope")
+	}
+
+	return nil
+}
+
+func (g *gitlab) request(ctx context.Context, token, method, urlPath string) (*http.Response, error) {
+	urlClone := *g.apiURL
+	urlClone.Path = path.Join(urlClone.Path, urlPath)
+	headers := map[string]string{
+		"Authorization": "Bearer " + token,
+		"Accept":        "application/json",
+		"Content-Type":  "application/json",
+	}
+	return httputil.Request(ctx, method, urlClone.String(), headers, nil)
 }

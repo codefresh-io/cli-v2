@@ -321,7 +321,7 @@ func ensureGitUserPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	if opts.gitProvider != nil {
-		return opts.gitProvider.VerifyUserToken(ctx, opts.InsCloneOpts.Auth.Password)
+		return opts.gitProvider.VerifyUserToken(ctx, opts.GitIntegrationRegistrationOpts.Token)
 	}
 
 	return nil

@@ -83,7 +83,7 @@ func (g *github) Type() ProviderType {
 func (g *github) VerifyRuntimeToken(ctx context.Context, token string) error {
 	err := g.verifyToken(ctx, token, runtime_token_scopes)
 	if err != nil {
-		return fmt.Errorf("Runtime token invalid: %w", err)
+		return fmt.Errorf("git-token invalid: %w", err)
 	}
 
 	return nil
@@ -92,7 +92,7 @@ func (g *github) VerifyRuntimeToken(ctx context.Context, token string) error {
 func (g *github) VerifyUserToken(ctx context.Context, token string) error {
 	err := g.verifyToken(ctx, token, user_token_scopes)
 	if err != nil {
-		return fmt.Errorf("User token invalid: %w", err)
+		return fmt.Errorf("personal-git-token invalid: %w", err)
 	}
 
 	return nil
