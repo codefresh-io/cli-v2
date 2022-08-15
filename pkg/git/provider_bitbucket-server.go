@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -104,19 +103,13 @@ func (bbs *bitbucketServer) checkAdminScope(ctx context.Context, token string) e
 }
 
 func (bbs *bitbucketServer) getCurrentUser(ctx context.Context, token string) (string, error) {
-	res, err := bbs.request(ctx, token, http.MethodGet, "/plugins/servlet/applinks/whoami", nil)
+	res, err := bbs.request(ctx, token, http.MethodGet, "application-properties", nil)
 	if err != nil {
 		return "", fmt.Errorf("failed getting current user: %w", err)
 	}
 	defer res.Body.Close()
 
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read from response body: %w", err)
-	}
-
-	return string(data), nil
-
+	return res.Header.Get("X-AUSERNAME"), nil
 }
 
 func (bbs *bitbucketServer) request(ctx context.Context, token, method, urlPath string, body interface{}) (*http.Response, error) {
