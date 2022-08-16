@@ -29,6 +29,7 @@ type (
 	gitlab struct {
 		providerType ProviderType
 		apiURL       *url.URL
+		c            *http.Client
 	}
 )
 
@@ -38,7 +39,7 @@ const (
 	GITLAB               ProviderType = "gitlab"
 )
 
-func NewGitlabProvider(baseURL string) (Provider, error) {
+func NewGitlabProvider(baseURL string, client *http.Client) (Provider, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
@@ -48,6 +49,7 @@ func NewGitlabProvider(baseURL string) (Provider, error) {
 	return &gitlab{
 		providerType: GITLAB,
 		apiURL:       u,
+		c:            client,
 	}, nil
 }
 
@@ -74,6 +76,9 @@ func (g *gitlab) VerifyUserToken(ctx context.Context, token string) error {
 	return g.checkReadRepositoryScope(ctx, token)
 }
 
+// POST to projects without a body.
+// if it returns 400 - the token has "api" scope
+// otherwise - the token does not have the scope
 func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
 	res, err := g.request(ctx, token, http.MethodPost, "projects")
 	if err != nil {
@@ -88,6 +93,9 @@ func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
 	return nil
 }
 
+// HEAD to projects.
+// if it returns 200 - the token has "repo_read" scope
+// otherwise - the token does not have the scope
 func (g *gitlab) checkReadRepositoryScope(ctx context.Context, token string) error {
 	res, err := g.request(ctx, token, http.MethodHead, "projects")
 	if err != nil {
@@ -110,5 +118,10 @@ func (g *gitlab) request(ctx context.Context, token, method, urlPath string) (*h
 		"Accept":        "application/json",
 		"Content-Type":  "application/json",
 	}
-	return httputil.Request(ctx, method, urlClone.String(), headers, nil)
+	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return g.c.Do(req)
 }

@@ -29,6 +29,7 @@ type (
 	bitbucketServer struct {
 		providerType ProviderType
 		apiURL       *url.URL
+		c            *http.Client
 	}
 
 	createRepoBody struct {
@@ -41,7 +42,7 @@ const (
 	BITBUCKET_SERVER        ProviderType = "bitbucket-server"
 )
 
-func NewBitbucketServerProvider(baseURL string) (Provider, error) {
+func NewBitbucketServerProvider(baseURL string, client *http.Client) (Provider, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
@@ -51,6 +52,7 @@ func NewBitbucketServerProvider(baseURL string) (Provider, error) {
 	return &bitbucketServer{
 		providerType: BITBUCKET_SERVER,
 		apiURL:       u,
+		c:            client,
 	}, nil
 }
 
@@ -77,10 +79,13 @@ func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, token string) e
 	return bbs.checkRepoReadPermission(ctx, token)
 }
 
+// POST to users/<username>/repos with an invalid repo name (starts with "!").
+// if it returns 400 - the token has "Project admin" permission
+// otherwise - the token does not have the permission
 func (bbs *bitbucketServer) checkProjectAdminPermission(ctx context.Context, token string) error {
 	username, err := bbs.getCurrentUsername(ctx, token)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed checking Project admin permission: %w", err)
 	}
 
 	urlPath := fmt.Sprintf("users/%s/repos", username)
@@ -100,19 +105,20 @@ func (bbs *bitbucketServer) checkProjectAdminPermission(ctx context.Context, tok
 	return nil
 }
 
+// if there is no username in the response headers - that means the token was invalid.
+// in bitbucket-server - all tokens have "Repository read" permission.
+// the only way to not have this permission, is to use an invalid token.
 func (bbs *bitbucketServer) checkRepoReadPermission(ctx context.Context, token string) error {
-	username, err := bbs.getCurrentUsername(ctx, token)
+	_, err := bbs.getCurrentUsername(ctx, token)
 	if err != nil {
 		return fmt.Errorf("failed checking Repo read permission: %w", err)
-	}
-
-	if username == "" {
-		return errors.New("personal-git-token is invalid")
 	}
 
 	return nil
 }
 
+// HEAD to application-properties - this endpoint does not require any permission (or auth header).
+// but any request with a valid token has the X-AUSERNAME response header with the user name in it.
 func (bbs *bitbucketServer) getCurrentUsername(ctx context.Context, token string) (string, error) {
 	res, err := bbs.request(ctx, token, http.MethodHead, "application-properties", nil)
 	if err != nil {
@@ -120,7 +126,12 @@ func (bbs *bitbucketServer) getCurrentUsername(ctx context.Context, token string
 	}
 	defer res.Body.Close()
 
-	return res.Header.Get("X-AUSERNAME"), nil
+	username := res.Header.Get("X-AUSERNAME")
+	if username == "" {
+		return "", errors.New("invalid token")
+	}
+
+	return username, nil
 }
 
 func (bbs *bitbucketServer) request(ctx context.Context, token, method, urlPath string, body interface{}) (*http.Response, error) {
@@ -131,5 +142,10 @@ func (bbs *bitbucketServer) request(ctx context.Context, token, method, urlPath 
 		"Accept":        "application/json",
 		"Content-Type":  "application/json",
 	}
-	return httputil.Request(ctx, method, urlClone.String(), headers, body)
+	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, body)
+	if err != nil {
+		return nil, err
+	}
+
+	return bbs.c.Do(req)
 }

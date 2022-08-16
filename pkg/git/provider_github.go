@@ -16,6 +16,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -28,6 +29,7 @@ type (
 	github struct {
 		providerType ProviderType
 		apiURL       *url.URL
+		c            *http.Client
 	}
 )
 
@@ -45,7 +47,7 @@ var (
 	user_token_scopes    = []string{"repo"}
 )
 
-func NewGithubProvider(baseURL string) (Provider, error) {
+func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
 	if baseURL == GITHUB_CLOUD_BASE_URL {
 		baseURL = GITHUB_CLOUD_API_URL
 	}
@@ -62,6 +64,7 @@ func NewGithubProvider(baseURL string) (Provider, error) {
 	return &github{
 		providerType: GITHUB,
 		apiURL:       u,
+		c:            client,
 	}, nil
 }
 
@@ -102,16 +105,25 @@ func (g *github) verifyToken(ctx context.Context, token string, requiredScopes [
 	reqHeaders := map[string]string{
 		"Authorization": "token " + token,
 	}
-	res, err := httputil.Request(ctx, http.MethodHead, g.apiURL.String(), reqHeaders, nil)
+	req, err := httputil.NewRequest(ctx, http.MethodHead, g.apiURL.String(), reqHeaders, nil)
+	if err != nil {
+		return err
+	}
+
+	res, err := g.c.Do(req)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
 
-	rawScopes := res.Header["X-Oauth-Scopes"]
+	rawScopes := res.Header.Get("X-Oauth-Scopes")
+	if rawScopes == "" {
+		return errors.New("missing scopes header on response")
+	}
+
 	var scopes []string
 	if len(rawScopes) > 0 {
-		scopes = strings.Split(rawScopes[0], ", ")
+		scopes = strings.Split(rawScopes, ", ")
 	}
 
 	for _, rs := range requiredScopes {

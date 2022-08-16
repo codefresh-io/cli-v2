@@ -21,7 +21,7 @@ import (
 	"net/http"
 )
 
-func Request(ctx context.Context, method, url string, headers map[string]string, body interface{}) (*http.Response, error) {
+func NewRequest(ctx context.Context, method, url string, headers map[string]string, body interface{}) (*http.Request, error) {
 	var err error
 
 	bodyStr := []byte{}
@@ -41,5 +41,5 @@ func Request(ctx context.Context, method, url string, headers map[string]string,
 		req.Header.Set(key, value)
 	}
 
-	return http.DefaultClient.Do(req)
+	return req, nil
 }
