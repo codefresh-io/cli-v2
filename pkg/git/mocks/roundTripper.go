@@ -18,8 +18,6 @@
 // Package mocks is a generated GoMock package.
 package mocks
 
-// some comment to fail build
-
 import (
 	http "net/http"
 	reflect "reflect"
