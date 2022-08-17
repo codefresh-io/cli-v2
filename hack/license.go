@@ -17,7 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -42,7 +42,7 @@ func main() {
 		panic("--year positive int required")
 	}
 
-	d, err := ioutil.ReadFile(licenseFile)
+	d, err := os.ReadFile(licenseFile)
 	die(err)
 
 	license := string(d)
@@ -61,7 +61,7 @@ func main() {
 		die(err)
 		defer f.Close()
 
-		data, err := ioutil.ReadAll(f)
+		data, err := io.ReadAll(f)
 		die(err)
 
 		s := string(data)

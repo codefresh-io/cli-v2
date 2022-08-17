@@ -16,15 +16,14 @@ package util
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/ghodss/yaml"
-	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 var KUSTOMOZATION_FILE_NAME = "kustomization.yaml"
@@ -66,7 +65,7 @@ func WriteKustomization(fs fs.FS, kust *kusttypes.Kustomization, directory strin
 }
 
 func BuildKustomization(k *kusttypes.Kustomization) ([]byte, error) {
-	td, err := ioutil.TempDir(".", "csdp-add-cluster")
+	td, err := os.MkdirTemp(".", "csdp-add-cluster")
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +77,7 @@ func BuildKustomization(k *kusttypes.Kustomization) ([]byte, error) {
 	}
 
 	kustomizationPath := filepath.Join(td, "kustomization.yaml")
-	if err = ioutil.WriteFile(kustomizationPath, kyaml, 0400); err != nil {
+	if err = os.WriteFile(kustomizationPath, kyaml, 0400); err != nil {
 		return nil, err
 	}
 

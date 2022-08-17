@@ -95,9 +95,7 @@ func NewGitIntegrationCommand(client *sdk.AppProxyAPI) *cobra.Command {
 }
 
 func NewGitIntegrationListCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var (
-		format string
-	)
+	var format string
 
 	allowedFormats := []string{"list", "yaml", "yml", "json"}
 
@@ -318,9 +316,7 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI,
 }
 
 func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var (
-		opts model.RegisterToGitIntegrationArgs
-	)
+	var opts model.RegisterToGitIntegrationArgs
 
 	cmd := &cobra.Command{
 		Use:   "register [NAME]",
@@ -356,9 +352,7 @@ func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAP
 }
 
 func NewGitIntegrationDeregisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var (
-		integration *string
-	)
+	var integration *string
 
 	cmd := &cobra.Command{
 		Use:   "deregister [NAME]",

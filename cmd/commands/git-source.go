@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package commands
 
 import (
@@ -242,7 +243,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	}
 
 	if version.LessThan(appProxyGitSourceSupport) {
-		log.G(ctx).Warnf("runtime \"%s\" is using a depracated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
+		log.G(ctx).Warnf("runtime \"%s\" is using a deprecated git-source api. Versions %s and up use the app-proxy for this command. You are using version: %s", opts.RuntimeName, appProxyGitSourceSupport, version.String())
 		return legacyGitSourceCreate(ctx, opts)
 	}
 
@@ -895,8 +896,6 @@ func createDemoGithubTrigger() sensorsv1alpha1.Trigger {
 	})
 	workflowResource := apicommon.NewResource(workflow)
 
-	resultMsgPrefix := "Commit was pushed to branch: "
-
 	return sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().DemoGitTriggerTemplateName,
@@ -907,14 +906,6 @@ func createDemoGithubTrigger() sensorsv1alpha1.Trigger {
 				},
 				Parameters: []sensorsv1alpha1.TriggerParameter{
 					{
-						Src: &sensorsv1alpha1.TriggerParameterSource{
-							DependencyName: store.Get().DemoGitDependencyName,
-							Value:          &resultMsgPrefix,
-						},
-						Dest: "spec.arguments.parameters.0.value",
-					},
-					{
-						Operation: sensorsv1alpha1.TriggerParameterOpAppend,
 						Src: &sensorsv1alpha1.TriggerParameterSource{
 							DependencyName: store.Get().DemoGitDependencyName,
 							DataTemplate:   "{{ trimPrefix \"refs/heads/\" .Input.body.ref }}",
@@ -1017,8 +1008,6 @@ func createDemoBitbucketServerTrigger() sensorsv1alpha1.Trigger {
 	})
 	workflowResource := apicommon.NewResource(workflow)
 
-	resultMsgPrefix := "Commit was pushed to branch: "
-
 	return sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().DemoGitTriggerTemplateName,
@@ -1029,14 +1018,6 @@ func createDemoBitbucketServerTrigger() sensorsv1alpha1.Trigger {
 				},
 				Parameters: []sensorsv1alpha1.TriggerParameter{
 					{
-						Src: &sensorsv1alpha1.TriggerParameterSource{
-							DependencyName: store.Get().DemoGitDependencyName,
-							Value:          &resultMsgPrefix,
-						},
-						Dest: "spec.arguments.parameters.0.value",
-					},
-					{
-						Operation: sensorsv1alpha1.TriggerParameterOpAppend,
 						Src: &sensorsv1alpha1.TriggerParameterSource{
 							DependencyName: store.Get().DemoGitDependencyName,
 							DataTemplate:   "{{ (first .Input.body.changes).ref.displayId }}",
@@ -1139,8 +1120,6 @@ func createDemoGitlabTrigger() sensorsv1alpha1.Trigger {
 	})
 	workflowResource := apicommon.NewResource(workflow)
 
-	resultMsgPrefix := "Commit was pushed to branch: "
-
 	return sensorsv1alpha1.Trigger{
 		Template: &sensorsv1alpha1.TriggerTemplate{
 			Name: store.Get().DemoGitTriggerTemplateName,
@@ -1151,14 +1130,6 @@ func createDemoGitlabTrigger() sensorsv1alpha1.Trigger {
 				},
 				Parameters: []sensorsv1alpha1.TriggerParameter{
 					{
-						Src: &sensorsv1alpha1.TriggerParameterSource{
-							DependencyName: store.Get().DemoGitDependencyName,
-							Value:          &resultMsgPrefix,
-						},
-						Dest: "spec.arguments.parameters.0.value",
-					},
-					{
-						Operation: sensorsv1alpha1.TriggerParameterOpAppend,
 						Src: &sensorsv1alpha1.TriggerParameterSource{
 							DependencyName: store.Get().DemoGitDependencyName,
 							DataTemplate:   "{{ trimPrefix \"refs/heads/\" .Input.body.ref }}",

@@ -340,7 +340,7 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
-	err = ensureGitPAT(ctx, opts)
+	err = ensureGitUserToken(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureGitPAT, "Getting git personal access token", err, true, false)
 	if err != nil {
 		return err
@@ -358,7 +358,7 @@ func getIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		handleValidationFailsWithRepeat(func() error {
 			err = ensureIngressHost(ctx, opts)
 			if isValidationError(err) {
-				fmt.Println("Could not resolve the URL for ingress host; enter a valid URL")
+				fmt.Fprintf(os.Stderr, "Ingress host validation failed: %s; enter a valid URL\n", err.Error())
 				return err
 			}
 			return nil
@@ -371,10 +371,10 @@ func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
 
 	if store.Get().Silent {
-		err = ensureGitToken(cmd, opts.gitProvider, opts.InsCloneOpts)
+		err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts)
 	} else {
 		handleValidationFailsWithRepeat(func() error {
-			err = ensureGitToken(cmd, opts.gitProvider, opts.InsCloneOpts)
+			err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts)
 			if isValidationError(err) {
 				fmt.Println(err)
 				return err
@@ -404,7 +404,7 @@ func ensureIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	log.G(ctx).Infof("Using ingress host: %s", opts.IngressHost)
 
-	if !opts.SkipClusterChecks {
+	if opts.SkipClusterChecks {
 		return nil
 	}
 
@@ -480,7 +480,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 				ingressClassNames = append(ingressClassNames, ic.Name)
 				ingressClassNameToController[ic.Name] = ingressutil.GetController(string(controller))
 
-				if opts.IngressClass == ic.Name { //if ingress class provided via flag
+				if opts.IngressClass == ic.Name { // if ingress class provided via flag
 					isValidClass = true
 				}
 				break
@@ -488,7 +488,7 @@ func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error 
 		}
 	}
 
-	if opts.IngressClass != "" { //if ingress class provided via flag
+	if opts.IngressClass != "" { // if ingress class provided via flag
 		if !isValidClass {
 			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
 		}
@@ -581,6 +581,10 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}()
 
 	ingressControllerName := opts.IngressController.Name()
+	gitProvider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	if err != nil {
+		return err
+	}
 
 	repoURL := opts.InsCloneOpts.URL()
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
@@ -588,6 +592,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		Cluster:             server,
 		RuntimeVersion:      runtimeVersion,
 		IngressHost:         &opts.IngressHost,
+		GitProvider:         model.GitProviders(gitProvider),
 		InternalIngressHost: &opts.InternalIngressHost,
 		IngressClass:        &opts.IngressClass,
 		IngressController:   &ingressControllerName,
