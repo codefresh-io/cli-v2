@@ -6,7 +6,7 @@ resources:
 images:
   - name: quay.io/codefresh/argocd
     newName: quay.io/codefresh/argocd
-    newTag: v2.3.4-cap-CR-namespace-labels
+    newTag: v2.3.4-cap-CR-13995-up-max-pods-limit
 
 # will be effective on argo-cd 2.1
 configMapGenerator:
