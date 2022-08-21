@@ -1,6 +1,11 @@
 package util
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayapi "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
@@ -22,7 +27,21 @@ type (
 		ServiceName string
 		ServicePort int32
 	}
+
+	gatewayControllerType string
 )
+
+func GetGatewayController(name string) Controller {
+	b := baseController{name}
+	switch name {
+	default:
+		return b
+	}
+}
+
+const GatewayControllerContour gatewayControllerType = "projectcontour.io/projectcontour/contour"
+
+var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerContour}
 
 func createHTTPRoute(opts *CreateHTTPRouteOptions) *gatewayapi.HTTPRoute {
 	name := gatewayapi.ObjectName(opts.GatewayName)
@@ -34,8 +53,8 @@ func createHTTPRoute(opts *CreateHTTPRouteOptions) *gatewayapi.HTTPRoute {
 			Kind:       "HTTPRoute",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: opts.Namespace, 
-			Name: opts.Name,
+			Namespace: opts.Namespace,
+			Name:      opts.Name,
 		},
 		Spec: gatewayapi.HTTPRouteSpec{
 			CommonRouteSpec: gatewayapi.CommonRouteSpec{
@@ -83,4 +102,34 @@ func createHTTPRouteRules(rules []HTTPRouteRule) []gatewayapi.HTTPRouteRule {
 	}
 
 	return httpRouteRules
+}
+
+func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (Controller, error) {
+	// Get Gateway
+	gatewayResourceId := gatewayapi.SchemeGroupVersion.WithResource("gateways")
+
+	cs := kubeFactory.KubernetesDynamicClientSetOrDie()
+	gateway, err := cs.Resource(gatewayResourceId).Namespace("test-runtime").Get(ctx, gatewayName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get gateway resource from your cluster: %w", err)
+	}
+
+	// Get GatewayClass
+	gatewayClassName := gateway.Object["spec"].(map[string]interface{})["gatewayClassName"].(string)
+	gatewayClassResourceId := gatewayapi.SchemeGroupVersion.WithResource("gatewayclasses")
+	gatewayClass, err := cs.Resource(gatewayClassResourceId).Get(ctx, gatewayClassName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get gatewayclass resource from your cluster: %w", err)
+	}
+
+	// Check if GatewayController is supported
+	gatewayController := gatewayClass.Object["spec"].(map[string]interface{})["controllerName"].(string)
+	for _, controller := range SupportedGatewayControllers {
+		if controller == gatewayControllerType(gatewayController) {
+			log.G().Infof("GatewayController detected: \"%s\" !\n", gatewayController)
+			return GetGatewayController(string(controller)), nil
+		}
+	}
+
+	return nil, fmt.Errorf("Gateway controller %s is not supported", gatewayController)
 }

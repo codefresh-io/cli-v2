@@ -15,18 +15,19 @@
 package util
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
+	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/manifoldco/promptui"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
-	IngressController interface {
-		Name() string
-		Decorate(ingress *netv1.Ingress)
-	}
-
 	baseController struct {
 		name string
 	}
@@ -68,15 +69,20 @@ const (
 	IngressControllerNginxCodefresh  ingressControllerType = "k8s.io/ingress-nginx-codefresh"
 )
 
-var SupportedControllers = []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB, IngressControllerNginxCodefresh}
+var (
+	CYAN        = "\033[36m"
+	COLOR_RESET = "\033[0m"
+
+	SupportedIngressControllers = []ingressControllerType{IngressControllerNginxCommunity, IngressControllerNginxEnterprise, IngressControllerIstio, IngressControllerTraefik, IngressControllerAmbassador, IngressControllerALB, IngressControllerNginxCodefresh}
+)
 
 func (c baseController) Name() string {
 	return c.name
 }
 
-func (c baseController) Decorate(ingress *netv1.Ingress) {}
+func (c baseController) Decorate(route interface{}) {}
 
-func GetController(name string) IngressController {
+func GetIngressController(name string) Controller {
 	b := baseController{name}
 	switch name {
 	case string(IngressControllerALB):
@@ -88,7 +94,12 @@ func GetController(name string) IngressController {
 	}
 }
 
-func (ingressControllerALB) Decorate(ingress *netv1.Ingress) {
+func (ingressControllerALB) Decorate(route interface{}) {
+	ingress, ok := route.(netv1.Ingress)
+	if !ok {
+		log.G().Error("Cant decorate, this is not an ingress!")
+		return
+	}
 	if ingress.Annotations == nil {
 		ingress.Annotations = make(map[string]string)
 	}
@@ -98,7 +109,12 @@ func (ingressControllerALB) Decorate(ingress *netv1.Ingress) {
 	ingress.Annotations["alb.ingress.kubernetes.io/listen-ports"] = "[{\"HTTP\": 80}, {\"HTTPS\": 443}]"
 }
 
-func (ingressControllerNginxEnterprise) Decorate(ingress *netv1.Ingress) {
+func (ingressControllerNginxEnterprise) Decorate(route interface{}) {
+	ingress, ok := route.(netv1.Ingress)
+	if !ok {
+		log.G().Error("Cant decorate, this is not an ingress!")
+		return
+	}
 	if ingress.Annotations == nil {
 		ingress.Annotations = make(map[string]string)
 	}
@@ -163,4 +179,87 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 	}
 
 	return ingress
+}
+
+func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, ingressClass string) (Controller, error) {
+	var ingressController Controller
+	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
+		ingressController = GetIngressController("")
+		return ingressController, nil
+	}
+
+	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
+
+	cs := kubeFactory.KubernetesClientSetOrDie()
+	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
+	}
+
+	var ingressClassNames []string
+	ingressClassNameToController := make(map[string]Controller)
+	var isValidClass bool
+
+	for _, ic := range ingressClassList.Items {
+		for _, controller := range SupportedIngressControllers {
+			if ic.Spec.Controller == string(controller) {
+				ingressClassNames = append(ingressClassNames, ic.Name)
+				ingressClassNameToController[ic.Name] = GetIngressController(string(controller))
+
+				if ingressClass == ic.Name { // if ingress class provided via flag
+					isValidClass = true
+				}
+				break
+			}
+		}
+	}
+
+	if ingressClass != "" { // if ingress class provided via flag
+		if !isValidClass {
+			return nil, fmt.Errorf("ingress class '%s' is not supported", ingressClass)
+		}
+	} else if len(ingressClassNames) == 0 {
+		return nil, fmt.Errorf("no ingress classes of the supported types were found")
+	} else if len(ingressClassNames) == 1 {
+		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
+		ingressClass = ingressClassNames[0]
+	} else if len(ingressClassNames) > 1 {
+		if !store.Get().Silent {
+			ingressClass, err = getIngressClassFromUserSelect(ingressClassNames)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("there are multiple ingress controllers on your cluster, please add the --ingress-class flag and define its value")
+		}
+	}
+
+	ingressController = ingressClassNameToController[ingressClass]
+
+	if ingressController.Name() == string(IngressControllerNginxEnterprise) {
+		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
+	}
+
+	return ingressController, nil
+}
+
+func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect ingressClass%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     ingressClassNames,
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }

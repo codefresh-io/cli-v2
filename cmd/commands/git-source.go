@@ -67,7 +67,7 @@ type (
 		HostName            string
 		IngressHost         string
 		IngressClass        string
-		IngressController   routingutil.IngressController
+		IngressController   routingutil.Controller
 		GatewayName         string
 		GatewayNamespace    string
 		UseGatewayAPI       bool
@@ -105,7 +105,7 @@ type (
 		hostName          string
 		ingressHost       string
 		ingressClass      string
-		ingressController routingutil.IngressController
+		ingressController routingutil.Controller
 		gatewayName       string
 		gatewayNamespace  string
 		useGatewayAPI     bool
@@ -840,7 +840,7 @@ func createDemoBitbucketServerPipeline(opts *gitSourceGitDemoPipelineOptions) er
 	return nil
 }
 
-func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController routingutil.IngressController, runtimeName string) *netv1.Ingress {
+func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController routingutil.Controller, runtimeName string) *netv1.Ingress {
 	ingressOptions := routingutil.CreateIngressOptions{
 		Name:             store.Get().DemoPipelinesIngressObjectName,
 		IngressClassName: ingressClass,

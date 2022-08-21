@@ -83,7 +83,7 @@ type (
 		IngressHost                    string
 		IngressClass                   string
 		InternalIngressHost            string
-		IngressController              routingutil.IngressController
+		IngressController              routingutil.Controller
 		UseGatewayAPI                  bool
 		GatewayName                    string
 		GatewayNamespace               string
@@ -148,6 +148,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				installationOpts.RuntimeName = args[0]
 			}
 
+			if installationOpts.GatewayName != "" {
+				installationOpts.UseGatewayAPI = true
+			}
+
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
 
 			err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
@@ -190,7 +194,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
-	cmd.Flags().BoolVar(&installationOpts.UseGatewayAPI, "use-gateway-api", false, "Use the Kubernetes Gateway API instead of ingresses")
 	cmd.Flags().StringVar(&installationOpts.GatewayName, "gateway-name", "", "The gateway name")
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
@@ -266,7 +269,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressClass(ctx, opts)
+	err = ensureControllerSupported(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
 	if err != nil {
 		return err
@@ -461,63 +464,23 @@ func validateIngressHostCertificate(ctx context.Context, ingressHost string) err
 	return nil
 }
 
-func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress || opts.UseGatewayAPI {
-		opts.IngressController = routingutil.GetController("")
-		return nil
-	}
+func ensureControllerSupported(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var controller routingutil.Controller
+	var err error
 
-	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
-
-	cs := opts.KubeFactory.KubernetesClientSetOrDie()
-	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
-	}
-
-	var ingressClassNames []string
-	ingressClassNameToController := make(map[string]routingutil.IngressController)
-	var isValidClass bool
-
-	for _, ic := range ingressClassList.Items {
-		for _, controller := range routingutil.SupportedControllers {
-			if ic.Spec.Controller == string(controller) {
-				ingressClassNames = append(ingressClassNames, ic.Name)
-				ingressClassNameToController[ic.Name] = routingutil.GetController(string(controller))
-
-				if opts.IngressClass == ic.Name { // if ingress class provided via flag
-					isValidClass = true
-				}
-				break
-			}
+	if opts.UseGatewayAPI {
+		controller, err = routingutil.ValidateGatewayController(ctx, opts.KubeFactory, opts.GatewayName, opts.GatewayNamespace)
+		if err != nil {
+			return err
+		}
+	} else {
+		controller, err = routingutil.ValidateIngressControlelr(ctx, opts.KubeFactory, opts.IngressClass)
+		if err != nil {
+			return err
 		}
 	}
 
-	if opts.IngressClass != "" { // if ingress class provided via flag
-		if !isValidClass {
-			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
-		}
-	} else if len(ingressClassNames) == 0 {
-		return fmt.Errorf("no ingress classes of the supported types were found")
-	} else if len(ingressClassNames) == 1 {
-		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
-		opts.IngressClass = ingressClassNames[0]
-	} else if len(ingressClassNames) > 1 {
-		if !store.Get().Silent {
-			opts.IngressClass, err = getIngressClassFromUserSelect(ingressClassNames)
-			if err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("there are multiple ingress controllers on your cluster, please add the --ingress-class flag and define its value")
-		}
-	}
-
-	opts.IngressController = ingressClassNameToController[opts.IngressClass]
-
-	if opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) {
-		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
-	}
+	opts.IngressController = controller
 
 	return nil
 }
@@ -1667,8 +1630,8 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Hostname:            hostName,
 			InternalAnnotations: opts.InternalIngressAnnotation,
 			IngressController:   opts.IngressController,
-			GatewayName:       opts.GatewayName,
-			GatewayNamespace:  opts.GatewayNamespace,
+			GatewayName:         opts.GatewayName,
+			GatewayNamespace:    opts.GatewayNamespace,
 		}
 
 		route := routingutil.CreateAppProxyRoute(&routeOpts, opts.UseGatewayAPI)

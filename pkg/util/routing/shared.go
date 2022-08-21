@@ -10,17 +10,24 @@ import (
 	gatewayapi "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
-type CreateRouteOpts struct {
-	RuntimeName         string
-	Namespace           string
-	IngressClass        string
-	Hostname            string
-	InternalAnnotations map[string]string
-	ExternalAnnotations map[string]string
-	IngressController   IngressController
-	GatewayName         string
-	GatewayNamespace    string
-}
+type (
+	Controller interface {
+		Name() string
+		Decorate(route interface{})
+	}
+
+	CreateRouteOpts struct {
+		RuntimeName         string
+		Namespace           string
+		IngressClass        string
+		Hostname            string
+		InternalAnnotations map[string]string
+		ExternalAnnotations map[string]string
+		IngressController   Controller
+		GatewayName         string
+		GatewayNamespace    string
+	}
+)
 
 func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{} {
 	if useGatewayAPI {
