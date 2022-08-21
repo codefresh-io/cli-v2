@@ -28,7 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
-	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
 	"github.com/Masterminds/semver/v3"
@@ -67,7 +67,10 @@ type (
 		HostName            string
 		IngressHost         string
 		IngressClass        string
-		IngressController   ingressutil.IngressController
+		IngressController   routingutil.IngressController
+		GatewayName         string
+		GatewayNamespace    string
+		UseGatewayAPI       bool
 		Flow                string
 		GitProvider         cfgit.Provider
 	}
@@ -102,7 +105,10 @@ type (
 		hostName          string
 		ingressHost       string
 		ingressClass      string
-		ingressController ingressutil.IngressController
+		ingressController routingutil.IngressController
+		gatewayName       string
+		gatewayNamespace  string
+		useGatewayAPI     bool
 	}
 
 	dirConfig struct {
@@ -611,6 +617,9 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			ingressHost:       opts.IngressHost,
 			ingressClass:      opts.IngressClass,
 			ingressController: opts.IngressController,
+			gatewayName:       opts.GatewayName,
+			gatewayNamespace:  opts.GatewayNamespace,
+			useGatewayAPI:     opts.UseGatewayAPI,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -746,9 +755,17 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the git eventsource service
-		ingress := createDemoPipelinesIngress(opts.ingressClass, opts.hostName, opts.ingressController, opts.runtimeName)
+		routeOpts := routingutil.CreateRouteOpts{
+			RuntimeName:       opts.runtimeName,
+			IngressClass:      opts.ingressClass,
+			Hostname:          opts.hostName,
+			IngressController: opts.ingressController,
+			GatewayName:       opts.gatewayName,
+			GatewayNamespace:  opts.gatewayNamespace,
+		}
+		route := routingutil.CreateDemoPipelinesRoute(&routeOpts, opts.useGatewayAPI)
 		ingressFilePath := store.Get().DemoPipelinesIngressFileName
-		if err := writeObjectToYaml(opts.gsFs, ingressFilePath, &ingress, cleanUpFieldsIngress); err != nil {
+		if err := writeObjectToYaml(opts.gsFs, ingressFilePath, &route, cleanUpFieldsIngress); err != nil {
 			return fmt.Errorf("failed to write yaml of demo pipeline ingress. Error: %w", err)
 		}
 	}
@@ -823,12 +840,12 @@ func createDemoBitbucketServerPipeline(opts *gitSourceGitDemoPipelineOptions) er
 	return nil
 }
 
-func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
-	ingressOptions := ingressutil.CreateIngressOptions{
+func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController routingutil.IngressController, runtimeName string) *netv1.Ingress {
+	ingressOptions := routingutil.CreateIngressOptions{
 		Name:             store.Get().DemoPipelinesIngressObjectName,
 		IngressClassName: ingressClass,
 		Host:             hostName,
-		Paths: []ingressutil.IngressPath{
+		Paths: []routingutil.IngressPath{
 			{
 				Path:        util.GenerateIngressPathForDemoGitEventSource(runtimeName),
 				ServiceName: store.Get().DemoGitEventSourceObjectName + "-eventsource-svc",
@@ -837,7 +854,7 @@ func createDemoPipelinesIngress(ingressClass string, hostName string, ingressCon
 			},
 		}}
 
-	ingress := ingressutil.CreateIngress(&ingressOptions)
+	ingress := routingutil.CreateIngress(&ingressOptions)
 	ingressController.Decorate(ingress)
 
 	return ingress
@@ -1256,8 +1273,8 @@ func getBitbucketServerRepoFromGitURL(url string) eventsourcev1alpha1.BitbucketS
 	}
 }
 
-func cleanUpFieldsIngress(ingress **netv1.Ingress) (map[string]interface{}, error) {
-	crd, err := util.StructToMap(ingress)
+func cleanUpFieldsIngress(resource *interface{}) (map[string]interface{}, error) {
+	crd, err := util.StructToMap(resource)
 	if err != nil {
 		return nil, err
 	}
