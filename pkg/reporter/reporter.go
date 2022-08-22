@@ -108,8 +108,8 @@ const (
 	UninstallPhaseStart                             CliStep = "uninstall.run.phase.start"
 	UninstallStepCheckRuntimeExists                 CliStep = "uninstall.run.step.check-runtime-exists"
 	UninstallStepUninstallRepo                      CliStep = "uninstall.run.step.uninstall-repo"
-	UninstallStepRemoveGitIntegrations              CliStep = "uninstall.run.step.remove-git-integrations"
 	UninstallStepRemoveRuntimeIsc                   CliStep = "uninstall.run.step.remove-runtime-isc"
+	UninstallStepRemoveGitIntegrations              CliStep = "uninstall.run.step.remove-git-integrations"
 	UninstallStepDeleteRuntimeFromPlatform          CliStep = "uninstall.run.step.delete-runtime-from-platform"
 	UninstallPhaseFinish                            CliStep = "uninstall.run.phase.finish"
 

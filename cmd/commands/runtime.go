@@ -253,6 +253,8 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 		}
 	}
 
+	log.G(ctx).Info("Removed runtime git integrations")
+
 	return nil
 }
 
@@ -496,6 +498,15 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
+	err = removeRuntimeIsc(ctx, opts.RuntimeName)
+	if opts.Force {
+		err = nil
+	}
+	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, true)
+	if err != nil {
+		return fmt.Errorf("failed to remove runtime isc: %w", err)
+	}
+
 	err = removeGitIntegrations(ctx, opts)
 	if opts.Force {
 		err = nil
@@ -504,15 +515,6 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	if err != nil {
 		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
 		return err
-	}
-
-	err = removeRuntimeIsc(ctx, opts.RuntimeName)
-	if opts.Force {
-		err = nil
-	}
-	handleCliStep(reporter.UninstallStepRemoveRuntimeIsc, "Removing runtime ISC", err, false, true)
-	if err != nil {
-		return fmt.Errorf("failed to remove runtime isc: %w", err)
 	}
 
 	if !opts.skipAutopilotUninstall {
@@ -545,7 +547,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	log.G(ctx).Infof("Deleting runtime '%s' from platform", opts.RuntimeName)
+	log.G(ctx).Infof("Deleting runtime \"%s\" from platform", opts.RuntimeName)
 	if opts.Managed {
 		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
 	} else {
