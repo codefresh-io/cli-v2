@@ -547,7 +547,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	log.G(ctx).Infof("Deleting runtime '%s' from platform", opts.RuntimeName)
+	log.G(ctx).Infof("Deleting runtime \"%s\" from platform", opts.RuntimeName)
 	if opts.Managed {
 		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
 	} else {
