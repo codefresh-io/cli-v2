@@ -22,6 +22,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayapi "sigs.k8s.io/gateway-api/apis/v1beta1"
+	client "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 )
 
 type (
@@ -110,24 +111,21 @@ func createHTTPRouteRules(rules []HTTPRouteRule) []gatewayapi.HTTPRouteRule {
 
 func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
 	// Get Gateway
-	gatewayResourceId := gatewayapi.SchemeGroupVersion.WithResource("gateways")
-
-	cs := kubeFactory.KubernetesDynamicClientSetOrDie()
-	gateway, err := cs.Resource(gatewayResourceId).Namespace("test-runtime").Get(ctx, gatewayName, metav1.GetOptions{})
+	cs := getClientsetOrDie(kubeFactory)
+	gateway, err := cs.GatewayV1beta1().Gateways(gatewayNamespace).Get(ctx, gatewayName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get gateway resource from your cluster: %w", err)
 	}
 
 	// Get GatewayClass
-	gatewayClassName := gateway.Object["spec"].(map[string]interface{})["gatewayClassName"].(string)
-	gatewayClassResourceId := gatewayapi.SchemeGroupVersion.WithResource("gatewayclasses")
-	gatewayClass, err := cs.Resource(gatewayClassResourceId).Get(ctx, gatewayClassName, metav1.GetOptions{})
+	gatewayClassName := string(gateway.Spec.GatewayClassName)
+	gatewayClass, err := cs.GatewayV1beta1().GatewayClasses().Get(ctx, gatewayClassName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get gatewayclass resource from your cluster: %w", err)
 	}
 
 	// Check if GatewayController is supported
-	gatewayController := gatewayClass.Object["spec"].(map[string]interface{})["controllerName"].(string)
+	gatewayController := gatewayClass.Spec.ControllerName
 	for _, controller := range SupportedGatewayControllers {
 		if controller == gatewayControllerType(gatewayController) {
 			log.G().Infof("GatewayController detected: \"%s\" !\n", gatewayController)
@@ -161,4 +159,13 @@ func routePathsToHTTPRouteRule(routePaths []RoutePath) []HTTPRouteRule {
 	}
 
 	return httpRouteRules
+}
+
+func getClientsetOrDie(kubeFactory kube.Factory) *client.Clientset {
+	restConfig, err := kubeFactory.ToRESTConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	return client.NewForConfigOrDie(restConfig)
 }
