@@ -38,10 +38,10 @@ import (
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	cdutil "github.com/codefresh-io/cli-v2/pkg/util/cd"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
-	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 	oc "github.com/codefresh-io/cli-v2/pkg/util/openshift"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
@@ -66,7 +66,6 @@ import (
 	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,7 +83,9 @@ type (
 		IngressHost                    string
 		IngressClass                   string
 		InternalIngressHost            string
-		IngressController              ingressutil.IngressController
+		IngressController              routingutil.RoutingController
+		GatewayName                    string
+		GatewayNamespace               string
 		Insecure                       bool
 		InstallDemoResources           bool
 		SkipClusterChecks              bool
@@ -104,10 +105,11 @@ type (
 		ExternalIngressAnnotation      map[string]string
 		EnableGitProviders             bool
 
-		versionStr  string
-		kubeContext string
-		kubeconfig  string
-		gitProvider cfgit.Provider
+		versionStr    string
+		kubeContext   string
+		kubeconfig    string
+		gitProvider   cfgit.Provider
+		useGatewayAPI bool
 	}
 )
 
@@ -144,6 +146,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				installationOpts.RuntimeName = args[0]
+			}
+
+			if installationOpts.GatewayName != "" {
+				installationOpts.useGatewayAPI = true
 			}
 
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
@@ -188,6 +194,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
+	cmd.Flags().StringVar(&installationOpts.GatewayName, "gateway-name", "", "The gateway name")
+	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
@@ -261,7 +269,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	err = ensureIngressClass(ctx, opts)
+	err = ensureRoutingControllerSupported(ctx, opts)
 	handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
 	if err != nil {
 		return err
@@ -456,65 +464,19 @@ func validateIngressHostCertificate(ctx context.Context, ingressHost string) err
 	return nil
 }
 
-func ensureIngressClass(ctx context.Context, opts *RuntimeInstallOptions) error {
-	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
-		opts.IngressController = ingressutil.GetController("")
-		return nil
+func ensureRoutingControllerSupported(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var controller routingutil.RoutingController
+	var err error
+
+	if opts.useGatewayAPI {
+		controller, err = routingutil.ValidateGatewayController(ctx, opts.KubeFactory, opts.GatewayName, opts.GatewayNamespace)
+	} else {
+		controller, err = routingutil.ValidateIngressControlelr(ctx, opts.KubeFactory, opts.IngressClass)
 	}
 
-	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
+	opts.IngressController = controller
 
-	cs := opts.KubeFactory.KubernetesClientSetOrDie()
-	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
-	}
-
-	var ingressClassNames []string
-	ingressClassNameToController := make(map[string]ingressutil.IngressController)
-	var isValidClass bool
-
-	for _, ic := range ingressClassList.Items {
-		for _, controller := range ingressutil.SupportedControllers {
-			if ic.Spec.Controller == string(controller) {
-				ingressClassNames = append(ingressClassNames, ic.Name)
-				ingressClassNameToController[ic.Name] = ingressutil.GetController(string(controller))
-
-				if opts.IngressClass == ic.Name { // if ingress class provided via flag
-					isValidClass = true
-				}
-				break
-			}
-		}
-	}
-
-	if opts.IngressClass != "" { // if ingress class provided via flag
-		if !isValidClass {
-			return fmt.Errorf("ingress class '%s' is not supported", opts.IngressClass)
-		}
-	} else if len(ingressClassNames) == 0 {
-		return fmt.Errorf("no ingress classes of the supported types were found")
-	} else if len(ingressClassNames) == 1 {
-		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
-		opts.IngressClass = ingressClassNames[0]
-	} else if len(ingressClassNames) > 1 {
-		if !store.Get().Silent {
-			opts.IngressClass, err = getIngressClassFromUserSelect(ingressClassNames)
-			if err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("there are multiple ingress controllers on your cluster, please add the --ingress-class flag and define its value")
-		}
-	}
-
-	opts.IngressController = ingressClassNameToController[opts.IngressClass]
-
-	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) {
-		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
-	}
-
-	return nil
+	return err
 }
 
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
@@ -590,13 +552,16 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:         opts.RuntimeName,
 		Cluster:             server,
+		Managed:             new(bool),
+		GitProvider:         (*model.GitProviders)(&gitProvider),
 		RuntimeVersion:      runtimeVersion,
+		ComponentNames:      componentNames,
 		IngressHost:         &opts.IngressHost,
-		GitProvider:         model.GitProviders(gitProvider),
 		InternalIngressHost: &opts.InternalIngressHost,
 		IngressClass:        &opts.IngressClass,
 		IngressController:   &ingressControllerName,
-		ComponentNames:      componentNames,
+		GatewayName:         &opts.GatewayName,
+		GatewayNamespace:    &opts.GatewayNamespace,
 		Repo:                &repoURL,
 		Recover:             &opts.FromRepo,
 	})
@@ -786,7 +751,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressController.Name() == string(ingressutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
+	if opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -814,11 +779,11 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		return err
 	}
 
-	ingressOptions := ingressutil.CreateIngressOptions{
-		Name:             opts.RuntimeName + store.Get().MasterIngressName,
-		Namespace:        opts.RuntimeName,
-		IngressClassName: opts.IngressClass,
-		Host:             opts.HostName,
+	ingressOptions := routingutil.CreateRouteOpts{
+		Name:         opts.RuntimeName + store.Get().MasterIngressName,
+		Namespace:    opts.RuntimeName,
+		IngressClass: opts.IngressClass,
+		Hostname:     opts.HostName,
 		Annotations: map[string]string{
 			"nginx.org/mergeable-ingress-type": "master",
 		},
@@ -828,7 +793,7 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 		mergeAnnotations(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
 	}
 
-	ingress := ingressutil.CreateIngress(&ingressOptions)
+	ingress := routingutil.CreateIngress(&ingressOptions)
 
 	if err = fs.WriteYamls(fs.Join(store.Get().InClusterPath, "master-ingress.yaml"), ingress); err != nil {
 		return err
@@ -858,6 +823,9 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 			IngressClass:        opts.IngressClass,
 			IngressController:   opts.IngressController,
 			Flow:                store.Get().InstallationFlow,
+			GatewayName:         opts.GatewayName,
+			GatewayNamespace:    opts.GatewayNamespace,
+			useGatewayAPI:       opts.useGatewayAPI,
 		})
 	}
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
@@ -885,6 +853,9 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 				Exclude:             "**/images/**/*",
 				Include:             "workflows/**/*.yaml",
 				Flow:                store.Get().InstallationFlow,
+				GatewayName:         opts.GatewayName,
+				GatewayNamespace:    opts.GatewayNamespace,
+				useGatewayAPI:       opts.useGatewayAPI,
 			})
 		} else {
 			createGitSrcMessage = fmt.Sprintf("Skipping %s with git provider %s", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
@@ -1008,7 +979,7 @@ you can try to create it manually by running:
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
-	if !store.Get().SkipIngress && rt.Spec.IngressController != string(ingressutil.IngressControllerALB) {
+	if !store.Get().SkipIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1571,36 +1542,21 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 	}
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
-	ingressOptions := ingressutil.CreateIngressOptions{
-		Name:             rt.Name + store.Get().WorkflowsIngressName,
-		Namespace:        rt.Namespace,
-		IngressClassName: opts.IngressClass,
-		Host:             opts.HostName,
-		Annotations: map[string]string{
-			"ingress.kubernetes.io/protocol":               "https",
-			"ingress.kubernetes.io/rewrite-target":         "/$2",
-			"nginx.ingress.kubernetes.io/backend-protocol": "https",
-			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-		},
-		Paths: []ingressutil.IngressPath{
-			{
-				Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
-				PathType:    netv1.PathTypeImplementationSpecific,
-				ServiceName: store.Get().ArgoWFServiceName,
-				ServicePort: store.Get().ArgoWFServicePort,
-			},
-		},
+
+	routeOpts := routingutil.CreateRouteOpts{
+		RuntimeName:       rt.Name,
+		Namespace:         rt.Namespace,
+		IngressClass:      opts.IngressClass,
+		Hostname:          opts.HostName,
+		IngressController: opts.IngressController,
+		GatewayName:       opts.GatewayName,
+		GatewayNamespace:  opts.GatewayNamespace,
 	}
+	routeName, route := routingutil.CreateWorkflowsRoute(&routeOpts, opts.useGatewayAPI)
+	routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
-	if opts.ExternalIngressAnnotation != nil {
-		mergeAnnotations(ingressOptions.Annotations, opts.ExternalIngressAnnotation)
-	}
-
-	ingress := ingressutil.CreateIngress(&ingressOptions)
-	opts.IngressController.Decorate(ingress)
-
-	if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
-		return err
+	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
+		return fmt.Errorf("failed to write yaml of workflows route. Error: %w", err)
 	}
 
 	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
@@ -1612,7 +1568,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		return err
 	}
 
-	kust.Resources = append(kust.Resources, "ingress.yaml")
+	kust.Resources = append(kust.Resources, routeFileName)
 	kust.Patches = append(kust.Patches, kusttypes.Patch{
 		Target: &kusttypes.Selector{
 			ResId: kustid.ResId{
@@ -1678,41 +1634,32 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	}
 
 	if !store.Get().SkipIngress {
-		ingressOptions := ingressutil.CreateIngressOptions{
-			Name:             rt.Name + store.Get().AppProxyIngressName,
-			Namespace:        rt.Namespace,
-			IngressClassName: opts.IngressClass,
-			Host:             hostName,
-			Paths: []ingressutil.IngressPath{
-				{
-					Path:        store.Get().AppProxyIngressPath,
-					PathType:    netv1.PathTypePrefix,
-					ServiceName: store.Get().AppProxyServiceName,
-					ServicePort: store.Get().AppProxyServicePort,
-				},
-			},
+		routeOpts := routingutil.CreateRouteOpts{
+			RuntimeName:       rt.Name,
+			Namespace:         rt.Namespace,
+			IngressClass:      opts.IngressClass,
+			Hostname:          hostName,
+			Annotations:       opts.InternalIngressAnnotation,
+			IngressController: opts.IngressController,
+			GatewayName:       opts.GatewayName,
+			GatewayNamespace:  opts.GatewayNamespace,
 		}
 
-		if opts.InternalIngressAnnotation != nil {
-			ingressOptions.Annotations = make(map[string]string)
-			mergeAnnotations(ingressOptions.Annotations, opts.InternalIngressAnnotation)
+		routeName, route := routingutil.CreateAppProxyRoute(&routeOpts, opts.useGatewayAPI)
+		routeFileName := fmt.Sprintf("%s.yaml", routeName)
+
+		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
+			return fmt.Errorf("failed to write yaml of app-proxy ingress. Error: %w", err)
 		}
 
-		ingress := ingressutil.CreateIngress(&ingressOptions)
-		opts.IngressController.Decorate(ingress)
-
-		if err = fs.WriteYamls(fs.Join(overlaysDir, "ingress.yaml"), ingress); err != nil {
-			return err
-		}
-
-		kust.Resources = append(kust.Resources, "ingress.yaml")
+		kust.Resources = append(kust.Resources, routeFileName)
 	}
 
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
 	}
 
-	log.G(ctx).Info("Pushing App-Proxy ingress manifests")
+	log.G(ctx).Infof("Pushing App-Proxy ingress manifests")
 
 	return apu.PushWithMessage(ctx, r, "Created App-Proxy Ingress")
 }
