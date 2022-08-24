@@ -82,7 +82,7 @@ func createHTTPRoute(opts *CreateRouteOpts) *gatewayapi.HTTPRoute {
 }
 
 func createHTTPRouteRules(rules []HTTPRouteRule) []gatewayapi.HTTPRouteRule {
-	httpRouteRules := make([]gatewayapi.HTTPRouteRule, 0, len(rules))
+	var httpRouteRules []gatewayapi.HTTPRouteRule
 	for _, p := range rules {
 		httpRouteRules = append(httpRouteRules, gatewayapi.HTTPRouteRule{
 			Matches: []gatewayapi.HTTPRouteMatch{
@@ -137,7 +137,7 @@ func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, ga
 }
 
 func routePathsToHTTPRouteRule(routePaths []RoutePath) []HTTPRouteRule {
-	httpRouteRules := make([]HTTPRouteRule, len(routePaths))
+	var httpRouteRules []HTTPRouteRule
 	for _, path := range routePaths {
 		var ingressPathType gatewayapi.PathMatchType
 		switch pathType := path.pathType; pathType {
@@ -149,12 +149,11 @@ func routePathsToHTTPRouteRule(routePaths []RoutePath) []HTTPRouteRule {
 			ingressPathType = gatewayapi.PathMatchRegularExpression
 		}
 
-
 		httpRouteRules = append(httpRouteRules, HTTPRouteRule{
 			ServiceName: path.serviceName,
 			ServicePort: int32(path.servicePort),
-			Path: path.path,
-			PathType: ingressPathType,
+			Path:        path.path,
+			PathType:    ingressPathType,
 		})
 	}
 

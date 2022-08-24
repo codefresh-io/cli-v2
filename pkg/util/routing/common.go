@@ -83,8 +83,8 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, int
 		route = createHTTPRoute(&createRouteOpts)
 		routeName = "http-route"
 	} else {
-		routeName = "ingress"
 		route = CreateIngress(&createRouteOpts)
+		routeName = "ingress"
 	}
 
 	opts.IngressController.Decorate(route)
@@ -120,8 +120,8 @@ func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string
 		route = createHTTPRoute(&createRouteOpts)
 		routeName = "http-route"
 	} else {
-		routeName = "ingress"
 		route = CreateIngress(&createRouteOpts)
+		routeName = "ingress"
 	}
 
 	opts.IngressController.Decorate(route)
@@ -134,7 +134,7 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, in
 	var routeName string
 
 	createRouteOpts := CreateRouteOpts{
-		Name:             store.Get().DemoPipelinesIngressObjectName,
+		Name:             opts.RuntimeName + store.Get().WorkflowsIngressName,
 		Namespace:        opts.Namespace,
 		GatewayName:      opts.GatewayName,
 		GatewayNamespace: opts.GatewayNamespace,
@@ -157,7 +157,9 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, in
 		route = createHTTPRoute(&createRouteOpts)
 		routeName = "http-route"
 	} else {
-		routeName = "ingress"
+		if createRouteOpts.Annotations == nil {
+			createRouteOpts.Annotations = make(map[string]string)
+		}
 		mergeAnnotations(createRouteOpts.Annotations, map[string]string{
 			"ingress.kubernetes.io/protocol":               "https",
 			"ingress.kubernetes.io/rewrite-target":         "/$2",
@@ -165,6 +167,7 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, in
 			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
 		})
 		route = CreateIngress(&createRouteOpts)
+		routeName = "ingress"
 	}
 
 	opts.IngressController.Decorate(route)

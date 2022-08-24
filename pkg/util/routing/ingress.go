@@ -122,7 +122,7 @@ func (ingressControllerNginxEnterprise) Decorate(route interface{}) {
 }
 
 func createHTTPIngressPaths(paths []IngressPath) []netv1.HTTPIngressPath {
-	httpIngressPaths := make([]netv1.HTTPIngressPath, 0, len(paths))
+	var httpIngressPaths []netv1.HTTPIngressPath
 	for _, p := range paths {
 		httpIngressPaths = append(httpIngressPaths, netv1.HTTPIngressPath{
 			Path:     p.Path,
@@ -265,7 +265,7 @@ func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 }
 
 func routePathsToIngressPaths(routePaths []RoutePath) []IngressPath {
-	ingressPaths := make([]IngressPath, len(routePaths))
+	var ingressPaths []IngressPath
 	for _, path := range routePaths {
 		var ingressPathType netv1.PathType
 		switch pathType := path.pathType; pathType {
@@ -277,12 +277,11 @@ func routePathsToIngressPaths(routePaths []RoutePath) []IngressPath {
 			ingressPathType = netv1.PathTypeImplementationSpecific
 		}
 
-
 		ingressPaths = append(ingressPaths, IngressPath{
 			ServiceName: path.serviceName,
 			ServicePort: int32(path.servicePort),
-			Path: path.path,
-			PathType: ingressPathType,
+			Path:        path.path,
+			PathType:    ingressPathType,
 		})
 	}
 

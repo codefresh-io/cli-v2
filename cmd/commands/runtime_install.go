@@ -823,6 +823,9 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 			IngressClass:        opts.IngressClass,
 			IngressController:   opts.IngressController,
 			Flow:                store.Get().InstallationFlow,
+			GatewayName:         opts.GatewayName,
+			GatewayNamespace:    opts.GatewayNamespace,
+			useGatewayAPI:       opts.useGatewayAPI,
 		})
 	}
 	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
@@ -850,6 +853,9 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 				Exclude:             "**/images/**/*",
 				Include:             "workflows/**/*.yaml",
 				Flow:                store.Get().InstallationFlow,
+				GatewayName:         opts.GatewayName,
+				GatewayNamespace:    opts.GatewayNamespace,
+				useGatewayAPI:       opts.useGatewayAPI,
 			})
 		} else {
 			createGitSrcMessage = fmt.Sprintf("Skipping %s with git provider %s", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
@@ -1547,8 +1553,9 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		GatewayNamespace:  opts.GatewayNamespace,
 	}
 	routeName, route := routingutil.CreateWorkflowsRoute(&routeOpts, opts.useGatewayAPI)
+	routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
-	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, fmt.Sprintf("%s.yaml", routeName)), &route, cleanUpFieldsIngress); err != nil {
+	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
 		return fmt.Errorf("failed to write yaml of workflows route. Error: %w", err)
 	}
 
@@ -1561,7 +1568,7 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		return err
 	}
 
-	kust.Resources = append(kust.Resources, "ingress.yaml")
+	kust.Resources = append(kust.Resources, routeFileName)
 	kust.Patches = append(kust.Patches, kusttypes.Patch{
 		Target: &kusttypes.Selector{
 			ResId: kustid.ResId{
@@ -1639,12 +1646,13 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		}
 
 		routeName, route := routingutil.CreateAppProxyRoute(&routeOpts, opts.useGatewayAPI)
+		routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
-		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, "ingress.yaml"), &route, cleanUpFieldsIngress); err != nil {
+		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
 			return fmt.Errorf("failed to write yaml of app-proxy ingress. Error: %w", err)
 		}
 
-		kust.Resources = append(kust.Resources, fmt.Sprintf("%s.yaml", routeName))
+		kust.Resources = append(kust.Resources, routeFileName)
 	}
 
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
