@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package routing
 
 import (
 	"context"
@@ -47,6 +47,8 @@ type (
 		ServicePort int32
 	}
 
+	ingressControllerType string
+
 	CreateIngressOptions struct {
 		Name             string
 		Namespace        string
@@ -55,8 +57,6 @@ type (
 		Host             string
 		Paths            []IngressPath
 	}
-
-	ingressControllerType string
 )
 
 const (
@@ -82,7 +82,7 @@ func (c baseController) Name() string {
 
 func (c baseController) Decorate(route interface{}) {}
 
-func GetIngressController(name string) Controller {
+func GetIngressController(name string) RoutingController {
 	b := baseController{name}
 	switch name {
 	case string(IngressControllerALB):
@@ -141,7 +141,7 @@ func createHTTPIngressPaths(paths []IngressPath) []netv1.HTTPIngressPath {
 	return httpIngressPaths
 }
 
-func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
+func CreateIngress(opts *CreateRouteOpts) *netv1.Ingress {
 	opts.Name = strings.TrimSuffix(opts.Name, "/")
 
 	ingress := &netv1.Ingress{
@@ -156,7 +156,7 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 		Spec: netv1.IngressSpec{
 			Rules: []netv1.IngressRule{
 				{
-					Host: opts.Host,
+					Host: opts.Hostname,
 				},
 			},
 		},
@@ -165,13 +165,13 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 	if len(opts.Paths) > 0 {
 		ingress.Spec.Rules[0].IngressRuleValue = netv1.IngressRuleValue{
 			HTTP: &netv1.HTTPIngressRuleValue{
-				Paths: createHTTPIngressPaths(opts.Paths),
+				Paths: createHTTPIngressPaths(routePathsToIngressPaths(opts.Paths)),
 			},
 		}
 	}
 
-	if opts.IngressClassName != "" {
-		ingress.Spec.IngressClassName = &opts.IngressClassName
+	if opts.IngressClass != "" {
+		ingress.Spec.IngressClassName = &opts.IngressClass
 	}
 
 	if opts.Annotations != nil {
@@ -181,8 +181,8 @@ func CreateIngress(opts *CreateIngressOptions) *netv1.Ingress {
 	return ingress
 }
 
-func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, ingressClass string) (Controller, error) {
-	var ingressController Controller
+func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, ingressClass string) (RoutingController, error) {
+	var ingressController RoutingController
 	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
 		ingressController = GetIngressController("")
 		return ingressController, nil
@@ -197,7 +197,7 @@ func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, in
 	}
 
 	var ingressClassNames []string
-	ingressClassNameToController := make(map[string]Controller)
+	ingressClassNameToController := make(map[string]RoutingController)
 	var isValidClass bool
 
 	for _, ic := range ingressClassList.Items {
@@ -262,4 +262,29 @@ func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
 	}
 
 	return result, nil
+}
+
+func routePathsToIngressPaths(routePaths []RoutePath) []IngressPath {
+	ingressPaths := make([]IngressPath, len(routePaths))
+	for _, path := range routePaths {
+		var ingressPathType netv1.PathType
+		switch pathType := path.pathType; pathType {
+		case ExactPath:
+			ingressPathType = netv1.PathTypeExact
+		case PrefixPath:
+			ingressPathType = netv1.PathTypePrefix
+		case RegexPath:
+			ingressPathType = netv1.PathTypeImplementationSpecific
+		}
+
+
+		ingressPaths = append(ingressPaths, IngressPath{
+			ServiceName: path.serviceName,
+			ServicePort: int32(path.servicePort),
+			Path: path.path,
+			PathType: ingressPathType,
+		})
+	}
+
+	return ingressPaths
 }

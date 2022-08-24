@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package routing
 
 import (
 	"context"
@@ -25,16 +25,6 @@ import (
 )
 
 type (
-	CreateHTTPRouteOptions struct {
-		Name             string
-		Namespace        string
-		GatewayName      string
-		GatewayNamespace string
-		Annotations      map[string]string
-		Host             string
-		Rules            []HTTPRouteRule
-	}
-
 	HTTPRouteRule struct {
 		Path        string
 		PathType    gatewayapi.PathMatchType
@@ -45,7 +35,7 @@ type (
 	gatewayControllerType string
 )
 
-func GetGatewayController(name string) Controller {
+func GetGatewayController(name string) RoutingController {
 	b := baseController{name}
 	switch name {
 	default:
@@ -57,7 +47,7 @@ const GatewayControllerContour gatewayControllerType = "projectcontour.io/projec
 
 var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerContour}
 
-func createHTTPRoute(opts *CreateHTTPRouteOptions) *gatewayapi.HTTPRoute {
+func createHTTPRoute(opts *CreateRouteOpts) *gatewayapi.HTTPRoute {
 	name := gatewayapi.ObjectName(opts.GatewayName)
 	namespace := gatewayapi.Namespace(opts.GatewayNamespace)
 
@@ -79,7 +69,7 @@ func createHTTPRoute(opts *CreateHTTPRouteOptions) *gatewayapi.HTTPRoute {
 					},
 				},
 			},
-			Rules: createHTTPRouteRules(opts.Rules),
+			Rules: createHTTPRouteRules(routePathsToHTTPRouteRule(opts.Paths)),
 		},
 	}
 
@@ -118,7 +108,7 @@ func createHTTPRouteRules(rules []HTTPRouteRule) []gatewayapi.HTTPRouteRule {
 	return httpRouteRules
 }
 
-func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (Controller, error) {
+func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
 	// Get Gateway
 	gatewayResourceId := gatewayapi.SchemeGroupVersion.WithResource("gateways")
 
@@ -146,4 +136,29 @@ func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, ga
 	}
 
 	return nil, fmt.Errorf("Gateway controller %s is not supported", gatewayController)
+}
+
+func routePathsToHTTPRouteRule(routePaths []RoutePath) []HTTPRouteRule {
+	httpRouteRules := make([]HTTPRouteRule, len(routePaths))
+	for _, path := range routePaths {
+		var ingressPathType gatewayapi.PathMatchType
+		switch pathType := path.pathType; pathType {
+		case ExactPath:
+			ingressPathType = gatewayapi.PathMatchExact
+		case PrefixPath:
+			ingressPathType = gatewayapi.PathMatchPathPrefix
+		case RegexPath:
+			ingressPathType = gatewayapi.PathMatchRegularExpression
+		}
+
+
+		httpRouteRules = append(httpRouteRules, HTTPRouteRule{
+			ServiceName: path.serviceName,
+			ServicePort: int32(path.servicePort),
+			Path: path.path,
+			PathType: ingressPathType,
+		})
+	}
+
+	return httpRouteRules
 }

@@ -50,7 +50,6 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -67,12 +66,12 @@ type (
 		HostName            string
 		IngressHost         string
 		IngressClass        string
-		IngressController   routingutil.Controller
+		IngressController   routingutil.RoutingController
 		GatewayName         string
 		GatewayNamespace    string
-		UseGatewayAPI       bool
 		Flow                string
 		GitProvider         cfgit.Provider
+		useGatewayAPI       bool
 	}
 
 	GitSourceDeleteOptions struct {
@@ -105,7 +104,7 @@ type (
 		hostName          string
 		ingressHost       string
 		ingressClass      string
-		ingressController routingutil.Controller
+		ingressController routingutil.RoutingController
 		gatewayName       string
 		gatewayNamespace  string
 		useGatewayAPI     bool
@@ -619,7 +618,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			ingressController: opts.IngressController,
 			gatewayName:       opts.GatewayName,
 			gatewayNamespace:  opts.GatewayNamespace,
-			useGatewayAPI:     opts.UseGatewayAPI,
+			useGatewayAPI:     opts.useGatewayAPI,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -838,26 +837,6 @@ func createDemoBitbucketServerPipeline(opts *gitSourceGitDemoPipelineOptions) er
 	}
 
 	return nil
-}
-
-func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController routingutil.Controller, runtimeName string) *netv1.Ingress {
-	ingressOptions := routingutil.CreateIngressOptions{
-		Name:             store.Get().DemoPipelinesIngressObjectName,
-		IngressClassName: ingressClass,
-		Host:             hostName,
-		Paths: []routingutil.IngressPath{
-			{
-				Path:        util.GenerateIngressPathForDemoGitEventSource(runtimeName),
-				ServiceName: store.Get().DemoGitEventSourceObjectName + "-eventsource-svc",
-				ServicePort: store.Get().DemoGitEventSourceServicePort,
-				PathType:    netv1.PathTypePrefix,
-			},
-		}}
-
-	ingress := routingutil.CreateIngress(&ingressOptions)
-	ingressController.Decorate(ingress)
-
-	return ingress
 }
 
 func createDemoGithubEventSource(repoURL string, ingressHost string, runtimeName string, gitProvider cfgit.Provider) *eventsourcev1alpha1.EventSource {
