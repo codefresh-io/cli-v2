@@ -43,7 +43,10 @@ type (
 	}
 )
 
-func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{} {
+func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
+	var route interface{}
+	var routeName string
+
 	if useGatewayAPI {
 		httpRouteOpts := CreateHTTPRouteOptions{
 			Name:             opts.RuntimeName + store.Get().AppProxyIngressName,
@@ -66,9 +69,8 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{} 
 			mergeAnnotations(httpRouteOpts.Annotations, opts.InternalAnnotations)
 		}
 
-		httpRoute := createHTTPRoute(&httpRouteOpts)
-
-		return httpRoute
+		route = createHTTPRoute(&httpRouteOpts)
+		routeName = "http-route"
 	} else {
 		ingressOpts := CreateIngressOptions{
 			Name:             opts.RuntimeName + store.Get().AppProxyIngressName,
@@ -93,11 +95,17 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{} 
 		ingress := CreateIngress(&ingressOpts)
 		opts.IngressController.Decorate(ingress)
 
-		return ingress
+		route = ingress
+		routeName = "ingress"
 	}
+
+	return routeName, route
 }
 
-func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{} {
+func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
+	var route interface{}
+	var routeName string
+
 	if useGatewayAPI {
 		httpRouteOpts := CreateHTTPRouteOptions{
 			Name:             store.Get().DemoPipelinesIngressObjectName,
@@ -114,7 +122,8 @@ func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) interfa
 			},
 		}
 
-		return createHTTPRoute(&httpRouteOpts)
+		route = createHTTPRoute(&httpRouteOpts)
+		routeName = "http-route"
 	} else {
 		ingressOpts := CreateIngressOptions{
 			Name:             opts.RuntimeName + store.Get().AppProxyIngressName,
@@ -133,23 +142,29 @@ func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) interfa
 		ingress := CreateIngress(&ingressOpts)
 		opts.IngressController.Decorate(ingress)
 
-		return ingress
+		route = ingress
+		routeName = "ingress"
 	}
+
+	return routeName, route
 }
 
-func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{} {
+func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
+	var route interface{}
+	var routeName string
+
 	if useGatewayAPI {
 		httpRouteOpts := CreateHTTPRouteOptions{
-			Name:             store.Get().DemoPipelinesIngressObjectName,
+			Name:             opts.RuntimeName + store.Get().WorkflowsIngressName,
 			GatewayName:      opts.GatewayName,
 			GatewayNamespace: opts.GatewayNamespace,
 			Host:             opts.Hostname,
 			Rules: []HTTPRouteRule{
 				{
-					Path:        util.GenerateIngressPathForDemoGitEventSource(opts.RuntimeName),
-					ServiceName: store.Get().DemoGitEventSourceObjectName + "-eventsource-svc",
-					ServicePort: store.Get().DemoGitEventSourceServicePort,
-					PathType:    gatewayapi.PathMatchPathPrefix,
+					Path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
+					PathType:    gatewayapi.PathMatchRegularExpression,
+					ServiceName: store.Get().ArgoWFServiceName,
+					ServicePort: store.Get().ArgoWFServicePort,
 				},
 			},
 		}
@@ -158,7 +173,8 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{}
 			mergeAnnotations(httpRouteOpts.Annotations, opts.ExternalAnnotations)
 		}
 
-		return createHTTPRoute(&httpRouteOpts)
+		route = createHTTPRoute(&httpRouteOpts)
+		routeName = "http-route"
 	} else {
 		ingressOpts := CreateIngressOptions{
 			Name:             opts.RuntimeName + store.Get().WorkflowsIngressName,
@@ -188,8 +204,11 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) interface{}
 		ingress := CreateIngress(&ingressOpts)
 		opts.IngressController.Decorate(ingress)
 
-		return ingress
+		route = ingress
+		routeName = "ingress"
 	}
+
+	return routeName, route
 }
 
 func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {

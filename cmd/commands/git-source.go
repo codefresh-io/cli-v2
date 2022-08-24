@@ -763,9 +763,9 @@ func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
 			GatewayName:       opts.gatewayName,
 			GatewayNamespace:  opts.gatewayNamespace,
 		}
-		route := routingutil.CreateDemoPipelinesRoute(&routeOpts, opts.useGatewayAPI)
-		ingressFilePath := store.Get().DemoPipelinesIngressFileName
-		if err := writeObjectToYaml(opts.gsFs, ingressFilePath, &route, cleanUpFieldsIngress); err != nil {
+		routeName, route := routingutil.CreateDemoPipelinesRoute(&routeOpts, opts.useGatewayAPI)
+		routeFilePath := fmt.Sprintf("%s.%s.yaml", store.Get().DemoPipelinesIngressObjectName, routeName)
+		if err := writeObjectToYaml(opts.gsFs, routeFilePath, &route, cleanUpFieldsIngress); err != nil {
 			return fmt.Errorf("failed to write yaml of demo pipeline ingress. Error: %w", err)
 		}
 	}
