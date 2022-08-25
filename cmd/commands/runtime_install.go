@@ -412,7 +412,7 @@ func ensureIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	log.G(ctx).Infof("Using ingress host: %s", opts.IngressHost)
 
-	if opts.SkipClusterChecks || opts.useGatewayAPI {
+	if opts.SkipClusterChecks {
 		return nil
 	}
 
