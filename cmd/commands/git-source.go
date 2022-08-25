@@ -28,7 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
+	ingressutil "github.com/codefresh-io/cli-v2/pkg/util/ingress"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
 	"github.com/Masterminds/semver/v3"
@@ -50,6 +50,7 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -66,12 +67,9 @@ type (
 		HostName            string
 		IngressHost         string
 		IngressClass        string
-		IngressController   routingutil.RoutingController
-		GatewayName         string
-		GatewayNamespace    string
+		IngressController   ingressutil.IngressController
 		Flow                string
 		GitProvider         cfgit.Provider
-		useGatewayAPI       bool
 	}
 
 	GitSourceDeleteOptions struct {
@@ -104,10 +102,7 @@ type (
 		hostName          string
 		ingressHost       string
 		ingressClass      string
-		ingressController routingutil.RoutingController
-		gatewayName       string
-		gatewayNamespace  string
-		useGatewayAPI     bool
+		ingressController ingressutil.IngressController
 	}
 
 	dirConfig struct {
@@ -616,9 +611,6 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			ingressHost:       opts.IngressHost,
 			ingressClass:      opts.IngressClass,
 			ingressController: opts.IngressController,
-			gatewayName:       opts.GatewayName,
-			gatewayNamespace:  opts.GatewayNamespace,
-			useGatewayAPI:     opts.useGatewayAPI,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
@@ -754,17 +746,9 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
 	if !store.Get().SkipIngress {
 		// Create an ingress that will manage external access to the git eventsource service
-		routeOpts := routingutil.CreateRouteOpts{
-			RuntimeName:       opts.runtimeName,
-			IngressClass:      opts.ingressClass,
-			Hostname:          opts.hostName,
-			IngressController: opts.ingressController,
-			GatewayName:       opts.gatewayName,
-			GatewayNamespace:  opts.gatewayNamespace,
-		}
-		routeName, route := routingutil.CreateDemoPipelinesRoute(&routeOpts, opts.useGatewayAPI)
-		routeFilePath := fmt.Sprintf("%s.%s.yaml", store.Get().DemoPipelinesIngressObjectName, routeName)
-		if err := writeObjectToYaml(opts.gsFs, routeFilePath, &route, cleanUpFieldsIngress); err != nil {
+		ingress := createDemoPipelinesIngress(opts.ingressClass, opts.hostName, opts.ingressController, opts.runtimeName)
+		ingressFilePath := store.Get().DemoPipelinesIngressFileName
+		if err := writeObjectToYaml(opts.gsFs, ingressFilePath, &ingress, cleanUpFieldsIngress); err != nil {
 			return fmt.Errorf("failed to write yaml of demo pipeline ingress. Error: %w", err)
 		}
 	}
@@ -837,6 +821,26 @@ func createDemoBitbucketServerPipeline(opts *gitSourceGitDemoPipelineOptions) er
 	}
 
 	return nil
+}
+
+func createDemoPipelinesIngress(ingressClass string, hostName string, ingressController ingressutil.IngressController, runtimeName string) *netv1.Ingress {
+	ingressOptions := ingressutil.CreateIngressOptions{
+		Name:             store.Get().DemoPipelinesIngressObjectName,
+		IngressClassName: ingressClass,
+		Host:             hostName,
+		Paths: []ingressutil.IngressPath{
+			{
+				Path:        util.GenerateIngressPathForDemoGitEventSource(runtimeName),
+				ServiceName: store.Get().DemoGitEventSourceObjectName + "-eventsource-svc",
+				ServicePort: store.Get().DemoGitEventSourceServicePort,
+				PathType:    netv1.PathTypePrefix,
+			},
+		}}
+
+	ingress := ingressutil.CreateIngress(&ingressOptions)
+	ingressController.Decorate(ingress)
+
+	return ingress
 }
 
 func createDemoGithubEventSource(repoURL string, ingressHost string, runtimeName string, gitProvider cfgit.Provider) *eventsourcev1alpha1.EventSource {
@@ -1252,8 +1256,8 @@ func getBitbucketServerRepoFromGitURL(url string) eventsourcev1alpha1.BitbucketS
 	}
 }
 
-func cleanUpFieldsIngress(resource *interface{}) (map[string]interface{}, error) {
-	crd, err := util.StructToMap(resource)
+func cleanUpFieldsIngress(ingress **netv1.Ingress) (map[string]interface{}, error) {
+	crd, err := util.StructToMap(ingress)
 	if err != nil {
 		return nil, err
 	}

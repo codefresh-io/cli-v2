@@ -260,6 +260,27 @@ func getValueFromUserInput(label, defaultValue string, validate promptui.Validat
 	return prompt.Run()
 }
 
+func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ . | yellow }} ",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect ingressClass%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     ingressClassNames,
+		Templates: templates,
+	}
+
+	_, result, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
+}
+
 // ensureGitRuntimeToken gets the runtime token from the user (if !silent), and verifys it with he provider (if available)
 func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
 	ctx := cmd.Context()
