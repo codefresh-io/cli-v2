@@ -181,7 +181,7 @@ func CreateIngress(opts *CreateRouteOpts) *netv1.Ingress {
 	return ingress
 }
 
-func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, ingressClass *string) (RoutingController, error) {
+func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, ingressClass string) (RoutingController, error) {
 	var ingressController RoutingController
 	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
 		ingressController = GetIngressController("")
@@ -206,7 +206,7 @@ func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, in
 				ingressClassNames = append(ingressClassNames, ic.Name)
 				ingressClassNameToController[ic.Name] = GetIngressController(string(controller))
 
-				if *ingressClass == ic.Name { // if ingress class provided via flag
+				if ingressClass == ic.Name { // if ingress class provided via flag
 					isValidClass = true
 				}
 				break
@@ -214,18 +214,18 @@ func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, in
 		}
 	}
 
-	if *ingressClass != "" { // if ingress class provided via flag
+	if ingressClass != "" { // if ingress class provided via flag
 		if !isValidClass {
-			return nil, fmt.Errorf("ingress class '%s' is not supported", *ingressClass)
+			return nil, fmt.Errorf("ingress class '%s' is not supported", ingressClass)
 		}
 	} else if len(ingressClassNames) == 0 {
 		return nil, fmt.Errorf("no ingress classes of the supported types were found")
 	} else if len(ingressClassNames) == 1 {
 		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
-		*ingressClass = ingressClassNames[0]
+		ingressClass = ingressClassNames[0]
 	} else if len(ingressClassNames) > 1 {
 		if !store.Get().Silent {
-			*ingressClass, err = getIngressClassFromUserSelect(ingressClassNames)
+			ingressClass, err = getIngressClassFromUserSelect(ingressClassNames)
 			if err != nil {
 				return nil, err
 			}
@@ -234,7 +234,7 @@ func ValidateIngressControlelr(ctx context.Context, kubeFactory kube.Factory, in
 		}
 	}
 
-	ingressController = ingressClassNameToController[*ingressClass]
+	ingressController = ingressClassNameToController[ingressClass]
 
 	if ingressController.Name() == string(IngressControllerNginxEnterprise) {
 		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
