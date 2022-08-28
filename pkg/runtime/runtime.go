@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	"github.com/ghodss/yaml"
+	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,6 +79,10 @@ type (
 		Wait       bool   `json:"wait"`
 		IsInternal bool   `json:"isInternal"`
 	}
+)
+
+const (
+	pushRetries = 2
 )
 
 func Download(version *semver.Version, name string) (*Runtime, error) {
@@ -295,7 +300,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		Timeout:     timeout,
 	}
 
-	return apcmd.RunAppCreate(ctx, appCreateOpts)
+	return tryToCreateApp(ctx, appCreateOpts)
 }
 
 func (a *AppDef) delete(fs fs.FS) error {
@@ -328,4 +333,33 @@ func buildFullURL(urlString string, version *semver.Version, devMode bool) strin
 	}
 
 	return urlObj.String()
+}
+
+func tryToCreateApp(ctx context.Context, opts *apcmd.AppCreateOptions) error {
+	var err error
+	for try := 0; try < pushRetries; try++ {
+
+		optsCopy := new(apcmd.AppCreateOptions)
+		*optsCopy = *opts
+		cloneOpts := &git.CloneOptions{
+			FS:   fs.Create(memfs.New()),
+			Repo: opts.CloneOpts.Repo,
+			Auth: opts.CloneOpts.Auth,
+		}
+		cloneOpts.Parse()
+		optsCopy.CloneOpts = cloneOpts
+		err = apcmd.RunAppCreate(ctx, optsCopy)
+		if err == nil {
+			break
+		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"retry": try,
+			"err":   err.Error(),
+		}).Warn("Failed to create application , trying again in a second...")
+
+		time.Sleep(time.Second)
+	}
+
+	return err
 }

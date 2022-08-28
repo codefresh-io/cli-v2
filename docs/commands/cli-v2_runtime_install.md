@@ -45,7 +45,7 @@ cli-v2 runtime install [runtime_name] [flags]
   -n, --namespace string                             If present, the namespace scope for this CLI request
       --namespace-labels stringToString              Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2" (default [])
       --personal-git-token string                    The Personal git token for your user
-      --provider string                              The git provider, one of: azure|bitbucket-server|gitea|github|gitlab
+      --provider string                              The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
       --provider-api-url string                      Git provider API url
       --repo string                                  Repository URL [GIT_REPO]
       --set-default-resources                        If true, will set default requests and limits on all of the runtime components
