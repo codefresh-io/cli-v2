@@ -18,9 +18,6 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"path"
-
-	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
 type (
@@ -74,28 +71,26 @@ func (bb *bitbucket) VerifyUserToken(ctx context.Context, token string) error {
 	return bb.checkRepoReadPermission(ctx, token)
 }
 
-//TODO impl
 func (bb *bitbucket) checkProjectAdminPermission(ctx context.Context, token string) error {
 	return nil
 }
 
-//TODO impl-
 func (bb *bitbucket) checkRepoReadPermission(ctx context.Context, token string) error {
 	return nil
 }
 
-func (bb *bitbucket) request(ctx context.Context, token, method, urlPath string, body interface{}) (*http.Response, error) {
-	urlClone := *bb.apiURL
-	urlClone.Path = path.Join(urlClone.Path, urlPath)
-	headers := map[string]string{
-		"Authorization": "Bearer " + token,
-		"Accept":        "application/json",
-		"Content-Type":  "application/json",
-	}
-	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, body)
-	if err != nil {
-		return nil, err
-	}
+// func (bb *bitbucket) request(ctx context.Context, token, method, urlPath string, body interface{}) (*http.Response, error) {
+// 	urlClone := *bb.apiURL
+// 	urlClone.Path = path.Join(urlClone.Path, urlPath)
+// 	headers := map[string]string{
+// 		"Authorization": "Bearer " + token,
+// 		"Accept":        "application/json",
+// 		"Content-Type":  "application/json",
+// 	}
+// 	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, body)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return bb.c.Do(req)
-}
+// 	return bb.c.Do(req)
+// }

@@ -111,11 +111,6 @@ type (
 	}
 )
 
-const (
-	pushRetries        = 2
-	failureBackoffTime = 2 * time.Second
-)
-
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
 		gitIntegrationApiURL = ""
@@ -1874,6 +1869,10 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 	return util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
 			r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
+
+			if err != nil {
+				return err
+			}
 
 			if err = createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
 				return err

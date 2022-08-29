@@ -345,32 +345,3 @@ func buildFullURL(urlString string, version *semver.Version, devMode bool) strin
 
 	return urlObj.String()
 }
-
-func tryToCreateApp(ctx context.Context, opts *apcmd.AppCreateOptions) error {
-	var err error
-	for try := 0; try < pushRetries; try++ {
-
-		optsCopy := new(apcmd.AppCreateOptions)
-		*optsCopy = *opts
-		cloneOpts := &git.CloneOptions{
-			FS:   fs.Create(memfs.New()),
-			Repo: opts.CloneOpts.Repo,
-			Auth: opts.CloneOpts.Auth,
-		}
-		cloneOpts.Parse()
-		optsCopy.CloneOpts = cloneOpts
-		err = apcmd.RunAppCreate(ctx, optsCopy)
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to create application , trying again in a second...")
-
-		time.Sleep(time.Second)
-	}
-
-	return err
-}
