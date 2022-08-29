@@ -183,7 +183,7 @@ func init() {
 	s.WorkflowsIngressName = "-workflows-ingress"
 	s.WorkflowsIngressPath = "workflows"
 	s.AppProxyIngressName = "-cap-app-proxy"
-	s.AppProxyIngressPath = "/app-proxy/"
+	s.AppProxyIngressPath = "/app-proxy"
 	s.AppProxyServicePort = 3017
 	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
