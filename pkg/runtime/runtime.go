@@ -307,7 +307,6 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 
 			return apcmd.RunAppCreate(ctx, appCreateOpts)
 		},
-		Sleep: time.Second,
 	})
 }
 

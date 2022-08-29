@@ -1025,7 +1025,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			Func: func() error {
 				return createWorkflowsIngress(ctx, opts, rt)
 			},
-			Sleep: time.Second,
 		}); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
@@ -1035,7 +1034,6 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		Func: func() error {
 			return configureAppProxy(ctx, opts, rt)
 		},
-		Sleep: time.Second,
 	}); err != nil {
 		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
 	}
@@ -1900,7 +1898,6 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 
 			return apu.PushWithMessage(ctx, r, pushMessage)
 		},
-		Sleep: time.Second,
 	})
 }
 

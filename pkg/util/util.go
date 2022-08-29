@@ -372,6 +372,8 @@ func Retry(ctx context.Context, opts *RetryOptions) error {
 
 		if opts.Sleep != 0 {
 			time.Sleep(opts.Sleep)
+		} else {
+			time.Sleep(time.Second)
 		}
 	}
 
