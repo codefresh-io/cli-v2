@@ -687,7 +687,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 				return updateCodefreshCM(ctx, opts, rt, server)
 			}
 		},
-		Sleep: 2,
+		Sleep: 2 * time.Second,
 	})
 	handleCliStep(reporter.InstallStepCreateOrUpdateConfigMap, "Creating/Updating codefresh-cm", err, false, true)
 	if err != nil {
