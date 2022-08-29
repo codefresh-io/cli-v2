@@ -20,15 +20,16 @@ import (
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	httproute "github.com/codefresh-io/cli-v2/pkg/util/routing/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gatewayapi "sigs.k8s.io/gateway-api/apis/v1beta1"
-	client "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 )
 
 type (
 	HTTPRouteRule struct {
 		Path        string
-		PathType    gatewayapi.PathMatchType
+		PathType    httproute.PathMatchType
 		ServiceName string
 		ServicePort int32
 	}
@@ -48,29 +49,30 @@ const GatewayControllerContour gatewayControllerType = "projectcontour.io/projec
 
 var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerContour}
 
-func createHTTPRoute(opts *CreateRouteOpts) *gatewayapi.HTTPRoute {
-	name := gatewayapi.ObjectName(opts.GatewayName)
-	namespace := gatewayapi.Namespace(opts.GatewayNamespace)
+func createHTTPRoute(opts *CreateRouteOpts) *httproute.HTTPRoute {
+	name := httproute.ObjectName(opts.GatewayName)
+	namespace := httproute.Namespace(opts.GatewayNamespace)
 
-	httpRoute := &gatewayapi.HTTPRoute{
+	httpRoute := &httproute.HTTPRoute{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: gatewayapi.SchemeGroupVersion.String(),
+			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "HTTPRoute",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.Namespace,
 			Name:      opts.Name,
 		},
-		Spec: gatewayapi.HTTPRouteSpec{
-			CommonRouteSpec: gatewayapi.CommonRouteSpec{
-				ParentRefs: []gatewayapi.ParentReference{
+		Spec: httproute.HTTPRouteSpec{
+			CommonRouteSpec: httproute.CommonRouteSpec{
+				ParentRefs: []httproute.ParentReference{
 					{
 						Name:      name,
 						Namespace: &namespace,
 					},
 				},
 			},
-			Rules: createHTTPRouteRules(routePathsToHTTPRouteRules(opts.Paths)),
+			Hostnames: []httproute.Hostname{httproute.Hostname(opts.Hostname)},
+			Rules:     createHTTPRouteRules(routePathsToHTTPRouteRules(opts.Paths)),
 		},
 	}
 
@@ -81,24 +83,24 @@ func createHTTPRoute(opts *CreateRouteOpts) *gatewayapi.HTTPRoute {
 	return httpRoute
 }
 
-func createHTTPRouteRules(rules []HTTPRouteRule) []gatewayapi.HTTPRouteRule {
-	var httpRouteRules []gatewayapi.HTTPRouteRule
+func createHTTPRouteRules(rules []HTTPRouteRule) []httproute.HTTPRouteRule {
+	var httpRouteRules []httproute.HTTPRouteRule
 	for _, p := range rules {
-		httpRouteRules = append(httpRouteRules, gatewayapi.HTTPRouteRule{
-			Matches: []gatewayapi.HTTPRouteMatch{
+		httpRouteRules = append(httpRouteRules, httproute.HTTPRouteRule{
+			Matches: []httproute.HTTPRouteMatch{
 				{
-					Path: &gatewayapi.HTTPPathMatch{
+					Path: &httproute.HTTPPathMatch{
 						Type:  &p.PathType,
 						Value: &p.Path,
 					},
 				},
 			},
-			BackendRefs: []gatewayapi.HTTPBackendRef{
+			BackendRefs: []httproute.HTTPBackendRef{
 				{
-					BackendRef: gatewayapi.BackendRef{
-						BackendObjectReference: gatewayapi.BackendObjectReference{
-							Name: gatewayapi.ObjectName(p.ServiceName),
-							Port: (*gatewayapi.PortNumber)(&p.ServicePort),
+					BackendRef: httproute.BackendRef{
+						BackendObjectReference: httproute.BackendObjectReference{
+							Name: httproute.ObjectName(p.ServiceName),
+							Port: (*httproute.PortNumber)(&p.ServicePort),
 						},
 					},
 				},
@@ -112,20 +114,30 @@ func createHTTPRouteRules(rules []HTTPRouteRule) []gatewayapi.HTTPRouteRule {
 func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
 	// Get Gateway
 	cs := getClientsetOrDie(kubeFactory)
-	gateway, err := cs.GatewayV1beta1().Gateways(gatewayNamespace).Get(ctx, gatewayName, metav1.GetOptions{})
+	gatewayResourceId := schema.GroupVersionResource{
+		Group:    "gateway.networking.k8s.io",
+		Version:  "v1beta1",
+		Resource: "gateways",
+	}
+	gateway, err := cs.Resource(gatewayResourceId).Namespace(gatewayNamespace).Get(ctx, gatewayName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get gateway resource from your cluster: %w", err)
 	}
 
 	// Get GatewayClass
-	gatewayClassName := string(gateway.Spec.GatewayClassName)
-	gatewayClass, err := cs.GatewayV1beta1().GatewayClasses().Get(ctx, gatewayClassName, metav1.GetOptions{})
+	gatewayClassName := gateway.Object["spec"].(map[string]interface{})["gatewayClassName"].(string)
+	gatewayClassResourceId := schema.GroupVersionResource{
+		Group:    "gateway.networking.k8s.io",
+		Version:  "v1beta1",
+		Resource: "gatewayclasses",
+	}
+	gatewayClass, err := cs.Resource(gatewayClassResourceId).Get(ctx, gatewayClassName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get gatewayclass resource from your cluster: %w", err)
 	}
 
 	// Check if GatewayController is supported
-	gatewayController := gatewayClass.Spec.ControllerName
+	gatewayController := gatewayClass.Object["spec"].(map[string]interface{})["controllerName"].(string)
 	for _, controller := range SupportedGatewayControllers {
 		if controller == gatewayControllerType(gatewayController) {
 			log.G().Infof("GatewayController detected: \"%s\" !\n", gatewayController)
@@ -139,14 +151,14 @@ func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, ga
 func routePathsToHTTPRouteRules(routePaths []RoutePath) []HTTPRouteRule {
 	var httpRouteRules []HTTPRouteRule
 	for _, path := range routePaths {
-		var ingressPathType gatewayapi.PathMatchType
+		var ingressPathType httproute.PathMatchType
 		switch pathType := path.pathType; pathType {
 		case ExactPath:
-			ingressPathType = gatewayapi.PathMatchExact
+			ingressPathType = httproute.PathMatchExact
 		case PrefixPath:
-			ingressPathType = gatewayapi.PathMatchPathPrefix
+			ingressPathType = httproute.PathMatchPathPrefix
 		case RegexPath:
-			ingressPathType = gatewayapi.PathMatchRegularExpression
+			ingressPathType = httproute.PathMatchRegularExpression
 		}
 
 		httpRouteRules = append(httpRouteRules, HTTPRouteRule{
@@ -160,11 +172,11 @@ func routePathsToHTTPRouteRules(routePaths []RoutePath) []HTTPRouteRule {
 	return httpRouteRules
 }
 
-func getClientsetOrDie(kubeFactory kube.Factory) *client.Clientset {
+func getClientsetOrDie(kubeFactory kube.Factory) dynamic.Interface {
 	restConfig, err := kubeFactory.ToRESTConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	return client.NewForConfigOrDie(restConfig)
+	return dynamic.NewForConfigOrDie(restConfig)
 }
