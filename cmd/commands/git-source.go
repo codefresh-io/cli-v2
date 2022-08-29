@@ -761,6 +761,8 @@ func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
 		return createDemoGitlabPipeline(opts)
 	case "bitbucket-server":
 		return createDemoBitbucketServerPipeline(opts)
+	case "bitbucket":
+		return nil
 	default:
 		return fmt.Errorf("demo git pipeline is not yet supported for provider %s", gitProviderType)
 	}
