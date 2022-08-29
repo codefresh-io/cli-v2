@@ -81,10 +81,6 @@ type (
 	}
 )
 
-const (
-	pushRetries = 2
-)
-
 func Download(version *semver.Version, name string) (*Runtime, error) {
 	var (
 		body []byte
