@@ -80,8 +80,10 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, int
 	}
 
 	if useGatewayAPI {
-		route = createHTTPRoute(&createRouteOpts)
-		routeName = "http-route"
+		// routeName = "http-route"
+		// This is a workaround until the Gateway API will suport the websocket protocol
+		route = createHTTPProxy(&createRouteOpts)
+		routeName = "http-proxy"
 	} else {
 		route = CreateIngress(&createRouteOpts)
 		routeName = "ingress"

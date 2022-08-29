@@ -70,7 +70,7 @@ func createHTTPRoute(opts *CreateRouteOpts) *gatewayapi.HTTPRoute {
 					},
 				},
 			},
-			Rules: createHTTPRouteRules(routePathsToHTTPRouteRule(opts.Paths)),
+			Rules: createHTTPRouteRules(routePathsToHTTPRouteRules(opts.Paths)),
 		},
 	}
 
@@ -136,7 +136,7 @@ func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, ga
 	return nil, fmt.Errorf("Gateway controller %s is not supported", gatewayController)
 }
 
-func routePathsToHTTPRouteRule(routePaths []RoutePath) []HTTPRouteRule {
+func routePathsToHTTPRouteRules(routePaths []RoutePath) []HTTPRouteRule {
 	var httpRouteRules []HTTPRouteRule
 	for _, path := range routePaths {
 		var ingressPathType gatewayapi.PathMatchType
