@@ -42,7 +42,7 @@ import (
 type RetryOptions struct {
 	Func    func() error
 	Retries int
-	Sleep   int
+	Sleep   time.Duration
 }
 
 const (
@@ -368,7 +368,11 @@ func Retry(ctx context.Context, opts *RetryOptions) error {
 		log.G(ctx).WithFields(log.Fields{
 			"retry": try,
 			"err":   err.Error(),
-		}).Warn("Failed to create event reporter, trying again")
+		}).Warn("Function call failed, trying again")
+
+		if opts.Sleep != 0 {
+			time.Sleep(opts.Sleep)
+		}
 	}
 
 	return err
