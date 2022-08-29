@@ -39,6 +39,12 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+type RetryOptions struct {
+	Func    func() error
+	Retries int
+	Sleep   int
+}
+
 const (
 	indentation = "    "
 )
@@ -344,4 +350,26 @@ func StructToMap(obj interface{}) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return crd, nil
+}
+
+func Retry(ctx context.Context, opts *RetryOptions) error {
+	var err error
+	retries := opts.Retries
+	if retries == 0 {
+		retries = 2
+	}
+
+	for try := 0; try < retries; try++ {
+		err = opts.Func()
+		if err == nil {
+			break
+		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"retry": try,
+			"err":   err.Error(),
+		}).Warn("Failed to create event reporter, trying again")
+	}
+
+	return err
 }

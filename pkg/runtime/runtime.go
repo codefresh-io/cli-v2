@@ -277,30 +277,41 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 		timeout = store.Get().WaitTimeout
 	}
 
-	appCreateOpts := &apcmd.AppCreateOptions{
-		CloneOpts:     cloneOpts,
-		AppsCloneOpts: &git.CloneOptions{},
-		ProjectName:   projectName,
-		AppOpts: &application.CreateOptions{
-			AppName:       a.Name,
-			AppSpecifier:  a.URL,
-			AppType:       a.Type,
-			DestNamespace: projectName,
-			Labels: map[string]string{
-				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
-				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
-			},
-			Annotations: map[string]string{
-				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
-			},
-			Exclude: exclude,
-			Include: include,
-		},
-		KubeFactory: f,
-		Timeout:     timeout,
-	}
+	return util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			newCloneOpts := &git.CloneOptions{
+				FS:   fs.Create(memfs.New()),
+				Repo: cloneOpts.Repo,
+				Auth: cloneOpts.Auth,
+			}
+			newCloneOpts.Parse()
 
-	return tryToCreateApp(ctx, appCreateOpts)
+			appCreateOpts := &apcmd.AppCreateOptions{
+				CloneOpts:     newCloneOpts,
+				AppsCloneOpts: &git.CloneOptions{},
+				ProjectName:   projectName,
+				AppOpts: &application.CreateOptions{
+					AppName:       a.Name,
+					AppSpecifier:  a.URL,
+					AppType:       a.Type,
+					DestNamespace: projectName,
+					Labels: map[string]string{
+						util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
+						util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
+					},
+					Annotations: map[string]string{
+						util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
+					},
+					Exclude: exclude,
+					Include: include,
+				},
+				KubeFactory: f,
+				Timeout:     timeout,
+			}
+
+			return apcmd.RunAppCreate(ctx, appCreateOpts)
+		},
+	})
 }
 
 func (a *AppDef) delete(fs fs.FS) error {

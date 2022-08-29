@@ -47,7 +47,6 @@ import (
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
@@ -680,9 +679,21 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
 	}
 
-	// persists codefresh-cm, this must be created before events-reporter eventsource
-	// otherwise it will not start and no events will get to the platform.
-	err = persistOrUpdateRuntime(ctx, opts, rt, server)
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
+	err = util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			// persists codefresh-cm, this must be created before events-reporter eventsource
+			// otherwise it will not start and no events will get to the platform.
+			if !opts.FromRepo {
+				return persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
+			} else {
+				// in case of runtime recovery we only update the existing cm
+				return updateCodefreshCM(ctx, opts, rt, server)
+			}
+		},
+		Sleep: 2,
+	})
 	handleCliStep(reporter.InstallStepCreateOrUpdateConfigMap, "Creating/Updating codefresh-cm", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create or update codefresh-cm: %w", err))
@@ -1011,13 +1022,23 @@ you can try to create it manually by running:
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
 	if !store.Get().SkipIngress && rt.Spec.IngressController != string(ingressutil.IngressControllerALB) {
-		if err = tryToCreateWorkflowsIngress(ctx, opts, rt); err != nil {
+		if err = util.Retry(ctx, &util.RetryOptions{
+			Func: func() error {
+				return createWorkflowsIngress(ctx, opts, rt)
+			},
+		}); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
 	}
 
-	if err = tryToConfigureAppProxy(ctx, opts, rt); err != nil {
+	if err = util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			return configureAppProxy(ctx, opts, rt)
+		},
+	}); err != nil {
 		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
 	}
 
@@ -1801,7 +1822,29 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
 		return err
 	}
-	return tryTocreateEventsReporterEventSource(ctx, opts, resPath)
+
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
+	return util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
+			if err != nil {
+				return err
+			}
+
+			if err = createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
+				return err
+			}
+			eventsReporterTriggers := []string{"events"}
+
+			if err = createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
+				return err
+			}
+
+			log.G(ctx).Info("Pushing Event Reporter manifests")
+			return apu.PushWithMessage(ctx, r, "Created Codefresh Event Reporter")
+		},
+	})
 
 }
 
@@ -1826,7 +1869,36 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 		return err
 	}
 
-	return tryToCreateReporter(ctx, opts, resPath, reporterCreateOpts)
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
+	return util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
+
+			if err = createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
+				return err
+			}
+
+			if err = createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
+				return err
+			}
+			var triggerNames []string
+			for _, gvr := range reporterCreateOpts.gvr {
+				triggerNames = append(triggerNames, gvr.resourceName)
+			}
+
+			if err = createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
+				return err
+			}
+
+			titleCase := cases.Title(language.AmericanEnglish)
+			log.G(ctx).Info("Pushing Codefresh ", titleCase.String(reporterCreateOpts.reporterName), " manifests")
+
+			pushMessage := "Created Codefresh" + titleCase.String(reporterCreateOpts.reporterName) + "Reporter"
+
+			return apu.PushWithMessage(ctx, r, pushMessage)
+		},
+	})
 }
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
@@ -2171,185 +2243,4 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
 	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
-}
-
-// bitbucket cloud take more time to push a commit
-// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
-
-func persistOrUpdateRuntime(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime, server string) error {
-
-	var err error
-	for try := 0; try < pushRetries; try++ {
-		if !opts.FromRepo {
-			err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
-		} else {
-			// in case of runtime recovery we only update the existing cm
-			err = updateCodefreshCM(ctx, opts, rt, server)
-		}
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to push to repository, trying again in 3 seconds...")
-
-		time.Sleep(failureBackoffTime)
-	}
-
-	return err
-}
-
-func tryToCreateApp(component runtime.AppDef, ctx context.Context, opts *RuntimeInstallOptions) error {
-	var err error
-	for try := 0; try < pushRetries; try++ {
-
-		cloneOpts := &git.CloneOptions{
-			FS:   fs.Create(memfs.New()),
-			Repo: opts.InsCloneOpts.Repo,
-			Auth: opts.InsCloneOpts.Auth,
-		}
-		cloneOpts.Parse()
-
-		err = component.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to create application , trying again in a second...")
-
-		time.Sleep(time.Second)
-	}
-
-	return err
-}
-
-func tryToCreateWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	var err error
-	for try := 0; try < pushRetries; try++ {
-
-		optsCopy := new(RuntimeInstallOptions)
-		optsCopy.InsCloneOpts = &git.CloneOptions{
-			FS:   fs.Create(memfs.New()),
-			Repo: opts.InsCloneOpts.Repo,
-			Auth: opts.InsCloneOpts.Auth,
-		}
-		optsCopy.InsCloneOpts.Parse()
-
-		err = createWorkflowsIngress(ctx, opts, rt)
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to create workflow ingress , trying again in a second...")
-
-		time.Sleep(time.Second)
-	}
-
-	return err
-}
-
-func tryToConfigureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	var err error
-	for try := 0; try < pushRetries; try++ {
-
-		optsCopy := new(RuntimeInstallOptions)
-		optsCopy.InsCloneOpts = &git.CloneOptions{
-			FS:   fs.Create(memfs.New()),
-			Repo: opts.InsCloneOpts.Repo,
-			Auth: opts.InsCloneOpts.Auth,
-		}
-		optsCopy.InsCloneOpts.Parse()
-
-		err = configureAppProxy(ctx, opts, rt)
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to configure app proxy , trying again in a second...")
-
-		time.Sleep(time.Second)
-	}
-
-	return err
-}
-
-func tryToCreateReporter(ctx context.Context, opts *RuntimeInstallOptions, resPath string, reporterCreateOpts reporterCreateOptions) error {
-	var err error
-	for try := 0; try < pushRetries; try++ {
-
-		r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
-
-		err = createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope)
-
-		err = createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope)
-
-		var triggerNames []string
-		for _, gvr := range reporterCreateOpts.gvr {
-			triggerNames = append(triggerNames, gvr.resourceName)
-		}
-
-		err = createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object")
-
-		titleCase := cases.Title(language.AmericanEnglish)
-		log.G(ctx).Info("Pushing Codefresh ", titleCase.String(reporterCreateOpts.reporterName), " manifests")
-
-		pushMessage := "Created Codefresh" + titleCase.String(reporterCreateOpts.reporterName) + "Reporter"
-
-		err = apu.PushWithMessage(ctx, r, pushMessage)
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to create reporter , trying again in a second...")
-
-		time.Sleep(time.Second)
-	}
-
-	return err
-}
-
-func tryTocreateEventsReporterEventSource(ctx context.Context, opts *RuntimeInstallOptions, resPath string) error {
-	var err error
-	for try := 0; try < pushRetries; try++ {
-
-		r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
-		if err != nil {
-			return err
-		}
-
-		err = createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure)
-		eventsReporterTriggers := []string{"events"}
-
-		err = createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data")
-
-		log.G(ctx).Info("Pushing Event Reporter manifests")
-		err = apu.PushWithMessage(ctx, r, "Created Codefresh Event Reporter")
-
-		if err == nil {
-			break
-		}
-
-		log.G(ctx).WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to create event reporter , trying again in a second...")
-
-		time.Sleep(time.Second)
-	}
-
-	return err
 }
