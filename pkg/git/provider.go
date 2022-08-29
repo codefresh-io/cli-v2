@@ -37,6 +37,7 @@ type (
 )
 
 var providers = map[ProviderType]func(string, *http.Client) (Provider, error){
+	BITBUCKET:        NewBitbucketProvider,
 	BITBUCKET_SERVER: NewBitbucketServerProvider,
 	GITHUB:           NewGithubProvider,
 	GITHUB_ENT:       NewGithubProvider, // for backward compatability
@@ -60,6 +61,10 @@ func GetProvider(providerType ProviderType, baseURL string) (Provider, error) {
 
 	if strings.Contains(baseURL, GITLAB_CLOUD_DOMAIN) {
 		return NewGitlabProvider(baseURL, client)
+	}
+
+	if strings.Contains(baseURL, BITBUCKET_CLOUD_DOMAIN) {
+		return NewBitbucketProvider(baseURL, client)
 	}
 
 	return nil, fmt.Errorf("failed getting provider for clone url %s", baseURL)

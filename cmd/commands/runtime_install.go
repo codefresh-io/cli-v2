@@ -204,7 +204,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
-	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket-server|gitlab)")
+	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket|bitbucket-server|gitlab)")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -586,13 +586,15 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
+	provider := model.GitProviders(gitProvider)
+
 	repoURL := opts.InsCloneOpts.URL()
 	token, iv, err := createRuntimeOnPlatform(ctx, &model.RuntimeInstallationArgs{
 		RuntimeName:         opts.RuntimeName,
 		Cluster:             server,
 		RuntimeVersion:      runtimeVersion,
 		IngressHost:         &opts.IngressHost,
-		GitProvider:         model.GitProviders(gitProvider),
+		GitProvider:         &provider,
 		InternalIngressHost: &opts.InternalIngressHost,
 		IngressClass:        &opts.IngressClass,
 		IngressController:   &ingressControllerName,
@@ -672,14 +674,21 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create project: %w", err))
 	}
 
-	// persists codefresh-cm, this must be created before events-reporter eventsource
-	// otherwise it will not start and no events will get to the platform.
-	if !opts.FromRepo {
-		err = persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
-	} else {
-		// in case of runtime recovery we only update the existing cm
-		err = updateCodefreshCM(ctx, opts, rt, server)
-	}
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
+	err = util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			// persists codefresh-cm, this must be created before events-reporter eventsource
+			// otherwise it will not start and no events will get to the platform.
+			if !opts.FromRepo {
+				return persistRuntime(ctx, opts.InsCloneOpts, rt, opts.CommonConfig)
+			} else {
+				// in case of runtime recovery we only update the existing cm
+				return updateCodefreshCM(ctx, opts, rt, server)
+			}
+		},
+		Sleep: 2,
+	})
 	handleCliStep(reporter.InstallStepCreateOrUpdateConfigMap, "Creating/Updating codefresh-cm", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create or update codefresh-cm: %w", err))
@@ -1008,13 +1017,23 @@ you can try to create it manually by running:
 func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
 	if !store.Get().SkipIngress && rt.Spec.IngressController != string(ingressutil.IngressControllerALB) {
-		if err = createWorkflowsIngress(ctx, opts, rt); err != nil {
+		if err = util.Retry(ctx, &util.RetryOptions{
+			Func: func() error {
+				return createWorkflowsIngress(ctx, opts, rt)
+			},
+		}); err != nil {
 			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
 		}
 	}
 
-	if err = configureAppProxy(ctx, opts, rt); err != nil {
+	if err = util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			return configureAppProxy(ctx, opts, rt)
+		},
+	}); err != nil {
 		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
 	}
 
@@ -1799,23 +1818,29 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 		return err
 	}
 
-	r, repofs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
+	return util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
+			if err != nil {
+				return err
+			}
 
-	if err := createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
-		return err
-	}
+			if err = createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
+				return err
+			}
+			eventsReporterTriggers := []string{"events"}
 
-	eventsReporterTriggers := []string{"events"}
-	if err := createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
-		return err
-	}
+			if err = createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
+				return err
+			}
 
-	log.G(ctx).Info("Pushing Event Reporter manifests")
+			log.G(ctx).Info("Pushing Event Reporter manifests")
+			return apu.PushWithMessage(ctx, r, "Created Codefresh Event Reporter")
+		},
+	})
 
-	return apu.PushWithMessage(ctx, r, "Created Codefresh Event Reporter")
 }
 
 func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
@@ -1839,34 +1864,40 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 		return err
 	}
 
-	r, repofs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
+	// bitbucket cloud take more time to push a commit
+	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
+	return util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			r, repofs, err := opts.InsCloneOpts.GetRepo(ctx)
 
-	if err := createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
-		return err
-	}
+			if err != nil {
+				return err
+			}
 
-	if err := createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
-		return err
-	}
+			if err = createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
+				return err
+			}
 
-	var triggerNames []string
-	for _, gvr := range reporterCreateOpts.gvr {
-		triggerNames = append(triggerNames, gvr.resourceName)
-	}
+			if err = createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
+				return err
+			}
+			var triggerNames []string
+			for _, gvr := range reporterCreateOpts.gvr {
+				triggerNames = append(triggerNames, gvr.resourceName)
+			}
 
-	if err := createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
-		return err
-	}
+			if err = createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
+				return err
+			}
 
-	titleCase := cases.Title(language.AmericanEnglish)
-	log.G(ctx).Info("Pushing Codefresh ", titleCase.String(reporterCreateOpts.reporterName), " manifests")
+			titleCase := cases.Title(language.AmericanEnglish)
+			log.G(ctx).Info("Pushing Codefresh ", titleCase.String(reporterCreateOpts.reporterName), " manifests")
 
-	pushMessage := "Created Codefresh" + titleCase.String(reporterCreateOpts.reporterName) + "Reporter"
+			pushMessage := "Created Codefresh" + titleCase.String(reporterCreateOpts.reporterName) + "Reporter"
 
-	return apu.PushWithMessage(ctx, r, pushMessage)
+			return apu.PushWithMessage(ctx, r, pushMessage)
+		},
+	})
 }
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {

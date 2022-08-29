@@ -38,8 +38,8 @@ type (
 )
 
 const (
-	BITBUCKET_REST_ENDPOINT              = "/rest/api/1.0"
-	BITBUCKET_SERVER        ProviderType = "bitbucket-server"
+	BITBUCKET_SERVER_REST_ENDPOINT              = "/rest/api/1.0"
+	BITBUCKET_SERVER               ProviderType = "bitbucket-server"
 )
 
 func NewBitbucketServerProvider(baseURL string, client *http.Client) (Provider, error) {
@@ -48,7 +48,7 @@ func NewBitbucketServerProvider(baseURL string, client *http.Client) (Provider, 
 		return nil, err
 	}
 
-	u.Path = BITBUCKET_REST_ENDPOINT
+	u.Path = BITBUCKET_SERVER_REST_ENDPOINT
 	return &bitbucketServer{
 		providerType: BITBUCKET_SERVER,
 		apiURL:       u,

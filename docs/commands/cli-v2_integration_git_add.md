@@ -12,7 +12,7 @@ cli-v2 integration git add [NAME] [flags]
       --account-admins-only   If true, this integration would only be visible to account admins (default: false)
       --api-url string        Git provider API Url
   -h, --help                  help for add
-      --provider string       One of bitbucket-server|github|gitlab (default "github")
+      --provider string       One of bitbucket|bitbucket-server|github|gitlab (default "github")
 ```
 
 ### Options inherited from parent commands
