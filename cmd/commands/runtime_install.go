@@ -727,6 +727,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		}
 
 		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
+Git personal access token was not added as you added the --skip-ingress flag. Follow the instructions below to add the token.
 To complete the installation: 
 1. Configure your cluster's routing service with path to '/%s' and \"%s\"
 2. Create and register Git integration using the commands:
