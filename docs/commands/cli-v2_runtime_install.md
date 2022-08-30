@@ -34,6 +34,8 @@ cli-v2 runtime install [runtime_name] [flags]
       --disable-telemetry                            If true, will disable the analytics reporting for the installation process
       --external-ingress-annotation stringToString   Add annotations to the external ingress (default [])
       --from-repo                                    Installs a runtime from an existing repo. Used for recovery after cluster failure
+      --gateway-name string                          The gateway name
+      --gateway-namespace string                     The namespace of the gateway
   -t, --git-token string                             Your git provider api token [GIT_TOKEN]
   -u, --git-user string                              Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                                         help for install
