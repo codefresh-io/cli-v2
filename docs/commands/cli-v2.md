@@ -5,7 +5,7 @@ cli-v2 is used for installing and managing codefresh installations using gitops
 ### Synopsis
 
 cli-v2 is used for installing and managing codefresh installations using gitops.
-        
+
 Most of the commands in this CLI require you to specify a personal access token
 for your git provider. This token is used to authenticate with your git provider
 when performing operations on the gitops repository, such as cloning it and
