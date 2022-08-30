@@ -14,11 +14,11 @@ import (
 
 const (
 	valuesFileName = "values.yaml"
-	defaulPath = ""
+	defaulPath     = ""
 )
 
 type HybridRuntimeValues struct {
-	path string
+	path       string
 	AccountId  string `yaml:"accountId"`
 	IscRepoUrl string `yaml:"iscRepoUrl"`
 }
@@ -27,7 +27,7 @@ func NewHelmCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "helm",
 		Short:             "Manage cf helm config",
-		Hidden: true,
+		Hidden:            true,
 		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Args:              cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
@@ -66,8 +66,6 @@ func runHelmGenerateValuesFile(ctx context.Context, values *HybridRuntimeValues)
 	if err != nil {
 		return fmt.Errorf("failed to get current user from platform: %w", err)
 	}
-
-
 	values.AccountId, err = util.CurrentAccount(user)
 	if err != nil {
 		return err
@@ -82,5 +80,5 @@ func (v *HybridRuntimeValues) Save() error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(v.path, "values.yaml"), data, 0644)
+	return os.WriteFile(filepath.Join(v.path, valuesFileName), data, 0644)
 }
