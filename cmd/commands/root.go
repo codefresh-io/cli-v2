@@ -29,7 +29,7 @@ func NewRoot() *cobra.Command {
 		Use:   s.BinaryName,
 		Short: util.Doc(`<BIN> is used for installing and managing codefresh installations using gitops`),
 		Long: util.Doc(`<BIN> is used for installing and managing codefresh installations using gitops.
-		
+
 Most of the commands in this CLI require you to specify a personal access token
 for your git provider. This token is used to authenticate with your git provider
 when performing operations on the gitops repository, such as cloning it and
@@ -58,6 +58,7 @@ variables in advanced to simplify the use of those commands.
 	cmd.AddCommand(NewPipelineCommand())
 	cmd.AddCommand(NewIntegrationCommand())
 	cmd.AddCommand(NewCompletionCommand())
+	cmd.AddCommand(NewHelmCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 
