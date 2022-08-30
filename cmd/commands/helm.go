@@ -4,14 +4,21 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	"github.com/spf13/cobra"
 	"github.com/ghodss/yaml"
+	"github.com/spf13/cobra"
+)
+
+const (
+	valuesFileName = "values.yaml"
+	defaulPath = ""
 )
 
 type HybridRuntimeValues struct {
+	path string
 	AccountId  string `yaml:"accountId"`
 	IscRepoUrl string `yaml:"iscRepoUrl"`
 }
@@ -20,6 +27,7 @@ func NewHelmCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "helm",
 		Short:             "Manage cf helm config",
+		Hidden: true,
 		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Args:              cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
@@ -46,6 +54,7 @@ func NewHelmGenerateValuesFilesCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&values.path, "path", defaulPath, "The path where the values file will be stored")
 	cmd.Flags().StringVar(&values.IscRepoUrl, "isc-repo-url", "", "The url of the ISC repo")
 
 	return cmd
@@ -73,9 +82,5 @@ func (v *HybridRuntimeValues) Save() error {
 		return err
 	}
 
-	if err = os.WriteFile("values.yaml", data, 0644); err != nil {
-		return fmt.Errorf("Failed to write to file: %w", err)
-	}
-
-	return nil
+	return os.WriteFile(filepath.Join(v.path, "values.yaml"), data, 0644)
 }
