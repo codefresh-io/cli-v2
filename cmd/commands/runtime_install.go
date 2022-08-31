@@ -95,7 +95,7 @@ type (
 		GsCloneOpts                    *apgit.CloneOptions
 		InsCloneOpts                   *apgit.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
-		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
+		GitIntegrationRegistrationOpts *GitIntegrationRegistrationOpts
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
 		NamespaceLabels                map[string]string
@@ -119,7 +119,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
 				APIURL:        &gitIntegrationApiURL,
 			},
-			GitIntegrationRegistrationOpts: &apmodel.RegisterToGitIntegrationArgs{},
+			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
 		}
 		finalParameters map[string]string
 	)
@@ -581,7 +581,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}()
 
 	ingressControllerName := opts.IngressController.Name()
-	gitProvider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	gitProvider, err := ParseGitProvider(string(opts.gitProvider.Type()))
 	if err != nil {
 		return err
 	}
@@ -994,12 +994,13 @@ you can try to create it manually by running:
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
+func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git register default --runtime %s --token %s",
 			runtime,
 			opts.Token,
+			opts.Username,
 		))
 		return fmt.Errorf(`
 %w
@@ -2109,7 +2110,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 }
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
-	provider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	provider, err := ParseGitProvider(string(opts.gitProvider.Type()))
 	if err != nil {
 		return err
 	}

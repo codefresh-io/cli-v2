@@ -38,6 +38,12 @@ type (
 		Provider      model.GitProviders
 		SharingPolicy model.SharingPolicy
 	}
+
+	GitIntegrationRegistrationOpts struct {
+		Name     string
+		Token    string
+		Username string
+	}
 )
 
 var gitProvidersByName = map[string]model.GitProviders{
@@ -210,7 +216,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 
 			opts.APIURL = &apiURL
 
-			if opts.Provider, err = parseGitProvider(provider); err != nil {
+			if opts.Provider, err = ParseGitProvider(provider); err != nil {
 				return err
 			}
 
@@ -317,32 +323,45 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI,
 }
 
 func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var opts model.RegisterToGitIntegrationArgs
-
+	opts := &GitIntegrationRegistrationOpts{}
 	cmd := &cobra.Command{
 		Use:   "register [NAME]",
 		Short: "Register to a git integrations",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
-				opts.Name = &args[0]
+				opts.Name = args[0]
 			}
 
-			return RunGitIntegrationRegisterCommand(cmd.Context(), *client, &opts)
+			return RunGitIntegrationRegisterCommand(cmd.Context(), *client, opts)
 		},
 	}
 
 	util.Die(viper.BindEnv("token", "GIT_TOKEN"))
-
 	cmd.Flags().StringVar(&opts.Token, "token", "", "Authentication token")
+
+	util.Die(viper.BindEnv("username", "GIT_USER"))
+
+	cmd.Flags().StringVar(&opts.Username, "username", "", "Authentication user name")
 
 	util.Die(cmd.MarkFlagRequired("token"))
 
 	return cmd
 }
 
-func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.RegisterToGitIntegrationArgs) error {
-	intg, err := client.GitIntegrations().Register(ctx, opts)
+func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAPI, opts *GitIntegrationRegistrationOpts) error {
+	regOpts := &model.RegisterToGitIntegrationArgs{
+		Token: opts.Token,
+	}
+	if opts.Username != "" {
+		regOpts.Username = &opts.Username
+	}
+
+	if opts.Name != "" {
+		regOpts.Name = &opts.Name
+	}
+
+	intg, err := client.GitIntegrations().Register(ctx, regOpts)
 	if err != nil {
 		return fmt.Errorf("failed to register to git integration: %w", err)
 	}
@@ -474,7 +493,7 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	return fmt.Errorf("invalid output format: %s", format)
 }
 
-func parseGitProvider(provider string) (model.GitProviders, error) {
+func ParseGitProvider(provider string) (model.GitProviders, error) {
 	p, ok := gitProvidersByName[provider]
 	if !ok {
 		return model.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
