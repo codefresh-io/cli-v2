@@ -197,6 +197,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GatewayName, "gateway-name", "", "The gateway name")
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
+	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Username, "personal-git-user", "", "The Personal git user that match the token, required for bitbucket cloud")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
@@ -543,7 +544,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}()
 
 	ingressControllerName := opts.IngressController.Name()
-	gitProvider, err := ParseGitProvider(string(opts.gitProvider.Type()))
+	gitProvider, err := parseGitProvider(string(opts.gitProvider.Type()))
 	if err != nil {
 		return err
 	}
@@ -2057,7 +2058,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 }
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
-	provider, err := ParseGitProvider(string(opts.gitProvider.Type()))
+	provider, err := parseGitProvider(string(opts.gitProvider.Type()))
 	if err != nil {
 		return err
 	}

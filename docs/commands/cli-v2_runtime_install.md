@@ -47,6 +47,7 @@ cli-v2 runtime install [runtime_name] [flags]
   -n, --namespace string                             If present, the namespace scope for this CLI request
       --namespace-labels stringToString              Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2" (default [])
       --personal-git-token string                    The Personal git token for your user
+      --personal-git-user string                     The Personal git user that match the token, required for bitbucket cloud
       --provider string                              The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
       --provider-api-url string                      Git provider API url
       --repo string                                  Repository URL [GIT_REPO]

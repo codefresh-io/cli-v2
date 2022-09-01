@@ -32,7 +32,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
@@ -298,14 +297,7 @@ func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error 
 
 		log.G(ctx).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
 
-		if opts.GitIntegrationRegistrationOpts.Username == "" {
-			bitbucket := model.GitProvidersBitbucket
-			provider, _ := ParseGitProvider(string(opts.gitProvider.Type()))
-			if model.GitProviders(provider.String()) == bitbucket {
-				opts.GitIntegrationRegistrationOpts.Username = opts.InsCloneOpts.Auth.Username
-			}
-			log.G(ctx).Infof("Personal git user name was not provided. Using runtime git user name to register user: \"%s\". You may replace your personal git user name at any time from the UI in the user settings", currentUser.Name)
-		}
+		opts.GitIntegrationRegistrationOpts.Username = opts.InsCloneOpts.Auth.Username
 
 		return nil
 	}

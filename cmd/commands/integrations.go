@@ -216,7 +216,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 
 			opts.APIURL = &apiURL
 
-			if opts.Provider, err = ParseGitProvider(provider); err != nil {
+			if opts.Provider, err = parseGitProvider(provider); err != nil {
 				return err
 			}
 
@@ -493,7 +493,7 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	return fmt.Errorf("invalid output format: %s", format)
 }
 
-func ParseGitProvider(provider string) (model.GitProviders, error) {
+func parseGitProvider(provider string) (model.GitProviders, error) {
 	p, ok := gitProvidersByName[provider]
 	if !ok {
 		return model.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
