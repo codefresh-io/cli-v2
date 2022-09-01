@@ -969,7 +969,7 @@ you can try to create it manually by running:
 func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
-			"\t<BIN> integration git register default --runtime %s --token %s",
+			"\t<BIN> integration git register default --runtime %s --token %s --username %s",
 			runtime,
 			opts.Token,
 			opts.Username,
