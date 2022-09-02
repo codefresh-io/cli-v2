@@ -96,7 +96,7 @@ type (
 		GsCloneOpts                    *apgit.CloneOptions
 		InsCloneOpts                   *apgit.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
-		GitIntegrationRegistrationOpts *apmodel.RegisterToGitIntegrationArgs
+		GitIntegrationRegistrationOpts *GitIntegrationRegistrationOpts
 		KubeFactory                    kube.Factory
 		CommonConfig                   *runtime.CommonConfig
 		NamespaceLabels                map[string]string
@@ -121,7 +121,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				SharingPolicy: apmodel.SharingPolicyAllUsersInAccount,
 				APIURL:        &gitIntegrationApiURL,
 			},
-			GitIntegrationRegistrationOpts: &apmodel.RegisterToGitIntegrationArgs{},
+			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
 		}
 		finalParameters map[string]string
 	)
@@ -197,6 +197,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GatewayName, "gateway-name", "", "The gateway name")
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
+	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Username, "personal-git-user", "", "The Personal git user that match the token, required for bitbucket cloud")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
 	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
@@ -965,12 +966,13 @@ you can try to create it manually by running:
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.RegisterToGitIntegrationArgs) error {
+func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
-			"\t<BIN> integration git register default --runtime %s --token %s",
+			"\t<BIN> integration git register default --runtime %s --token %s --username %s",
 			runtime,
 			opts.Token,
+			opts.Username,
 		))
 		return fmt.Errorf(`
 %w

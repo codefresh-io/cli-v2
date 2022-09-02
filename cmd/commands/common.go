@@ -296,6 +296,9 @@ func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error 
 		}
 
 		log.G(ctx).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
+
+		opts.GitIntegrationRegistrationOpts.Username = opts.InsCloneOpts.Auth.Username
+
 		return nil
 	}
 

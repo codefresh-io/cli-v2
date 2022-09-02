@@ -9,8 +9,9 @@ cli-v2 integration git register [NAME] [flags]
 ### Options
 
 ```
-  -h, --help           help for register
-      --token string   Authentication token
+  -h, --help              help for register
+      --token string      Authentication token
+      --username string   Authentication user name
 ```
 
 ### Options inherited from parent commands
