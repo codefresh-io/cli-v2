@@ -56,7 +56,7 @@ var gitProvidersByName = map[string]model.GitProviders{
 var gitProvidersByValue = reverseMap(gitProvidersByName)
 
 func reverseMap[K, V comparable](gitProviders map[K]V) map[V]K {
-	var reversedMap = map[V]K{}
+	reversedMap := map[V]K{}
 	for key, value := range gitProviders {
 		reversedMap[value] = key
 	}
