@@ -33,8 +33,8 @@ const (
 
 type HybridRuntimeValues struct {
 	path       string
-	AccountId  string `yaml:"accountId"`
-	IscRepoUrl string `yaml:"iscRepoUrl"`
+	AccountId  string `json:"accountId"`
+	IscRepoUrl string `json:"iscRepoUrl"`
 }
 
 func NewHelmCommand() *cobra.Command {
@@ -83,6 +83,19 @@ func runHelmGenerateValuesFile(ctx context.Context, values *HybridRuntimeValues)
 	values.AccountId, err = util.CurrentAccount(user)
 	if err != nil {
 		return err
+	}
+
+	iscRepo, err := getIscRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if values.IscRepoUrl == "" {
+		if iscRepo == "" {
+			return fmt.Errorf("ISC repo URL have to be provided!")
+		} else {
+			values.IscRepoUrl = iscRepo
+		}
 	}
 
 	return values.Save()
