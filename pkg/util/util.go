@@ -379,3 +379,11 @@ func Retry(ctx context.Context, opts *RetryOptions) error {
 
 	return err
 }
+
+func ReverseMap[K, V comparable](gitProviders map[K]V) map[V]K {
+	reversedMap := map[V]K{}
+	for key, value := range gitProviders {
+		reversedMap[value] = key
+	}
+	return reversedMap
+}

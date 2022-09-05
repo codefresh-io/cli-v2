@@ -53,15 +53,9 @@ var gitProvidersByName = map[string]model.GitProviders{
 	"gitlab":           model.GitProvidersGitlab,
 }
 
-var gitProvidersByValue = reverseMap(gitProvidersByName)
+var gitProvidersByValue = util.ReverseMap(gitProvidersByName)
 
-func reverseMap[K, V comparable](gitProviders map[K]V) map[V]K {
-	reversedMap := map[V]K{}
-	for key, value := range gitProviders {
-		reversedMap[value] = key
-	}
-	return reversedMap
-}
+
 
 func NewIntegrationCommand() *cobra.Command {
 	var (
