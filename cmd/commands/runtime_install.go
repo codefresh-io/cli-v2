@@ -706,7 +706,7 @@ To complete the installation:
 			util.GenerateIngressPathForDemoGitEventSource(opts.RuntimeName),
 			opts.RuntimeName,
 			apiURL,
-			opts.GitIntegrationCreationOpts.Provider,
+			gitProvidersByValue[opts.GitIntegrationCreationOpts.Provider],
 			opts.RuntimeName))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {

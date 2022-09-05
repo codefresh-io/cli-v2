@@ -53,6 +53,8 @@ var gitProvidersByName = map[string]model.GitProviders{
 	"gitlab":           model.GitProvidersGitlab,
 }
 
+var gitProvidersByValue = util.ReverseMap(gitProvidersByName)
+
 func NewIntegrationCommand() *cobra.Command {
 	var (
 		runtime string
