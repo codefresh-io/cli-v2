@@ -20,7 +20,6 @@ cf version
 ```
 
 ### Linux
-
 ```bash
 # download and extract the binary
 curl -L --output - https://github.com/codefresh-io/cli-v2/releases/download/v0.0.507/cf-linux-amd64.tar.gz | tar zx
