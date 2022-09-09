@@ -181,8 +181,8 @@ github.com/antonmedv/expr v1.9.0/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj-labs/argocd-autopilot v0.4.5 h1:YdHYK4+gxeJn4VJFaxdbLrpulUazRvNFxDrQz1XotRQ=
-github.com/argoproj-labs/argocd-autopilot v0.4.5/go.mod h1:ZFSrlBVOx40j5/gtOwvlN3fVeu8YPvJU1ByLHx4/VF0=
+github.com/argoproj-labs/argocd-autopilot v0.4.7 h1:tQRhRUshUFfuprn/4SDkvppKQx82zwVTBa7/5YI2jf0=
+github.com/argoproj-labs/argocd-autopilot v0.4.7/go.mod h1:ZFSrlBVOx40j5/gtOwvlN3fVeu8YPvJU1ByLHx4/VF0=
 github.com/argoproj/applicationset v0.4.1 h1:PzTn77TK7XQB3CdpCDPbwU4pQgip0x4qvuJQ8XiBk5E=
 github.com/argoproj/applicationset v0.4.1/go.mod h1:cJZ7CWG80kBII4QNalyAvSr8eVifo8jKkyXoVl9qXaA=
 github.com/argoproj/argo-cd/v2 v2.4.6 h1:n3Y0UaAUVbdd8tBpSzwpH3iuLtzAbK1hmGXyk7ueKT4=
