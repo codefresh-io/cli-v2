@@ -25,4 +25,4 @@ data:
     local_port = 3017
     locations = /app-proxy
     subdomain = {{ .Values.subdomain | quote }} ; should consist of ${accountId}-${runtimeName}
-    header_Authorization = {{ .Envs.AUTHORIZATION }}
+    header_Authorization = something
