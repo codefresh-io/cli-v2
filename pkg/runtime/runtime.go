@@ -38,6 +38,7 @@ import (
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -90,12 +91,14 @@ type (
 
 	HelmConfig struct {
 		apapp.Config
-		SrcChart string `json:"srcChart"`
-		Values   string `json:"values"`
+		SrcChart string `json:"srcChart,omitempty"`
+		Values   string `json:"values,omitempty"`
 	}
 
 	frpcValues struct {
-		Greeting string `json:"greeting"`
+		SubDomain     string `json:"subdomain"`
+		LocalIp       string `json:"local_ip"`
+		ServerAddress string `json:"server_addr"`
 	}
 )
 
@@ -368,13 +371,16 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, f apkube.Factory, cl
 		return fmt.Errorf("failed getting values for app \"%s\"", a.Name)
 	}
 
+	host, orgRepo, path, _, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
+	repoUrl := host + orgRepo + suffix
 	config := &HelmConfig{
 		Config: apapp.Config{
 			AppName:           a.Name,
 			UserGivenName:     a.Name,
 			DestNamespace:     runtimeName,
 			DestServer:        apstore.Default.DestServer,
-			SrcRepoURL:        a.URL,
+			SrcRepoURL:        repoUrl,
+			SrcPath:           path,
 			SrcTargetRevision: a.Version,
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
@@ -384,7 +390,6 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, f apkube.Factory, cl
 				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
 			},
 		},
-		SrcChart: a.Chart,
 		Values:   values,
 	}
 	err = fs.WriteJson(helmAppPath, config)
@@ -403,7 +408,9 @@ func getValues(name string) (string, error) {
 	switch name {
 	case "frpc":
 		values := &frpcValues{
-			Greeting: "some greeting",
+			SubDomain:     "5f6a52f5f0f4b845ef443a58-prod-noam",
+			LocalIp:       "",
+			ServerAddress: "new-tunnel.codefresh.io",
 		}
 		data, err := yaml.Marshal(values)
 		if err != nil {

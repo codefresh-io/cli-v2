@@ -26,9 +26,6 @@ spec:
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
     - name: frpc
-      type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/frpc?ref=CR-14253-ingressless-flag
-      # url: https://www.kleinloog.ch/hello-helm/
-      # chart: hello
-      # version: 0.4.0-rc2
+      type: helm
+      url: github.com/codefresh-io/cli-v2/manifests/frpc
       feature: ingressless
