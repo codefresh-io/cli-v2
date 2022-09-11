@@ -42,6 +42,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type (
+	IngressMode string
+)
+
+const (
+	IngressModeSkip     IngressMode = "SKIP"     // ingress creation is user responsability
+	IngressModeStandard IngressMode = "STANDARD" // ingress will be created during the installation
+	IngressModeTunnel   IngressMode = "TUNNEL"   // no ingress will be created, use ingressless solution
+)
+
 var (
 	die  = util.Die
 	exit = os.Exit
@@ -62,6 +72,18 @@ var (
 
 	errUserCanceledInsecureInstall = fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 )
+
+func (m IngressMode) isNone() bool {
+	return m == IngressModeSkip
+}
+
+func (m IngressMode) isStandard() bool {
+	return m == IngressModeStandard
+}
+
+func (m IngressMode) isTunnel() bool {
+	return m == IngressModeTunnel
+}
 
 func postInitCommands(commands []*cobra.Command) {
 	for _, cmd := range commands {
@@ -349,7 +371,9 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	labelStr := fmt.Sprintf("%vDo you wish to continue with %v?%v", CYAN, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
-		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
+		if value != "" {
+			promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
+		}
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{

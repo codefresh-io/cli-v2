@@ -67,9 +67,9 @@ type (
 		IngressHost         string
 		IngressClass        string
 		IngressController   routingutil.RoutingController
+		IngressMode         IngressMode
 		GatewayName         string
 		GatewayNamespace    string
-		Flow                string
 		GitProvider         cfgit.Provider
 		useGatewayAPI       bool
 	}
@@ -105,6 +105,7 @@ type (
 		ingressHost       string
 		ingressClass      string
 		ingressController routingutil.RoutingController
+		ingressMode       IngressMode
 		gatewayName       string
 		gatewayNamespace  string
 		useGatewayAPI     bool
@@ -147,7 +148,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		createRepo   bool
 		include      string
 		exclude      string
-		flow         string
 	)
 
 	cmd := &cobra.Command{
@@ -217,7 +217,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				CreateDemoResources: false,
 				Include:             include,
 				Exclude:             exclude,
-				Flow:                flow,
 			})
 		},
 	}
@@ -232,8 +231,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Optional: true,
 	})
 
-	flow = store.Get().GsCreateFlow
-
 	return cmd
 }
 
@@ -241,10 +238,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
-	}
-
-	if opts.Flow == store.Get().InstallationFlow {
-		return legacyGitSourceCreate(ctx, opts)
 	}
 
 	if version.LessThan(appProxyGitSourceSupport) {
@@ -280,23 +273,25 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	return nil
 }
 
-func createPlaceholderIfNeeded(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
+func ensureGitSourceDirectory(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
 
-	if len(fi) == 0 {
-		if err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
-			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
-		}
+	if len(fi) > 0 {
+		return nil
+	}
 
-		commitMsg := fmt.Sprintf("Created a placeholder file in %s Directory", opts.GsCloneOpts.Path())
+	if err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
+		return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
+	}
 
-		log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
-		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
-			return fmt.Errorf("failed to push placeholder file to git-source repo: %w", err)
-		}
+	commitMsg := fmt.Sprintf("Created a placeholder file in %s Directory", opts.GsCloneOpts.Path())
+
+	log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
+	if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+		return fmt.Errorf("failed to push placeholder file to git-source repo: %w", err)
 	}
 
 	return nil
@@ -616,6 +611,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			ingressHost:       opts.IngressHost,
 			ingressClass:      opts.IngressClass,
 			ingressController: opts.IngressController,
+			ingressMode:       opts.IngressMode,
 			gatewayName:       opts.GatewayName,
 			gatewayNamespace:  opts.GatewayNamespace,
 			useGatewayAPI:     opts.useGatewayAPI,
@@ -752,7 +748,7 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 }
 
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
-	if !store.Get().SkipIngress {
+	if opts.ingressMode.isStandard() {
 		// Create an ingress that will manage external access to the git eventsource service
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       opts.runtimeName,
@@ -1532,8 +1528,8 @@ func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) er
 			return fmt.Errorf("failed to create git-source demo resources: %w", err)
 		}
 	} else {
-		if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create a git-source placeholder: %w", err)
+		if err := ensureGitSourceDirectory(ctx, opts, gsRepo, gsFs); err != nil {
+			return fmt.Errorf("failed to ensure git-source directory: %w", err)
 		}
 	}
 
