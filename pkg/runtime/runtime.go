@@ -45,6 +45,8 @@ import (
 )
 
 type (
+	IngressMode string
+
 	Runtime struct {
 		metav1.TypeMeta   `json:",inline"`
 		metav1.ObjectMeta `json:"metadata"`
@@ -58,10 +60,11 @@ type (
 		BootstrapSpecifier  string          `json:"bootstrapSpecifier"`
 		Components          []AppDef        `json:"components"`
 		Cluster             string          `json:"cluster"`
-		IngressHost         string          `json:"ingressHost"`
-		IngressClass        string          `json:"ingressClassName"`
-		InternalIngressHost string          `json:"internalIngressHost"`
-		IngressController   string          `json:"ingressController"`
+		IngressHost         string          `json:"ingressHost,omitempty"`
+		IngressClass        string          `json:"ingressClassName,omitempty"`
+		InternalIngressHost string          `json:"internalIngressHost,omitempty"`
+		IngressController   string          `json:"ingressController,omitempty"`
+		IngressMode         IngressMode     `json:"ingressMode"`
 		Repo                string          `json:"repo"`
 
 		devMode bool
@@ -80,6 +83,24 @@ type (
 		IsInternal bool   `json:"isInternal"`
 	}
 )
+
+const (
+	IngressModeSkip        IngressMode = "SKIP"        // ingress creation is user responsability
+	IngressModeStandard    IngressMode = "STANDARD"    // ingress will be created during the installation
+	IngressModeIngressless IngressMode = "INGRESSLESS" // no ingress will be created, use ingressless solution
+)
+
+func (m IngressMode) IsSkip() bool {
+	return m == IngressModeSkip
+}
+
+func (m IngressMode) IsStandard() bool {
+	return m == IngressModeStandard
+}
+
+func (m IngressMode) IsIngressless() bool {
+	return m == IngressModeIngressless
+}
 
 func Download(version *semver.Version, name string) (*Runtime, error) {
 	var (

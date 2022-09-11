@@ -42,16 +42,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type (
-	IngressMode string
-)
-
-const (
-	IngressModeSkip     IngressMode = "SKIP"     // ingress creation is user responsability
-	IngressModeStandard IngressMode = "STANDARD" // ingress will be created during the installation
-	IngressModeTunnel   IngressMode = "TUNNEL"   // no ingress will be created, use ingressless solution
-)
-
 var (
 	die  = util.Die
 	exit = os.Exit
@@ -72,18 +62,6 @@ var (
 
 	errUserCanceledInsecureInstall = fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 )
-
-func (m IngressMode) isNone() bool {
-	return m == IngressModeSkip
-}
-
-func (m IngressMode) isStandard() bool {
-	return m == IngressModeStandard
-}
-
-func (m IngressMode) isTunnel() bool {
-	return m == IngressModeTunnel
-}
 
 func postInitCommands(commands []*cobra.Command) {
 	for _, cmd := range commands {

@@ -67,7 +67,7 @@ type (
 		IngressHost         string
 		IngressClass        string
 		IngressController   routingutil.RoutingController
-		IngressMode         IngressMode
+		IngressMode         runtime.IngressMode
 		GatewayName         string
 		GatewayNamespace    string
 		GitProvider         cfgit.Provider
@@ -105,7 +105,7 @@ type (
 		ingressHost       string
 		ingressClass      string
 		ingressController routingutil.RoutingController
-		ingressMode       IngressMode
+		ingressMode       runtime.IngressMode
 		gatewayName       string
 		gatewayNamespace  string
 		useGatewayAPI     bool
@@ -586,6 +586,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
+
 	if len(fi) == 0 {
 		wfTemplateFilePath := store.Get().DemoWorkflowTemplateFileName
 		wfTemplate := createDemoWorkflowTemplate()
@@ -602,22 +603,24 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			return fmt.Errorf("failed to create calendar example pipeline. Error: %w", err)
 		}
 
-		err = createDemoGitPipeline(&gitSourceGitDemoPipelineOptions{
-			runtimeName:       opts.RuntimeName,
-			gsCloneOpts:       opts.GsCloneOpts,
-			gitProvider:       opts.GitProvider,
-			gsFs:              gsFs,
-			hostName:          opts.HostName,
-			ingressHost:       opts.IngressHost,
-			ingressClass:      opts.IngressClass,
-			ingressController: opts.IngressController,
-			ingressMode:       opts.IngressMode,
-			gatewayName:       opts.GatewayName,
-			gatewayNamespace:  opts.GatewayNamespace,
-			useGatewayAPI:     opts.useGatewayAPI,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+		if !opts.IngressMode.IsIngressless() {
+			err = createDemoGitPipeline(&gitSourceGitDemoPipelineOptions{
+				runtimeName:       opts.RuntimeName,
+				gsCloneOpts:       opts.GsCloneOpts,
+				gitProvider:       opts.GitProvider,
+				gsFs:              gsFs,
+				hostName:          opts.HostName,
+				ingressHost:       opts.IngressHost,
+				ingressClass:      opts.IngressClass,
+				ingressController: opts.IngressController,
+				ingressMode:       opts.IngressMode,
+				gatewayName:       opts.GatewayName,
+				gatewayNamespace:  opts.GatewayNamespace,
+				useGatewayAPI:     opts.useGatewayAPI,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+			}
 		}
 
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
@@ -748,7 +751,7 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 }
 
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
-	if opts.ingressMode.isStandard() {
+	if opts.ingressMode.IsStandard() {
 		// Create an ingress that will manage external access to the git eventsource service
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       opts.runtimeName,

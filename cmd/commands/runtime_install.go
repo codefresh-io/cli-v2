@@ -103,7 +103,7 @@ type (
 		InternalIngressAnnotation      map[string]string
 		ExternalIngressAnnotation      map[string]string
 		EnableGitProviders             bool
-		IngressMode                    IngressMode
+		IngressMode                    runtime.IngressMode
 
 		versionStr    string
 		kubeContext   string
@@ -156,12 +156,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
 
-			if skipIngress {
-				installationOpts.IngressMode = IngressModeSkip
-			} else if ingressless {
-				installationOpts.IngressMode = IngressModeTunnel
+			if ingressless {
+				installationOpts.IngressMode = runtime.IngressModeIngressless
+			} else if skipIngress {
+				installationOpts.IngressMode = runtime.IngressModeSkip
 			} else {
-				installationOpts.IngressMode = IngressModeStandard
+				installationOpts.IngressMode = runtime.IngressModeStandard
 			}
 
 			err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
@@ -278,7 +278,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if opts.IngressMode.isStandard() {
+	if opts.IngressMode.IsIngressless() {
+		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", err, true, false)
+		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", err, true, false)
+	} else {
 		err = ensureRoutingControllerSupported(ctx, opts)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
 		if err != nil {
@@ -290,9 +293,6 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		if err != nil {
 			return err
 		}
-	} else {
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped-", err, true, false)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped-", err, true, false)
 	}
 
 	if err = ensureGitData(cmd, opts); err != nil {
@@ -533,7 +533,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		Recover:          &opts.FromRepo,
 	}
 
-	if opts.IngressMode.isStandard() {
+	if !opts.IngressMode.IsIngressless() {
 		runtimeArgs.IngressHost = &opts.IngressHost
 		runtimeArgs.InternalIngressHost = &opts.InternalIngressHost
 		runtimeArgs.IngressClass = &opts.IngressClass
@@ -588,11 +588,14 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	opts.RuntimeToken = token
 	opts.RuntimeStoreIV = iv
-	rt.Spec.IngressHost = opts.IngressHost
-	rt.Spec.IngressClass = opts.IngressClass
-	rt.Spec.InternalIngressHost = opts.InternalIngressHost
-	rt.Spec.IngressController = string(opts.IngressController.Name())
-	rt.Spec.Repo = opts.InsCloneOpts.Repo
+
+	if !opts.IngressMode.IsIngressless() {
+		rt.Spec.IngressHost = opts.IngressHost
+		rt.Spec.IngressClass = opts.IngressClass
+		rt.Spec.InternalIngressHost = opts.InternalIngressHost
+		rt.Spec.IngressController = string(opts.IngressController.Name())
+		rt.Spec.Repo = opts.InsCloneOpts.Repo
+	}
 
 	appSpecifier := rt.Spec.FullSpecifier()
 
@@ -695,9 +698,9 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	// thus we shall not perform a rollback after this point.
 	opts.DisableRollback = true
 
-	if opts.IngressMode.isNone() {
-		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped-", err, false, true)
-		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped-", err, false, true)
+	if opts.IngressMode.IsSkip() {
+		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped (skip ingress)-", err, false, true)
+		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped (skip ingress)-", err, false, true)
 
 		var apiURL string
 		if opts.GitIntegrationCreationOpts.APIURL != nil {
@@ -774,7 +777,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressMode.isStandard() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
+	if opts.IngressMode.IsStandard() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -824,62 +827,61 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 }
 
 func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
-	var err error
-	var gitSrcMessage string
-	var createGitSrcMessage string
-
-	if !opts.FromRepo {
-		gitSrcMessage = fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
-		err = legacyGitSourceCreate(ctx, &GitSourceCreateOptions{
-			InsCloneOpts:        opts.InsCloneOpts,
-			GsCloneOpts:         opts.GsCloneOpts,
-			GitProvider:         opts.gitProvider,
-			GsName:              store.Get().GitSourceName,
-			RuntimeName:         opts.RuntimeName,
-			CreateDemoResources: opts.InstallDemoResources,
-			HostName:            opts.HostName,
-			IngressHost:         opts.IngressHost,
-			IngressClass:        opts.IngressClass,
-			IngressController:   opts.IngressController,
-			IngressMode:         opts.IngressMode,
-			GatewayName:         opts.GatewayName,
-			GatewayNamespace:    opts.GatewayNamespace,
-			useGatewayAPI:       opts.useGatewayAPI,
-		})
+	if opts.FromRepo {
+		handleCliStep(reporter.InstallStepCreateGitsource, "-skipped (from repo)-", nil, false, true)
+		handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, "-skipped (from repo)-", nil, false, true)
+		return nil
 	}
-	handleCliStep(reporter.InstallStepCreateGitsource, gitSrcMessage, err, false, true)
+
+	err := legacyGitSourceCreate(ctx, &GitSourceCreateOptions{
+		InsCloneOpts:        opts.InsCloneOpts,
+		GsCloneOpts:         opts.GsCloneOpts,
+		GitProvider:         opts.gitProvider,
+		GsName:              store.Get().GitSourceName,
+		RuntimeName:         opts.RuntimeName,
+		CreateDemoResources: opts.InstallDemoResources,
+		HostName:            opts.HostName,
+		IngressHost:         opts.IngressHost,
+		IngressClass:        opts.IngressClass,
+		IngressController:   opts.IngressController,
+		IngressMode:         opts.IngressMode,
+		GatewayName:         opts.GatewayName,
+		GatewayNamespace:    opts.GatewayNamespace,
+		useGatewayAPI:       opts.useGatewayAPI,
+	})
+	message := fmt.Sprintf("Creating git source \"%s\"", store.Get().GitSourceName)
+	handleCliStep(reporter.InstallStepCreateGitsource, message, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().GitSourceName, err))
 	}
 
-	if !opts.FromRepo {
-		if opts.gitProvider.SupportsMarketplace() {
-			mpCloneOpts := &apgit.CloneOptions{
-				Repo: store.Get().MarketplaceRepo,
-				FS:   fs.Create(memfs.New()),
-			}
-			mpCloneOpts.Parse()
-
-			createGitSrcMessage = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
-
-			err = legacyGitSourceCreate(ctx, &GitSourceCreateOptions{
-				InsCloneOpts:        opts.InsCloneOpts,
-				GsCloneOpts:         mpCloneOpts,
-				GitProvider:         opts.gitProvider,
-				GsName:              store.Get().MarketplaceGitSourceName,
-				RuntimeName:         opts.RuntimeName,
-				CreateDemoResources: false,
-				Exclude:             "**/images/**/*",
-				Include:             "workflows/**/*.yaml",
-				GatewayName:         opts.GatewayName,
-				GatewayNamespace:    opts.GatewayNamespace,
-				useGatewayAPI:       opts.useGatewayAPI,
-			})
-		} else {
-			createGitSrcMessage = fmt.Sprintf("Skipping %s with git provider %s", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
-		}
+	if !opts.gitProvider.SupportsMarketplace() {
+		message = fmt.Sprintf("Skipping \"%s\" with git provider \"%s\"", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
+		handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, message, err, false, true)
+		return nil
 	}
-	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, createGitSrcMessage, err, false, true)
+
+	mpCloneOpts := &apgit.CloneOptions{
+		Repo: store.Get().MarketplaceRepo,
+		FS:   fs.Create(memfs.New()),
+	}
+	mpCloneOpts.Parse()
+
+	err = legacyGitSourceCreate(ctx, &GitSourceCreateOptions{
+		InsCloneOpts:        opts.InsCloneOpts,
+		GsCloneOpts:         mpCloneOpts,
+		GitProvider:         opts.gitProvider,
+		GsName:              store.Get().MarketplaceGitSourceName,
+		RuntimeName:         opts.RuntimeName,
+		CreateDemoResources: false,
+		Exclude:             "**/images/**/*",
+		Include:             "workflows/**/*.yaml",
+		GatewayName:         opts.GatewayName,
+		GatewayNamespace:    opts.GatewayNamespace,
+		useGatewayAPI:       opts.useGatewayAPI,
+	})
+	message = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
+	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, message, err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
 	}
@@ -909,6 +911,7 @@ func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) erro
 }
 
 func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var err error
 	maxRetries := 6 // up to a minute
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
@@ -922,7 +925,7 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 		case <-ticker.C:
 		}
 
-		err := createGitIntegration(ctx, opts)
+		err = createGitIntegration(ctx, opts)
 		if err != nil {
 			if err == ctx.Err() {
 				return ctx.Err()
@@ -934,7 +937,7 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 		}
 	}
 
-	return fmt.Errorf("timed out while waiting for git integration to be created")
+	return err
 }
 
 func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
@@ -1000,7 +1003,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// bitbucket cloud take more time to push a commit
 	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
-	if opts.IngressMode.isStandard() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.IngressMode.IsStandard() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return createWorkflowsIngress(ctx, opts, rt)
@@ -1420,7 +1423,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		hostName = opts.InternalHostName
 	}
 
-	if opts.IngressMode.isStandard() {
+	if opts.IngressMode.IsStandard() {
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       rt.Name,
 			Namespace:         rt.Namespace,
