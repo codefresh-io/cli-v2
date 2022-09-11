@@ -39,6 +39,7 @@ import (
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -47,7 +48,6 @@ import (
 )
 
 type (
-	AccessMode     string
 	InstallFeature string
 
 	Runtime struct {
@@ -58,17 +58,17 @@ type (
 	}
 
 	RuntimeSpec struct {
-		DefVersion          *semver.Version `json:"defVersion"`
-		Version             *semver.Version `json:"version"`
-		BootstrapSpecifier  string          `json:"bootstrapSpecifier"`
-		Components          []AppDef        `json:"components"`
-		Cluster             string          `json:"cluster"`
-		IngressHost         string          `json:"ingressHost,omitempty"`
-		IngressClass        string          `json:"ingressClassName,omitempty"`
-		InternalIngressHost string          `json:"internalIngressHost,omitempty"`
-		IngressController   string          `json:"ingressController,omitempty"`
-		AccessMode          AccessMode      `json:"accessMode"`
-		Repo                string          `json:"repo"`
+		DefVersion          *semver.Version      `json:"defVersion"`
+		Version             *semver.Version      `json:"version"`
+		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
+		Components          []AppDef             `json:"components"`
+		Cluster             string               `json:"cluster"`
+		IngressHost         string               `json:"ingressHost,omitempty"`
+		IngressClass        string               `json:"ingressClassName,omitempty"`
+		InternalIngressHost string               `json:"internalIngressHost,omitempty"`
+		IngressController   string               `json:"ingressController,omitempty"`
+		AccessMode          platmodel.AccessMode `json:"accessMode"`
+		Repo                string               `json:"repo"`
 
 		devMode bool
 	}
@@ -98,24 +98,8 @@ type (
 )
 
 const (
-	AccessModeIngressSkip AccessMode = "ingress_skip" // ingress creation is user responsability
-	AccessModeIngress     AccessMode = "INGRESS"      // ingress will be created during the installation
-	AccessModeTunnel      AccessMode = "TUNNEL"       // no ingress will be created, use ingressless solution
-
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
-
-func (m AccessMode) IsIngressSkip() bool {
-	return strings.EqualFold(string(m), string(AccessModeIngressSkip))
-}
-
-func (m AccessMode) IsIngress() bool {
-	return strings.EqualFold(string(m), string(AccessModeIngress))
-}
-
-func (m AccessMode) IsTunnel() bool {
-	return strings.EqualFold(string(m), string(AccessModeTunnel))
-}
 
 func Download(version *semver.Version, name string) (*Runtime, error) {
 	var (

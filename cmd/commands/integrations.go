@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,7 +25,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	sdk "github.com/codefresh-io/go-sdk/pkg/codefresh"
-	model "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -35,8 +35,8 @@ import (
 type (
 	GitIntegrationAddOptions struct {
 		Name          string
-		Provider      model.GitProviders
-		SharingPolicy model.SharingPolicy
+		Provider      apmodel.GitProviders
+		SharingPolicy apmodel.SharingPolicy
 	}
 
 	GitIntegrationRegistrationOpts struct {
@@ -46,11 +46,11 @@ type (
 	}
 )
 
-var gitProvidersByName = map[string]model.GitProviders{
-	"bitbucket":        model.GitProvidersBitbucket,
-	"bitbucket-server": model.GitProvidersBitbucketServer,
-	"github":           model.GitProvidersGithub,
-	"gitlab":           model.GitProvidersGitlab,
+var gitProvidersByName = map[string]apmodel.GitProviders{
+	"bitbucket":        apmodel.GitProvidersBitbucket,
+	"bitbucket-server": apmodel.GitProvidersBitbucketServer,
+	"github":           apmodel.GitProvidersGithub,
+	"gitlab":           apmodel.GitProvidersGitlab,
 }
 
 var gitProvidersByValue = util.ReverseMap(gitProvidersByName)
@@ -199,7 +199,7 @@ func RunGitIntegrationGetCommand(ctx context.Context, client sdk.AppProxyAPI, na
 
 func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
-		opts              model.AddGitIntegrationArgs
+		opts              apmodel.AddGitIntegrationArgs
 		provider          string
 		apiURL            string
 		accountAdminsOnly bool
@@ -222,9 +222,9 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 				return err
 			}
 
-			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
+			opts.SharingPolicy = apmodel.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
-				opts.SharingPolicy = model.SharingPolicyAccountAdmins
+				opts.SharingPolicy = apmodel.SharingPolicyAccountAdmins
 			}
 
 			return RunGitIntegrationAddCommand(cmd.Context(), *client, &opts)
@@ -241,7 +241,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	return cmd
 }
 
-func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.AddGitIntegrationArgs) error {
+func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, opts *apmodel.AddGitIntegrationArgs) error {
 	intg, err := client.GitIntegrations().Add(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to add git integration: %w", err)
@@ -254,7 +254,7 @@ func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, op
 
 func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
-		opts              model.EditGitIntegrationArgs
+		opts              apmodel.EditGitIntegrationArgs
 		apiURL            string
 		accountAdminsOnly bool
 	)
@@ -270,9 +270,9 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 
 			opts.APIURL = &apiURL
 
-			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
+			opts.SharingPolicy = apmodel.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
-				opts.SharingPolicy = model.SharingPolicyAccountAdmins
+				opts.SharingPolicy = apmodel.SharingPolicyAccountAdmins
 			}
 
 			return RunGitIntegrationEditCommand(cmd.Context(), *client, &opts)
@@ -286,7 +286,7 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	return cmd
 }
 
-func RunGitIntegrationEditCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.EditGitIntegrationArgs) error {
+func RunGitIntegrationEditCommand(ctx context.Context, client sdk.AppProxyAPI, opts *apmodel.EditGitIntegrationArgs) error {
 	intg, err := client.GitIntegrations().Edit(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to edit git integration: %w", err)
@@ -352,7 +352,7 @@ func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
 }
 
 func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAPI, opts *GitIntegrationRegistrationOpts) error {
-	regOpts := &model.RegisterToGitIntegrationArgs{
+	regOpts := &apmodel.RegisterToGitIntegrationArgs{
 		Token: opts.Token,
 	}
 	if opts.Username != "" {
@@ -495,10 +495,10 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	return fmt.Errorf("invalid output format: %s", format)
 }
 
-func parseGitProvider(provider string) (model.GitProviders, error) {
+func parseGitProvider(provider string) (apmodel.GitProviders, error) {
 	p, ok := gitProvidersByName[provider]
 	if !ok {
-		return model.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
+		return apmodel.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
 	}
 	return p, nil
 }
