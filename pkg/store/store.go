@@ -146,7 +146,6 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	IngressHost                       string
 	IscRuntimesDir                    string
-	TunnelServerAddress               string
 }
 
 // Get returns the global store
@@ -246,7 +245,6 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
-	s.TunnelServerAddress = "register-tunnels.cf-cd.com"
 
 	initVersion()
 }

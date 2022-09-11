@@ -107,14 +107,20 @@ type (
 		EnableGitProviders             bool
 		AccessMode                     runtime.AccessMode
 		InstallFeatures                []runtime.InstallFeature
-		TunnelRegisterHost              string
+		TunnelRegisterHost             string
 		TunnelDomain                   string
+		TunnelSubdomain                string
 
 		versionStr    string
 		kubeContext   string
 		kubeconfig    string
 		gitProvider   cfgit.Provider
 		useGatewayAPI bool
+	}
+
+	frpcValues struct {
+		Subdomain     string `json:"subdomain"`
+		ServerAddress string `json:"server_addr"`
 	}
 )
 
@@ -166,6 +172,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	<BIN> runtime install runtime-name --repo gitops_repo
 `),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
 			if len(args) > 0 {
 				installationOpts.RuntimeName = args[0]
 			}
@@ -174,11 +182,18 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				installationOpts.useGatewayAPI = true
 			}
 
-			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
+			createAnalyticsReporter(ctx, reporter.InstallFlow, installationOpts.DisableTelemetry)
 
 			installationOpts.AccessMode = runtime.AccessMode(accessMode)
 			if installationOpts.AccessMode.IsTunnel() {
 				installationOpts.InstallFeatures = append(installationOpts.InstallFeatures, runtime.InstallFeatureIngressless)
+				accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
+				if err != nil {
+					return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
+				}
+
+				installationOpts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, installationOpts.RuntimeName)
+				installationOpts.IngressHost = fmt.Sprintf("https://%s.%s", installationOpts.TunnelSubdomain, installationOpts.TunnelDomain)
 			} else if installationOpts.AccessMode.IsIngress() {
 				if skipIngress {
 					installationOpts.AccessMode = runtime.AccessModeIngressSkip
@@ -208,7 +223,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
 			}
 
-			if err := getApprovalFromUser(cmd.Context(), finalParameters, "runtime install"); err != nil {
+			if err := getApprovalFromUser(ctx, finalParameters, "runtime install"); err != nil {
 				return err
 			}
 
@@ -264,6 +279,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
 	util.Die(cmd.Flags().MarkHidden("access-mode"))
+	util.Die(cmd.Flags().MarkHidden("tunnel-register-host"))
+	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
 
 	return cmd
 }
@@ -561,7 +578,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 	}
 
 	if opts.AccessMode.IsTunnel() {
-
+		runtimeArgs.IngressHost = &opts.IngressHost
 	} else {
 		runtimeArgs.IngressHost = &opts.IngressHost
 		runtimeArgs.InternalIngressHost = &opts.InternalIngressHost
@@ -788,11 +805,6 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
-	accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
-	if err != nil {
-		return fmt.Errorf("failed creating runtime components: %w", err)
-	}
-
 	if !opts.FromRepo {
 		for _, component := range rt.Spec.Components {
 			if !opts.shouludInstallFeature(component.Feature) {
@@ -802,7 +814,14 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 
 			log.G(ctx).Infof("Creating component \"%s\"", component.Name)
 			component.IsInternal = true
-			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, accountId, opts.RuntimeName, store.Get().CFComponentType)
+			var values string
+			values, err = opts.getValues(component.Name)
+			if err != nil {
+				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+				break
+			}
+
+			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, values)
 			if err != nil {
 				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
 				break
@@ -2025,4 +2044,22 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Progress = opts.InsCloneOpts.Progress
 	host, orgRepo, _, _, _, suffix, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
+}
+
+func (opts *RuntimeInstallOptions) getValues(name string) (string, error) {
+	switch name {
+	case "frpc":
+		values := &frpcValues{
+			Subdomain:     opts.TunnelSubdomain,
+			ServerAddress: opts.TunnelRegisterHost,
+		}
+		data, err := yaml.Marshal(values)
+		if err != nil {
+			return "", nil
+		}
+
+		return string(data), nil
+	default:
+		return "", nil
+	}
 }

@@ -95,11 +95,6 @@ type (
 		SrcChart string `json:"srcChart"`
 		Values   string `json:"values,omitempty"`
 	}
-
-	frpcValues struct {
-		SubDomain     string `json:"subdomain"`
-		ServerAddress string `json:"server_addr"`
-	}
 )
 
 const (
@@ -307,7 +302,7 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, accountId, runtimeName, cfType string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, optionalValues ...string) error {
 	return util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
 			newCloneOpts := &apgit.CloneOptions{
@@ -319,7 +314,11 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 			newCloneOpts.Parse()
 
 			if a.Type == "helm" {
-				return a.createHelmAppDirectly(ctx, newCloneOpts, accountId, runtimeName, cfType)
+				values := ""
+				if len(optionalValues) > 0 {
+					values = optionalValues[0]
+				}
+				return a.createHelmAppDirectly(ctx, newCloneOpts, runtimeName, cfType, values)
 			}
 
 			return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
@@ -359,18 +358,13 @@ func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, 
 	return apcmd.RunAppCreate(ctx, appCreateOpts)
 }
 
-func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, accountId, runtimeName, cfType string) error {
+func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, values string) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting repository while creating helm app: %w", err)
 	}
 
 	helmAppPath := cloneOpts.FS.Join(apstore.Default.AppsDir, a.Name, runtimeName, "config_helm.json")
-	values, err := getValues(a.Name, accountId, runtimeName)
-	if err != nil {
-		return fmt.Errorf("failed getting values for app \"%s\"", a.Name)
-	}
-
 	host, orgRepo, path, gitRef, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
 	repoUrl := host + orgRepo + suffix
 	config := &HelmConfig{
@@ -402,24 +396,6 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.Clo
 		commitMsg += fmt.Sprintf(" installation-path: '%s'", fs.Root())
 	}
 	return aputil.PushWithMessage(ctx, r, commitMsg)
-}
-
-func getValues(name, accountId, runtimeName string) (string, error) {
-	switch name {
-	case "frpc":
-		values := &frpcValues{
-			SubDomain:     fmt.Sprintf("%s-%s", accountId, runtimeName), // + .tunnels.cf-cd.com 
-			ServerAddress: store.Get().TunnelServerAddress,
-		}
-		data, err := yaml.Marshal(values)
-		if err != nil {
-			return "", nil
-		}
-
-		return string(data), nil
-	default:
-		return "", nil
-	}
 }
 
 func (a *AppDef) delete(fs apfs.FS) error {
