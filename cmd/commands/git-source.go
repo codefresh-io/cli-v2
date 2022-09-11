@@ -45,7 +45,8 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	appProxyModel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -67,9 +68,9 @@ type (
 		IngressHost         string
 		IngressClass        string
 		IngressController   routingutil.RoutingController
+		AccessMode          platmodel.AccessMode
 		GatewayName         string
 		GatewayNamespace    string
-		Flow                string
 		GitProvider         cfgit.Provider
 		useGatewayAPI       bool
 	}
@@ -105,6 +106,7 @@ type (
 		ingressHost       string
 		ingressClass      string
 		ingressController routingutil.RoutingController
+		accessMode        platmodel.AccessMode
 		gatewayName       string
 		gatewayNamespace  string
 		useGatewayAPI     bool
@@ -147,7 +149,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		createRepo   bool
 		include      string
 		exclude      string
-		flow         string
 	)
 
 	cmd := &cobra.Command{
@@ -217,7 +218,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				CreateDemoResources: false,
 				Include:             include,
 				Exclude:             exclude,
-				Flow:                flow,
 			})
 		},
 	}
@@ -232,8 +232,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Optional: true,
 	})
 
-	flow = store.Get().GsCreateFlow
-
 	return cmd
 }
 
@@ -241,10 +239,6 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
-	}
-
-	if opts.Flow == store.Get().InstallationFlow {
-		return legacyGitSourceCreate(ctx, opts)
 	}
 
 	if version.LessThan(appProxyGitSourceSupport) {
@@ -260,7 +254,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	appSpecifier := opts.GsCloneOpts.Repo
 	isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
 
-	err = appProxy.AppProxyGitSources().Create(ctx, &appProxyModel.CreateGitSourceInput{
+	err = appProxy.AppProxyGitSources().Create(ctx, &apmodel.CreateGitSourceInput{
 		AppName:       opts.GsName,
 		AppSpecifier:  appSpecifier,
 		DestServer:    store.Get().InCluster,
@@ -280,23 +274,25 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	return nil
 }
 
-func createPlaceholderIfNeeded(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
+func ensureGitSourceDirectory(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
 
-	if len(fi) == 0 {
-		if err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
-			return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
-		}
+	if len(fi) > 0 {
+		return nil
+	}
 
-		commitMsg := fmt.Sprintf("Created a placeholder file in %s Directory", opts.GsCloneOpts.Path())
+	if err = billyUtils.WriteFile(gsFs, "DUMMY", []byte{}, 0666); err != nil {
+		return fmt.Errorf("failed to write the git-source placeholder file. Err: %w", err)
+	}
 
-		log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
-		if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
-			return fmt.Errorf("failed to push placeholder file to git-source repo: %w", err)
-		}
+	commitMsg := fmt.Sprintf("Created a placeholder file in %s Directory", opts.GsCloneOpts.Path())
+
+	log.G(ctx).Info("Pushing placeholder file to the default-git-source repo")
+	if err := apu.PushWithMessage(ctx, gsRepo, commitMsg); err != nil {
+		return fmt.Errorf("failed to push placeholder file to git-source repo: %w", err)
 	}
 
 	return nil
@@ -569,7 +565,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return err
 	}
 
-	err = appProxy.AppProxyGitSources().Edit(ctx, &appProxyModel.EditGitSourceInput{
+	err = appProxy.AppProxyGitSources().Edit(ctx, &apmodel.EditGitSourceInput{
 		AppName:      opts.GsName,
 		AppSpecifier: opts.GsCloneOpts.Repo,
 		Include:      opts.Include,
@@ -591,6 +587,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
+
 	if len(fi) == 0 {
 		wfTemplateFilePath := store.Get().DemoWorkflowTemplateFileName
 		wfTemplate := createDemoWorkflowTemplate()
@@ -607,21 +604,24 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			return fmt.Errorf("failed to create calendar example pipeline. Error: %w", err)
 		}
 
-		err = createDemoGitPipeline(&gitSourceGitDemoPipelineOptions{
-			runtimeName:       opts.RuntimeName,
-			gsCloneOpts:       opts.GsCloneOpts,
-			gitProvider:       opts.GitProvider,
-			gsFs:              gsFs,
-			hostName:          opts.HostName,
-			ingressHost:       opts.IngressHost,
-			ingressClass:      opts.IngressClass,
-			ingressController: opts.IngressController,
-			gatewayName:       opts.GatewayName,
-			gatewayNamespace:  opts.GatewayNamespace,
-			useGatewayAPI:     opts.useGatewayAPI,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+		if opts.AccessMode == platmodel.AccessModeIngress {
+			err = createDemoGitPipeline(&gitSourceGitDemoPipelineOptions{
+				runtimeName:       opts.RuntimeName,
+				gsCloneOpts:       opts.GsCloneOpts,
+				gitProvider:       opts.GitProvider,
+				gsFs:              gsFs,
+				hostName:          opts.HostName,
+				ingressHost:       opts.IngressHost,
+				ingressClass:      opts.IngressClass,
+				ingressController: opts.IngressController,
+				accessMode:        opts.AccessMode,
+				gatewayName:       opts.GatewayName,
+				gatewayNamespace:  opts.GatewayNamespace,
+				useGatewayAPI:     opts.useGatewayAPI,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create github example pipeline. Error: %w", err)
+			}
 		}
 
 		commitMsg := fmt.Sprintf("Created demo pipelines in %s Directory", opts.GsCloneOpts.Path())
@@ -752,7 +752,7 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 }
 
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
-	if !store.Get().SkipIngress {
+	if opts.accessMode == platmodel.AccessModeIngress {
 		// Create an ingress that will manage external access to the git eventsource service
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       opts.runtimeName,
@@ -1532,20 +1532,22 @@ func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) er
 			return fmt.Errorf("failed to create git-source demo resources: %w", err)
 		}
 	} else {
-		if err := createPlaceholderIfNeeded(ctx, opts, gsRepo, gsFs); err != nil {
-			return fmt.Errorf("failed to create a git-source placeholder: %w", err)
+		if err := ensureGitSourceDirectory(ctx, opts, gsRepo, gsFs); err != nil {
+			return fmt.Errorf("failed to ensure git-source directory: %w", err)
 		}
 	}
 
 	appDef := &runtime.AppDef{
-		Name: opts.GsName,
-		Type: application.AppTypeDirectory,
-		URL:  opts.GsCloneOpts.Repo,
+		Name:    opts.GsName,
+		Type:    application.AppTypeDirectory,
+		URL:     opts.GsCloneOpts.Repo,
+		Include: opts.Include,
+		Exclude: opts.Exclude,
 	}
 
 	appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
 
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType, opts.Include, opts.Exclude); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 

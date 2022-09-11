@@ -30,7 +30,7 @@ var (
 	buildDate                = ""
 	gitCommit                = ""
 	segmentWriteKey          = ""
-	maxDefVersion            = "1.0.1"
+	maxDefVersion            = "2.0.0"
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
@@ -117,7 +117,6 @@ type Store struct {
 	Silent                            bool
 	InsecureIngressHost               bool
 	BypassIngressClassCheck           bool
-	SkipIngress                       bool
 	SetDefaultResources               bool
 	MinimumMemorySizeRequired         string
 	MinimumCpuRequired                string
@@ -142,7 +141,6 @@ type Store struct {
 	SccName                           string
 	CFInternalGitSources              []string
 	CFInternalReporters               []string
-	InstallationFlow                  string
 	GsCreateFlow                      string
 	InCluster                         string
 	IsDownloadRuntimeLogs             bool
@@ -245,8 +243,6 @@ func init() {
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
-	s.InstallationFlow = "install-runtime"
-	s.GsCreateFlow = "git-source-create"
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
 

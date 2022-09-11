@@ -183,7 +183,7 @@ func CreateIngress(opts *CreateRouteOpts) *netv1.Ingress {
 
 func ValidateIngressController(ctx context.Context, kubeFactory kube.Factory, ingressClass *string) (RoutingController, error) {
 	var ingressController RoutingController
-	if store.Get().BypassIngressClassCheck || store.Get().SkipIngress {
+	if store.Get().BypassIngressClassCheck {
 		ingressController = GetIngressController("")
 		return ingressController, nil
 	}
