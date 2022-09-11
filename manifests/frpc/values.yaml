@@ -1,0 +1,8 @@
+# ${accountId}-${runtime-name}
+subdomain: <subdomain>
+
+# cap-app-proxy.${namespace}.svc.cluster.local:3017
+local_ip: <local_ip>
+
+# ${frps address}
+server_addr: <server_addr>

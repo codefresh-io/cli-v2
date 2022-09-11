@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frpc-config
+data:
+  frpc.ini: |-
+    [common]
+    server_addr = {{ .Values.server_addr | quote }} ; host should be provided by devops
+    server_port = 443
+    log_level = trace
+    tls_enable = true
+    ;tls_trusted_ca_file = /etc/frp/ca.crt
+    disable_custom_tls_first_byte = true
+    protocol = wss
+    
+    admin_addr = 127.0.0.1
+    admin_port = 7400
+    admin_user = admin
+    admin_pwd = admin
+    
+    
+    [{{ .Values.subdomain | quote }}] ; should equal the subdomain
+    type = http
+    local_ip = cap-app-proxy
+    local_port = 3017
+    locations = /app-proxy
+    subdomain = {{ .Values.subdomain | quote }} ; should consist of ${accountId}-${runtimeName}
+    header_Authorization = {{ .Envs.AUTHORIZATION }}
