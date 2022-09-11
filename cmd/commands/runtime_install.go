@@ -107,6 +107,8 @@ type (
 		EnableGitProviders             bool
 		AccessMode                     runtime.AccessMode
 		InstallFeatures                []runtime.InstallFeature
+		TunnelRegisterHost              string
+		TunnelDomain                   string
 
 		versionStr    string
 		kubeContext   string
@@ -222,7 +224,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
-	cmd.Flags().StringVar(&accessMode, "access-mode", string(runtime.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.GatewayName, "gateway-name", "", "The gateway name")
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
@@ -243,6 +244,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
 	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket|bitbucket-server|gitlab)")
+	cmd.Flags().StringVar(&accessMode, "access-mode", string(runtime.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
+	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
+	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -553,9 +557,12 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		GatewayNamespace: &opts.GatewayNamespace,
 		Repo:             &repoURL,
 		Recover:          &opts.FromRepo,
+		// AccessMode:       &opts.AccessMode, // TODO: add to runtime installation args
 	}
 
-	if !opts.AccessMode.IsTunnel() {
+	if opts.AccessMode.IsTunnel() {
+
+	} else {
 		runtimeArgs.IngressHost = &opts.IngressHost
 		runtimeArgs.InternalIngressHost = &opts.InternalIngressHost
 		runtimeArgs.IngressClass = &opts.IngressClass

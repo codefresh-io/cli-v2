@@ -98,7 +98,6 @@ type (
 
 	frpcValues struct {
 		SubDomain     string `json:"subdomain"`
-		LocalIp       string `json:"local_ip"`
 		ServerAddress string `json:"server_addr"`
 	}
 )
@@ -409,8 +408,7 @@ func getValues(name, accountId, runtimeName string) (string, error) {
 	switch name {
 	case "frpc":
 		values := &frpcValues{
-			SubDomain:     fmt.Sprintf("%s-%s", accountId, runtimeName),
-			LocalIp:       "",
+			SubDomain:     fmt.Sprintf("%s-%s", accountId, runtimeName), // + .tunnels.cf-cd.com 
 			ServerAddress: store.Get().TunnelServerAddress,
 		}
 		data, err := yaml.Marshal(values)

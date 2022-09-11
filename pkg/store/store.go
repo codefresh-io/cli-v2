@@ -246,7 +246,7 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
-	s.TunnelServerAddress = "new-tunnel.codefresh.io"
+	s.TunnelServerAddress = "register-tunnels.cf-cd.com"
 
 	initVersion()
 }
