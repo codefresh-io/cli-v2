@@ -387,3 +387,13 @@ func ReverseMap[K, V comparable](gitProviders map[K]V) map[V]K {
 	}
 	return reversedMap
 }
+
+func Contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
+}

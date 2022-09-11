@@ -106,6 +106,7 @@ type (
 		ExternalIngressAnnotation      map[string]string
 		EnableGitProviders             bool
 		IngressMode                    runtime.IngressMode
+		InstallFeatures                []runtime.InstallFeature
 
 		versionStr    string
 		kubeContext   string
@@ -114,6 +115,20 @@ type (
 		useGatewayAPI bool
 	}
 )
+
+func (o RuntimeInstallOptions) shouludInstallFeature(f runtime.InstallFeature) bool {
+	if f == "" {
+		return true
+	}
+
+	for _, v := range o.InstallFeatures {
+		if v == f {
+			return true
+		}
+	}
+
+	return false
+}
 
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
@@ -124,6 +139,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				APIURL:        &gitIntegrationApiURL,
 			},
 			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
+			InstallFeatures:                make([]runtime.InstallFeature, 0),
 		}
 		finalParameters map[string]string
 		ingressless     bool
@@ -159,6 +175,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
 
 			if ingressless {
+				installationOpts.InstallFeatures = append(installationOpts.InstallFeatures, runtime.InstallFeatureIngressless)
 				installationOpts.IngressMode = runtime.IngressModeIngressless
 			} else if skipIngress {
 				installationOpts.IngressMode = runtime.IngressModeSkip
@@ -763,8 +780,12 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 
 	if !opts.FromRepo {
 		for _, component := range rt.Spec.Components {
-			infoStr := fmt.Sprintf("Creating component \"%s\"", component.Name)
-			log.G(ctx).Infof(infoStr)
+			if !opts.shouludInstallFeature(component.Feature) {
+				log.G(ctx).Debugf("Skipping installation of \"%s\", feature \"%s\" not enabled", component.Name, component.Feature)
+				continue
+			}
+
+			log.G(ctx).Infof("Creating component \"%s\"", component.Name)
 			component.IsInternal = true
 			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
 			if err != nil {
@@ -1633,6 +1654,8 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
 
+	// adding another gitGenerator to the project's ApplicationSet
+	// to support helm applications without adding the support in autopilot (TBD)
 	kustGenerator := appSet.Spec.Generators[0].Git
 	appSet.Spec.Generators = append(appSet.Spec.Generators, appset.ApplicationSetGenerator{
 		Git: &appset.GitGenerator{
@@ -1650,6 +1673,7 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 						Chart: "{{ srcChart }}",
 						Helm: &argocd.ApplicationSourceHelm{
 							ReleaseName: fmt.Sprintf("%s-{{ appName }}", rt.Name),
+							Values:      "{{ values }}",
 						},
 					},
 				},

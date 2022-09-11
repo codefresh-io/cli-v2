@@ -1,10 +1,10 @@
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
-  name: "{{ name }}"
-  namespace: "{{ namespace }}"
+  name: '{{ name }}'
+  namespace: '{{ namespace }}'
 spec:
-  defVersion: 1.0.1
+  defVersion: 2.0.0
   version: 0.0.510
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
@@ -12,12 +12,6 @@ spec:
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/argo-events
       wait: true
-    - name: rollouts
-      type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts
-    - name: workflows
-      type: kustomize
-      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
     - name: app-proxy
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/app-proxy
@@ -25,3 +19,15 @@ spec:
     - name: sealed-secrets
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
+    - name: rollouts
+      type: kustomize
+      url: github.com/codefresh-io/cli-v2/manifests/argo-rollouts
+    - name: workflows
+      type: kustomize
+      url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
+    - name: frpc
+      type: helm
+      url: https://www.kleinloog.ch/hello-helm/
+      chart: hello
+      version: 0.4.0-rc2
+      feature: ingressless
