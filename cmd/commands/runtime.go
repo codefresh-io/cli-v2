@@ -866,7 +866,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		component.IsInternal = true
-		err = component.CreateApp(ctx, nil, opts.CloneOpts, "", opts.RuntimeName, store.Get().CFComponentType)
+		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType)
 		if err != nil {
 			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
 			break

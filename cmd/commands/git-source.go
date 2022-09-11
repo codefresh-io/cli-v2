@@ -1546,7 +1546,7 @@ func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) er
 
 	appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
 
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, "", opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 

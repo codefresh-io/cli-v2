@@ -55,7 +55,7 @@ import (
 	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -561,9 +561,9 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		return "", "", err
 	}
 
-	provider := model.GitProviders(gitProvider)
+	provider := platmodel.GitProviders(gitProvider)
 	repoURL := opts.InsCloneOpts.URL()
-	runtimeArgs := &model.RuntimeInstallationArgs{
+	runtimeArgs := &platmodel.RuntimeInstallationArgs{
 		RuntimeName:      opts.RuntimeName,
 		Cluster:          rt.Spec.Cluster,
 		Managed:          new(bool),
@@ -574,7 +574,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		GatewayNamespace: &opts.GatewayNamespace,
 		Repo:             &repoURL,
 		Recover:          &opts.FromRepo,
-		// AccessMode:       &opts.AccessMode, // TODO: add to runtime installation args
+		AccessMode:       &opts.AccessMode, // TODO: add to runtime installation args
 	}
 
 	if opts.AccessMode.IsTunnel() {
@@ -1264,7 +1264,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 }
 
 func printComponentsState(ctx context.Context, runtime string) error {
-	components := map[string]model.Component{}
+	components := map[string]platmodel.Component{}
 	lock := sync.Mutex{}
 
 	curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
@@ -1356,7 +1356,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 			}
 
 			log.G(ctx).Debugf("retrying the call to graphql API. Error: %s", err.Error())
-		} else if runtime.InstallationStatus == model.InstallationStatusCompleted {
+		} else if runtime.InstallationStatus == platmodel.InstallationStatusCompleted {
 			return nil
 		}
 	}
@@ -1507,9 +1507,9 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return err
 	}
 
-	log.G(ctx).Infof("Pushing App-Proxy ingress manifests")
+	log.G(ctx).Infof("Pushing App-Proxy configuration manifests")
 
-	return apu.PushWithMessage(ctx, r, "Created App-Proxy Ingress")
+	return apu.PushWithMessage(ctx, r, "Updated App-Proxy configuration")
 }
 
 func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
@@ -1590,7 +1590,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 		URL:        u.String(),
 		IsInternal: true,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, "", opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 		return err
 	}
 
@@ -1635,7 +1635,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 		URL:        u.String(),
 		IsInternal: reporterCreateOpts.IsInternal,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, "", opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
 		return err
 	}
 

@@ -99,8 +99,8 @@ type (
 
 const (
 	AccessModeIngressSkip AccessMode = "ingress_skip" // ingress creation is user responsability
-	AccessModeIngress     AccessMode = "ingress"      // ingress will be created during the installation
-	AccessModeTunnel      AccessMode = "tunnel"       // no ingress will be created, use ingressless solution
+	AccessModeIngress     AccessMode = "INGRESS"      // ingress will be created during the installation
+	AccessModeTunnel      AccessMode = "TUNNEL"       // no ingress will be created, use ingressless solution
 
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
