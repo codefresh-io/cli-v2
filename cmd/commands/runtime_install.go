@@ -545,6 +545,10 @@ func ensureRoutingControllerSupported(ctx context.Context, opts *RuntimeInstallO
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	var componentNames []string
 	for _, component := range rt.Spec.Components {
+		if !opts.shouludInstallFeature(component.Feature) {
+			continue
+		}
+
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name)
 		componentNames = append(componentNames, componentFullName)
 	}
