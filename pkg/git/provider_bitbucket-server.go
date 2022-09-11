@@ -71,11 +71,11 @@ func (bbs *bitbucketServer) Type() ProviderType {
 	return bbs.providerType
 }
 
-func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, token string) error {
+func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, token string, username *string) error {
 	return bbs.checkProjectAdminPermission(ctx, token)
 }
 
-func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, token string) error {
+func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, token string, username *string) error {
 	return bbs.checkRepoReadPermission(ctx, token)
 }
 

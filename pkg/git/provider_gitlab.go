@@ -68,11 +68,11 @@ func (g *gitlab) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *gitlab) VerifyRuntimeToken(ctx context.Context, token string) error {
+func (g *gitlab) VerifyRuntimeToken(ctx context.Context, token string, username *string) error {
 	return g.checkApiScope(ctx, token)
 }
 
-func (g *gitlab) VerifyUserToken(ctx context.Context, token string) error {
+func (g *gitlab) VerifyUserToken(ctx context.Context, token string, username *string) error {
 	return g.checkReadRepositoryScope(ctx, token)
 }
 

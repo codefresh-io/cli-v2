@@ -31,8 +31,8 @@ type (
 		BaseURL() string
 		SupportsMarketplace() bool
 		Type() ProviderType
-		VerifyRuntimeToken(ctx context.Context, token string) error
-		VerifyUserToken(ctx context.Context, token string) error
+		VerifyRuntimeToken(ctx context.Context, token string, username *string) error
+		VerifyUserToken(ctx context.Context, token string, username *string) error
 	}
 )
 
