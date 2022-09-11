@@ -683,6 +683,10 @@ func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, ru
 
 func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 	iscRepo, err := getIscRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current user information: %w", err)
+	}
+
 	if iscRepo == "" {
 		log.G(ctx).Info("Skipped removing runtime from ISC repo. ISC repo not defined")
 		return nil
