@@ -5,7 +5,7 @@ metadata:
 data:
   frpc.ini: |-
     [common]
-    server_addr = {{ .Values.server_addr | quote }} ; host should be provided by devops
+    server_addr = {{ .Values.server_addr | quote }}
     server_port = 443
     log_level = trace
     tls_enable = true
@@ -19,10 +19,10 @@ data:
     admin_pwd = admin
     
     
-    [{{ .Values.subdomain | quote }}] ; should equal the subdomain
+    [{{ .Values.subdomain | quote }}]
     type = http
     local_ip = cap-app-proxy
     local_port = 3017
     locations = /app-proxy
-    subdomain = {{ .Values.subdomain | quote }} ; should consist of ${accountId}-${runtimeName}
+    subdomain = {{ .Values.subdomain | quote }}
     header_Authorization = something
