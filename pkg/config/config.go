@@ -46,6 +46,28 @@ const defaultRequestTimeout = time.Second * 30
 var greenStar = color.GreenString("*")
 var defaultPath = ""
 
+type (
+	Config struct {
+		insecure        bool
+		path            string
+		contextOverride string
+		requestTimeout  time.Duration
+		CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
+		Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
+	}
+
+	AuthContext struct {
+		Type           string `mapstructure:"type" json:"type"`
+		Name           string `mapstructure:"name" json:"name"`
+		URL            string `mapstructure:"url" json:"url"`
+		Token          string `mapstructure:"token" json:"token"`
+		Beta           bool   `mapstructure:"beta" json:"beta"`
+		OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
+		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
+		config         *Config
+	}
+)
+
 // Errors
 var (
 	ErrInvalidConfig = errors.New("invalid config")
@@ -57,29 +79,9 @@ var (
 			),
 		)
 	}
+
+	newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
 )
-
-var newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
-
-type Config struct {
-	insecure        bool
-	path            string
-	contextOverride string
-	requestTimeout  time.Duration
-	CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
-	Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
-}
-
-type AuthContext struct {
-	Type           string `mapstructure:"type" json:"type"`
-	Name           string `mapstructure:"name" json:"name"`
-	URL            string `mapstructure:"url" json:"url"`
-	Token          string `mapstructure:"token" json:"token"`
-	Beta           bool   `mapstructure:"beta" json:"beta"`
-	OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
-	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
-	config         *Config
-}
 
 func AddFlags(f *pflag.FlagSet) *Config {
 	conf := &Config{path: defaultPath}
