@@ -12,13 +12,13 @@ data:
     ;tls_trusted_ca_file = /etc/frp/ca.crt
     disable_custom_tls_first_byte = true
     protocol = wss
-    
+
     admin_addr = 127.0.0.1
     admin_port = 7400
     admin_user = admin
     admin_pwd = admin
-    
-    
+
+
     [{{ .Values.subdomain | quote }}]
     type = http
     local_ip = cap-app-proxy
