@@ -51,6 +51,8 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	appset "github.com/argoproj/applicationset/api/v1alpha1"
+	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
@@ -862,8 +864,8 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	mpCloneOpts := &apgit.CloneOptions{
-		Repo: store.Get().MarketplaceRepo,
-		FS:   fs.Create(memfs.New()),
+		Repo:     store.Get().MarketplaceRepo,
+		FS:       fs.Create(memfs.New()),
 		Progress: opts.InsCloneOpts.Progress,
 	}
 	mpCloneOpts.Parse()
@@ -1620,7 +1622,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 
 func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 	projPath := repofs.Join(apstore.Default.ProjectsDir, rt.Name+".yaml")
-	project, appset, err := getProjectInfoFromFile(repofs, projPath)
+	project, appSet, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
 		return err
 	}
@@ -1631,7 +1633,31 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 
 	project.ObjectMeta.Labels[store.Get().LabelKeyCFType] = store.Get().CFRuntimeType
 
-	return repofs.WriteYamls(projPath, project, appset)
+	kustGenerator := appSet.Spec.Generators[0].Git
+	appSet.Spec.Generators = append(appSet.Spec.Generators, appset.ApplicationSetGenerator{
+		Git: &appset.GitGenerator{
+			Files: []appset.GitFileGeneratorItem{
+				{
+					Path: strings.Replace(kustGenerator.Files[0].Path, "config.json", "config_helm.json", 1),
+				},
+			},
+			RepoURL:             kustGenerator.RepoURL,
+			RequeueAfterSeconds: kustGenerator.RequeueAfterSeconds,
+			Revision:            kustGenerator.Revision,
+			Template: appset.ApplicationSetTemplate{
+				Spec: argocd.ApplicationSpec{
+					Source: argocd.ApplicationSource{
+						Chart: "{{ srcChart }}",
+						Helm: &argocd.ApplicationSourceHelm{
+							ReleaseName: fmt.Sprintf("%s-{{ appName }}", rt.Name),
+						},
+					},
+				},
+			},
+		},
+	})
+
+	return repofs.WriteYamls(projPath, project, appSet)
 }
 
 func getRuntimeTokenSecret(namespace string, token string, iv string) ([]byte, error) {
