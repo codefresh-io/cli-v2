@@ -119,9 +119,17 @@ type (
 		useGatewayAPI bool
 	}
 
-	frpcValues struct {
-		Subdomain     string `json:"subdomain"`
-		ServerAddress string `json:"server_addr"`
+	tunnelServer struct {
+		Host string `json:"host"`
+	}
+
+	tunnel struct {
+		SubdomainPrefix string `json:"subdomainPrefix"`
+	}
+
+	ctcValues struct {
+		TunnelServer tunnelServer `json:"tunnelServer"`
+		Tunnel       tunnel       `json:"tunnel"`
 	}
 )
 
@@ -2044,10 +2052,14 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 
 func (opts *RuntimeInstallOptions) getValues(name string) (string, error) {
 	switch name {
-	case "frpc":
-		values := &frpcValues{
-			Subdomain:     opts.TunnelSubdomain,
-			ServerAddress: opts.TunnelRegisterHost,
+	case "codefresh-tunnel-client":
+		values := &ctcValues{
+			TunnelServer: tunnelServer{
+				Host: opts.TunnelRegisterHost,
+			},
+			Tunnel: tunnel{
+				SubdomainPrefix: opts.TunnelSubdomain,
+			},
 		}
 		data, err := yaml.Marshal(values)
 		if err != nil {

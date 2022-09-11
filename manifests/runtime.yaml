@@ -25,7 +25,7 @@ spec:
     - name: sealed-secrets
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
-    - name: frpc
+    - name: codefresh-tunnel-client
       type: helm
-      url: github.com/codefresh-io/cli-v2/manifests/frpc?ref=CR-14253-ingressless-flag
+      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=sandbox
       feature: ingressless
