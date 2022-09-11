@@ -864,6 +864,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 	mpCloneOpts := &apgit.CloneOptions{
 		Repo: store.Get().MarketplaceRepo,
 		FS:   fs.Create(memfs.New()),
+		Progress: opts.InsCloneOpts.Progress,
 	}
 	mpCloneOpts.Parse()
 

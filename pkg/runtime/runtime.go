@@ -300,6 +300,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.C
 				FS:   fs.Create(memfs.New()),
 				Repo: cloneOpts.Repo,
 				Auth: cloneOpts.Auth,
+				Progress: cloneOpts.Progress,
 			}
 			newCloneOpts.Parse()
 
