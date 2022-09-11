@@ -27,5 +27,5 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/argo-workflows
     - name: frpc
       type: helm
-      url: github.com/codefresh-io/cli-v2/manifests/frpc
+      url: github.com/codefresh-io/cli-v2/manifests/frpc?ref=CR-14253-ingressless-flag
       feature: ingressless

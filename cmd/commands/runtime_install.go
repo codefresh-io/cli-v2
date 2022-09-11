@@ -778,6 +778,11 @@ func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
 	var err error
 
+	accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
+	if err != nil {
+		return fmt.Errorf("failed creating runtime components: %w", err)
+	}
+
 	if !opts.FromRepo {
 		for _, component := range rt.Spec.Components {
 			if !opts.shouludInstallFeature(component.Feature) {
@@ -787,7 +792,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 
 			log.G(ctx).Infof("Creating component \"%s\"", component.Name)
 			component.IsInternal = true
-			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
+			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, accountId, opts.RuntimeName, store.Get().CFComponentType)
 			if err != nil {
 				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
 				break
@@ -1556,7 +1561,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 		URL:        u.String(),
 		IsInternal: true,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, "", opts.RuntimeName, store.Get().CFComponentType); err != nil {
 		return err
 	}
 
@@ -1601,7 +1606,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 		URL:        u.String(),
 		IsInternal: reporterCreateOpts.IsInternal,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", ""); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, "", opts.RuntimeName, store.Get().CFComponentType); err != nil {
 		return err
 	}
 

@@ -183,7 +183,7 @@ func (c *Config) UseContext(ctx context.Context, name string) error {
 	}
 
 	c.CurrentContext = name
-	_, err := c.NewClient().Users().GetCurrent(ctx)
+	_, err := c.GetCurrentContext().GetUser(ctx)
 	if err != nil {
 		return err
 	}
@@ -206,16 +206,16 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	}
 
 	// validate new context
-	client := c.clientForContext(authCtx)
-	usr, err := client.Users().GetCurrent(ctx)
+	usr, err := authCtx.GetUser(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
-	authCtx.OnPrem = isAdminUser(usr)
 
+	authCtx.OnPrem = isAdminUser(usr)
 	if c.Contexts == nil {
 		c.Contexts = map[string]*AuthContext{}
 	}
+
 	c.Contexts[name] = authCtx
 	return nil
 }
@@ -258,7 +258,7 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 			accName := ""
 			current := ""
 
-			usr, err := c.clientForContext(context).Users().GetCurrent(ctx)
+			usr, err := context.GetUser(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
@@ -327,4 +327,13 @@ func init() {
 
 func (a *AuthContext) GetUser(ctx context.Context) (*codefresh.User, error) {
 	return a.config.clientForContext(a).Users().GetCurrent(ctx)
+}
+
+func (a *AuthContext) GetAccountId(ctx context.Context) (string, error) {
+	user, err := a.GetUser(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed getting account id: %w", err)
+	}
+
+	return user.GetActiveAccount().ID, nil
 }

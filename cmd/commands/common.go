@@ -290,7 +290,7 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
+		currentUser, err := cfConfig.GetCurrentContext().GetUser(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}

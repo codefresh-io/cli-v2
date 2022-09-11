@@ -682,12 +682,8 @@ func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, ru
 }
 
 func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
-	me, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current user information: %w", err)
-	}
-
-	if me.ActiveAccount.SharedConfigRepo == nil || *me.ActiveAccount.SharedConfigRepo == "" {
+	iscRepo, err := getIscRepo(ctx)
+	if iscRepo == "" {
 		log.G(ctx).Info("Skipped removing runtime from ISC repo. ISC repo not defined")
 		return nil
 	}
@@ -870,7 +866,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		component.IsInternal = true
-		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType, "", "")
+		err = component.CreateApp(ctx, nil, opts.CloneOpts, "", opts.RuntimeName, store.Get().CFComponentType)
 		if err != nil {
 			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
 			break

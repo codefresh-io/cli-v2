@@ -81,17 +81,18 @@ type (
 		Name       string         `json:"name"`
 		Type       string         `json:"type"`
 		URL        string         `json:"url"`
-		SyncWave   int            `json:"syncWave"`
-		Wait       bool           `json:"wait"`
-		IsInternal bool           `json:"isInternal"`
-		Feature    InstallFeature `json:"feature"`
-		Chart      string         `json:"chart"`
-		Version    string         `json:"version"`
+		SyncWave   int            `json:"syncWave,omitempty"`
+		Wait       bool           `json:"wait,omitempty"`
+		IsInternal bool           `json:"isInternal,omitempty"`
+		Feature    InstallFeature `json:"feature,omitempty"`
+		Chart      string         `json:"chart,omitempty"`
+		Include    string         `json:"include,omitempty"`
+		Exclude    string         `json:"exclude,omitempty"`
 	}
 
 	HelmConfig struct {
 		apapp.Config
-		SrcChart string `json:"srcChart,omitempty"`
+		SrcChart string `json:"srcChart"`
 		Values   string `json:"values,omitempty"`
 	}
 
@@ -307,7 +308,7 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType, include, exclude string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, accountId, runtimeName, cfType string) error {
 	return util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
 			newCloneOpts := &apgit.CloneOptions{
@@ -319,15 +320,15 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 			newCloneOpts.Parse()
 
 			if a.Type == "helm" {
-				return a.createHelmAppDirectly(ctx, f, newCloneOpts, runtimeName, cfType)
+				return a.createHelmAppDirectly(ctx, newCloneOpts, accountId, runtimeName, cfType)
 			}
 
-			return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType, include, exclude)
+			return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
 		},
 	})
 }
 
-func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType, include, exclude string) error {
+func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -349,8 +350,8 @@ func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, 
 			Annotations: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
 			},
-			Exclude: exclude,
-			Include: include,
+			Include: a.Include,
+			Exclude: a.Exclude,
 		},
 		KubeFactory: f,
 		Timeout:     timeout,
@@ -359,19 +360,19 @@ func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, 
 	return apcmd.RunAppCreate(ctx, appCreateOpts)
 }
 
-func (a *AppDef) createHelmAppDirectly(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string) error {
+func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, accountId, runtimeName, cfType string) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting repository while creating helm app: %w", err)
 	}
 
 	helmAppPath := cloneOpts.FS.Join(apstore.Default.AppsDir, a.Name, runtimeName, "config_helm.json")
-	values, err := getValues(a.Name)
+	values, err := getValues(a.Name, accountId, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed getting values for app \"%s\"", a.Name)
 	}
 
-	host, orgRepo, path, _, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
+	host, orgRepo, path, gitRef, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
 	repoUrl := host + orgRepo + suffix
 	config := &HelmConfig{
 		Config: apapp.Config{
@@ -381,7 +382,7 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, f apkube.Factory, cl
 			DestServer:        apstore.Default.DestServer,
 			SrcRepoURL:        repoUrl,
 			SrcPath:           path,
-			SrcTargetRevision: a.Version,
+			SrcTargetRevision: gitRef,
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
@@ -390,7 +391,7 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, f apkube.Factory, cl
 				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
 			},
 		},
-		Values:   values,
+		Values: values,
 	}
 	err = fs.WriteJson(helmAppPath, config)
 	if err != nil {
@@ -404,13 +405,13 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, f apkube.Factory, cl
 	return aputil.PushWithMessage(ctx, r, commitMsg)
 }
 
-func getValues(name string) (string, error) {
+func getValues(name, accountId, runtimeName string) (string, error) {
 	switch name {
 	case "frpc":
 		values := &frpcValues{
-			SubDomain:     "5f6a52f5f0f4b845ef443a58-prod-noam",
+			SubDomain:     fmt.Sprintf("%s-%s", accountId, runtimeName),
 			LocalIp:       "",
-			ServerAddress: "new-tunnel.codefresh.io",
+			ServerAddress: store.Get().TunnelServerAddress,
 		}
 		data, err := yaml.Marshal(values)
 		if err != nil {
