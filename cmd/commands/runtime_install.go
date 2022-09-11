@@ -105,7 +105,7 @@ type (
 		InternalIngressAnnotation      map[string]string
 		ExternalIngressAnnotation      map[string]string
 		EnableGitProviders             bool
-		IngressMode                    runtime.IngressMode
+		AccessMode                     runtime.AccessMode
 		InstallFeatures                []runtime.InstallFeature
 
 		versionStr    string
@@ -142,7 +142,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			InstallFeatures:                make([]runtime.InstallFeature, 0),
 		}
 		finalParameters map[string]string
-		ingressless     bool
+		accessMode      string
 		skipIngress     bool
 	)
 
@@ -174,13 +174,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(cmd.Context(), reporter.InstallFlow, installationOpts.DisableTelemetry)
 
-			if ingressless {
+			installationOpts.AccessMode = runtime.AccessMode(accessMode)
+			if installationOpts.AccessMode.IsTunnel() {
 				installationOpts.InstallFeatures = append(installationOpts.InstallFeatures, runtime.InstallFeatureIngressless)
-				installationOpts.IngressMode = runtime.IngressModeIngressless
-			} else if skipIngress {
-				installationOpts.IngressMode = runtime.IngressModeSkip
+			} else if installationOpts.AccessMode.IsIngress() {
+				if skipIngress {
+					installationOpts.AccessMode = runtime.AccessModeIngressSkip
+				}
 			} else {
-				installationOpts.IngressMode = runtime.IngressModeStandard
+				return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
 			}
 
 			err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
@@ -220,7 +222,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.IngressHost, "ingress-host", "", "The ingress host")
 	cmd.Flags().StringVar(&installationOpts.IngressClass, "ingress-class", "", "The ingress class name")
 	cmd.Flags().StringVar(&installationOpts.InternalIngressHost, "internal-ingress-host", "", "The internal ingress host (by default the external ingress will be used for both internal and external traffic)")
-	cmd.Flags().BoolVar(&ingressless, "ingressless", false, "Install runtime in Ingressless Mode")
+	cmd.Flags().StringVar(&accessMode, "access-mode", string(runtime.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.GatewayName, "gateway-name", "", "The gateway name")
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
@@ -257,6 +259,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
+	util.Die(cmd.Flags().MarkHidden("access-mode"))
 
 	return cmd
 }
@@ -297,7 +300,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if opts.IngressMode.IsIngressless() {
+	if opts.AccessMode.IsTunnel() {
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", err, true, false)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", err, true, false)
 	} else {
@@ -552,7 +555,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		Recover:          &opts.FromRepo,
 	}
 
-	if !opts.IngressMode.IsIngressless() {
+	if !opts.AccessMode.IsTunnel() {
 		runtimeArgs.IngressHost = &opts.IngressHost
 		runtimeArgs.InternalIngressHost = &opts.InternalIngressHost
 		runtimeArgs.IngressClass = &opts.IngressClass
@@ -608,7 +611,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeToken = token
 	opts.RuntimeStoreIV = iv
 
-	if !opts.IngressMode.IsIngressless() {
+	if !opts.AccessMode.IsTunnel() {
 		rt.Spec.IngressHost = opts.IngressHost
 		rt.Spec.IngressClass = opts.IngressClass
 		rt.Spec.InternalIngressHost = opts.InternalIngressHost
@@ -717,7 +720,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	// thus we shall not perform a rollback after this point.
 	opts.DisableRollback = true
 
-	if opts.IngressMode.IsSkip() {
+	if opts.AccessMode.IsIngressSkip() {
 		handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "-skipped (skip ingress)-", err, false, true)
 		handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "-skipped (skip ingress)-", err, false, true)
 
@@ -805,7 +808,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.IngressMode.IsStandard() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
+	if opts.AccessMode.IsIngress() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -872,7 +875,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
 		IngressController:   opts.IngressController,
-		IngressMode:         opts.IngressMode,
+		AccessMode:          opts.AccessMode,
 		GatewayName:         opts.GatewayName,
 		GatewayNamespace:    opts.GatewayNamespace,
 		useGatewayAPI:       opts.useGatewayAPI,
@@ -1032,7 +1035,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// bitbucket cloud take more time to push a commit
 	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
-	if opts.IngressMode.IsStandard() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.AccessMode.IsIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return createWorkflowsIngress(ctx, opts, rt)
@@ -1452,7 +1455,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		hostName = opts.InternalHostName
 	}
 
-	if opts.IngressMode.IsStandard() {
+	if opts.AccessMode.IsIngress() {
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       rt.Name,
 			Namespace:         rt.Namespace,

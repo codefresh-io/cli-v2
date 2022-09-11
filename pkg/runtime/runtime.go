@@ -47,7 +47,7 @@ import (
 )
 
 type (
-	IngressMode    string
+	AccessMode     string
 	InstallFeature string
 
 	Runtime struct {
@@ -67,7 +67,7 @@ type (
 		IngressClass        string          `json:"ingressClassName,omitempty"`
 		InternalIngressHost string          `json:"internalIngressHost,omitempty"`
 		IngressController   string          `json:"ingressController,omitempty"`
-		IngressMode         IngressMode     `json:"ingressMode"`
+		AccessMode          AccessMode      `json:"accessMode"`
 		Repo                string          `json:"repo"`
 
 		devMode bool
@@ -104,23 +104,23 @@ type (
 )
 
 const (
-	IngressModeSkip        IngressMode = "SKIP"        // ingress creation is user responsability
-	IngressModeStandard    IngressMode = "STANDARD"    // ingress will be created during the installation
-	IngressModeIngressless IngressMode = "INGRESSLESS" // no ingress will be created, use ingressless solution
+	AccessModeIngressSkip AccessMode = "ingress_skip" // ingress creation is user responsability
+	AccessModeIngress     AccessMode = "ingress"      // ingress will be created during the installation
+	AccessModeTunnel      AccessMode = "tunnel"       // no ingress will be created, use ingressless solution
 
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func (m IngressMode) IsSkip() bool {
-	return m == IngressModeSkip
+func (m AccessMode) IsIngressSkip() bool {
+	return strings.EqualFold(string(m), string(AccessModeIngressSkip))
 }
 
-func (m IngressMode) IsStandard() bool {
-	return m == IngressModeStandard
+func (m AccessMode) IsIngress() bool {
+	return strings.EqualFold(string(m), string(AccessModeIngress))
 }
 
-func (m IngressMode) IsIngressless() bool {
-	return m == IngressModeIngressless
+func (m AccessMode) IsTunnel() bool {
+	return strings.EqualFold(string(m), string(AccessModeTunnel))
 }
 
 func Download(version *semver.Version, name string) (*Runtime, error) {

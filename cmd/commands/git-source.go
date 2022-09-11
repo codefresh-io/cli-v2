@@ -67,7 +67,7 @@ type (
 		IngressHost         string
 		IngressClass        string
 		IngressController   routingutil.RoutingController
-		IngressMode         runtime.IngressMode
+		AccessMode          runtime.AccessMode
 		GatewayName         string
 		GatewayNamespace    string
 		GitProvider         cfgit.Provider
@@ -105,7 +105,7 @@ type (
 		ingressHost       string
 		ingressClass      string
 		ingressController routingutil.RoutingController
-		ingressMode       runtime.IngressMode
+		accessMode       runtime.AccessMode
 		gatewayName       string
 		gatewayNamespace  string
 		useGatewayAPI     bool
@@ -603,7 +603,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			return fmt.Errorf("failed to create calendar example pipeline. Error: %w", err)
 		}
 
-		if !opts.IngressMode.IsIngressless() {
+		if !opts.AccessMode.IsTunnel() {
 			err = createDemoGitPipeline(&gitSourceGitDemoPipelineOptions{
 				runtimeName:       opts.RuntimeName,
 				gsCloneOpts:       opts.GsCloneOpts,
@@ -613,7 +613,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 				ingressHost:       opts.IngressHost,
 				ingressClass:      opts.IngressClass,
 				ingressController: opts.IngressController,
-				ingressMode:       opts.IngressMode,
+				accessMode:       opts.AccessMode,
 				gatewayName:       opts.GatewayName,
 				gatewayNamespace:  opts.GatewayNamespace,
 				useGatewayAPI:     opts.useGatewayAPI,
@@ -751,7 +751,7 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 }
 
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
-	if opts.ingressMode.IsStandard() {
+	if opts.accessMode.IsIngress() {
 		// Create an ingress that will manage external access to the git eventsource service
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       opts.runtimeName,
