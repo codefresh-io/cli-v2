@@ -48,8 +48,10 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		"Should fail if no x-oauth-Scopes in res headers": {
 			wantErr: "failed checking token scope permission: invalid token",
 			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
+				header := http.Header{}
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
 					StatusCode: 200,
+					Header:     header,
 				}, nil)
 			},
 		},
@@ -68,15 +70,15 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 				})
 			},
 		},
-		"Should succeed if all required scopes are in the res header": {
+		"Should succeed if all required scopes or higher are in the res header": {
 			requiredScopes: [][]string{
-				{"scope 3", "scope three"},
+				{"scope 3:write", "scope 3:admin"},
 				{"scope 4"},
 			},
 			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
-					header.Add("X-Oauth-Scopes", "scope 1, scope 2, scope 3, scope 4")
+					header.Add("X-Oauth-Scopes", "scope 1, scope 2, scope 3:write, scope 4")
 					res := &http.Response{
 						StatusCode: 200,
 						Header:     header,
