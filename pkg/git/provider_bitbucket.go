@@ -25,6 +25,7 @@ import (
 
 	"encoding/base64"
 
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -86,19 +87,19 @@ func (bb *bitbucket) Type() ProviderType {
 	return bb.providerType
 }
 
-func (bb *bitbucket) VerifyRuntimeToken(ctx context.Context, token string, username *string) error {
-	if username == nil || *username == "" {
+func (bb *bitbucket) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+	if auth.Password == "" {
 		return fmt.Errorf("user name is require for bitbucket cloud request")
 	}
 
-	return bb.verifyToken(ctx, token, *username, runtimeScopes)
+	return bb.verifyToken(ctx, auth.Password, auth.Username, runtimeScopes)
 }
 
-func (bb *bitbucket) VerifyUserToken(ctx context.Context, token string, username *string) error {
-	if username == nil || *username == "" {
+func (bb *bitbucket) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
+	if auth.Password == "" {
 		return fmt.Errorf("user name is require for bitbucket cloud request")
 	}
-	return bb.verifyToken(ctx, token, *username, patScopes)
+	return bb.verifyToken(ctx, auth.Password, auth.Username, patScopes)
 }
 
 func (bb *bitbucket) verifyToken(ctx context.Context, token string, username string, requiredScopes [][]string) error {

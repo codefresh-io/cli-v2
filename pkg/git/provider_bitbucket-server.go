@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"path"
 
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -71,12 +72,12 @@ func (bbs *bitbucketServer) Type() ProviderType {
 	return bbs.providerType
 }
 
-func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, token string, username *string) error {
-	return bbs.checkProjectAdminPermission(ctx, token)
+func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+	return bbs.checkProjectAdminPermission(ctx, auth.Password)
 }
 
-func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, token string, username *string) error {
-	return bbs.checkRepoReadPermission(ctx, token)
+func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
+	return bbs.checkRepoReadPermission(ctx, auth.Password)
 }
 
 // POST to users/<username>/repos with an invalid repo name (starts with "!").
