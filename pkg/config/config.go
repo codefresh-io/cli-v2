@@ -46,6 +46,28 @@ const defaultRequestTimeout = time.Second * 30
 var greenStar = color.GreenString("*")
 var defaultPath = ""
 
+type (
+	Config struct {
+		insecure        bool
+		path            string
+		contextOverride string
+		requestTimeout  time.Duration
+		CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
+		Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
+	}
+
+	AuthContext struct {
+		Type           string `mapstructure:"type" json:"type"`
+		Name           string `mapstructure:"name" json:"name"`
+		URL            string `mapstructure:"url" json:"url"`
+		Token          string `mapstructure:"token" json:"token"`
+		Beta           bool   `mapstructure:"beta" json:"beta"`
+		OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
+		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
+		config         *Config
+	}
+)
+
 // Errors
 var (
 	ErrInvalidConfig = errors.New("invalid config")
@@ -57,29 +79,9 @@ var (
 			),
 		)
 	}
+
+	newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
 )
-
-var newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
-
-type Config struct {
-	insecure        bool
-	path            string
-	contextOverride string
-	requestTimeout  time.Duration
-	CurrentContext  string                  `mapstructure:"current-context" json:"current-context"`
-	Contexts        map[string]*AuthContext `mapstructure:"contexts" json:"contexts"`
-}
-
-type AuthContext struct {
-	Type           string `mapstructure:"type" json:"type"`
-	Name           string `mapstructure:"name" json:"name"`
-	URL            string `mapstructure:"url" json:"url"`
-	Token          string `mapstructure:"token" json:"token"`
-	Beta           bool   `mapstructure:"beta" json:"beta"`
-	OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
-	DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
-	config         *Config
-}
 
 func AddFlags(f *pflag.FlagSet) *Config {
 	conf := &Config{path: defaultPath}
@@ -183,7 +185,7 @@ func (c *Config) UseContext(ctx context.Context, name string) error {
 	}
 
 	c.CurrentContext = name
-	_, err := c.NewClient().Users().GetCurrent(ctx)
+	_, err := c.GetCurrentContext().GetUser(ctx)
 	if err != nil {
 		return err
 	}
@@ -206,16 +208,16 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	}
 
 	// validate new context
-	client := c.clientForContext(authCtx)
-	usr, err := client.Users().GetCurrent(ctx)
+	usr, err := authCtx.GetUser(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
-	authCtx.OnPrem = isAdminUser(usr)
 
+	authCtx.OnPrem = isAdminUser(usr)
 	if c.Contexts == nil {
 		c.Contexts = map[string]*AuthContext{}
 	}
+
 	c.Contexts[name] = authCtx
 	return nil
 }
@@ -258,7 +260,7 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 			accName := ""
 			current := ""
 
-			usr, err := c.clientForContext(context).Users().GetCurrent(ctx)
+			usr, err := context.GetUser(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
@@ -327,4 +329,13 @@ func init() {
 
 func (a *AuthContext) GetUser(ctx context.Context) (*codefresh.User, error) {
 	return a.config.clientForContext(a).Users().GetCurrent(ctx)
+}
+
+func (a *AuthContext) GetAccountId(ctx context.Context) (string, error) {
+	user, err := a.GetUser(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed getting account id: %w", err)
+	}
+
+	return user.GetActiveAccount().ID, nil
 }

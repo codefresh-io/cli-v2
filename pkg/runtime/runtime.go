@@ -28,15 +28,18 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apapp "github.com/argoproj-labs/argocd-autopilot/pkg/application"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -45,6 +48,8 @@ import (
 )
 
 type (
+	InstallFeature string
+
 	Runtime struct {
 		metav1.TypeMeta   `json:",inline"`
 		metav1.ObjectMeta `json:"metadata"`
@@ -53,16 +58,17 @@ type (
 	}
 
 	RuntimeSpec struct {
-		DefVersion          *semver.Version `json:"defVersion"`
-		Version             *semver.Version `json:"version"`
-		BootstrapSpecifier  string          `json:"bootstrapSpecifier"`
-		Components          []AppDef        `json:"components"`
-		Cluster             string          `json:"cluster"`
-		IngressHost         string          `json:"ingressHost"`
-		IngressClass        string          `json:"ingressClassName"`
-		InternalIngressHost string          `json:"internalIngressHost"`
-		IngressController   string          `json:"ingressController"`
-		Repo                string          `json:"repo"`
+		DefVersion          *semver.Version      `json:"defVersion"`
+		Version             *semver.Version      `json:"version"`
+		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
+		Components          []AppDef             `json:"components"`
+		Cluster             string               `json:"cluster"`
+		IngressHost         string               `json:"ingressHost,omitempty"`
+		IngressClass        string               `json:"ingressClassName,omitempty"`
+		InternalIngressHost string               `json:"internalIngressHost,omitempty"`
+		IngressController   string               `json:"ingressController,omitempty"`
+		AccessMode          platmodel.AccessMode `json:"accessMode"`
+		Repo                string               `json:"repo"`
 
 		devMode bool
 	}
@@ -72,13 +78,27 @@ type (
 	}
 
 	AppDef struct {
-		Name       string `json:"name"`
-		Type       string `json:"type"`
-		URL        string `json:"url"`
-		SyncWave   int    `json:"syncWave"`
-		Wait       bool   `json:"wait"`
-		IsInternal bool   `json:"isInternal"`
+		Name       string         `json:"name"`
+		Type       string         `json:"type"`
+		URL        string         `json:"url"`
+		SyncWave   int            `json:"syncWave,omitempty"`
+		Wait       bool           `json:"wait,omitempty"`
+		IsInternal bool           `json:"isInternal,omitempty"`
+		Feature    InstallFeature `json:"feature,omitempty"`
+		Chart      string         `json:"chart,omitempty"`
+		Include    string         `json:"include,omitempty"`
+		Exclude    string         `json:"exclude,omitempty"`
 	}
+
+	HelmConfig struct {
+		apapp.Config
+		SrcChart string `json:"srcChart"`
+		Values   string `json:"values,omitempty"`
+	}
+)
+
+const (
+	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
 func Download(version *semver.Version, name string) (*Runtime, error) {
@@ -123,16 +143,15 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	runtime.Namespace = name
 	runtime.Spec.devMode = devMode
 
-	runtimeVersionDevMode, err := semver.NewVersion("v99.99.99")
-	if err != nil {
-		return nil, err
-	}
-
 	if runtime.Spec.devMode {
-		runtime.Spec.Version = runtimeVersionDevMode
+		runtime.Spec.Version = semver.MustParse("v99.99.99")
 	}
 
 	for i := range runtime.Spec.Components {
+		if runtime.Spec.Components[0].Type != "kustomize" {
+			continue
+		}
+
 		url := runtime.Spec.Components[i].URL
 		if store.Get().SetDefaultResources {
 			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
@@ -143,7 +162,7 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 	return runtime, nil
 }
 
-func Load(fs fs.FS, filename string) (*Runtime, error) {
+func Load(fs apfs.FS, filename string) (*Runtime, error) {
 	cm := &v1.ConfigMap{}
 	if err := fs.ReadYamls(filename, cm); err != nil {
 		return nil, fmt.Errorf("failed to load runtime from \"%s\": %w", filename, err)
@@ -162,7 +181,7 @@ func Load(fs fs.FS, filename string) (*Runtime, error) {
 	return runtime, nil
 }
 
-func (r *Runtime) Save(fs fs.FS, filename string, config *CommonConfig) error {
+func (r *Runtime) Save(fs apfs.FS, filename string, config *CommonConfig) error {
 	runtimeData, err := yaml.Marshal(r)
 	if err != nil {
 		return fmt.Errorf("failed to marshal runtime: %w", err)
@@ -190,7 +209,7 @@ func (r *Runtime) Save(fs fs.FS, filename string, config *CommonConfig) error {
 	return fs.WriteYamls(filename, cm)
 }
 
-func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
+func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
 	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
 	if err != nil {
 		return nil, err
@@ -203,7 +222,7 @@ func (r *Runtime) Upgrade(fs fs.FS, newRt *Runtime, config *CommonConfig) ([]App
 	return newComponents, nil
 }
 
-func (r *RuntimeSpec) upgrade(fs fs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
+func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	log.G().Infof("Upgrading bootstrap specifier")
 	argocdDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName)
 	if err := updateKustomization(fs, argocdDir, r.FullSpecifier(), newRt.FullSpecifier()); err != nil {
@@ -267,54 +286,107 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f kube.Factory, cloneOpts *git.CloneOptions, projectName, cfType, include, exclude string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, optionalValues ...string) error {
+	return util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			newCloneOpts := &apgit.CloneOptions{
+				FS:       apfs.Create(memfs.New()),
+				Repo:     cloneOpts.Repo,
+				Auth:     cloneOpts.Auth,
+				Progress: cloneOpts.Progress,
+			}
+			newCloneOpts.Parse()
+
+			if a.Type == "helm" {
+				values := ""
+				if len(optionalValues) > 0 {
+					values = optionalValues[0]
+				}
+				return a.createHelmAppDirectly(ctx, newCloneOpts, runtimeName, cfType, values)
+			}
+
+			return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
+		},
+	})
+}
+
+func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
 	}
 
-	return util.Retry(ctx, &util.RetryOptions{
-		Func: func() error {
-			newCloneOpts := &git.CloneOptions{
-				FS:   fs.Create(memfs.New()),
-				Repo: cloneOpts.Repo,
-				Auth: cloneOpts.Auth,
-			}
-			newCloneOpts.Parse()
-
-			appCreateOpts := &apcmd.AppCreateOptions{
-				CloneOpts:     newCloneOpts,
-				AppsCloneOpts: &git.CloneOptions{},
-				ProjectName:   projectName,
-				AppOpts: &application.CreateOptions{
-					AppName:       a.Name,
-					AppSpecifier:  a.URL,
-					AppType:       a.Type,
-					DestNamespace: projectName,
-					Labels: map[string]string{
-						util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
-						util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
-					},
-					Annotations: map[string]string{
-						util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
-					},
-					Exclude: exclude,
-					Include: include,
-				},
-				KubeFactory: f,
-				Timeout:     timeout,
-			}
-
-			return apcmd.RunAppCreate(ctx, appCreateOpts)
+	appCreateOpts := &apcmd.AppCreateOptions{
+		CloneOpts:     cloneOpts,
+		AppsCloneOpts: &apgit.CloneOptions{},
+		ProjectName:   runtimeName,
+		AppOpts: &apapp.CreateOptions{
+			AppName:       a.Name,
+			AppSpecifier:  a.URL,
+			AppType:       a.Type,
+			DestNamespace: runtimeName,
+			Labels: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
+			},
+			Annotations: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
+			},
+			Include: a.Include,
+			Exclude: a.Exclude,
 		},
-	})
+		KubeFactory: f,
+		Timeout:     timeout,
+	}
+
+	return apcmd.RunAppCreate(ctx, appCreateOpts)
 }
 
-func (a *AppDef) delete(fs fs.FS) error {
+func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, values string) error {
+	r, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting repository while creating helm app: %w", err)
+	}
+
+	helmAppPath := cloneOpts.FS.Join(apstore.Default.AppsDir, a.Name, runtimeName, "config_helm.json")
+	host, orgRepo, path, gitRef, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
+	repoUrl := host + orgRepo + suffix
+	config := &HelmConfig{
+		Config: apapp.Config{
+			AppName:           a.Name,
+			UserGivenName:     a.Name,
+			DestNamespace:     runtimeName,
+			DestServer:        apstore.Default.DestServer,
+			SrcRepoURL:        repoUrl,
+			SrcPath:           path,
+			SrcTargetRevision: gitRef,
+			Labels: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
+				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
+			},
+			Annotations: map[string]string{
+				util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave): strconv.Itoa(a.SyncWave),
+			},
+		},
+		Values: values,
+	}
+	err = fs.WriteJson(helmAppPath, config)
+	if err != nil {
+		return fmt.Errorf("failed to write helm app config file: %w", err)
+	}
+
+	commitMsg := fmt.Sprintf("installed app '%s' on project '%s'", a.Name, runtimeName)
+	if fs.Root() != "" {
+		commitMsg += fmt.Sprintf(" installation-path: '%s'", fs.Root())
+	}
+	return aputil.PushWithMessage(ctx, r, commitMsg)
+}
+
+func (a *AppDef) delete(fs apfs.FS) error {
 	return billyUtils.RemoveAll(fs, fs.Join(apstore.Default.AppsDir, a.Name))
 }
 
-func updateKustomization(fs fs.FS, directory, fromURL, toURL string) error {
+func updateKustomization(fs apfs.FS, directory, fromURL, toURL string) error {
 	kust, err := kustutil.ReadKustomization(fs, directory)
 	if err != nil {
 		return err

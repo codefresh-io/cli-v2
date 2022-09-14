@@ -1,8 +1,8 @@
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
-  name: "{{ name }}"
-  namespace: "{{ namespace }}"
+  name: '{{ name }}'
+  namespace: '{{ namespace }}'
 spec:
   defVersion: 1.0.1
   version: 0.0.512
@@ -25,3 +25,7 @@ spec:
     - name: sealed-secrets
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
+    - name: codefresh-tunnel-client
+      type: helm
+      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=sandbox
+      feature: ingressless

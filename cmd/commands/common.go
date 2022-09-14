@@ -292,7 +292,7 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
+		currentUser, err := cfConfig.GetCurrentContext().GetUser(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}
@@ -355,7 +355,9 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	labelStr := fmt.Sprintf("%vDo you wish to continue with %v?%v", CYAN, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
-		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
+		if value != "" {
+			promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
+		}
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{
