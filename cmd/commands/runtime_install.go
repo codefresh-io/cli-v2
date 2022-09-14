@@ -643,12 +643,12 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeToken = token
 	opts.RuntimeStoreIV = iv
 
+	rt.Spec.IngressHost = opts.IngressHost
+	rt.Spec.InternalIngressHost = opts.InternalIngressHost
+	rt.Spec.Repo = opts.InsCloneOpts.Repo
 	if opts.AccessMode == platmodel.AccessModeIngress {
-		rt.Spec.IngressHost = opts.IngressHost
 		rt.Spec.IngressClass = opts.IngressClass
-		rt.Spec.InternalIngressHost = opts.InternalIngressHost
 		rt.Spec.IngressController = string(opts.IngressController.Name())
-		rt.Spec.Repo = opts.InsCloneOpts.Repo
 	}
 
 	appSpecifier := rt.Spec.FullSpecifier()
