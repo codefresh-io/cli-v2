@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
 //go:generate mockgen -destination=./mocks/roundTripper.go -package=mocks net/http RoundTripper
@@ -31,8 +33,8 @@ type (
 		BaseURL() string
 		SupportsMarketplace() bool
 		Type() ProviderType
-		VerifyRuntimeToken(ctx context.Context, token string) error
-		VerifyUserToken(ctx context.Context, token string) error
+		VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error
+		VerifyUserToken(ctx context.Context, auth apgit.Auth) error
 	}
 )
 

@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"strings"
 
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -83,8 +84,8 @@ func (g *github) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *github) VerifyRuntimeToken(ctx context.Context, token string) error {
-	err := g.verifyToken(ctx, token, runtime_token_scopes)
+func (g *github) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+	err := g.verifyToken(ctx, auth.Password, runtime_token_scopes)
 	if err != nil {
 		return fmt.Errorf("git-token invalid: %w", err)
 	}
@@ -92,8 +93,8 @@ func (g *github) VerifyRuntimeToken(ctx context.Context, token string) error {
 	return nil
 }
 
-func (g *github) VerifyUserToken(ctx context.Context, token string) error {
-	err := g.verifyToken(ctx, token, user_token_scopes)
+func (g *github) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
+	err := g.verifyToken(ctx, auth.Password, user_token_scopes)
 	if err != nil {
 		return fmt.Errorf("personal-git-token invalid: %w", err)
 	}

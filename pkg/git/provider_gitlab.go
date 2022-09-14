@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"path"
 
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -68,12 +69,12 @@ func (g *gitlab) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *gitlab) VerifyRuntimeToken(ctx context.Context, token string) error {
-	return g.checkApiScope(ctx, token)
+func (g *gitlab) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+	return g.checkApiScope(ctx, auth.Password)
 }
 
-func (g *gitlab) VerifyUserToken(ctx context.Context, token string) error {
-	return g.checkReadRepositoryScope(ctx, token)
+func (g *gitlab) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
+	return g.checkReadRepositoryScope(ctx, auth.Password)
 }
 
 // POST to projects without a body.

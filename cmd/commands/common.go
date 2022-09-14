@@ -273,11 +273,14 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 	}
 
 	if gitProvider != nil {
-		err := gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth.Password)
+		err := gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth)
 		if err != nil {
 			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""
 			return fmt.Errorf(errMessage, err)
+		}
+		if cloneOpts.Auth.Username == "" && gitProvider.Type() == cfgit.BITBUCKET {
+			return fmt.Errorf("must provide a git user using --git-user for bitbucket cloud")
 		}
 	} else if cloneOpts.Auth.Password == "" {
 		return fmt.Errorf("must provide a git token using --git-token")
@@ -303,7 +306,11 @@ func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error 
 	}
 
 	if opts.gitProvider != nil {
-		return opts.gitProvider.VerifyUserToken(ctx, opts.GitIntegrationRegistrationOpts.Token)
+		auth := apgit.Auth{
+			Password: opts.GitIntegrationRegistrationOpts.Token,
+			Username: opts.GitIntegrationRegistrationOpts.Username,
+		}
+		return opts.gitProvider.VerifyUserToken(ctx, auth)
 	}
 
 	return nil
