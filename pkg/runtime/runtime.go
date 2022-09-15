@@ -321,6 +321,10 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
+// A component with no "Feature" value (or "") will always be installed
+// when installing a runtime with an empty featuresToInstall (nil or empty slice) - only install base components
+// currently we only support ingressless feature, which is being added if the user adds `--accessMode tunnel`
+//           this will install the codefresh-tunnel-client component on top of the base installation
 func shouldInstallFeature(featuresToInstall []InstallFeature, featureName InstallFeature) bool {
 	if featureName == "" {
 		return true
