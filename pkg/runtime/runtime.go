@@ -50,6 +50,10 @@ import (
 type (
 	InstallFeature string
 
+	HelmValuesProvider interface {
+		GetValues(name string) (string, error)
+	}
+
 	Runtime struct {
 		metav1.TypeMeta   `json:",inline"`
 		metav1.ObjectMeta `json:"metadata"`
@@ -101,7 +105,7 @@ const (
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func Download(version *semver.Version, name string) (*Runtime, error) {
+func Download(version *semver.Version, name string, featuresToInstall []InstallFeature) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
@@ -147,18 +151,26 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		runtime.Spec.Version = semver.MustParse("v99.99.99")
 	}
 
+	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
-		if runtime.Spec.Components[0].Type != "kustomize" {
+		component := runtime.Spec.Components[i]
+		if !shouldInstallFeature(featuresToInstall, component.Feature) {
 			continue
 		}
 
-		url := runtime.Spec.Components[i].URL
-		if store.Get().SetDefaultResources {
-			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+		if runtime.Spec.Components[i].Type == "kustomize" {
+			url := component.URL
+			if store.Get().SetDefaultResources {
+				url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+			}
+
+			component.URL = runtime.Spec.fullURL(url)
 		}
-		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
+
+		filteredComponets = append(filteredComponets, component)
 	}
 
+	runtime.Spec.Components = filteredComponets
 	return runtime, nil
 }
 
@@ -209,6 +221,10 @@ func (r *Runtime) Save(fs apfs.FS, filename string, config *CommonConfig) error 
 	return fs.WriteYamls(filename, cm)
 }
 
+func (r *Runtime) Install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, valuesProvider HelmValuesProvider) error {
+	return r.Spec.install(ctx, f, cloneOpts, r.Name, valuesProvider)
+}
+
 func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
 	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
 	if err != nil {
@@ -222,6 +238,24 @@ func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]A
 	return newComponents, nil
 }
 
+func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName string, valuesProvider HelmValuesProvider) error {
+	for _, component := range r.Components {
+		log.G(ctx).Infof("Creating component \"%s\"", component.Name)
+		component.IsInternal = true
+		values, err := valuesProvider.GetValues(component.Name)
+		if err != nil {
+			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+		}
+
+		err = component.CreateApp(ctx, f, cloneOpts, runtimeName, store.Get().CFComponentType, values)
+		if err != nil {
+			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+		}
+	}
+
+	return nil
+}
+
 func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
 	log.G().Infof("Upgrading bootstrap specifier")
 	argocdDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName)
@@ -229,11 +263,12 @@ func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) 
 		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
 	}
 
+	newRt.AccessMode = r.AccessMode
 	newRt.Cluster = r.Cluster
-	newRt.IngressHost = r.IngressHost
 	newRt.IngressClass = r.IngressClass
-	newRt.InternalIngressHost = r.InternalIngressHost
 	newRt.IngressController = r.IngressController
+	newRt.IngressHost = r.IngressHost
+	newRt.InternalIngressHost = r.InternalIngressHost
 	newRt.Repo = r.Repo
 
 	newComponents := make([]AppDef, 0)
@@ -284,6 +319,24 @@ func (r *RuntimeSpec) FullSpecifier() string {
 
 func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
+}
+
+// A component with no "Feature" value (or "") will always be installed
+// when installing a runtime with an empty featuresToInstall (nil or empty slice) - only install base components
+// currently we only support ingressless feature, which is being added if the user adds `--accessMode tunnel`
+//           this will install the codefresh-tunnel-client component on top of the base installation
+func shouldInstallFeature(featuresToInstall []InstallFeature, featureName InstallFeature) bool {
+	if featureName == "" {
+		return true
+	}
+
+	for _, v := range featuresToInstall {
+		if v == featureName {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, optionalValues ...string) error {

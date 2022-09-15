@@ -43,7 +43,7 @@ import (
 	appset "github.com/argoproj/applicationset/api/v1alpha1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/juju/ansiterm"
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
@@ -74,6 +74,8 @@ type (
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
+
+		featuresToInstall []runtime.InstallFeature
 	}
 
 	gvr struct {
@@ -150,6 +152,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	if !opts.Managed {
 		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
 	}
+
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
 	if err != nil {
 		return err
@@ -165,6 +168,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 			opts.skipAutopilotUninstall = true // will not touch the cluster and repo
 		}
 	}
+
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeOnKubeContext, "Ensuring runtime is on the kube context", err, true, false)
 	if err != nil {
 		return err
@@ -181,6 +185,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	if !opts.Managed {
 		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts)
 	}
+
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
@@ -201,14 +206,18 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return err
 	}
 
-	isManaged, err := isRuntimeManaged(ctx, opts.RuntimeName)
+	rt, err := getRuntime(ctx, opts.RuntimeName)
 	handleCliStep(reporter.UpgradeStepPreCheckIsManagedRuntime, "Checking if runtime is hosted", err, true, false)
 	if err != nil {
 		return err
 	}
 
-	if isManaged {
+	if rt.Managed {
 		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
+	}
+
+	if rt.AccessMode == platmodel.AccessModeTunnel {
+		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
@@ -258,7 +267,7 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 	return nil
 }
 
-func getComponentChecklistState(c model.Component) (checklist.ListItemState, checklist.ListItemInfo) {
+func getComponentChecklistState(c platmodel.Component) (checklist.ListItemState, checklist.ListItemInfo) {
 	state := checklist.Waiting
 	name := strings.TrimPrefix(c.Metadata.Name, fmt.Sprintf("%s-", c.Metadata.Runtime))
 	version := "N/A"
@@ -280,8 +289,8 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 		if len(c.Self.Errors) > 0 {
 			// use the first sync error due to lack of space
 			for _, err := range c.Self.Errors {
-				se, ok := err.(model.SyncError)
-				if ok && se.Level == model.ErrorLevelsError {
+				se, ok := err.(platmodel.SyncError)
+				if ok && se.Level == platmodel.ErrorLevelsError {
 					errs = se.Message
 					state = checklist.Error
 				}
@@ -289,7 +298,7 @@ func getComponentChecklistState(c model.Component) (checklist.ListItemState, che
 		}
 	}
 
-	if healthStatus == string(model.HealthStatusHealthy) && syncStatus == string(model.SyncStatusSynced) {
+	if healthStatus == string(platmodel.HealthStatusHealthy) && syncStatus == string(platmodel.SyncStatusSynced) {
 		state = checklist.Ready
 	}
 
@@ -488,7 +497,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	// check whether the runtime exists
 	var err error
 	if !opts.SkipChecks {
-		_, err = cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+		_, err = getRuntime(ctx, opts.RuntimeName)
 	}
 	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, false, true)
 	if err != nil {
@@ -730,7 +739,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
 		versionStr      string
 		finalParameters map[string]string
-		opts            RuntimeUpgradeOptions
+		opts            = &RuntimeUpgradeOptions{
+			featuresToInstall: make([]runtime.InstallFeature, 0),
+		}
 	)
 
 	cmd := &cobra.Command{
@@ -756,7 +767,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.UpgradeFlow, opts.DisableTelemetry)
 
-			err := runtimeUpgradeCommandPreRunHandler(cmd, args, &opts)
+			err := runtimeUpgradeCommandPreRunHandler(cmd, args, opts)
 			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre run checks", err, true, false)
 			if err != nil {
 				if errors.Is(err, promptui.ErrInterrupt) {
@@ -798,7 +809,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 			}
 
-			err = runRuntimeUpgrade(ctx, &opts)
+			err = runRuntimeUpgrade(ctx, opts)
 			handleCliStep(reporter.UpgradePhaseFinish, "Runtime upgrade phase finished", err, false, false)
 			return err
 		},
@@ -817,7 +828,8 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	handleCliStep(reporter.UpgradePhaseStart, "Runtime upgrade phase started", nil, false, true)
 
 	log.G(ctx).Info("Downloading runtime definition")
-	newRt, err := runtime.Download(opts.Version, opts.RuntimeName)
+
+	newRt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

@@ -106,17 +106,17 @@ type (
 		ExternalIngressAnnotation      map[string]string
 		EnableGitProviders             bool
 		AccessMode                     platmodel.AccessMode
-		InstallFeatures                []runtime.InstallFeature
 		TunnelRegisterHost             string
 		TunnelDomain                   string
 		TunnelSubdomain                string
 		SkipIngress                    bool
 
-		versionStr    string
-		kubeContext   string
-		kubeconfig    string
-		gitProvider   cfgit.Provider
-		useGatewayAPI bool
+		versionStr        string
+		kubeContext       string
+		kubeconfig        string
+		gitProvider       cfgit.Provider
+		useGatewayAPI     bool
+		featuresToInstall []runtime.InstallFeature
 	}
 
 	tunnelServer struct {
@@ -133,20 +133,6 @@ type (
 	}
 )
 
-func (o RuntimeInstallOptions) shouludInstallFeature(f runtime.InstallFeature) bool {
-	if f == "" {
-		return true
-	}
-
-	for _, v := range o.InstallFeatures {
-		if v == f {
-			return true
-		}
-	}
-
-	return false
-}
-
 func NewRuntimeInstallCommand() *cobra.Command {
 	var (
 		gitIntegrationApiURL = ""
@@ -156,7 +142,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				APIURL:        &gitIntegrationApiURL,
 			},
 			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
-			InstallFeatures:                make([]runtime.InstallFeature, 0),
+			featuresToInstall:              make([]runtime.InstallFeature, 0),
 		}
 		finalParameters map[string]string
 		accessMode      string
@@ -198,7 +184,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			if installationOpts.AccessMode == platmodel.AccessModeTunnel {
-				installationOpts.InstallFeatures = append(installationOpts.InstallFeatures, runtime.InstallFeatureIngressless)
+				installationOpts.featuresToInstall = append(installationOpts.featuresToInstall, runtime.InstallFeatureIngressless)
 				accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
 				if err != nil {
 					return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
@@ -545,10 +531,6 @@ func ensureRoutingControllerSupported(ctx context.Context, opts *RuntimeInstallO
 func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	var componentNames []string
 	for _, component := range rt.Spec.Components {
-		if !opts.shouludInstallFeature(component.Feature) {
-			continue
-		}
-
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, component.Name)
 		componentNames = append(componentNames, componentFullName)
 	}
@@ -643,6 +625,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	opts.RuntimeToken = token
 	opts.RuntimeStoreIV = iv
 
+	rt.Spec.AccessMode = opts.AccessMode
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.InternalIngressHost = opts.InternalIngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
@@ -795,7 +778,7 @@ To complete the installation:
 }
 
 func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
@@ -814,27 +797,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 	var err error
 
 	if !opts.FromRepo {
-		for _, component := range rt.Spec.Components {
-			if !opts.shouludInstallFeature(component.Feature) {
-				log.G(ctx).Debugf("Skipping installation of \"%s\", feature \"%s\" not enabled", component.Name, component.Feature)
-				continue
-			}
-
-			log.G(ctx).Infof("Creating component \"%s\"", component.Name)
-			component.IsInternal = true
-			var values string
-			values, err = opts.getValues(component.Name)
-			if err != nil {
-				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
-				break
-			}
-
-			err = component.CreateApp(ctx, opts.KubeFactory, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFComponentType, values)
-			if err != nil {
-				err = util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
-				break
-			}
-		}
+		err = rt.Install(ctx, opts.KubeFactory, opts.InsCloneOpts, opts)
 	}
 
 	handleCliStep(reporter.InstallStepCreateComponents, "Creating components", err, false, true)
@@ -1148,7 +1111,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return err
 	}
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName)
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil) // no need to send featuresToInstall, since we only use the runtime to get the DefVersion anyway
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -1157,6 +1120,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
 		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
 	}
+
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
@@ -1259,7 +1223,7 @@ func checkRuntimeCollisions(ctx context.Context, kube kube.Factory, runtime stri
 }
 
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
-	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
+	_, err := getRuntime(ctx, runtime)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			return nil // runtime does not exist
@@ -1357,7 +1321,7 @@ func intervalCheckIsRuntimePersisted(ctx context.Context, runtimeName string) er
 		case <-ticker.C:
 		}
 
-		runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		runtime, err := getRuntime(ctx, runtimeName)
 		if err != nil {
 			if err == ctx.Err() {
 				return ctx.Err()
@@ -2054,7 +2018,7 @@ func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
 	opts.GsCloneOpts.Repo = host + orgRepo + "_git-source" + suffix + "/resources" + "_" + opts.RuntimeName
 }
 
-func (opts *RuntimeInstallOptions) getValues(name string) (string, error) {
+func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 	switch name {
 	case "codefresh-tunnel-client":
 		values := &ctcValues{

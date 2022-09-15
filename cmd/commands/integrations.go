@@ -456,7 +456,7 @@ func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 	}
 
 	runtimeName := cmd.Flag("runtime").Value.String()
-	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	runtime, err := getRuntime(ctx, runtimeName)
 	if err != nil {
 		return err
 	}
