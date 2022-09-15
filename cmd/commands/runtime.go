@@ -75,7 +75,7 @@ type (
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
 
-		installFeatures []runtime.InstallFeature
+		featuresToInstall []runtime.InstallFeature
 	}
 
 	gvr struct {
@@ -217,7 +217,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	}
 
 	if rt.AccessMode == platmodel.AccessModeTunnel {
-		opts.installFeatures = append(opts.installFeatures, runtime.InstallFeatureIngressless)
+		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
 	}
 
 	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
@@ -740,7 +740,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		versionStr      string
 		finalParameters map[string]string
 		opts            = &RuntimeUpgradeOptions{
-			installFeatures: make([]runtime.InstallFeature, 0),
+			featuresToInstall: make([]runtime.InstallFeature, 0),
 		}
 	)
 
@@ -829,7 +829,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	log.G(ctx).Info("Downloading runtime definition")
 
-	newRt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.installFeatures)
+	newRt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

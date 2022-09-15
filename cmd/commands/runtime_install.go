@@ -111,12 +111,12 @@ type (
 		TunnelSubdomain                string
 		SkipIngress                    bool
 
-		versionStr      string
-		kubeContext     string
-		kubeconfig      string
-		gitProvider     cfgit.Provider
-		useGatewayAPI   bool
-		installFeatures []runtime.InstallFeature
+		versionStr        string
+		kubeContext       string
+		kubeconfig        string
+		gitProvider       cfgit.Provider
+		useGatewayAPI     bool
+		featuresToInstall []runtime.InstallFeature
 	}
 
 	tunnelServer struct {
@@ -142,7 +142,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				APIURL:        &gitIntegrationApiURL,
 			},
 			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
-			installFeatures:                make([]runtime.InstallFeature, 0),
+			featuresToInstall:              make([]runtime.InstallFeature, 0),
 		}
 		finalParameters map[string]string
 		accessMode      string
@@ -184,7 +184,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			if installationOpts.AccessMode == platmodel.AccessModeTunnel {
-				installationOpts.installFeatures = append(installationOpts.installFeatures, runtime.InstallFeatureIngressless)
+				installationOpts.featuresToInstall = append(installationOpts.featuresToInstall, runtime.InstallFeatureIngressless)
 				accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
 				if err != nil {
 					return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
@@ -778,7 +778,7 @@ To complete the installation:
 }
 
 func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.installFeatures)
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
@@ -1111,7 +1111,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 		return err
 	}
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil) // no need to send installFeatures, since we only use the runtime to get the DefVersion anyway
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil) // no need to send featuresToInstall, since we only use the runtime to get the DefVersion anyway
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

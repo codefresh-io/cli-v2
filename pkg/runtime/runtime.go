@@ -73,7 +73,6 @@ type (
 		IngressController   string               `json:"ingressController,omitempty"`
 		AccessMode          platmodel.AccessMode `json:"accessMode"`
 		Repo                string               `json:"repo"`
-		InstallFeatures     []InstallFeature     `json:"-"`
 
 		devMode bool
 	}
@@ -106,7 +105,7 @@ const (
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func Download(version *semver.Version, name string, installFeatures []InstallFeature) (*Runtime, error) {
+func Download(version *semver.Version, name string, featuresToInstall []InstallFeature) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
@@ -155,7 +154,7 @@ func Download(version *semver.Version, name string, installFeatures []InstallFea
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
 		component := runtime.Spec.Components[i]
-		if !shouludInstallFeature(installFeatures, component.Feature) {
+		if !shouldInstallFeature(featuresToInstall, component.Feature) {
 			continue
 		}
 
@@ -322,13 +321,13 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func shouldInstallFeature(installFeatures []InstallFeature, f InstallFeature) bool {
-	if f == "" {
+func shouldInstallFeature(featuresToInstall []InstallFeature, featureName InstallFeature) bool {
+	if featureName == "" {
 		return true
 	}
 
-	for _, v := range installFeatures {
-		if v == f {
+	for _, v := range featuresToInstall {
+		if v == featureName {
 			return true
 		}
 	}
