@@ -857,9 +857,9 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("failed to load current runtime definition: %w", err)
 	}
 
-	// if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
-	// 	err = fmt.Errorf("current runtime version (%s) is greater than or equal to the specified version (%s)", curRt.Spec.Version, newRt.Spec.Version)
-	// }
+	if !newRt.Spec.Version.GreaterThan(curRt.Spec.Version) {
+		err = fmt.Errorf("current runtime version (%s) is greater than or equal to the specified version (%s)", curRt.Spec.Version, newRt.Spec.Version)
+	}
 	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Comparing runtime versions", err, true, false)
 	if err != nil {
 		return err

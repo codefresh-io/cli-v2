@@ -154,21 +154,21 @@ func Download(version *semver.Version, name string, installFeatures []InstallFea
 
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
-		if !shouludInstallFeature(installFeatures, runtime.Spec.Components[i].Feature) {
+		component := runtime.Spec.Components[i]
+		if !shouludInstallFeature(installFeatures, component.Feature) {
 			continue
 		}
 
-		if runtime.Spec.Components[i].Type != "kustomize" {
-			continue
+		if runtime.Spec.Components[i].Type == "kustomize" {
+			url := component.URL
+			if store.Get().SetDefaultResources {
+				url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+			}
+
+			component.URL = runtime.Spec.fullURL(url)
 		}
 
-		url := runtime.Spec.Components[i].URL
-		if store.Get().SetDefaultResources {
-			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-		}
-
-		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
-		filteredComponets = append(filteredComponets, runtime.Spec.Components[i])
+		filteredComponets = append(filteredComponets, component)
 	}
 
 	runtime.Spec.Components = filteredComponets
@@ -264,11 +264,12 @@ func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) 
 		return nil, fmt.Errorf("failed to upgrade bootstrap specifier: %w", err)
 	}
 
+	newRt.AccessMode = r.AccessMode
 	newRt.Cluster = r.Cluster
-	newRt.IngressHost = r.IngressHost
 	newRt.IngressClass = r.IngressClass
-	newRt.InternalIngressHost = r.InternalIngressHost
 	newRt.IngressController = r.IngressController
+	newRt.IngressHost = r.IngressHost
+	newRt.InternalIngressHost = r.InternalIngressHost
 	newRt.Repo = r.Repo
 
 	newComponents := make([]AppDef, 0)
