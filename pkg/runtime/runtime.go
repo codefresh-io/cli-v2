@@ -322,7 +322,7 @@ func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
 }
 
-func shouludInstallFeature(installFeatures []InstallFeature, f InstallFeature) bool {
+func shouldInstallFeature(installFeatures []InstallFeature, f InstallFeature) bool {
 	if f == "" {
 		return true
 	}
