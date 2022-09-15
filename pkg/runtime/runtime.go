@@ -50,6 +50,10 @@ import (
 type (
 	InstallFeature string
 
+	HelmValuesProvider interface {
+		GetValues(name string) (string, error)
+	}
+
 	Runtime struct {
 		metav1.TypeMeta   `json:",inline"`
 		metav1.ObjectMeta `json:"metadata"`
@@ -69,6 +73,7 @@ type (
 		IngressController   string               `json:"ingressController,omitempty"`
 		AccessMode          platmodel.AccessMode `json:"accessMode"`
 		Repo                string               `json:"repo"`
+		InstallFeatures     []InstallFeature     `json:"-"`
 
 		devMode bool
 	}
@@ -101,7 +106,7 @@ const (
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func Download(version *semver.Version, name string) (*Runtime, error) {
+func Download(version *semver.Version, name string, installFeatures []InstallFeature) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
@@ -147,8 +152,13 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		runtime.Spec.Version = semver.MustParse("v99.99.99")
 	}
 
+	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
-		if runtime.Spec.Components[0].Type != "kustomize" {
+		if !shouludInstallFeature(installFeatures, runtime.Spec.Components[i].Feature) {
+			continue
+		}
+
+		if runtime.Spec.Components[i].Type != "kustomize" {
 			continue
 		}
 
@@ -156,9 +166,12 @@ func Download(version *semver.Version, name string) (*Runtime, error) {
 		if store.Get().SetDefaultResources {
 			url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 		}
+
 		runtime.Spec.Components[i].URL = runtime.Spec.fullURL(url)
+		filteredComponets = append(filteredComponets, runtime.Spec.Components[i])
 	}
 
+	runtime.Spec.Components = filteredComponets
 	return runtime, nil
 }
 
@@ -209,6 +222,10 @@ func (r *Runtime) Save(fs apfs.FS, filename string, config *CommonConfig) error 
 	return fs.WriteYamls(filename, cm)
 }
 
+func (r *Runtime) Install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, valuesProvider HelmValuesProvider) error {
+	return r.Spec.install(ctx, f, cloneOpts, r.Name, valuesProvider)
+}
+
 func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
 	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
 	if err != nil {
@@ -220,6 +237,24 @@ func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]A
 	}
 
 	return newComponents, nil
+}
+
+func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName string, valuesProvider HelmValuesProvider) error {
+	for _, component := range r.Components {
+		log.G(ctx).Infof("Creating component \"%s\"", component.Name)
+		component.IsInternal = true
+		values, err := valuesProvider.GetValues(component.Name)
+		if err != nil {
+			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+		}
+
+		err = component.CreateApp(ctx, f, cloneOpts, runtimeName, store.Get().CFComponentType, values)
+		if err != nil {
+			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
+		}
+	}
+
+	return nil
 }
 
 func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
@@ -284,6 +319,20 @@ func (r *RuntimeSpec) FullSpecifier() string {
 
 func (r *RuntimeSpec) fullURL(url string) string {
 	return buildFullURL(url, r.Version, r.devMode)
+}
+
+func shouludInstallFeature(installFeatures []InstallFeature, f InstallFeature) bool {
+	if f == "" {
+		return true
+	}
+
+	for _, v := range installFeatures {
+		if v == f {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, optionalValues ...string) error {

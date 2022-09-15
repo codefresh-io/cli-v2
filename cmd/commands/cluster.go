@@ -149,7 +149,7 @@ func newClusterAddCommand() *cobra.Command {
 }
 
 func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
-	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.runtimeName)
+	runtime, err := getRuntime(ctx, opts.runtimeName)
 	if err != nil {
 		return err
 	}

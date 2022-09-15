@@ -33,6 +33,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
@@ -124,13 +125,13 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *apgit.CloneOp
 	}
 
 	if fromAPI {
-		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		runtime, err := getRuntime(ctx, runtimeName)
 		if err != nil {
 			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
 
-		if runtimeData.Repo != nil {
-			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+		if runtime.Repo != nil {
+			die(cmd.Flags().Set("repo", *runtime.Repo))
 			return nil
 		}
 	}
@@ -646,18 +647,18 @@ func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (stri
 }
 
 func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {
-		return false, fmt.Errorf("failed to get runtime from platform. error: %w", err)
+		return false, err
 	}
 
 	return rt.Managed, nil
 }
 
 func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {
-		return fmt.Errorf("failed to get runtime from platform. error: %w", err)
+		return err
 	}
 
 	runtimeClusterServer := rt.Cluster
@@ -678,4 +679,13 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeN
 	}
 
 	return nil
+}
+
+func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, error) {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runtime from platform. error: %w", err)
+	}
+
+	return rt, nil
 }

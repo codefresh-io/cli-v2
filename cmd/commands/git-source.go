@@ -1508,7 +1508,7 @@ func deleteCommonRedundantFields(crd map[string]interface{}) {
 }
 
 func getRuntimeVersion(ctx context.Context, runtimeName string) (*semver.Version, error) {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {
 		return nil, err
 	}
