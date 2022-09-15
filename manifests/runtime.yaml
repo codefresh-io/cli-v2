@@ -1,8 +1,8 @@
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
-  name: '{{ name }}'
-  namespace: '{{ namespace }}'
+  name: "{{ name }}"
+  namespace: "{{ namespace }}"
 spec:
   defVersion: 2.0.0
   version: 0.0.516
