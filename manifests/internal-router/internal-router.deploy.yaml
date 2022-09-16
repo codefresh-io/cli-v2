@@ -27,22 +27,15 @@ spec:
             initialDelaySeconds: 10
             timeoutSeconds: 10
             httpGet:
-              port: http
-              path: /
+              port: 80
+              path: /readyz
           livenessProbe:
             initialDelaySeconds: 10
             timeoutSeconds: 10
             failureThreshold: 10
             httpGet:
-              port: http
-              path: /
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "2048Mi"
-              cpu: "2"
+              port: 80
+              path: /healthz
       volumes:
         - name: internal-router-config
           configMap:

@@ -33,4 +33,12 @@ data:
         resolver kube-dns.kube-system.svc.cluster.local valid=10s;
         proxy_pass http://$2-eventsource-svc.$1.svc.cluster.local;
       }
+    
+      location /readyz {
+        return 200 'ok';
+      }
+    
+      location /healthz {
+        return 200 'ok';
+      }
     }
