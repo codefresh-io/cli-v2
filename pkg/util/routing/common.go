@@ -15,8 +15,6 @@
 package routing
 
 import (
-	"fmt"
-
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -131,12 +129,12 @@ func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string
 	return routeName, route
 }
 
-func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
+func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
 	var route interface{}
 	var routeName string
 
 	createRouteOpts := CreateRouteOpts{
-		Name:             opts.RuntimeName + store.Get().WorkflowsIngressName,
+		Name:             opts.RuntimeName + store.Get().InternalRouterIngressName,
 		Namespace:        opts.Namespace,
 		GatewayName:      opts.GatewayName,
 		GatewayNamespace: opts.GatewayNamespace,
@@ -145,10 +143,9 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, in
 		IngressClass:     opts.IngressClass,
 		Paths: []RoutePath{
 			{
-				pathType:    RegexPath,
-				path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
-				serviceName: store.Get().ArgoWFServiceName,
-				servicePort: store.Get().ArgoWFServicePort,
+				pathType:    PrefixPath,
+				path:        store.Get().InternalRouterIngressPath,
+				serviceName: store.Get().InternalRouterServiceName,
 			},
 		},
 		Annotations:       opts.Annotations,

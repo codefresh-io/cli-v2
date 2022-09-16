@@ -49,8 +49,7 @@ type Store struct {
 	ArgoCDServerName                  string
 	ArgoCDTokenKey                    string
 	ArgoCDTokenSecret                 string
-	ArgoWFServiceName                 string
-	ArgoWFServicePort                 int32
+	InternalRouterServiceName         string
 	BinaryName                        string
 	Codefresh                         string
 	CFComponentType                   string
@@ -70,8 +69,9 @@ type Store struct {
 	EventReportingEndpoint            string
 	EventsReporterName                string
 	GitSourceName                     string
-	WorkflowsIngressName              string
-	WorkflowsIngressPath              string
+	InternalRouterIngressName         string
+	InternalRouterIngressPath         string
+	InternalRouterIngressFilePath     string
 	AppProxyIngressName               string
 	AppProxyIngressPath               string
 	AppProxyServicePort               int32
@@ -158,8 +158,6 @@ func init() {
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
-	s.ArgoWFServiceName = "argo-server"
-	s.ArgoWFServicePort = 2746
 	s.BinaryName = binaryName
 	s.Codefresh = "codefresh"
 	s.GitSourceName = "default-git-source"
@@ -178,8 +176,10 @@ func init() {
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/2.0/api/events"
 	s.EventsReporterName = "events-reporter"
-	s.WorkflowsIngressName = "-workflows-ingress"
-	s.WorkflowsIngressPath = "workflows"
+	s.InternalRouterIngressName = "-internal-router-ingress"
+	s.InternalRouterIngressPath = "/"
+	s.InternalRouterIngressFilePath = "internal-router"
+	s.InternalRouterServiceName = "argo-server"
 	s.AppProxyIngressName = "-cap-app-proxy"
 	s.AppProxyIngressPath = "/app-proxy"
 	s.AppProxyServicePort = 3017

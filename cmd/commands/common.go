@@ -33,9 +33,9 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -47,8 +47,8 @@ var (
 	die  = util.Die
 	exit = os.Exit
 
-	//go:embed assets/workflows-ingress-patch.json
-	workflowsIngressPatch []byte
+	//go:embed assets/internal-router-ingress-patch.json
+	internalRouterIngressPatch []byte
 
 	cfConfig *config.Config
 
