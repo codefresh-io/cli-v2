@@ -146,6 +146,7 @@ func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool) (strin
 				pathType:    PrefixPath,
 				path:        store.Get().InternalRouterIngressPath,
 				serviceName: store.Get().InternalRouterServiceName,
+				servicePort: 80,
 			},
 		},
 		Annotations:       opts.Annotations,
