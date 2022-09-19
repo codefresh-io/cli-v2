@@ -1412,7 +1412,7 @@ func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt
 		return err
 	}
 
-	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().ArgoWFServiceName, apstore.Default.OverlaysDir, rt.Name)
+	overlaysDir := fs.Join(apstore.Default.AppsDir, "argo-workflows", apstore.Default.OverlaysDir, rt.Name)
 
 	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
 		return err
