@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  name: codefresh-eventbus
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  nats:
+    native:
+      replicas: 3
+      auth: token
+      maxPayload: "2MB"
+      containerTemplate:
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+            ephemeral-storage: 2Gi
+          requests:
+            cpu: 200m
+            memory: 500Mi
+            ephemeral-storage: 2Gi

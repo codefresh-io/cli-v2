@@ -1,0 +1,9 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: codefresh-eventbus
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      eventbus-name: codefresh-eventbus
