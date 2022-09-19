@@ -752,23 +752,6 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 }
 
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
-	//if opts.accessMode == platmodel.AccessModeIngress {
-	//	// Create an ingress that will manage external access to the git eventsource service
-	//	routeOpts := routingutil.CreateRouteOpts{
-	//		RuntimeName:       opts.runtimeName,
-	//		IngressClass:      opts.ingressClass,
-	//		Hostname:          opts.hostName,
-	//		IngressController: opts.ingressController,
-	//		GatewayName:       opts.gatewayName,
-	//		GatewayNamespace:  opts.gatewayNamespace,
-	//	}
-	//	routeName, route := routingutil.CreateDemoPipelinesRoute(&routeOpts, opts.useGatewayAPI)
-	//	routeFilePath := fmt.Sprintf("%s.%s.yaml", store.Get().DemoPipelinesIngressObjectName, routeName)
-	//	if err := writeObjectToYaml(opts.gsFs, routeFilePath, &route, cleanUpFieldsIngress); err != nil {
-	//		return fmt.Errorf("failed to write yaml of demo pipeline ingress. Error: %w", err)
-	//	}
-	//}
-
 	gitProviderType := opts.gitProvider.Type()
 	switch gitProviderType {
 	case "github":

@@ -47,8 +47,8 @@ var (
 	die  = util.Die
 	exit = os.Exit
 
-	//go:embed assets/internal-router-ingress-patch.json
-	internalRouterIngressPatch []byte
+	//go:embed assets/workflows-ingress-patch.json
+	workflowsIngressPatch []byte
 
 	cfConfig *config.Config
 

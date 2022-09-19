@@ -49,7 +49,7 @@ type Store struct {
 	ArgoCDServerName                  string
 	ArgoCDTokenKey                    string
 	ArgoCDTokenSecret                 string
-	InternalRouterServiceName         string
+	ArgoWFServiceName                 string
 	BinaryName                        string
 	Codefresh                         string
 	CFComponentType                   string
@@ -69,6 +69,7 @@ type Store struct {
 	EventReportingEndpoint            string
 	EventsReporterName                string
 	GitSourceName                     string
+	InternalRouterServiceName         string
 	InternalRouterIngressName         string
 	InternalRouterIngressPath         string
 	InternalRouterIngressFilePath     string
@@ -158,6 +159,7 @@ func init() {
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
+	s.ArgoWFServiceName = "argo-server"
 	s.BinaryName = binaryName
 	s.Codefresh = "codefresh"
 	s.GitSourceName = "default-git-source"
@@ -179,7 +181,7 @@ func init() {
 	s.InternalRouterIngressName = "-internal-router-ingress"
 	s.InternalRouterIngressPath = "/"
 	s.InternalRouterIngressFilePath = "internal-router"
-	s.InternalRouterServiceName = "argo-server"
+	s.InternalRouterServiceName = "internal-router"
 	s.AppProxyIngressName = "-cap-app-proxy"
 	s.AppProxyIngressPath = "/app-proxy"
 	s.AppProxyServicePort = 3017

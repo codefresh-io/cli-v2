@@ -20,10 +20,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"io"
+	appsv1 "k8s.io/api/apps/v1"
 	"net"
 	"net/url"
 	"os"
+	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 	"strconv"
 	"strings"
 	"sync"
@@ -1040,6 +1043,16 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		}
 	}
 
+	if opts.AccessMode == platmodel.AccessModeIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+		if err = util.Retry(ctx, &util.RetryOptions{
+			Func: func() error {
+				return configureArgoWorkflows(ctx, opts, rt)
+			},
+		}); err != nil {
+			return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
+		}
+	}
+
 	if err = util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
 			return configureAppProxy(ctx, opts, rt)
@@ -1378,29 +1391,12 @@ func createInternalRouterIngress(ctx context.Context, opts *RuntimeInstallOption
 		return fmt.Errorf("failed to write yaml of workflows route. Error: %w", err)
 	}
 
-	//if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), internalRouterIngressPatch, 0666); err != nil {
-	//	return err
-	//}
-
 	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
 	if err != nil {
 		return err
 	}
 
 	kust.Resources = append(kust.Resources, routeFileName)
-	//kust.Patches = append(kust.Patches, kusttypes.Patch{
-	//	Target: &kusttypes.Selector{
-	//		ResId: kustid.ResId{
-	//			Gvk: kustid.Gvk{
-	//				Group:   appsv1.SchemeGroupVersion.Group,
-	//				Version: appsv1.SchemeGroupVersion.Version,
-	//				Kind:    "Deployment",
-	//			},
-	//			Name: store.Get().InternalRouterServiceName,
-	//		},
-	//	},
-	//	Path: "ingress-patch.json",
-	//})
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
 	}
@@ -1408,6 +1404,45 @@ func createInternalRouterIngress(ctx context.Context, opts *RuntimeInstallOption
 	log.G(ctx).Info("Pushing Internal Router ingress manifests")
 
 	return apu.PushWithMessage(ctx, r, "Created Internal Router Ingress")
+}
+
+func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().ArgoWFServiceName, apstore.Default.OverlaysDir, rt.Name)
+
+	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
+		return err
+	}
+
+	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
+	if err != nil {
+		return err
+	}
+
+	kust.Patches = append(kust.Patches, kusttypes.Patch{
+		Target: &kusttypes.Selector{
+			ResId: kustid.ResId{
+				Gvk: kustid.Gvk{
+					Group:   appsv1.SchemeGroupVersion.Group,
+					Version: appsv1.SchemeGroupVersion.Version,
+					Kind:    "Deployment",
+				},
+				Name: store.Get().ArgoWFServiceName,
+			},
+		},
+		Path: "ingress-patch.json",
+	})
+	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing Argo Workflows configuration")
+
+	return apu.PushWithMessage(ctx, r, "Configured Argo Workflows ")
 }
 
 func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {
@@ -1447,6 +1482,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		},
 	})
 
+	// todo: internal/external ingress
 	//hostName := opts.HostName
 	//if opts.InternalHostName != "" {
 	//	hostName = opts.InternalHostName
