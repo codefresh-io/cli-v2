@@ -1141,7 +1141,13 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	}
 
 	if !opts.SkipClusterChecks {
-		err = kubeutil.EnsureClusterRequirements(ctx, opts.KubeFactory, opts.RuntimeName, cfConfig.GetCurrentContext().URL)
+		err = kubeutil.EnsureClusterRequirements(kubeutil.RuntimeInstallOptions{
+			KubeFactory:        opts.KubeFactory,
+			Namespace:          opts.RuntimeName,
+			ContextUrl:         cfConfig.GetCurrentContext().URL,
+			AccessMode:         opts.AccessMode,
+			TunnelRegisterHost: opts.TunnelRegisterHost,
+		}, ctx)
 	}
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, true, false)
 	if err != nil {

@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	authv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,6 +38,14 @@ import (
 )
 
 type (
+	RuntimeInstallOptions struct {
+		KubeFactory        kube.Factory
+		Namespace          string
+		ContextUrl         string
+		AccessMode         platmodel.AccessMode
+		TunnelRegisterHost string
+	}
+
 	rbacValidation struct {
 		Namespace string
 		Resource  string
@@ -61,8 +70,10 @@ type (
 	}
 )
 
-func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string, contextUrl string) error {
+func EnsureClusterRequirements(runtimeInstallOptions RuntimeInstallOptions, ctx context.Context) error {
 	requirementsValidationErrorMessage := "cluster does not meet minimum requirements"
+	namespace := runtimeInstallOptions.Namespace
+	kubeFactory := runtimeInstallOptions.KubeFactory
 	var specificErrorMessages []string
 
 	client, err := kubeFactory.KubernetesClientSet()
@@ -173,14 +184,101 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
-	err = runNetworkTest(ctx, kubeFactory, contextUrl)
+	err = runNetworkTest(ctx, kubeFactory, runtimeInstallOptions.ContextUrl)
 	if err != nil {
 		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
 
 	log.G(ctx).Info("Network test finished successfully")
 
+	if runtimeInstallOptions.AccessMode == platmodel.AccessModeTunnel {
+		err = runWebSocketConnectionTest(&runtimeInstallOptions, ctx)
+		if err != nil {
+			return fmt.Errorf("cluster websocket connection tests failed: %w ", err)
+		}
+
+		log.G(ctx).Info("Websocket connection test finished successfully")
+	}
 	return nil
+}
+
+func runWebSocketConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, context context.Context) error {
+	const websocketConnectionTestsTimeout = 120 * time.Second
+	envVars := map[string]string{
+		"TUNNEL_REGISTER_HOST": runtimeInstallOptions.TunnelRegisterHost,
+	}
+	env := prepareEnvVars(envVars)
+
+	client, err := runtimeInstallOptions.KubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	job, err := launchJob(context, client, LaunchJobOptions{
+		Namespace:     store.Get().DefaultNamespace,
+		JobName:       &store.Get().WebSocketConnectionTesterName,
+		Image:         &store.Get().WebSocketConnectionTesterImage,
+		Env:           env,
+		RestartPolicy: v1.RestartPolicyNever,
+		BackOffLimit:  0,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err := deleteJob(context, client, job)
+		if err != nil {
+			log.G(context).Errorf("fail to delete tester pod: %s", err.Error())
+		}
+	}()
+
+	log.G(context).Info("Running network test...")
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	var podLastState *v1.Pod
+	timeoutChan := time.After(websocketConnectionTestsTimeout)
+
+Loop:
+	for {
+		select {
+		case <-ticker.C:
+			log.G(context).Debug("Waiting for websocket connection tester to finish")
+			currentPod, err := getPodByJob(context, client, job)
+			if err != nil {
+				return err
+			}
+
+			if currentPod == nil {
+				log.G(context).Debug("Websocket connection tester pod: waiting for pod")
+				continue
+			}
+
+			if len(currentPod.Status.ContainerStatuses) == 0 {
+				log.G(context).Debug("Websocket connection tester pod: creating container")
+				continue
+			}
+
+			state := currentPod.Status.ContainerStatuses[0].State
+			if state.Running != nil {
+				log.G(context).Debug("Websocket connection tester pod: running")
+			}
+
+			if state.Waiting != nil {
+				log.G(context).Debug("Websocket connection tester pod: waiting")
+			}
+
+			if state.Terminated != nil {
+				log.G(context).Debug("Websocket connection tester pod: terminated")
+				podLastState = currentPod
+				break Loop
+			}
+		case <-timeoutChan:
+			return fmt.Errorf("websocket connection test timeout reached!")
+		}
+	}
+
+	return checkPodLastState(context, client, podLastState)
 }
 
 func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace string, name string) (*v1.Secret, error) {
