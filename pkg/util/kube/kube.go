@@ -238,11 +238,9 @@ func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, ctx cont
 	defer ticker.Stop()
 	timeoutChan := time.After(tcpConnectionTestsTimeout)
 	podLastState, err := handleJobPodStates(client, job, ticker, timeoutChan, ctx)
-
 	if err != nil {
 		return err
 	}
-
 	return checkPodLastState(ctx, client, podLastState)
 }
 
@@ -380,11 +378,9 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	defer ticker.Stop()
 	timeoutChan := time.After(networkTestsTimeout)
 	podLastState, err := handleJobPodStates(client, job, ticker, timeoutChan, ctx)
-
 	if err != nil {
 		return err
 	}
-
 	return checkPodLastState(ctx, client, podLastState)
 }
 
@@ -439,7 +435,6 @@ func prepareEnvVars(vars map[string]string) []v1.EnvVar {
 			Value: value,
 		})
 	}
-
 	return env
 }
 
