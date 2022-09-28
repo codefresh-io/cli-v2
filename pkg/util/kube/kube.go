@@ -216,7 +216,7 @@ func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *RuntimeIns
 
 	job, err := launchJob(ctx, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().TCPConnectionTesterName,
+		JobName:       &store.Get().TCPConnectionTesterGenerateName,
 		Image:         &store.Get().NetworkTesterImage,
 		Env:           env,
 		RestartPolicy: v1.RestartPolicyNever,
