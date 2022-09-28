@@ -11,6 +11,7 @@ rules:
       - secrets
       - configmap
       - pods
+      - applications
     verbs:
       - get
       - create
