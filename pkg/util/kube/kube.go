@@ -192,18 +192,18 @@ func EnsureClusterRequirements(runtimeInstallOptions RuntimeInstallOptions, ctx 
 	log.G(ctx).Info("Network test finished successfully")
 
 	if runtimeInstallOptions.AccessMode == platmodel.AccessModeTunnel {
-		err = runWebSocketConnectionTest(&runtimeInstallOptions, ctx)
+		err = runTCPConnectionTest(&runtimeInstallOptions, ctx)
 		if err != nil {
-			return fmt.Errorf("cluster websocket connection tests failed: %w ", err)
+			return fmt.Errorf("cluster TCP connection tests failed: %w ", err)
 		}
 
-		log.G(ctx).Info("Websocket connection test finished successfully")
+		log.G(ctx).Info("TCP connection test finished successfully")
 	}
 	return nil
 }
 
-func runWebSocketConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, context context.Context) error {
-	const websocketConnectionTestsTimeout = 120 * time.Second
+func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, context context.Context) error {
+	const tcpConnectionTestsTimeout = 120 * time.Second
 	envVars := map[string]string{
 		"TUNNEL_REGISTER_HOST": runtimeInstallOptions.TunnelRegisterHost,
 	}
@@ -216,8 +216,8 @@ func runWebSocketConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, co
 
 	job, err := launchJob(context, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().WebSocketConnectionTesterName,
-		Image:         &store.Get().WebSocketConnectionTesterImage,
+		JobName:       &store.Get().TCPConnectionTesterName,
+		Image:         &store.Get().TCPConnectionTesterImage,
 		Env:           env,
 		RestartPolicy: v1.RestartPolicyNever,
 		BackOffLimit:  0,
@@ -237,44 +237,44 @@ func runWebSocketConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, co
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	var podLastState *v1.Pod
-	timeoutChan := time.After(websocketConnectionTestsTimeout)
+	timeoutChan := time.After(tcpConnectionTestsTimeout)
 
 Loop:
 	for {
 		select {
 		case <-ticker.C:
-			log.G(context).Debug("Waiting for websocket connection tester to finish")
+			log.G(context).Debug("Waiting for TCP connection tester to finish")
 			currentPod, err := getPodByJob(context, client, job)
 			if err != nil {
 				return err
 			}
 
 			if currentPod == nil {
-				log.G(context).Debug("Websocket connection tester pod: waiting for pod")
+				log.G(context).Debug("TCP connection tester pod: waiting for pod")
 				continue
 			}
 
 			if len(currentPod.Status.ContainerStatuses) == 0 {
-				log.G(context).Debug("Websocket connection tester pod: creating container")
+				log.G(context).Debug("TCP connection tester pod: creating container")
 				continue
 			}
 
 			state := currentPod.Status.ContainerStatuses[0].State
 			if state.Running != nil {
-				log.G(context).Debug("Websocket connection tester pod: running")
+				log.G(context).Debug("TCP connection tester pod: running")
 			}
 
 			if state.Waiting != nil {
-				log.G(context).Debug("Websocket connection tester pod: waiting")
+				log.G(context).Debug("TCP connection tester pod: waiting")
 			}
 
 			if state.Terminated != nil {
-				log.G(context).Debug("Websocket connection tester pod: terminated")
+				log.G(context).Debug("TCP connection tester pod: terminated")
 				podLastState = currentPod
 				break Loop
 			}
 		case <-timeoutChan:
-			return fmt.Errorf("websocket connection test timeout reached!")
+			return fmt.Errorf("TCP connection test timeout reached!")
 		}
 	}
 
