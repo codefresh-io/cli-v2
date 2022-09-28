@@ -70,7 +70,7 @@ type (
 	}
 )
 
-func EnsureClusterRequirements(runtimeInstallOptions RuntimeInstallOptions, ctx context.Context) error {
+func EnsureClusterRequirements(ctx context.Context, runtimeInstallOptions RuntimeInstallOptions) error {
 	requirementsValidationErrorMessage := "cluster does not meet minimum requirements"
 	namespace := runtimeInstallOptions.Namespace
 	kubeFactory := runtimeInstallOptions.KubeFactory
@@ -192,7 +192,7 @@ func EnsureClusterRequirements(runtimeInstallOptions RuntimeInstallOptions, ctx 
 	log.G(ctx).Info("Network test finished successfully")
 
 	if runtimeInstallOptions.AccessMode == platmodel.AccessModeTunnel {
-		err = runTCPConnectionTest(&runtimeInstallOptions, ctx)
+		err = runTCPConnectionTest(ctx, &runtimeInstallOptions)
 		if err != nil {
 			return fmt.Errorf("cluster TCP connection tests failed: %w ", err)
 		}
@@ -202,7 +202,7 @@ func EnsureClusterRequirements(runtimeInstallOptions RuntimeInstallOptions, ctx 
 	return nil
 }
 
-func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, ctx context.Context) error {
+func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *RuntimeInstallOptions) error {
 	const tcpConnectionTestsTimeout = 120 * time.Second
 	envVars := map[string]string{
 		"TUNNEL_REGISTER_HOST": runtimeInstallOptions.TunnelRegisterHost,
@@ -217,7 +217,7 @@ func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, ctx cont
 	job, err := launchJob(ctx, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
 		JobName:       &store.Get().TCPConnectionTesterName,
-		Image:         &store.Get().TCPConnectionTesterImage,
+		Image:         &store.Get().NetworkTesterImage,
 		Env:           env,
 		RestartPolicy: v1.RestartPolicyNever,
 		BackOffLimit:  0,
@@ -237,7 +237,7 @@ func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, ctx cont
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	timeoutChan := time.After(tcpConnectionTestsTimeout)
-	podLastState, err := handleJobPodStates(client, job, ticker, timeoutChan, ctx)
+	podLastState, err := handleJobPodStates(ctx, client, job, ticker, timeoutChan)
 	if err != nil {
 		return err
 	}
@@ -377,14 +377,14 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	timeoutChan := time.After(networkTestsTimeout)
-	podLastState, err := handleJobPodStates(client, job, ticker, timeoutChan, ctx)
+	podLastState, err := handleJobPodStates(ctx, client, job, ticker, timeoutChan)
 	if err != nil {
 		return err
 	}
 	return checkPodLastState(ctx, client, podLastState)
 }
 
-func handleJobPodStates(client kubernetes.Interface, job *batchv1.Job, ticker *time.Ticker, timeoutChan <-chan time.Time, ctx context.Context) (*v1.Pod, error) {
+func handleJobPodStates(ctx context.Context, client kubernetes.Interface, job *batchv1.Job, ticker *time.Ticker, timeoutChan <-chan time.Time) (*v1.Pod, error) {
 	var podLastState *v1.Pod
 Loop:
 	for {
