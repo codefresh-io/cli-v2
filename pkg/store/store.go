@@ -135,7 +135,6 @@ type Store struct {
 	NetworkTesterGenerateName         string
 	NetworkTesterImage                string
 	TCPConnectionTesterName           string
-	TCPConnectionTesterImage          string
 	MinKubeVersion                    string
 	MaxKubeVersion                    string
 	MasterIngressName                 string
