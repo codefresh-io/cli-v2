@@ -202,7 +202,7 @@ func EnsureClusterRequirements(runtimeInstallOptions RuntimeInstallOptions, ctx 
 	return nil
 }
 
-func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, context context.Context) error {
+func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, ctx context.Context) error {
 	const tcpConnectionTestsTimeout = 120 * time.Second
 	envVars := map[string]string{
 		"TUNNEL_REGISTER_HOST": runtimeInstallOptions.TunnelRegisterHost,
@@ -214,7 +214,7 @@ func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, context 
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	job, err := launchJob(context, client, LaunchJobOptions{
+	job, err := launchJob(ctx, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
 		JobName:       &store.Get().TCPConnectionTesterName,
 		Image:         &store.Get().TCPConnectionTesterImage,
@@ -227,58 +227,23 @@ func runTCPConnectionTest(runtimeInstallOptions *RuntimeInstallOptions, context 
 	}
 
 	defer func() {
-		err := deleteJob(context, client, job)
+		err := deleteJob(ctx, client, job)
 		if err != nil {
-			log.G(context).Errorf("fail to delete tester pod: %s", err.Error())
+			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
 		}
 	}()
 
-	log.G(context).Info("Running network test...")
+	log.G(ctx).Info("Running TCP connection test...")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	var podLastState *v1.Pod
 	timeoutChan := time.After(tcpConnectionTestsTimeout)
+	podLastState, err := handleJobPodStates(client, job, ticker, timeoutChan, ctx)
 
-Loop:
-	for {
-		select {
-		case <-ticker.C:
-			log.G(context).Debug("Waiting for TCP connection tester to finish")
-			currentPod, err := getPodByJob(context, client, job)
-			if err != nil {
-				return err
-			}
-
-			if currentPod == nil {
-				log.G(context).Debug("TCP connection tester pod: waiting for pod")
-				continue
-			}
-
-			if len(currentPod.Status.ContainerStatuses) == 0 {
-				log.G(context).Debug("TCP connection tester pod: creating container")
-				continue
-			}
-
-			state := currentPod.Status.ContainerStatuses[0].State
-			if state.Running != nil {
-				log.G(context).Debug("TCP connection tester pod: running")
-			}
-
-			if state.Waiting != nil {
-				log.G(context).Debug("TCP connection tester pod: waiting")
-			}
-
-			if state.Terminated != nil {
-				log.G(context).Debug("TCP connection tester pod: terminated")
-				podLastState = currentPod
-				break Loop
-			}
-		case <-timeoutChan:
-			return fmt.Errorf("TCP connection test timeout reached!")
-		}
+	if err != nil {
+		return err
 	}
 
-	return checkPodLastState(context, client, podLastState)
+	return checkPodLastState(ctx, client, podLastState)
 }
 
 func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace string, name string) (*v1.Secret, error) {
@@ -413,9 +378,18 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	log.G(ctx).Info("Running network test...")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	var podLastState *v1.Pod
 	timeoutChan := time.After(networkTestsTimeout)
+	podLastState, err := handleJobPodStates(client, job, ticker, timeoutChan, ctx)
 
+	if err != nil {
+		return err
+	}
+
+	return checkPodLastState(ctx, client, podLastState)
+}
+
+func handleJobPodStates(client kubernetes.Interface, job *batchv1.Job, ticker *time.Ticker, timeoutChan <-chan time.Time, ctx context.Context) (*v1.Pod, error) {
+	var podLastState *v1.Pod
 Loop:
 	for {
 		select {
@@ -423,7 +397,7 @@ Loop:
 			log.G(ctx).Debug("Waiting for network tester to finish")
 			currentPod, err := getPodByJob(ctx, client, job)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			if currentPod == nil {
@@ -451,11 +425,10 @@ Loop:
 				break Loop
 			}
 		case <-timeoutChan:
-			return fmt.Errorf("network test timeout reached!")
+			return nil, fmt.Errorf("network test timeout reached!")
 		}
 	}
-
-	return checkPodLastState(ctx, client, podLastState)
+	return podLastState, nil
 }
 
 func prepareEnvVars(vars map[string]string) []v1.EnvVar {
