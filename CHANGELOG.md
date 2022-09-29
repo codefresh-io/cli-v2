@@ -1,3 +1,3 @@
 # Changelog:
 
-* Updated `cap-app-proxy` to 1.1851.0
+* Updated `cap-app-proxy` to 1.1856.0
