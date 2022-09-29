@@ -135,6 +135,7 @@ type Store struct {
 	NetworkTesterGenerateName         string
 	NetworkTesterImage                string
 	TCPConnectionTesterGenerateName   string
+	TCPConnectionTesterName           string
 	MinKubeVersion                    string
 	MaxKubeVersion                    string
 	MasterIngressName                 string
@@ -237,7 +238,8 @@ func init() {
 	s.NetworkTesterName = "cf-network-tester"
 	s.NetworkTesterGenerateName = "cf-network-tester-"
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
-	s.TCPConnectionTesterGenerateName = "cf-tcp-connection-tester-"
+	s.TCPConnectionTesterGenerateName = "cf-tcp-connections-tester-"
+	s.TCPConnectionTesterName = "cf-tcp-connections-tester"
 	s.MinKubeVersion = "v1.18.0"
 	s.MaxKubeVersion = "v1.25.0"
 	s.MasterIngressName = "-master"

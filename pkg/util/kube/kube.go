@@ -62,8 +62,9 @@ type (
 	LaunchJobOptions struct {
 		Client        kubernetes.Interface
 		Namespace     string
-		JobName       *string
-		Image         *string
+		ContainerName string
+		GenerateName  string
+		Image         string
 		Env           []v1.EnvVar
 		RestartPolicy v1.RestartPolicy
 		BackOffLimit  int32
@@ -216,8 +217,9 @@ func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *RuntimeIns
 
 	job, err := launchJob(ctx, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().TCPConnectionTesterGenerateName,
-		Image:         &store.Get().NetworkTesterImage,
+		ContainerName: store.Get().TCPConnectionTesterName,
+		GenerateName:  store.Get().TCPConnectionTesterGenerateName,
+		Image:         store.Get().NetworkTesterImage,
 		Env:           env,
 		RestartPolicy: v1.RestartPolicyNever,
 		BackOffLimit:  0,
@@ -356,8 +358,9 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 
 	job, err := launchJob(ctx, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().NetworkTesterName,
-		Image:         &store.Get().NetworkTesterImage,
+		ContainerName: store.Get().NetworkTesterName,
+		GenerateName:  store.Get().NetworkTesterGenerateName,
+		Image:         store.Get().NetworkTesterImage,
 		Env:           env,
 		RestartPolicy: v1.RestartPolicyNever,
 		BackOffLimit:  0,
@@ -515,16 +518,16 @@ func testNode(n v1.Node, req validationRequest) []string {
 func launchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobOptions) (*batchv1.Job, error) {
 	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      *opts.JobName,
-			Namespace: opts.Namespace,
+			GenerateName: opts.GenerateName,
+			Namespace:    opts.Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  *opts.JobName,
-							Image: *opts.Image,
+							Name:  opts.ContainerName,
+							Image: opts.Image,
 							Env:   opts.Env,
 						},
 					},
