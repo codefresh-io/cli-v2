@@ -1,3 +1,6 @@
+# This api version is only acceptable since kubernetes 1.21
+# We need to think how we introduce this gradually to our customers
+
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
