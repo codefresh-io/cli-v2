@@ -116,6 +116,7 @@ type (
 		kubeContext       string
 		kubeconfig        string
 		gitProvider       cfgit.Provider
+		branch            string
 		useGatewayAPI     bool
 		featuresToInstall []runtime.InstallFeature
 	}
@@ -252,6 +253,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
 	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket|bitbucket-server|gitlab)")
+	cmd.Flags().StringVar(&installationOpts.branch, "branch", "", "Install runtime from a specific branch (dev-time only)")
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
@@ -271,6 +273,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
+	util.Die(cmd.Flags().MarkHidden("branch"))
 	util.Die(cmd.Flags().MarkHidden("access-mode"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-register-host"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
@@ -593,18 +596,13 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 }
 
 func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	err := preInstallationChecks(ctx, opts)
+	rt, err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
 	handleCliStep(reporter.InstallPhaseStart, "Runtime installation phase started", nil, false, true)
-
-	rt, err := runtimeInstallPreparations(opts)
-	if err != nil {
-		return err
-	}
 
 	if opts.FromRepo {
 		// in case of a runtime recovery, we don't want to clear the repo when failure occures
@@ -775,22 +773,6 @@ To complete the installation:
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	return nil
-}
-
-func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
-	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
-	}
-
-	rt.Spec.Cluster, err = util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current server address: %w", err)
-	}
-
-	return rt, nil
 }
 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
@@ -1100,8 +1082,9 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return nil
 }
 
-func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
 	var err error
+
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
@@ -1109,13 +1092,13 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	err = checkIscProvider(ctx, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepRunPreCheckGitProvider, "Checking Account Git Provider", err, true, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil) // no need to send featuresToInstall, since we only use the runtime to get the DefVersion anyway
+	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil, opts.branch)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
-		return fmt.Errorf("failed to download runtime definition: %w", err)
+		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
@@ -1124,21 +1107,28 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
+		return nil, util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
 	err = checkRuntimeCollisions(ctx, opts.KubeFactory, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckRuntimeCollision, "Checking for runtime collisions", err, true, false)
 	if err != nil {
-		return fmt.Errorf("runtime collision check failed: %w", err)
+		return nil, fmt.Errorf("runtime collision check failed: %w", err)
+	}
+
+	rt.Spec.Cluster, err = util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current server address: %w", err)
 	}
 
 	if !opts.FromRepo {
 		err = checkExistingRuntimes(ctx, opts.RuntimeName)
 	}
+
 	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, true, false)
 	if err != nil {
-		return fmt.Errorf("existing runtime check failed: %w", err)
+		return nil, fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
 	if !opts.SkipClusterChecks {
@@ -1150,12 +1140,13 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 			TunnelRegisterHost: opts.TunnelRegisterHost,
 		})
 	}
+
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, true, false)
 	if err != nil {
-		return fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
+		return nil, fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
 	}
 
-	return nil
+	return rt, nil
 }
 
 func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
