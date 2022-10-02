@@ -519,7 +519,9 @@ func ensureRoutingControllerSupported(ctx context.Context, opts *RuntimeInstallO
 
 	if opts.useGatewayAPI {
 		opts.IngressController, err = routingutil.ValidateGatewayController(ctx, opts.KubeFactory, opts.GatewayName, opts.GatewayNamespace)
-	} else if !opts.SkipIngress && !opts.BypassIngressClassCheck {
+	} else if opts.BypassIngressClassCheck {
+		opts.IngressController = routingutil.GetIngressController("")
+	} else if !opts.SkipIngress {
 		opts.IngressController, opts.IngressClass, err = routingutil.ValidateIngressController(ctx, opts.KubeFactory, opts.IngressClass)
 	}
 
