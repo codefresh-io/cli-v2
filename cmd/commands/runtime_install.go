@@ -570,7 +570,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		AccessMode:       &opts.AccessMode,
 	}
 
-	if opts.InstallIngress() {
+	if opts.shouldInstallIngress() {
 		runtimeArgs.InternalIngressHost = &opts.InternalIngressHost
 		runtimeArgs.IngressClass = &opts.IngressClass
 		ingressControllerName := opts.IngressController.Name()
@@ -629,7 +629,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.InternalIngressHost = opts.InternalIngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
-	if opts.InstallIngress() {
+	if opts.shouldInstallIngress() {
 		rt.Spec.IngressClass = opts.IngressClass
 		rt.Spec.IngressController = string(opts.IngressController.Name())
 	}
@@ -805,7 +805,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.InstallIngress() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
+	if opts.shouldInstallIngress() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -1033,7 +1033,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// bitbucket cloud take more time to push a commit
 	// the perpuse of all retries is to avoid issues of cloning before pervious commit was pushed
-	if opts.InstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return createWorkflowsIngress(ctx, opts, rt)
@@ -1460,7 +1460,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		hostName = opts.InternalHostName
 	}
 
-	if opts.InstallIngress() {
+	if opts.shouldInstallIngress() {
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       rt.Name,
 			Namespace:         rt.Namespace,
@@ -2047,6 +2047,6 @@ func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 	}
 }
 
-func (opts *RuntimeInstallOptions) InstallIngress() bool {
+func (opts *RuntimeInstallOptions) shouldInstallIngress() bool {
 	return !opts.SkipIngress && opts.AccessMode == platmodel.AccessModeIngress
 }
