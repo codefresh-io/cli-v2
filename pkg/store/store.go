@@ -50,6 +50,7 @@ type Store struct {
 	ArgoCDTokenKey                    string
 	ArgoCDTokenSecret                 string
 	ArgoWFIngressPath                 string
+	ArgoWFServiceName                 string
 	BinaryName                        string
 	Codefresh                         string
 	CFComponentType                   string
@@ -77,6 +78,7 @@ type Store struct {
 	WebhooksIngressPath               string
 	AppProxyIngressName               string
 	AppProxyIngressPath               string
+	AppProxyServiceName               string
 	DocsLink                          string
 	LabelKeyCFType                    string
 	LabelKeyCFInternal                string
@@ -159,6 +161,7 @@ func init() {
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
 	s.ArgoWFIngressPath = "/workflows"
+	s.ArgoWFServiceName = "argo-server"
 	s.BinaryName = binaryName
 	s.Codefresh = "codefresh"
 	s.GitSourceName = "default-git-source"
@@ -185,6 +188,7 @@ func init() {
 	s.InternalRouterServicePort = 80
 	s.AppProxyIngressName = "-cap-app-proxy"
 	s.AppProxyIngressPath = "/app-proxy"
+	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
