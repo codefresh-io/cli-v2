@@ -181,24 +181,22 @@ func CreateIngress(opts *CreateRouteOpts) *netv1.Ingress {
 	return ingress
 }
 
-func ValidateIngressController(ctx context.Context, kubeFactory kube.Factory, ingressClass *string) (RoutingController, error) {
-	var ingressController RoutingController
-	if store.Get().BypassIngressClassCheck {
-		ingressController = GetIngressController("")
-		return ingressController, nil
-	}
+func ValidateIngressController(ctx context.Context, kubeFactory kube.Factory, requestedIngressClass string) (RoutingController, string, error) {
+	var (
+		ingressController RoutingController
+		ingressClass      string
+		ingressClassNames []string
+	)
 
 	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
 
 	cs := kubeFactory.KubernetesClientSetOrDie()
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
+		return nil, "", fmt.Errorf("failed to get ingress class list from your cluster: %w", err)
 	}
 
-	var ingressClassNames []string
 	ingressClassNameToController := make(map[string]RoutingController)
-	var isValidClass bool
 
 	for _, ic := range ingressClassList.Items {
 		for _, controller := range SupportedIngressControllers {
@@ -206,41 +204,46 @@ func ValidateIngressController(ctx context.Context, kubeFactory kube.Factory, in
 				ingressClassNames = append(ingressClassNames, ic.Name)
 				ingressClassNameToController[ic.Name] = GetIngressController(string(controller))
 
-				if *ingressClass == ic.Name { // if ingress class provided via flag
-					isValidClass = true
+				if requestedIngressClass == ic.Name {
+					// if ingress class provided via flag
+					ingressClass = requestedIngressClass
 				}
 				break
 			}
 		}
 	}
 
-	if *ingressClass != "" { // if ingress class provided via flag
-		if !isValidClass {
-			return nil, fmt.Errorf("ingress class '%s' is not supported", *ingressClass)
+	if requestedIngressClass != "" {
+		if ingressClass == "" {
+			// if ingress class provided via flag was not found in cluster
+			return nil, "", fmt.Errorf("ingress class '%s' is not supported", requestedIngressClass)
 		}
 	} else if len(ingressClassNames) == 0 {
-		return nil, fmt.Errorf("no ingress classes of the supported types were found")
+		// if no ingress classes in cluster at all
+		return nil, "", fmt.Errorf("no ingress classes of the supported types were found")
 	} else if len(ingressClassNames) == 1 {
+		// if there is only 1 ingress class in the cluster - just use it
 		log.G(ctx).Info("Using ingress class: ", ingressClassNames[0])
-		*ingressClass = ingressClassNames[0]
+		ingressClass = ingressClassNames[0]
 	} else if len(ingressClassNames) > 1 {
-		if !store.Get().Silent {
-			*ingressClass, err = getIngressClassFromUserSelect(ingressClassNames)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, fmt.Errorf("there are multiple ingress controllers on your cluster, please add the --ingress-class flag and define its value")
+		// if there are multiple ingress classes in the cluster
+		if store.Get().Silent {
+			return nil, "", fmt.Errorf("there are multiple ingress controllers on your cluster, please add the --ingress-class flag and define its value")
+		}
+
+		ingressClass, err = getIngressClassFromUserSelect(ingressClassNames)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 
-	ingressController = ingressClassNameToController[*ingressClass]
+	ingressController = ingressClassNameToController[ingressClass]
 
 	if ingressController.Name() == string(IngressControllerNginxEnterprise) {
 		log.G(ctx).Warn("You are using the NGINX enterprise edition (nginx.org/ingress-controller) as your ingress controller. To successfully install the runtime, configure all required settings, as described in : ", store.Get().RequirementsLink)
 	}
 
-	return ingressController, nil
+	return ingressController, ingressClass, nil
 }
 
 func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
