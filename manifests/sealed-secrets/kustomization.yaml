@@ -13,4 +13,6 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/args/-
         value: --key-renew-period=720h
-  
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: quay.io/codefresh/sealed-secrets-controller:v0.17.5
