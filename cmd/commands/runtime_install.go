@@ -110,6 +110,7 @@ type (
 		TunnelDomain                   string
 		TunnelSubdomain                string
 		SkipIngress                    bool
+		BypassIngressClassCheck        bool
 
 		versionStr        string
 		kubeContext       string
@@ -244,7 +245,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
 	cmd.Flags().StringVar(&gitIntegrationApiURL, "provider-api-url", "", "Git provider API url")
 	cmd.Flags().BoolVar(&installationOpts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
-	cmd.Flags().BoolVar(&store.Get().BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
+	cmd.Flags().BoolVar(&installationOpts.BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	cmd.Flags().BoolVar(&installationOpts.FromRepo, "from-repo", false, "Installs a runtime from an existing repo. Used for recovery after cluster failure")
@@ -515,16 +516,15 @@ func validateIngressHostCertificate(ctx context.Context, ingressHost string) err
 }
 
 func ensureRoutingControllerSupported(ctx context.Context, opts *RuntimeInstallOptions) error {
-	var controller routingutil.RoutingController
 	var err error
 
 	if opts.useGatewayAPI {
-		controller, err = routingutil.ValidateGatewayController(ctx, opts.KubeFactory, opts.GatewayName, opts.GatewayNamespace)
-	} else {
-		controller, err = routingutil.ValidateIngressController(ctx, opts.KubeFactory, &opts.IngressClass)
+		opts.IngressController, err = routingutil.ValidateGatewayController(ctx, opts.KubeFactory, opts.GatewayName, opts.GatewayNamespace)
+	} else if opts.BypassIngressClassCheck {
+		opts.IngressController = routingutil.GetIngressController("")
+	} else if !opts.SkipIngress {
+		opts.IngressController, opts.IngressClass, err = routingutil.ValidateIngressController(ctx, opts.KubeFactory, opts.IngressClass)
 	}
-
-	opts.IngressController = controller
 
 	return err
 }
@@ -571,7 +571,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		AccessMode:       &opts.AccessMode,
 	}
 
-	if opts.AccessMode == platmodel.AccessModeIngress {
+	if opts.shouldInstallIngress() {
 		runtimeArgs.InternalIngressHost = &opts.InternalIngressHost
 		runtimeArgs.IngressClass = &opts.IngressClass
 		ingressControllerName := opts.IngressController.Name()
@@ -630,7 +630,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.InternalIngressHost = opts.InternalIngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
-	if opts.AccessMode == platmodel.AccessModeIngress {
+	if opts.shouldInstallIngress() {
 		rt.Spec.IngressClass = opts.IngressClass
 		rt.Spec.IngressController = string(opts.IngressController.Name())
 	}
@@ -806,7 +806,7 @@ func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, r
 		return err
 	}
 
-	if opts.AccessMode == platmodel.AccessModeIngress && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
+	if opts.shouldInstallIngress() && opts.IngressController.Name() == string(routingutil.IngressControllerNginxEnterprise) && !opts.FromRepo {
 		err := createMasterIngressResource(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create master ingress resource: %w", err)
@@ -870,6 +870,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		RuntimeName:         opts.RuntimeName,
 		CreateDemoResources: opts.InstallDemoResources,
 		HostName:            opts.HostName,
+		SkipIngress:         opts.SkipIngress,
 		IngressHost:         opts.IngressHost,
 		IngressClass:        opts.IngressClass,
 		IngressController:   opts.IngressController,
@@ -1032,8 +1033,8 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	var err error
 
 	// bitbucket cloud take more time to push a commit
-	// all coming retries perpuse is to avoid issues of cloning before pervious commit was pushed
-	if opts.AccessMode == platmodel.AccessModeIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	// the perpuse of all retries is to avoid issues of cloning before pervious commit was pushed
+	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return createInternalRouterIngress(ctx, opts, rt)
@@ -2075,4 +2076,8 @@ func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 	default:
 		return "", nil
 	}
+}
+
+func (opts *RuntimeInstallOptions) shouldInstallIngress() bool {
+	return !opts.SkipIngress && opts.AccessMode == platmodel.AccessModeIngress
 }
