@@ -129,6 +129,7 @@ const (
 	UpgradeStepUpgradeRuntime              CliStep = "upgrade.run.step.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition       CliStep = "upgrade.run.step.push-runtime-definition"
 	UpgradeStepInstallNewComponents        CliStep = "upgrade.run.step.install-new-components"
+	UpgradeStepMigrateInternalRouter       CliStep = "upgrade.run.step.migrate-internal-router"
 	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.finish"
 
 	// General

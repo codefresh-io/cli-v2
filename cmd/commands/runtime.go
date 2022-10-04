@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	"io"
 	"mime"
 	"net/http"
@@ -891,6 +892,22 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
 
+	// todo: if less then initial version of having internal router
+	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v99.99.98"))
+	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
+	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
+
+	if needsInternalRouter && isIngress && isNotAlb {
+		log.G(ctx).Info("Migrating to Internal Router ")
+
+		err = migrateInternalRouter(ctx, opts, newRt)
+		if err != nil {
+			return fmt.Errorf("failed to migrate internal router: %w", err)
+		}
+
+		handleCliStep(reporter.UpgradeStepMigrateInternalRouter, "Migrate internal router", err, false, false)
+	}
+
 	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
 
 	return nil
@@ -914,6 +931,40 @@ func NewRuntimeLogsCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().IsDownloadRuntimeLogs, "download", false, "If true, will download logs from all componnents that consist of current runtime")
 	cmd.Flags().StringVar(&store.Get().IngressHost, "ingress-host", "", "Set runtime ingress host")
 	return cmd
+}
+
+func migrateInternalRouter(ctx context.Context, opts *RuntimeUpgradeOptions, newRt *runtime.Runtime) error {
+	createOpts := &CreateIngressOptions{
+		IngressHost:         newRt.Spec.IngressHost,
+		IngressClass:        newRt.Spec.IngressClass,
+		InternalIngressHost: newRt.Spec.InternalIngressHost,
+		IngressController:   routingutil.GetIngressController(newRt.Spec.IngressController),
+		InsCloneOpts:        opts.CloneOpts,
+		// todo:  check how to proceed
+		useGatewayAPI: false,
+		//GatewayName:         newRt.Spec.GatewayName,
+		//GatewayNamespace:    newRt.Spec.GatewayNamespace,
+	}
+
+	if err := parseHostName(newRt.Spec.IngressHost, &createOpts.HostName); err != nil {
+		return err
+	}
+
+	if createOpts.InternalIngressHost != "" {
+		if err := parseHostName(newRt.Spec.InternalIngressHost, &createOpts.InternalHostName); err != nil {
+			return err
+		}
+	}
+
+	if err := util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			return CreateInternalRouterIngress(ctx, createOpts, newRt)
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
+	}
+
+	return nil
 }
 
 func isAllRequiredFlagsForDownloadRuntimeLogs() bool {

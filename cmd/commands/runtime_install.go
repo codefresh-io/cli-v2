@@ -120,6 +120,22 @@ type (
 		featuresToInstall []runtime.InstallFeature
 	}
 
+	CreateIngressOptions struct {
+		HostName                  string
+		InternalHostName          string
+		IngressHost               string
+		IngressClass              string
+		InternalIngressHost       string
+		IngressController         routingutil.RoutingController
+		GatewayName               string
+		GatewayNamespace          string
+		InsCloneOpts              *apgit.CloneOptions
+		InternalIngressAnnotation map[string]string
+		ExternalIngressAnnotation map[string]string
+
+		useGatewayAPI bool
+	}
+
 	tunnelServer struct {
 		Host string `json:"host"`
 	}
@@ -1037,7 +1053,20 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
-				return createInternalRouterIngress(ctx, opts, rt)
+				return CreateInternalRouterIngress(ctx, &CreateIngressOptions{
+					HostName:                  opts.HostName,
+					InternalHostName:          opts.InternalHostName,
+					IngressHost:               opts.IngressHost,
+					IngressClass:              opts.IngressClass,
+					InternalIngressHost:       opts.InternalIngressHost,
+					IngressController:         opts.IngressController,
+					GatewayName:               opts.GatewayName,
+					GatewayNamespace:          opts.GatewayNamespace,
+					InsCloneOpts:              opts.InsCloneOpts,
+					InternalIngressAnnotation: opts.InternalIngressAnnotation,
+					ExternalIngressAnnotation: opts.ExternalIngressAnnotation,
+					useGatewayAPI:             opts.useGatewayAPI,
+				}, rt)
 			},
 		}); err != nil {
 			return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
@@ -1373,7 +1402,7 @@ func persistRuntime(ctx context.Context, cloneOpts *apgit.CloneOptions, rt *runt
 	return apu.PushWithMessage(ctx, r, "Persisted runtime data")
 }
 
-func createInternalRouterIngress(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions, rt *runtime.Runtime) error {
 	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -1396,7 +1425,7 @@ func createInternalRouterIngress(ctx context.Context, opts *RuntimeInstallOption
 	routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
 	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
-		return fmt.Errorf("failed to write yaml of webhooks and workflows routes. Error: %w", err)
+		return fmt.Errorf("failed to write yaml of webhooks routes. Error: %w", err)
 	}
 
 	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
@@ -1418,7 +1447,7 @@ func createInternalRouterIngress(ctx context.Context, opts *RuntimeInstallOption
 			GatewayNamespace:  opts.GatewayNamespace,
 		}
 
-		routeName, route := routingutil.CreateAppProxyRoute(&routeOpts, opts.useGatewayAPI)
+		routeName, route := routingutil.CreateInternalRouterInternalRoute(&routeOpts, opts.useGatewayAPI)
 		routeFileName := fmt.Sprintf("%s-internal.yaml", routeName)
 
 		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
@@ -1462,7 +1491,7 @@ func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt
 					Version: appsv1.SchemeGroupVersion.Version,
 					Kind:    "Deployment",
 				},
-				Name: store.Get().ArgoWFServiceName,
+				Name: store.Get().ArgoWfServiceName,
 			},
 		},
 		Path: "ingress-patch.json",

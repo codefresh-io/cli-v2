@@ -49,8 +49,8 @@ type Store struct {
 	ArgoCDServerName                  string
 	ArgoCDTokenKey                    string
 	ArgoCDTokenSecret                 string
-	ArgoWFIngressPath                 string
-	ArgoWFServiceName                 string
+	ArgoWfIngressPath                 string
+	ArgoWfServiceName                 string
 	BinaryName                        string
 	Codefresh                         string
 	CFComponentType                   string
@@ -160,8 +160,8 @@ func init() {
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
-	s.ArgoWFIngressPath = "/workflows"
-	s.ArgoWFServiceName = "argo-server"
+	s.ArgoWfIngressPath = "/workflows"
+	s.ArgoWfServiceName = "argo-server"
 	s.BinaryName = binaryName
 	s.Codefresh = "codefresh"
 	s.GitSourceName = "default-git-source"
@@ -182,7 +182,7 @@ func init() {
 	s.EventsReporterName = "events-reporter"
 	s.WebhooksIngressPath = "/webhooks"
 	s.InternalRouterIngressName = "-internal-router-ingress"
-	s.InternalRouterInternalIngressName = "-internal-router-ingress"
+	s.InternalRouterInternalIngressName = "-internal-router-internal-ingress"
 	s.InternalRouterIngressFilePath = "internal-router"
 	s.InternalRouterServiceName = "internal-router"
 	s.InternalRouterServicePort = 80
