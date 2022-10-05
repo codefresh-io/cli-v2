@@ -66,12 +66,6 @@ func CreateInternalRouterInternalRoute(opts *CreateRouteOpts, useGatewayAPI bool
 		Paths: []RoutePath{
 			{
 				pathType:    PrefixPath,
-				path:        store.Get().ArgoWfIngressPath,
-				serviceName: store.Get().InternalRouterServiceName,
-				servicePort: store.Get().InternalRouterServicePort,
-			},
-			{
-				pathType:    PrefixPath,
 				path:        store.Get().AppProxyIngressPath,
 				serviceName: store.Get().InternalRouterServiceName,
 				servicePort: store.Get().InternalRouterServicePort,
@@ -115,21 +109,21 @@ func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool, includ
 				serviceName: store.Get().InternalRouterServiceName,
 				servicePort: store.Get().InternalRouterServicePort,
 			},
-		},
-		Annotations:       opts.Annotations,
-		IngressController: opts.IngressController,
-	}
-
-	// when using internal ingress -- we need to extract app-proxy and argo-server
-	// to a separate ingress (with its own host and annotations)
-	if includeInternalRoutes {
-		createRouteOpts.Paths = append(createRouteOpts.Paths,
-			RoutePath{
+			{
 				pathType:    PrefixPath,
 				path:        store.Get().ArgoWfIngressPath,
 				serviceName: store.Get().InternalRouterServiceName,
 				servicePort: store.Get().InternalRouterServicePort,
 			},
+		},
+		Annotations:       opts.Annotations,
+		IngressController: opts.IngressController,
+	}
+
+	// when using internal ingress -- we need to extract app-proxy
+	// to a separate ingress (with its own host and annotations)
+	if includeInternalRoutes {
+		createRouteOpts.Paths = append(createRouteOpts.Paths,
 			RoutePath{
 				pathType:    PrefixPath,
 				path:        store.Get().AppProxyIngressPath,

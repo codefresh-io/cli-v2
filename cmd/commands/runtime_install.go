@@ -1433,7 +1433,9 @@ func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions
 		return err
 	}
 
-	kust.Resources = append(kust.Resources, routeFileName)
+	if util.StringIndexOf(kust.Resources, routeFileName) == -1 {
+		kust.Resources = append(kust.Resources, routeFileName)
+	}
 
 	if internalIngressEnabled {
 		routeOpts := routingutil.CreateRouteOpts{
@@ -1454,7 +1456,9 @@ func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions
 			return fmt.Errorf("failed to write yaml of app-proxy route. Error: %w", err)
 		}
 
-		kust.Resources = append(kust.Resources, routeFileName)
+		if util.StringIndexOf(kust.Resources, routeFileName) == -1 {
+			kust.Resources = append(kust.Resources, routeFileName)
+		}
 	}
 
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {

@@ -260,7 +260,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		AppName:       opts.GsName,
 		AppSpecifier:  appSpecifier,
 		DestServer:    store.Get().InCluster,
-		DestNamespace: opts.RuntimeName,
+		DestNamespace: &opts.RuntimeName,
 		IsInternal:    &isInternal,
 		Include:       &opts.Include,
 		Exclude:       &opts.Exclude,

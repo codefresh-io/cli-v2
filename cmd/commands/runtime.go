@@ -934,19 +934,34 @@ func NewRuntimeLogsCommand() *cobra.Command {
 }
 
 func migrateInternalRouter(ctx context.Context, opts *RuntimeUpgradeOptions, newRt *runtime.Runtime) error {
+	dbRuntime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime: %s. Error: %w", opts.RuntimeName, err)
+	}
+
+	gatewayName := ""
+	gatewaysNamespace := ""
+
+	if dbRuntime.GatewayName != nil {
+		gatewayName = *dbRuntime.GatewayName
+	}
+
+	if dbRuntime.GatewayNamespace != nil {
+		gatewaysNamespace = *dbRuntime.GatewayNamespace
+	}
+
 	createOpts := &CreateIngressOptions{
 		IngressHost:         newRt.Spec.IngressHost,
 		IngressClass:        newRt.Spec.IngressClass,
 		InternalIngressHost: newRt.Spec.InternalIngressHost,
 		IngressController:   routingutil.GetIngressController(newRt.Spec.IngressController),
 		InsCloneOpts:        opts.CloneOpts,
-		// todo:  check how to proceed
-		useGatewayAPI: false,
-		//GatewayName:         newRt.Spec.GatewayName,
-		//GatewayNamespace:    newRt.Spec.GatewayNamespace,
+		useGatewayAPI:       gatewayName != "",
+		GatewayName:         gatewayName,
+		GatewayNamespace:    gatewaysNamespace,
 	}
 
-	if err := parseHostName(newRt.Spec.IngressHost, &createOpts.HostName); err != nil {
+	if err = parseHostName(newRt.Spec.IngressHost, &createOpts.HostName); err != nil {
 		return err
 	}
 
