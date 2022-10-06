@@ -167,7 +167,7 @@ func NewConfigSetRuntimeCommand() *cobra.Command {
 }
 
 func RunConfigSetRuntime(ctx context.Context, runtime string) error {
-	_, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtime)
+	_, err := getRuntime(ctx, runtime)
 	if err != nil {
 		return err
 	}

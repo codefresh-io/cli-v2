@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	authv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,6 +38,14 @@ import (
 )
 
 type (
+	RuntimeInstallOptions struct {
+		KubeFactory        kube.Factory
+		Namespace          string
+		ContextUrl         string
+		AccessMode         platmodel.AccessMode
+		TunnelRegisterHost string
+	}
+
 	rbacValidation struct {
 		Namespace string
 		Resource  string
@@ -53,16 +62,19 @@ type (
 	LaunchJobOptions struct {
 		Client        kubernetes.Interface
 		Namespace     string
-		JobName       *string
-		Image         *string
+		ContainerName string
+		GenerateName  string
+		Image         string
 		Env           []v1.EnvVar
 		RestartPolicy v1.RestartPolicy
 		BackOffLimit  int32
 	}
 )
 
-func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, namespace string, contextUrl string) error {
+func EnsureClusterRequirements(ctx context.Context, runtimeInstallOptions RuntimeInstallOptions) error {
 	requirementsValidationErrorMessage := "cluster does not meet minimum requirements"
+	namespace := runtimeInstallOptions.Namespace
+	kubeFactory := runtimeInstallOptions.KubeFactory
 	var specificErrorMessages []string
 
 	client, err := kubeFactory.KubernetesClientSet()
@@ -173,14 +185,65 @@ func EnsureClusterRequirements(ctx context.Context, kubeFactory kube.Factory, na
 		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
-	err = runNetworkTest(ctx, kubeFactory, contextUrl)
+	err = runNetworkTest(ctx, kubeFactory, runtimeInstallOptions.ContextUrl)
 	if err != nil {
 		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
 
 	log.G(ctx).Info("Network test finished successfully")
 
+	if runtimeInstallOptions.AccessMode == platmodel.AccessModeTunnel {
+		err = runTCPConnectionTest(ctx, &runtimeInstallOptions)
+		if err != nil {
+			return fmt.Errorf("cluster TCP connection tests failed: %w ", err)
+		}
+
+		log.G(ctx).Info("TCP connection test finished successfully")
+	}
 	return nil
+}
+
+func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *RuntimeInstallOptions) error {
+	const tcpConnectionTestsTimeout = 120 * time.Second
+	envVars := map[string]string{
+		"TUNNEL_REGISTER_HOST": runtimeInstallOptions.TunnelRegisterHost,
+	}
+	env := prepareEnvVars(envVars)
+
+	client, err := runtimeInstallOptions.KubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	job, err := launchJob(ctx, client, LaunchJobOptions{
+		Namespace:     store.Get().DefaultNamespace,
+		ContainerName: store.Get().TCPConnectionTesterName,
+		GenerateName:  store.Get().TCPConnectionTesterGenerateName,
+		Image:         store.Get().NetworkTesterImage,
+		Env:           env,
+		RestartPolicy: v1.RestartPolicyNever,
+		BackOffLimit:  0,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err := deleteJob(ctx, client, job)
+		if err != nil {
+			log.G(ctx).Errorf("fail to delete tester pod: %s", err.Error())
+		}
+	}()
+
+	log.G(ctx).Info("Running TCP connection test...")
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	timeoutChan := time.After(tcpConnectionTestsTimeout)
+	podLastState, err := handleJobPodStates(ctx, client, job, ticker, timeoutChan)
+	if err != nil {
+		return err
+	}
+	return checkPodLastState(ctx, client, podLastState)
 }
 
 func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace string, name string) (*v1.Secret, error) {
@@ -218,9 +281,10 @@ func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace s
 
 func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
 	var attempt int32
-	return f.Wait(ctx, &kube.WaitOptions{
-		Interval: time.Second * 10,
-		Timeout:  time.Minute * 11, // BackOffLimit of 6 is a total of 630s, or 10m30s
+	var jobErr error
+	_ = f.Wait(ctx, &kube.WaitOptions{
+		Interval: time.Second * 5,
+		Timeout:  time.Minute,
 		Resources: []kube.Resource{
 			{
 				Name:      jobName,
@@ -236,28 +300,30 @@ func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
 						return false, err
 					}
 
+					totalRetries := *j.Spec.BackoffLimit + 1
 					if j.Status.Failed > attempt {
 						attempt = j.Status.Failed
-						log.G(ctx).Warnf("Attempt #%d/%d failed:", attempt, *j.Spec.BackoffLimit)
+						log.G(ctx).Warnf("Attempt #%d/%d failed:", attempt, totalRetries)
 						printJobLogs(ctx, cs, j)
 					} else if j.Status.Succeeded == 1 {
 						attempt += 1
-						log.G(ctx).Infof("Attempt #%d/%d succeeded:", attempt, *j.Spec.BackoffLimit)
+						log.G(ctx).Infof("Attempt #%d/%d succeeded:", attempt, totalRetries)
 						printJobLogs(ctx, cs, j)
 					}
 
 					for _, cond := range j.Status.Conditions {
 						if cond.Type == batchv1.JobFailed {
-							err = fmt.Errorf("add-cluster-job failed after %d attempts", j.Status.Failed)
+							jobErr = fmt.Errorf("add-cluster-job failed after %d attempt(s)", j.Status.Failed)
 							break
 						}
 					}
 
-					return j.Status.Succeeded == 1 || j.Status.Failed == *j.Spec.BackoffLimit, err
+					return j.Status.Succeeded == 1 || j.Status.Failed == totalRetries, jobErr
 				},
 			},
 		},
 	})
+	return jobErr
 }
 
 func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) {
@@ -292,8 +358,9 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 
 	job, err := launchJob(ctx, client, LaunchJobOptions{
 		Namespace:     store.Get().DefaultNamespace,
-		JobName:       &store.Get().NetworkTesterName,
-		Image:         &store.Get().NetworkTesterImage,
+		ContainerName: store.Get().NetworkTesterName,
+		GenerateName:  store.Get().NetworkTesterGenerateName,
+		Image:         store.Get().NetworkTesterImage,
 		Env:           env,
 		RestartPolicy: v1.RestartPolicyNever,
 		BackOffLimit:  0,
@@ -312,9 +379,16 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	log.G(ctx).Info("Running network test...")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	var podLastState *v1.Pod
 	timeoutChan := time.After(networkTestsTimeout)
+	podLastState, err := handleJobPodStates(ctx, client, job, ticker, timeoutChan)
+	if err != nil {
+		return err
+	}
+	return checkPodLastState(ctx, client, podLastState)
+}
 
+func handleJobPodStates(ctx context.Context, client kubernetes.Interface, job *batchv1.Job, ticker *time.Ticker, timeoutChan <-chan time.Time) (*v1.Pod, error) {
+	var podLastState *v1.Pod
 Loop:
 	for {
 		select {
@@ -322,7 +396,7 @@ Loop:
 			log.G(ctx).Debug("Waiting for network tester to finish")
 			currentPod, err := getPodByJob(ctx, client, job)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			if currentPod == nil {
@@ -350,11 +424,10 @@ Loop:
 				break Loop
 			}
 		case <-timeoutChan:
-			return fmt.Errorf("network test timeout reached!")
+			return nil, fmt.Errorf("network test timeout reached!")
 		}
 	}
-
-	return checkPodLastState(ctx, client, podLastState)
+	return podLastState, nil
 }
 
 func prepareEnvVars(vars map[string]string) []v1.EnvVar {
@@ -365,7 +438,6 @@ func prepareEnvVars(vars map[string]string) []v1.EnvVar {
 			Value: value,
 		})
 	}
-
 	return env
 }
 
@@ -446,16 +518,16 @@ func testNode(n v1.Node, req validationRequest) []string {
 func launchJob(ctx context.Context, client kubernetes.Interface, opts LaunchJobOptions) (*batchv1.Job, error) {
 	jobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      *opts.JobName,
-			Namespace: opts.Namespace,
+			GenerateName: opts.GenerateName,
+			Namespace:    opts.Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  *opts.JobName,
-							Image: *opts.Image,
+							Name:  opts.ContainerName,
+							Image: opts.Image,
 							Env:   opts.Env,
 						},
 					},

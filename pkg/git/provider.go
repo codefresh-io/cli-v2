@@ -17,53 +17,57 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
+
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
+//go:generate mockgen -destination=./mocks/roundTripper.go -package=mocks net/http RoundTripper
+
 type (
-	TokenType    string
 	ProviderType string
 
 	// Provider represents a git provider
 	Provider interface {
-		Type() ProviderType
-		ApiUrl() string
-		VerifyToken(ctx context.Context, tokenType TokenType, token string) error
+		BaseURL() string
 		SupportsMarketplace() bool
+		Type() ProviderType
+		VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error
+		VerifyUserToken(ctx context.Context, auth apgit.Auth) error
 	}
 )
 
-const (
-	RuntimeToken  TokenType = "runtime token"
-	PersonalToken TokenType = "personal token"
-)
+var providers = map[ProviderType]func(string, *http.Client) (Provider, error){
+	BITBUCKET:        NewBitbucketProvider,
+	BITBUCKET_SERVER: NewBitbucketServerProvider,
+	GITHUB:           NewGithubProvider,
+	GITHUB_ENT:       NewGithubProvider, // for backward compatability
+	GITLAB:           NewGitlabProvider,
+}
 
-var (
-	providers = map[ProviderType]func(string) (Provider, error){
-		BITBUCKET_SERVER: NewBitbucketServerProvider,
-		GITHUB_CLOUD:     NewGithubCloudProvider,
-		GITHUB_ENT:       NewGithubEnterpriseProvider,
-		GITLAB:           NewGitlabProvider,
-	}
-)
-
-func GetProvider(providerType ProviderType, cloneURL string) (Provider, error) {
+func GetProvider(providerType ProviderType, baseURL string) (Provider, error) {
+	client := &http.Client{}
 	if providerType != "" {
 		fn := providers[providerType]
 		if fn == nil {
 			return nil, fmt.Errorf("invalid git provider %s", providerType)
 		}
 
-		return fn(cloneURL)
+		return fn(baseURL, client)
 	}
 
-	if strings.Contains(cloneURL, GITHUB_CLOUD_DOMAIN) {
-		return NewGithubCloudProvider(cloneURL)
+	if strings.Contains(baseURL, GITHUB_CLOUD_DOMAIN) {
+		return NewGithubProvider(baseURL, client)
 	}
 
-	if strings.Contains(cloneURL, GITLAB_CLOUD_DOMAIN) {
-		return NewGitlabProvider(cloneURL)
+	if strings.Contains(baseURL, GITLAB_CLOUD_DOMAIN) {
+		return NewGitlabProvider(baseURL, client)
 	}
 
-	return nil, fmt.Errorf("failed getting provider for clone url %s", cloneURL)
+	if strings.Contains(baseURL, BITBUCKET_CLOUD_DOMAIN) {
+		return NewBitbucketProvider(baseURL, client)
+	}
+
+	return nil, fmt.Errorf("failed getting provider for clone url %s", baseURL)
 }

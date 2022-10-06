@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package commands
 
 import (
@@ -25,7 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	sdk "github.com/codefresh-io/go-sdk/pkg/codefresh"
-	model "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -35,16 +36,25 @@ import (
 type (
 	GitIntegrationAddOptions struct {
 		Name          string
-		Provider      model.GitProviders
-		SharingPolicy model.SharingPolicy
+		Provider      apmodel.GitProviders
+		SharingPolicy apmodel.SharingPolicy
+	}
+
+	GitIntegrationRegistrationOpts struct {
+		Name     string
+		Token    string
+		Username string
 	}
 )
 
-var gitProvidersByName = map[string]model.GitProviders{
-	"bitbucket-server": model.GitProvidersBitbucketServer,
-	"github":           model.GitProvidersGithub,
-	"gitlab":           model.GitProvidersGitlab,
+var gitProvidersByName = map[string]apmodel.GitProviders{
+	"bitbucket":        apmodel.GitProvidersBitbucket,
+	"bitbucket-server": apmodel.GitProvidersBitbucketServer,
+	"github":           apmodel.GitProvidersGithub,
+	"gitlab":           apmodel.GitProvidersGitlab,
 }
+
+var gitProvidersByValue = util.ReverseMap(gitProvidersByName)
 
 func NewIntegrationCommand() *cobra.Command {
 	var (
@@ -95,9 +105,7 @@ func NewGitIntegrationCommand(client *sdk.AppProxyAPI) *cobra.Command {
 }
 
 func NewGitIntegrationListCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var (
-		format string
-	)
+	var format string
 
 	allowedFormats := []string{"list", "yaml", "yml", "json"}
 
@@ -192,7 +200,7 @@ func RunGitIntegrationGetCommand(ctx context.Context, client sdk.AppProxyAPI, na
 
 func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
-		opts              model.AddGitIntegrationArgs
+		opts              apmodel.AddGitIntegrationArgs
 		provider          string
 		apiURL            string
 		accountAdminsOnly bool
@@ -215,16 +223,16 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 				return err
 			}
 
-			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
+			opts.SharingPolicy = apmodel.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
-				opts.SharingPolicy = model.SharingPolicyAccountAdmins
+				opts.SharingPolicy = apmodel.SharingPolicyAccountAdmins
 			}
 
 			return RunGitIntegrationAddCommand(cmd.Context(), *client, &opts)
 		},
 	}
 
-	cmd.Flags().StringVar(&provider, "provider", "github", "One of bitbucket-server|github|gitlab")
+	cmd.Flags().StringVar(&provider, "provider", "github", "One of bitbucket|bitbucket-server|github|gitlab")
 	cmd.Flags().StringVar(&apiURL, "api-url", "", "Git provider API Url")
 	cmd.Flags().BoolVar(&accountAdminsOnly, "account-admins-only", false,
 		"If true, this integration would only be visible to account admins (default: false)")
@@ -234,7 +242,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	return cmd
 }
 
-func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.AddGitIntegrationArgs) error {
+func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, opts *apmodel.AddGitIntegrationArgs) error {
 	intg, err := client.GitIntegrations().Add(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to add git integration: %w", err)
@@ -247,7 +255,7 @@ func RunGitIntegrationAddCommand(ctx context.Context, client sdk.AppProxyAPI, op
 
 func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	var (
-		opts              model.EditGitIntegrationArgs
+		opts              apmodel.EditGitIntegrationArgs
 		apiURL            string
 		accountAdminsOnly bool
 	)
@@ -263,9 +271,9 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 
 			opts.APIURL = &apiURL
 
-			opts.SharingPolicy = model.SharingPolicyAllUsersInAccount
+			opts.SharingPolicy = apmodel.SharingPolicyAllUsersInAccount
 			if accountAdminsOnly {
-				opts.SharingPolicy = model.SharingPolicyAccountAdmins
+				opts.SharingPolicy = apmodel.SharingPolicyAccountAdmins
 			}
 
 			return RunGitIntegrationEditCommand(cmd.Context(), *client, &opts)
@@ -279,7 +287,7 @@ func NewGitIntegrationEditCommand(client *sdk.AppProxyAPI) *cobra.Command {
 	return cmd
 }
 
-func RunGitIntegrationEditCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.EditGitIntegrationArgs) error {
+func RunGitIntegrationEditCommand(ctx context.Context, client sdk.AppProxyAPI, opts *apmodel.EditGitIntegrationArgs) error {
 	intg, err := client.GitIntegrations().Edit(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to edit git integration: %w", err)
@@ -318,34 +326,45 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, client sdk.AppProxyAPI,
 }
 
 func NewGitIntegrationRegisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var (
-		opts model.RegisterToGitIntegrationArgs
-	)
-
+	opts := &GitIntegrationRegistrationOpts{}
 	cmd := &cobra.Command{
 		Use:   "register [NAME]",
 		Short: "Register to a git integrations",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
-				opts.Name = &args[0]
+				opts.Name = args[0]
 			}
 
-			return RunGitIntegrationRegisterCommand(cmd.Context(), *client, &opts)
+			return RunGitIntegrationRegisterCommand(cmd.Context(), *client, opts)
 		},
 	}
 
 	util.Die(viper.BindEnv("token", "GIT_TOKEN"))
-
 	cmd.Flags().StringVar(&opts.Token, "token", "", "Authentication token")
+
+	util.Die(viper.BindEnv("username", "GIT_USER"))
+
+	cmd.Flags().StringVar(&opts.Username, "username", "", "Authentication user name")
 
 	util.Die(cmd.MarkFlagRequired("token"))
 
 	return cmd
 }
 
-func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAPI, opts *model.RegisterToGitIntegrationArgs) error {
-	intg, err := client.GitIntegrations().Register(ctx, opts)
+func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAPI, opts *GitIntegrationRegistrationOpts) error {
+	regOpts := &apmodel.RegisterToGitIntegrationArgs{
+		Token: opts.Token,
+	}
+	if opts.Username != "" {
+		regOpts.Username = &opts.Username
+	}
+
+	if opts.Name != "" {
+		regOpts.Name = &opts.Name
+	}
+
+	intg, err := client.GitIntegrations().Register(ctx, regOpts)
 	if err != nil {
 		return fmt.Errorf("failed to register to git integration: %w", err)
 	}
@@ -356,9 +375,7 @@ func RunGitIntegrationRegisterCommand(ctx context.Context, client sdk.AppProxyAP
 }
 
 func NewGitIntegrationDeregisterCommand(client *sdk.AppProxyAPI) *cobra.Command {
-	var (
-		integration *string
-	)
+	var integration *string
 
 	cmd := &cobra.Command{
 		Use:   "deregister [NAME]",
@@ -439,7 +456,7 @@ func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 	}
 
 	runtimeName := cmd.Flag("runtime").Value.String()
-	runtime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	runtime, err := getRuntime(ctx, runtimeName)
 	if err != nil {
 		return err
 	}
@@ -479,10 +496,10 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	return fmt.Errorf("invalid output format: %s", format)
 }
 
-func parseGitProvider(provider string) (model.GitProviders, error) {
+func parseGitProvider(provider string) (apmodel.GitProviders, error) {
 	p, ok := gitProvidersByName[provider]
 	if !ok {
-		return model.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
+		return apmodel.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
 	}
 	return p, nil
 }

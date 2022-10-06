@@ -1,5 +1,4 @@
-VERSION=v0.0.450
-
+VERSION=v0.0.533
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -130,7 +129,7 @@ test:
 	@./hack/test.sh
 
 .PHONY: codegen
-codegen: $(GOBIN)/mockery
+codegen: $(GOBIN)/mockgen
 	rm -f ./docs/commands/*
 	go generate ./...
 	go run ./hack/license.go --license ./hack/boilerplate.txt --year $(YEAR) .
@@ -166,21 +165,14 @@ tidy:
 check-worktree:
 	@./hack/check_worktree.sh
 
-$(GOBIN)/mockery:
-	@mkdir dist || true
-	@echo installing: mockery
-	@curl -L -o dist/mockery.tar.gz -- https://github.com/vektra/mockery/releases/download/v1.1.1/mockery_1.1.1_$(shell uname -s)_$(shell uname -m).tar.gz
-	@tar zxvf dist/mockery.tar.gz mockery
-	@rm dist/mockery.tar.gz
-	@chmod +x mockery
-	@mkdir -p $(GOBIN)
-	@mv mockery $(GOBIN)/mockery
-	@mockery -version
+$(GOBIN)/mockgen:
+	@go install github.com/golang/mock/mockgen@v1.6.0
+	@mockgen -version
 
 $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.45.2
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.47.3
 
 .PHONY: e2e-local-manifests
 e2e-local-manifests:

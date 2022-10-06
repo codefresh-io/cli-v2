@@ -34,6 +34,8 @@ cli-v2 runtime install [runtime_name] [flags]
       --disable-telemetry                            If true, will disable the analytics reporting for the installation process
       --external-ingress-annotation stringToString   Add annotations to the external ingress (default [])
       --from-repo                                    Installs a runtime from an existing repo. Used for recovery after cluster failure
+      --gateway-name string                          The gateway name
+      --gateway-namespace string                     The namespace of the gateway
   -t, --git-token string                             Your git provider api token [GIT_TOKEN]
   -u, --git-user string                              Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                                         help for install
@@ -45,7 +47,8 @@ cli-v2 runtime install [runtime_name] [flags]
   -n, --namespace string                             If present, the namespace scope for this CLI request
       --namespace-labels stringToString              Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2" (default [])
       --personal-git-token string                    The Personal git token for your user
-      --provider string                              The git provider, one of: azure|bitbucket-server|gitea|github|gitlab
+      --personal-git-user string                     The Personal git user that match the token, required for bitbucket cloud
+      --provider string                              The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
       --provider-api-url string                      Git provider API url
       --repo string                                  Repository URL [GIT_REPO]
       --set-default-resources                        If true, will set default requests and limits on all of the runtime components

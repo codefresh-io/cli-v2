@@ -17,6 +17,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -37,6 +38,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
+
+type RetryOptions struct {
+	Func    func() error
+	Retries int
+	Sleep   time.Duration
+}
 
 const (
 	indentation = "    "
@@ -326,6 +333,57 @@ func StringIndexOf(slice []string, val string) int {
 	return -1
 }
 
-func GenerateIngressEventSourcePath(runtimeName string) string {
-	return fmt.Sprintf("%s/%s/%s", store.Get().WebhooksRootPath, runtimeName, store.Get().GithubExampleEventSourceObjectName)
+func GenerateIngressPathForDemoGitEventSource(runtimeName string) string {
+	return fmt.Sprintf("%s/%s/%s", store.Get().WebhooksRootPath, runtimeName, store.Get().DemoGitEventSourceObjectName)
+}
+
+func StructToMap(obj interface{}) (map[string]interface{}, error) {
+	crd := make(map[string]interface{})
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &crd)
+	if err != nil {
+		return nil, err
+	}
+	return crd, nil
+}
+
+func Retry(ctx context.Context, opts *RetryOptions) error {
+	var err error
+	retries := opts.Retries
+	if retries == 0 {
+		retries = 2
+	}
+
+	for try := 0; try < retries; try++ {
+		err = opts.Func()
+		if err == nil {
+			break
+		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"retry": try,
+			"err":   err.Error(),
+		}).Warn("Function call failed, trying again")
+
+		if opts.Sleep != 0 {
+			time.Sleep(opts.Sleep)
+		} else {
+			time.Sleep(time.Second)
+		}
+	}
+
+	return err
+}
+
+func ReverseMap[K, V comparable](gitProviders map[K]V) map[V]K {
+	reversedMap := map[V]K{}
+	for key, value := range gitProviders {
+		reversedMap[value] = key
+	}
+	return reversedMap
 }

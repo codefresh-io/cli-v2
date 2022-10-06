@@ -15,12 +15,14 @@ cli-v2 cluster add my-runtime --context my-context
 ### Options
 
 ```
-      --context string      The name of the kubeconfig context to use
-      --dry-run             
-  -h, --help                help for add
-      --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
-      --name string         Name of the cluster. If omitted, will use the context name
-  -n, --namespace string    If present, the namespace scope for this CLI request
+      --annotations stringToString   Set metadata annotations (e.g. --annotation key=value) (default [])
+      --context string               The name of the kubeconfig context to use
+      --dry-run                      
+  -h, --help                         help for add
+      --kubeconfig string            Path to the kubeconfig file to use for CLI requests.
+      --labels stringToString        Set metadata labels (e.g. --label key=value) (default [])
+      --name string                  Name of the cluster. If omitted, will use the context name
+  -n, --namespace string             If present, the namespace scope for this CLI request
 ```
 
 ### Options inherited from parent commands

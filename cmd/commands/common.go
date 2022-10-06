@@ -33,6 +33,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/manifoldco/promptui"
@@ -59,6 +60,8 @@ var (
 	COLOR_RESET     = "\033[0m"
 	UNDERLINE_RESET = "\033[24m"
 	BOLD_RESET      = "\033[22m"
+
+	errUserCanceledInsecureInstall = fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 )
 
 func postInitCommands(commands []*cobra.Command) {
@@ -122,13 +125,13 @@ func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *apgit.CloneOp
 	}
 
 	if fromAPI {
-		runtimeData, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+		runtime, err := getRuntime(ctx, runtimeName)
 		if err != nil {
 			return fmt.Errorf("failed getting runtime repo information: %w", err)
 		}
 
-		if runtimeData.Repo != nil {
-			die(cmd.Flags().Set("repo", *runtimeData.Repo))
+		if runtime.Repo != nil {
+			die(cmd.Flags().Set("repo", *runtime.Repo))
 			return nil
 		}
 	}
@@ -258,29 +261,8 @@ func getValueFromUserInput(label, defaultValue string, validate promptui.Validat
 	return prompt.Run()
 }
 
-func getIngressClassFromUserSelect(ingressClassNames []string) (string, error) {
-	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
-	}
-
-	labelStr := fmt.Sprintf("%vSelect ingressClass%v", CYAN, COLOR_RESET)
-
-	prompt := promptui.Select{
-		Label:     labelStr,
-		Items:     ingressClassNames,
-		Templates: templates,
-	}
-
-	_, result, err := prompt.Run()
-	if err != nil {
-		return "", err
-	}
-
-	return result, nil
-}
-
-// ensureGitToken gets the runtime token from the user (if !silent), and verifys it witht he provider (if available)
-func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
+// ensureGitRuntimeToken gets the runtime token from the user (if !silent), and verifys it with he provider (if available)
+func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
 	ctx := cmd.Context()
 	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
@@ -292,11 +274,14 @@ func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *a
 	}
 
 	if gitProvider != nil {
-		err := gitProvider.VerifyToken(ctx, cfgit.RuntimeToken, cloneOpts.Auth.Password)
+		err := gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth)
 		if err != nil {
 			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""
 			return fmt.Errorf(errMessage, err)
+		}
+		if cloneOpts.Auth.Username == "" && gitProvider.Type() == cfgit.BITBUCKET {
+			return fmt.Errorf("must provide a git user using --git-user for bitbucket cloud")
 		}
 	} else if cloneOpts.Auth.Password == "" {
 		return fmt.Errorf("must provide a git token using --git-token")
@@ -305,21 +290,28 @@ func ensureGitToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *a
 	return nil
 }
 
-// ensureGitPAT verifys the user's Personal Access Token (if it is different from the Runtime Token)
-func ensureGitPAT(ctx context.Context, opts *RuntimeInstallOptions) error {
+// ensureGitUserToken verifys the user's Personal Access Token (if it is different from the Runtime Token)
+func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		currentUser, err := cfConfig.NewClient().Users().GetCurrent(ctx)
+		currentUser, err := cfConfig.GetCurrentContext().GetUser(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}
 
 		log.G(ctx).Infof("Personal git token was not provided. Using runtime git token to register user: \"%s\". You may replace your personal git token at any time from the UI in the user settings", currentUser.Name)
+
+		opts.GitIntegrationRegistrationOpts.Username = opts.InsCloneOpts.Auth.Username
+
 		return nil
 	}
 
 	if opts.gitProvider != nil {
-		return opts.gitProvider.VerifyToken(ctx, cfgit.PersonalToken, opts.InsCloneOpts.Auth.Password)
+		auth := apgit.Auth{
+			Password: opts.GitIntegrationRegistrationOpts.Token,
+			Username: opts.GitIntegrationRegistrationOpts.Username,
+		}
+		return opts.gitProvider.VerifyUserToken(ctx, auth)
 	}
 
 	return nil
@@ -365,7 +357,9 @@ func promptSummaryToUser(ctx context.Context, finalParameters map[string]string,
 	labelStr := fmt.Sprintf("%vDo you wish to continue with %v?%v", CYAN, description, COLOR_RESET)
 
 	for key, value := range finalParameters {
-		promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
+		if value != "" {
+			promptStr += fmt.Sprintf("\n%v%v: %v%v", GREEN, key, COLOR_RESET, value)
+		}
 	}
 	log.G(ctx).Printf(promptStr)
 	prompt := promptui.Select{
@@ -473,12 +467,12 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
 	cs := opts.KubeFactory.KubernetesClientSetOrDie()
-	ServicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
+	servicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
-	for _, s := range ServicesList.Items {
+	for _, s := range servicesList.Items {
 		if s.ObjectMeta.Name == opts.IngressController.Name() && s.Spec.Type == "LoadBalancer" {
 			if len(s.Status.LoadBalancer.Ingress) > 0 {
 				ingress := s.Status.LoadBalancer.Ingress[0]
@@ -498,25 +492,15 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	if store.Get().Silent {
+		if foundIngressHost == "" {
+			return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
+		}
 		opts.IngressHost = foundIngressHost
 	} else {
 		opts.IngressHost, err = getIngressHostFromUserInput(foundIngressHost)
-		if err != nil {
-			return err
-		}
-		response, err := http.Get(opts.IngressHost)
-		if err != nil {
-			opts.IngressHost = ""
-			return err
-		}
-		response.Body.Close()
 	}
 
-	if opts.IngressHost == "" {
-		return fmt.Errorf("please provide an ingress host via --ingress-host or installation wizard")
-	}
-
-	return nil
+	return err
 }
 
 func getIngressHostFromUserInput(foundIngressHost string) (string, error) {
@@ -574,7 +558,7 @@ func checkIngressHostWithInsecure(ingress string) bool {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient.Transport = customTransport
-	req, err := http.NewRequest("GET", ingress, nil)
+	req, err := http.NewRequest(http.MethodGet, ingress, nil)
 	if err != nil {
 		return false
 	}
@@ -616,7 +600,7 @@ func askUserIfToProceedWithInsecure(ctx context.Context) error {
 	if result == "Yes" {
 		store.Get().InsecureIngressHost = true
 	} else {
-		return fmt.Errorf("cancelled installation due to invalid ingress host certificate")
+		return errUserCanceledInsecureInstall
 	}
 
 	return nil
@@ -635,7 +619,9 @@ func handleValidationFailsWithRepeat(callback Callback) {
 }
 
 func isValidationError(err error) bool {
-	return err != nil && err != promptui.ErrInterrupt
+	return err != nil &&
+		err != promptui.ErrInterrupt &&
+		err != errUserCanceledInsecureInstall
 }
 
 func getIscRepo(ctx context.Context) (string, error) {
@@ -661,18 +647,18 @@ func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (stri
 }
 
 func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {
-		return false, fmt.Errorf("failed to get runtime from platform. error: %w", err)
+		return false, err
 	}
 
 	return rt.Managed, nil
 }
 
 func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {
-		return fmt.Errorf("failed to get runtime from platform. error: %w", err)
+		return err
 	}
 
 	runtimeClusterServer := rt.Cluster
@@ -693,4 +679,13 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeN
 	}
 
 	return nil
+}
+
+func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, error) {
+	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runtime from platform. error: %w", err)
+	}
+
+	return rt, nil
 }

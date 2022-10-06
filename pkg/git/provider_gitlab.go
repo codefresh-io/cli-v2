@@ -16,15 +16,21 @@ package git
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
 	"net/url"
+	"path"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
 type (
 	gitlab struct {
 		providerType ProviderType
-		apiURL       string
+		apiURL       *url.URL
+		c            *http.Client
 	}
 )
 
@@ -34,32 +40,89 @@ const (
 	GITLAB               ProviderType = "gitlab"
 )
 
-func NewGitlabProvider(cloneURL string) (Provider, error) {
-	u, err := url.Parse(cloneURL)
+func NewGitlabProvider(baseURL string, client *http.Client) (Provider, error) {
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	u.Path = ""
+	u.Path = GITLAB_REST_ENDPOINT
 	return &gitlab{
 		providerType: GITLAB,
-		apiURL:       u.String(),
+		apiURL:       u,
+		c:            client,
 	}, nil
+}
+
+func (g *gitlab) BaseURL() string {
+	urlClone := *g.apiURL
+	urlClone.Path = ""
+	urlClone.RawQuery = ""
+	return urlClone.String()
+}
+
+func (g *gitlab) SupportsMarketplace() bool {
+	return false
 }
 
 func (g *gitlab) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *gitlab) ApiUrl() string {
-	return g.apiURL
+func (g *gitlab) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+	return g.checkApiScope(ctx, auth.Password)
 }
 
-func (g *gitlab) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
-	log.G(ctx).Debug("Skip verifying token for gitlab, to be implemented later")
+func (g *gitlab) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
+	return g.checkReadRepositoryScope(ctx, auth.Password)
+}
+
+// POST to projects without a body.
+// if it returns 400 - the token has "api" scope
+// otherwise - the token does not have the scope
+func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
+	res, err := g.request(ctx, token, http.MethodPost, "projects")
+	if err != nil {
+		return fmt.Errorf("failed checking api scope: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusBadRequest {
+		return errors.New("git-token is invalid or missing required \"api\" scope")
+	}
+
 	return nil
 }
 
-func (g *gitlab) SupportsMarketplace() bool {
-	return false
+// HEAD to projects.
+// if it returns 200 - the token has "repo_read" scope
+// otherwise - the token does not have the scope
+func (g *gitlab) checkReadRepositoryScope(ctx context.Context, token string) error {
+	res, err := g.request(ctx, token, http.MethodHead, "projects")
+	if err != nil {
+		return fmt.Errorf("failed checking read_repository scope: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New("personal-git-token is invalid or missing required \"read_api\" or \"read_repository\" scope")
+	}
+
+	return nil
+}
+
+func (g *gitlab) request(ctx context.Context, token, method, urlPath string) (*http.Response, error) {
+	urlClone := *g.apiURL
+	urlClone.Path = path.Join(urlClone.Path, urlPath)
+	headers := map[string]string{
+		"Authorization": "Bearer " + token,
+		"Accept":        "application/json",
+		"Content-Type":  "application/json",
+	}
+	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return g.c.Do(req)
 }

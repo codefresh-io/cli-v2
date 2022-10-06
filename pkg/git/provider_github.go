@@ -16,81 +16,118 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
 type (
 	github struct {
 		providerType ProviderType
-		apiURL       string
+		apiURL       *url.URL
+		c            *http.Client
 	}
 )
 
 const (
-	GITHUB_CLOUD_DOMAIN               = "github.com"
-	GITHUB_CLOUD_URL                  = "https://api.github.com"
-	GITHUB_REST_ENDPOINT              = "/api/v3"
-	GITHUB_CLOUD         ProviderType = "github"
-	GITHUB_ENT           ProviderType = "github-enterprise"
+	GITHUB_CLOUD_DOMAIN                = "github.com"
+	GITHUB_CLOUD_BASE_URL              = "https://github.com/"
+	GITHUB_CLOUD_API_URL               = "https://api.github.com"
+	GITHUB_REST_ENDPOINT               = "/api/v3"
+	GITHUB                ProviderType = "github"
+	GITHUB_ENT            ProviderType = "github-enterpeise" // for backward compatability
 )
 
-var requiredScopes = map[TokenType][]string{
-	RuntimeToken:  {"repo", "admin:repo_hook"},
-	PersonalToken: {"repo"},
-}
+var (
+	runtime_token_scopes = []string{"repo", "admin:repo_hook"}
+	user_token_scopes    = []string{"repo"}
+)
 
-func NewGithubCloudProvider(_ string) (Provider, error) {
-	return &github{
-		providerType: GITHUB_CLOUD,
-		apiURL:       GITHUB_CLOUD_URL,
-	}, nil
-}
+func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
+	if baseURL == GITHUB_CLOUD_BASE_URL {
+		baseURL = GITHUB_CLOUD_API_URL
+	}
 
-func NewGithubEnterpriseProvider(cloneURL string) (Provider, error) {
-	u, err := url.Parse(cloneURL)
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	u.Path = ""
+	if baseURL != GITHUB_CLOUD_API_URL {
+		u.Path = GITHUB_REST_ENDPOINT
+	}
+
 	return &github{
-		providerType: GITHUB_ENT,
-		apiURL:       u.String(),
+		providerType: GITHUB,
+		apiURL:       u,
+		c:            client,
 	}, nil
+}
+
+func (g *github) BaseURL() string {
+	urlClone := *g.apiURL
+	urlClone.Path = ""
+	urlClone.RawQuery = ""
+	return urlClone.String()
+}
+
+func (g *github) SupportsMarketplace() bool {
+	return true
 }
 
 func (g *github) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *github) ApiUrl() string {
-	return g.apiURL
+func (g *github) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+	err := g.verifyToken(ctx, auth.Password, runtime_token_scopes)
+	if err != nil {
+		return fmt.Errorf("git-token invalid: %w", err)
+	}
+
+	return nil
 }
 
-func (g *github) VerifyToken(ctx context.Context, tokenType TokenType, token string) error {
-	fullURL := g.apiURL + GITHUB_REST_ENDPOINT
-	req, err := http.NewRequestWithContext(ctx, "HEAD", fullURL, nil)
+func (g *github) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
+	err := g.verifyToken(ctx, auth.Password, user_token_scopes)
+	if err != nil {
+		return fmt.Errorf("personal-git-token invalid: %w", err)
+	}
+
+	return nil
+}
+
+func (g *github) verifyToken(ctx context.Context, token string, requiredScopes []string) error {
+	reqHeaders := map[string]string{
+		"Authorization": "token " + token,
+	}
+	req, err := httputil.NewRequest(ctx, http.MethodHead, g.apiURL.String(), reqHeaders, nil)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", "token "+token)
-	resp, err := http.DefaultClient.Do(req)
+	res, err := g.c.Do(req)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer res.Body.Close()
 
-	rawScopes := resp.Header["X-Oauth-Scopes"]
+	rawScopes := res.Header.Get("X-Oauth-Scopes")
+	if rawScopes == "" {
+		return errors.New("missing scopes header on response")
+	}
+
 	var scopes []string
 	if len(rawScopes) > 0 {
-		scopes = strings.Split(rawScopes[0], ", ")
+		scopes = strings.Split(rawScopes, ", ")
 	}
 
-	for _, rs := range requiredScopes[tokenType] {
+	for _, rs := range requiredScopes {
 		var contained bool
 		for _, scope := range scopes {
 			if scope == rs {
@@ -100,13 +137,9 @@ func (g *github) VerifyToken(ctx context.Context, tokenType TokenType, token str
 		}
 
 		if !contained {
-			return fmt.Errorf("the provided %s is missing one or more of the required scopes: %s", tokenType, strings.Join(requiredScopes[tokenType], ", "))
+			return fmt.Errorf("the provided token is missing one or more of the required scopes: %s", strings.Join(requiredScopes, ", "))
 		}
 	}
 
 	return nil
-}
-
-func (g *github) SupportsMarketplace() bool {
-	return true
 }
