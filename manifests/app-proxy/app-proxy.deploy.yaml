@@ -124,6 +124,12 @@ spec:
                   name: cap-app-proxy-cm
                   key: stripPrefix
                   optional: true
+            - name: JIRA_WRITE_BACK
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: jiraWriteBackEnable
+                  optional: true
           image: quay.io/codefresh/cap-app-proxy
           imagePullPolicy: Always
           name: cap-app-proxy
