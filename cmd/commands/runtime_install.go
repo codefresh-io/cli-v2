@@ -1073,7 +1073,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		}
 	}
 
-	if opts.AccessMode == platmodel.AccessModeIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return configureArgoWorkflows(ctx, opts, rt)
