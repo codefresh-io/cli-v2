@@ -1071,9 +1071,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		}); err != nil {
 			return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
 		}
-	}
 
-	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return configureArgoWorkflows(ctx, opts, rt)

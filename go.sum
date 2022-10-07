@@ -310,6 +310,8 @@ github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f/go.mod h1:i/u9
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/codefresh-io/go-sdk v0.49.0 h1:TO4S9qXUIabILuzTZ32sv1YROpRmq9sYVGz5uyOwHDw=
 github.com/codefresh-io/go-sdk v0.49.0/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
+github.com/codefresh-io/go-sdk v0.50.0 h1:SHIlxewFABxJS8M81Ar/E6YQFoEMGAKa8EIr0VLi1vk=
+github.com/codefresh-io/go-sdk v0.50.0/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
 github.com/codefresh-io/go-sdk v1.0.1-agent.0.20221004124732-603e9ec620bf h1:dzw0yfEvxQZugLHe7qAwYdMWAXwQLpJTTVEOP4LYmgM=
 github.com/codefresh-io/go-sdk v1.0.1-agent.0.20221004124732-603e9ec620bf/go.mod h1:CcoVmTFWHGkbrSW8LyOGB/vJe5Vzr3iC/pNE2QIBTyg=
 github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0/go.mod h1:4Zcjuz89kmFXt9morQgcfYZAYZ5n8WHjt81YYWIwtTM=

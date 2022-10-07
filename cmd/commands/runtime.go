@@ -934,7 +934,7 @@ func NewRuntimeLogsCommand() *cobra.Command {
 }
 
 func migrateInternalRouter(ctx context.Context, opts *RuntimeUpgradeOptions, newRt *runtime.Runtime) error {
-	dbRuntime, err := cfConfig.NewClient().V2().Runtime().Get(ctx, opts.RuntimeName)
+	dbRuntime, err := getRuntime(ctx, opts.RuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to get runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
