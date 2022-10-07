@@ -24,6 +24,7 @@ spec:
       syncWave: 9
     - name: internal-router
       type: kustomize
+      # todo: change to real version
       url: github.com/codefresh-io/cli-v2/manifests/internal-router?ref=CR-14554-ir
       syncWave: 10
     - name: sealed-secrets
@@ -31,5 +32,6 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
     - name: codefresh-tunnel-client
       type: helm
-      url: github.com/yaroslav-codefresh/codefresh-tunnel-charts/codefresh-tunnel-client?ref=CR-14554-ir
+      # todo: change to real version
+      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=CR-14554-ir
       feature: ingressless

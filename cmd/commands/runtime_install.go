@@ -1075,7 +1075,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// this will add `/workflows` suffix to the argo-server deployment
 	// we need this both in ingress and tunnel mode
-	if !opts.SkipIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) || rt.Spec.AccessMode == platmodel.AccessModeTunnel {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return configureArgoWorkflows(ctx, opts, rt)
