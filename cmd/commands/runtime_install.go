@@ -1071,7 +1071,11 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		}); err != nil {
 			return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
 		}
+	}
 
+	// this will add `/workflows` suffix to the argo-server deployment
+	// we need this both in ingress and tunnel mode
+	if !opts.SkipIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return configureArgoWorkflows(ctx, opts, rt)
@@ -1476,7 +1480,7 @@ func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt
 
 	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
 
-	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
+	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "route-patch.json"), workflowsRoutePatch, 0666); err != nil {
 		return err
 	}
 
@@ -1496,7 +1500,7 @@ func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt
 				Name: store.Get().ArgoWfServiceName,
 			},
 		},
-		Path: "ingress-patch.json",
+		Path: "route-patch.json",
 	})
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
