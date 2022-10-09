@@ -65,6 +65,7 @@ type (
 		Exclude             string
 		Include             string
 		HostName            string
+		SkipIngress         bool
 		IngressHost         string
 		IngressClass        string
 		IngressController   routingutil.RoutingController
@@ -104,6 +105,7 @@ type (
 		gsFs              fs.FS
 		hostName          string
 		ingressHost       string
+		skipIngress       bool
 		ingressClass      string
 		ingressController routingutil.RoutingController
 		accessMode        platmodel.AccessMode
@@ -611,6 +613,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 				gitProvider:       opts.GitProvider,
 				gsFs:              gsFs,
 				hostName:          opts.HostName,
+				skipIngress:       opts.SkipIngress,
 				ingressHost:       opts.IngressHost,
 				ingressClass:      opts.IngressClass,
 				ingressController: opts.IngressController,
@@ -752,7 +755,7 @@ func createDemoCalendarTrigger() sensorsv1alpha1.Trigger {
 }
 
 func createDemoGitPipeline(opts *gitSourceGitDemoPipelineOptions) error {
-	if opts.accessMode == platmodel.AccessModeIngress {
+	if !opts.skipIngress && opts.accessMode == platmodel.AccessModeIngress {
 		// Create an ingress that will manage external access to the git eventsource service
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       opts.runtimeName,
