@@ -27,5 +27,6 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
     - name: codefresh-tunnel-client
       type: helm
-      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=0.1.3
+      # here
+      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=2419e487d775a285321ec469f4247ca75210bca2
       feature: ingressless
