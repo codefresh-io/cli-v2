@@ -43,6 +43,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --ingress-host string                          The ingress host
       --internal-ingress-annotation stringToString   Add annotations to the internal ingress (default [])
       --internal-ingress-host string                 The internal ingress host (by default the external ingress will be used for both internal and external traffic)
+      --ips-allow-list string                        lists the rules to configure which IP addresses (IPv4/IPv6) and subnet masks can access your client (e.g "192.168.0.0/16, FE80:CD00:0000:0CDE:1257::/64")
       --kubeconfig string                            Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string                             If present, the namespace scope for this CLI request
       --namespace-labels stringToString              Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2" (default [])
