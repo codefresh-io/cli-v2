@@ -257,7 +257,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
-	cmd.Flags().StringVar(&installationOpts.IpsAllowList, "ips-allow-list", "", "lists the rules to configure which IP addresses and subnet masks can access your client (e.g \"192.168.0.0/16, 255.255.0.0\")")
+	cmd.Flags().StringVar(&installationOpts.IpsAllowList, "ips-allow-list", "", "lists the rules to configure which IP addresses and subnet masks can access your client (e.g \"192.168.0.0/16, FE80:CD00:0000:0CDE:1257::/64\")- IPv4/IPv6 support")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
