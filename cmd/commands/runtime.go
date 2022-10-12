@@ -892,12 +892,11 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
 
-	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.533"))
+	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.539"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
 	isTunnel := curRt.Spec.AccessMode == platmodel.AccessModeTunnel
 	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
 
-	// todo: check what to do if we used `skipIngress` flag on install
 	if needsInternalRouter && (isIngress || isTunnel) && isNotAlb {
 		log.G(ctx).Info("Migrating to Internal Router ")
 

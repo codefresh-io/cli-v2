@@ -24,8 +24,7 @@ spec:
       syncWave: 9
     - name: internal-router
       type: kustomize
-      # todo: change to real version
-      url: github.com/codefresh-io/cli-v2/manifests/internal-router?ref=CR-14554-ir
+      url: github.com/codefresh-io/cli-v2/manifests/internal-router
       syncWave: 10
     - name: sealed-secrets
       type: kustomize
