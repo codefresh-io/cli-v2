@@ -5,7 +5,7 @@ metadata:
   namespace: "{{ namespace }}"
 spec:
   defVersion: 2.0.0
-  version: 0.0.536
+  version: 0.0.537
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
     - name: events
@@ -27,5 +27,5 @@ spec:
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
     - name: codefresh-tunnel-client
       type: helm
-      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=0.1.3
+      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=0.1.7
       feature: ingressless

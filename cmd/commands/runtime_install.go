@@ -109,6 +109,7 @@ type (
 		TunnelRegisterHost             string
 		TunnelDomain                   string
 		TunnelSubdomain                string
+		IpsAllowList                   string
 		SkipIngress                    bool
 		BypassIngressClassCheck        bool
 
@@ -126,6 +127,7 @@ type (
 
 	tunnel struct {
 		SubdomainPrefix string `json:"subdomainPrefix"`
+		IpsAllowList    string `json:"ipsAllowList"`
 	}
 
 	ctcValues struct {
@@ -255,6 +257,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
+	cmd.Flags().StringVar(&installationOpts.IpsAllowList, "ips-allow-list", "", "lists the rules to configure which IP addresses (IPv4/IPv6) and subnet masks can access your client (e.g \"192.168.0.0/16, FE80:CD00:0000:0CDE:1257::/64\")")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -274,6 +277,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	util.Die(cmd.Flags().MarkHidden("access-mode"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-register-host"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
+	util.Die(cmd.Flags().MarkHidden("ips-allow-list"))
 
 	return cmd
 }
@@ -2034,6 +2038,7 @@ func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 			},
 			Tunnel: tunnel{
 				SubdomainPrefix: opts.TunnelSubdomain,
+				IpsAllowList:    opts.IpsAllowList,
 			},
 		}
 		data, err := yaml.Marshal(values)
