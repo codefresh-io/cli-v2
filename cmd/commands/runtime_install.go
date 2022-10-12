@@ -202,7 +202,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
 			}
 
-			// todo: configure tunnel to access internal router
 			if installationOpts.AccessMode == platmodel.AccessModeTunnel {
 				installationOpts.featuresToInstall = append(installationOpts.featuresToInstall, runtime.InstallFeatureIngressless)
 				accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
