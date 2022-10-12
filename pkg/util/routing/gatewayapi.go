@@ -49,7 +49,7 @@ const GatewayControllerContour gatewayControllerType = "projectcontour.io/projec
 
 var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerContour}
 
-//nolint:unused
+//nolint:all
 func createHTTPRoute(opts *CreateRouteOpts) *httproute.HTTPRoute {
 	name := httproute.ObjectName(opts.GatewayName)
 	namespace := httproute.Namespace(opts.GatewayNamespace)
