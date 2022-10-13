@@ -1138,7 +1138,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 	}
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, nil)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
