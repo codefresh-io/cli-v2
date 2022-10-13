@@ -117,9 +117,9 @@ type (
 		kubeContext       string
 		kubeconfig        string
 		gitProvider       cfgit.Provider
-		branch            string
 		useGatewayAPI     bool
 		featuresToInstall []runtime.InstallFeature
+		runtimeDef        string
 	}
 
 	tunnelServer struct {
@@ -255,7 +255,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
 	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket|bitbucket-server|gitlab)")
-	cmd.Flags().StringVar(&installationOpts.branch, "branch", "", "Install runtime from a specific branch (dev-time only)")
+	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")

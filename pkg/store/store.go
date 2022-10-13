@@ -25,15 +25,16 @@ import (
 var s Store
 
 var (
-	binaryName               = "cli-v2"
+	binaryName               = "cf"
 	version                  = "v99.99.99"
 	buildDate                = ""
 	gitCommit                = ""
-	segmentWriteKey          = ""
+	SegmentWriteKey          = ""
 	maxDefVersion            = "2.0.0"
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+	DevMode                  = true
 )
 
 type Version struct {
@@ -128,7 +129,6 @@ type Store struct {
 	RolloutReporterName               string
 	RolloutResourceName               string
 	RolloutReporterServiceAccount     string
-	SegmentWriteKey                   string
 	DefaultNamespace                  string
 	NetworkTesterName                 string
 	NetworkTesterGenerateName         string
@@ -230,7 +230,6 @@ func init() {
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
-	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	s.DefaultNamespace = "default"

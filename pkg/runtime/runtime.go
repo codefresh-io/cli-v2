@@ -73,9 +73,6 @@ type (
 		IngressController   string               `json:"ingressController,omitempty"`
 		AccessMode          platmodel.AccessMode `json:"accessMode"`
 		Repo                string               `json:"repo"`
-
-		ref     string
-		devMode bool
 	}
 
 	CommonConfig struct {
@@ -106,20 +103,19 @@ const (
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func Download(version *semver.Version, name string, featuresToInstall []InstallFeature, branch string) (*Runtime, error) {
+func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
 	)
 
-	devMode := false
-	if strings.HasPrefix(store.RuntimeDefURL, "http") {
-		urlString := store.RuntimeDefURL
-		if version != nil {
-			urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
-		}
+	if strings.HasPrefix(runtimeDef, "http") {
+		// urlString := store.RuntimeDefURL
+		// if version != nil {
+		// 	urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
+		// }
 
-		res, err := http.Get(urlString)
+		res, err := http.Get(runtimeDef)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 		}
@@ -130,12 +126,10 @@ func Download(version *semver.Version, name string, featuresToInstall []InstallF
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
 	} else {
-		body, err = os.ReadFile(store.RuntimeDefURL)
+		body, err = os.ReadFile(runtimeDef)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read runtime definition data: %w", err)
 		}
-
-		devMode = true
 	}
 
 	runtime := &Runtime{}
@@ -146,15 +140,14 @@ func Download(version *semver.Version, name string, featuresToInstall []InstallF
 
 	runtime.Name = name
 	runtime.Namespace = name
-	runtime.Spec.devMode = devMode
 
-	if runtime.Spec.devMode {
-		runtime.Spec.Version = semver.MustParse("v99.99.99")
-	}
+	if store.DevMode {
+		devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
+		if err != nil {
+			return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
+		}
 
-	runtime.Spec.ref = "v" + runtime.Spec.Version.String()
-	if branch != "" {
-		runtime.Spec.ref = branch
+		runtime.Spec.Version = &devVersion
 	}
 
 	filteredComponets := make([]AppDef, 0)
@@ -321,7 +314,7 @@ func (r *RuntimeSpec) FullSpecifier() string {
 		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 	}
 
-	return buildFullURL(url, r.ref, r.devMode)
+	return buildFullURL(url, r.Version.String())
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
@@ -329,7 +322,7 @@ func (r *RuntimeSpec) fullURL(url string) string {
 		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 	}
 
-	return buildFullURL(url, r.ref, r.devMode)
+	return buildFullURL(url, r.Version.String())
 }
 
 // A component with no "Feature" value (or "") will always be installed
@@ -464,15 +457,15 @@ func updateKustomization(fs apfs.FS, directory, fromURL, toURL string) error {
 	return kustutil.WriteKustomization(fs, kust, directory)
 }
 
-func buildFullURL(urlString, ref string, devMode bool) string {
-	if devMode && ref == "v99.99.99" {
+func buildFullURL(urlString, ref string) string {
+	if store.DevMode {
 		return urlString
 	}
 
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", ref)
+		v.Add("ref", "v" + ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
