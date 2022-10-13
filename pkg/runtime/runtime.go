@@ -462,6 +462,10 @@ func buildFullURL(urlString, ref string) string {
 		return urlString
 	}
 
+	if urlString != store.Get().RuntimeDefURL {
+		return urlString
+	}
+
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
