@@ -899,10 +899,9 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.542"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
-	isTunnel := curRt.Spec.AccessMode == platmodel.AccessModeTunnel
 	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
 
-	if needsInternalRouter && (isIngress || isTunnel) && isNotAlb {
+	if needsInternalRouter && isIngress && isNotAlb {
 		log.G(ctx).Info("Migrating to Internal Router ")
 
 		err = migrateInternalRouter(ctx, opts, newRt)
