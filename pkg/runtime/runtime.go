@@ -74,6 +74,7 @@ type (
 		AccessMode          platmodel.AccessMode `json:"accessMode"`
 		Repo                string               `json:"repo"`
 
+		ref     string
 		devMode bool
 	}
 
@@ -105,7 +106,7 @@ const (
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func Download(version *semver.Version, name string, featuresToInstall []InstallFeature) (*Runtime, error) {
+func Download(version *semver.Version, name string, featuresToInstall []InstallFeature, branch string) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
@@ -151,6 +152,11 @@ func Download(version *semver.Version, name string, featuresToInstall []InstallF
 		runtime.Spec.Version = semver.MustParse("v99.99.99")
 	}
 
+	runtime.Spec.ref = "v" + runtime.Spec.Version.String()
+	if branch != "" {
+		runtime.Spec.ref = branch
+	}
+
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
 		component := runtime.Spec.Components[i]
@@ -158,7 +164,7 @@ func Download(version *semver.Version, name string, featuresToInstall []InstallF
 			continue
 		}
 
-		if runtime.Spec.Components[i].Type == "kustomize" {
+		if component.Type == "kustomize" {
 			url := component.URL
 			if store.Get().SetDefaultResources {
 				url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
@@ -314,17 +320,23 @@ func (r *RuntimeSpec) FullSpecifier() string {
 	if store.Get().SetDefaultResources {
 		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
 	}
-	return buildFullURL(url, r.Version, r.devMode)
+
+	return buildFullURL(url, r.ref, r.devMode)
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
-	return buildFullURL(url, r.Version, r.devMode)
+	if store.Get().SetDefaultResources {
+		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
+	}
+
+	return buildFullURL(url, r.ref, r.devMode)
 }
 
 // A component with no "Feature" value (or "") will always be installed
 // when installing a runtime with an empty featuresToInstall (nil or empty slice) - only install base components
 // currently we only support ingressless feature, which is being added if the user adds `--accessMode tunnel`
-//           this will install the codefresh-tunnel-client component on top of the base installation
+//
+//	this will install the codefresh-tunnel-client component on top of the base installation
 func shouldInstallFeature(featuresToInstall []InstallFeature, featureName InstallFeature) bool {
 	if featureName == "" {
 		return true
@@ -452,15 +464,15 @@ func updateKustomization(fs apfs.FS, directory, fromURL, toURL string) error {
 	return kustutil.WriteKustomization(fs, kust, directory)
 }
 
-func buildFullURL(urlString string, version *semver.Version, devMode bool) string {
-	if devMode || version == nil {
+func buildFullURL(urlString, ref string, devMode bool) string {
+	if devMode && ref == "" {
 		return urlString
 	}
 
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", "v"+version.String())
+		v.Add("ref", ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
