@@ -29,11 +29,12 @@ var (
 	version                  = "v99.99.99"
 	buildDate                = ""
 	gitCommit                = ""
-	segmentWriteKey          = ""
+	SegmentWriteKey          = ""
 	maxDefVersion            = "2.0.0"
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+	devMode                  = "true"
 )
 
 type Version struct {
@@ -128,7 +129,6 @@ type Store struct {
 	RolloutReporterName               string
 	RolloutResourceName               string
 	RolloutReporterServiceAccount     string
-	SegmentWriteKey                   string
 	DefaultNamespace                  string
 	NetworkTesterName                 string
 	NetworkTesterGenerateName         string
@@ -147,6 +147,7 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	IngressHost                       string
 	IscRuntimesDir                    string
+	DevMode                           bool
 }
 
 // Get returns the global store
@@ -230,7 +231,6 @@ func init() {
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
-	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	s.DefaultNamespace = "default"
@@ -248,6 +248,7 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
+	s.DevMode = devMode == "true"
 
 	initVersion()
 }
