@@ -152,7 +152,7 @@ func G() AnalyticsReporter {
 }
 
 func Init(user *codefresh.User, flow FlowType) {
-	writeKey := store.Get().SegmentWriteKey
+	writeKey := store.SegmentWriteKey
 	if writeKey == "" {
 		log.G().Debug("No segment write key was provided. Using the noop reporter.")
 		return

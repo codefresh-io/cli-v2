@@ -75,6 +75,7 @@ type (
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
+		runtimeDef                string
 
 		featuresToInstall []runtime.InstallFeature
 	}
@@ -820,7 +821,11 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
+	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
+
+	util.Die(cmd.Flags().MarkHidden("runtime-def"))
+	cmd.MarkFlagsMutuallyExclusive("version", "runtime-def")
 
 	return cmd
 }
@@ -830,7 +835,8 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	log.G(ctx).Info("Downloading runtime definition")
 
-	newRt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.Version.String())
+	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)

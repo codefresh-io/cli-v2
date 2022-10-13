@@ -38,12 +38,13 @@ import (
 )
 
 type (
-	RuntimeInstallOptions struct {
+	ClusterRequirementsOptions struct {
 		KubeFactory        kube.Factory
 		Namespace          string
 		ContextUrl         string
 		AccessMode         platmodel.AccessMode
 		TunnelRegisterHost string
+		IsCustomInstall    bool
 	}
 
 	rbacValidation struct {
@@ -71,10 +72,10 @@ type (
 	}
 )
 
-func EnsureClusterRequirements(ctx context.Context, runtimeInstallOptions RuntimeInstallOptions) error {
+func EnsureClusterRequirements(ctx context.Context, opts ClusterRequirementsOptions) error {
 	requirementsValidationErrorMessage := "cluster does not meet minimum requirements"
-	namespace := runtimeInstallOptions.Namespace
-	kubeFactory := runtimeInstallOptions.KubeFactory
+	namespace := opts.Namespace
+	kubeFactory := opts.KubeFactory
 	var specificErrorMessages []string
 
 	client, err := kubeFactory.KubernetesClientSet()
@@ -185,25 +186,30 @@ func EnsureClusterRequirements(ctx context.Context, runtimeInstallOptions Runtim
 		return fmt.Errorf("%s: %v", requirementsValidationErrorMessage, specificErrorMessages)
 	}
 
-	err = runNetworkTest(ctx, kubeFactory, runtimeInstallOptions.ContextUrl)
+	if opts.IsCustomInstall {
+		return nil
+	}
+
+	err = runNetworkTest(ctx, kubeFactory, opts.ContextUrl)
 	if err != nil {
 		return fmt.Errorf("cluster network tests failed: %w ", err)
 	}
 
 	log.G(ctx).Info("Network test finished successfully")
 
-	if runtimeInstallOptions.AccessMode == platmodel.AccessModeTunnel {
-		err = runTCPConnectionTest(ctx, &runtimeInstallOptions)
+	if opts.AccessMode == platmodel.AccessModeTunnel {
+		err = runTCPConnectionTest(ctx, &opts)
 		if err != nil {
 			return fmt.Errorf("cluster TCP connection tests failed: %w ", err)
 		}
 
 		log.G(ctx).Info("TCP connection test finished successfully")
 	}
+
 	return nil
 }
 
-func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *RuntimeInstallOptions) error {
+func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *ClusterRequirementsOptions) error {
 	const tcpConnectionTestsTimeout = 120 * time.Second
 	envVars := map[string]string{
 		"TUNNEL_REGISTER_HOST": runtimeInstallOptions.TunnelRegisterHost,
