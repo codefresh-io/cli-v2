@@ -71,13 +71,13 @@ type (
 
 	RuntimeUpgradeOptions struct {
 		RuntimeName               string
-		Version                   *semver.Version
 		CloneOpts                 *apgit.CloneOptions
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
 		runtimeDef                string
 
+		versionStr        string
 		featuresToInstall []runtime.InstallFeature
 	}
 
@@ -789,6 +789,11 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				finalParameters["Version"] = versionStr
 			}
 
+			err = validateVersionIfExists(opts.versionStr)
+			if err != nil {
+				return err
+			}
+
 			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
 			if err != nil {
 				return err
@@ -801,13 +806,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			var err error
 			ctx := cmd.Context()
 
-			if versionStr != "" {
-				opts.Version, err = semver.NewVersion(versionStr)
-				if err != nil {
-					return err
-				}
-			}
-
 			opts.CommonConfig = &runtime.CommonConfig{
 				CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 			}
@@ -818,7 +816,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().StringVar(&opts.versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
 	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
@@ -836,7 +834,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	log.G(ctx).Info("Downloading runtime definition")
 
-	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.Version.String())
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
 	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
