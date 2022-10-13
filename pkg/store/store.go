@@ -25,7 +25,7 @@ import (
 var s Store
 
 var (
-	binaryName               = "cf"
+	binaryName               = "cli-v2"
 	version                  = "v99.99.99"
 	buildDate                = ""
 	gitCommit                = ""
