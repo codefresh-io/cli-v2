@@ -465,7 +465,7 @@ func updateKustomization(fs apfs.FS, directory, fromURL, toURL string) error {
 }
 
 func buildFullURL(urlString, ref string, devMode bool) string {
-	if devMode && ref == "" {
+	if devMode && ref == "v99.99.99" {
 		return urlString
 	}
 
