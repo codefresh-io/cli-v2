@@ -93,7 +93,6 @@ type (
 		DisableRollback                bool
 		DisableTelemetry               bool
 		FromRepo                       bool
-		Version                        *semver.Version
 		GsCloneOpts                    *apgit.CloneOptions
 		InsCloneOpts                   *apgit.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
@@ -276,11 +275,13 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
 	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
-	util.Die(cmd.Flags().MarkHidden("branch"))
 	util.Die(cmd.Flags().MarkHidden("access-mode"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-register-host"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
 	util.Die(cmd.Flags().MarkHidden("ips-allow-list"))
+	util.Die(cmd.Flags().MarkHidden("runtime-def"))
+	cmd.MarkFlagsMutuallyExclusive("runtime-def", "version")
+	cmd.MarkFlagsMutuallyExclusive("runtime-def", "set-default-resources")
 
 	return cmd
 }
@@ -291,12 +292,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.Version, err = getVersionIfExists(opts.versionStr)
+	err = validateVersionIfExists(opts.versionStr)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
-	if err != nil {
-		return err
-	}
-
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
 			opts.RuntimeName, err = getRuntimeNameFromUserInput()
@@ -1099,7 +1096,8 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, err
 	}
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil, opts.branch)
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, nil)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
@@ -1136,12 +1134,13 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 	}
 
 	if !opts.SkipClusterChecks {
-		err = kubeutil.EnsureClusterRequirements(ctx, kubeutil.RuntimeInstallOptions{
+		err = kubeutil.EnsureClusterRequirements(ctx, kubeutil.ClusterRequirementsOptions{
 			KubeFactory:        opts.KubeFactory,
 			Namespace:          opts.RuntimeName,
 			ContextUrl:         cfConfig.GetCurrentContext().URL,
 			AccessMode:         opts.AccessMode,
 			TunnelRegisterHost: opts.TunnelRegisterHost,
+			IsCustomInstall:    opts.IsCustomInstall(),
 		})
 	}
 
@@ -2003,13 +2002,14 @@ func printPreviousVsNewConfigsToUser(previousConfigurations map[string]string, n
 	fmt.Printf("%vIngress host:%v       %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressHost"], GREEN, newConfigurations["IngressHost"], COLOR_RESET)
 }
 
-func getVersionIfExists(versionStr string) (*semver.Version, error) {
+func validateVersionIfExists(versionStr string) error {
+	var err error
 	if versionStr != "" {
 		log.G().Infof("vesionStr: %s", versionStr)
-		return semver.NewVersion(versionStr)
+		_, err = semver.NewVersion(versionStr)
 	}
 
-	return nil, nil
+	return err
 }
 
 func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
@@ -2045,4 +2045,29 @@ func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 
 func (opts *RuntimeInstallOptions) shouldInstallIngress() bool {
 	return !opts.SkipIngress && opts.AccessMode == platmodel.AccessModeIngress
+}
+
+func (opts *RuntimeInstallOptions) IsCustomInstall() bool {
+	return opts.runtimeDef != store.RuntimeDefURL
+}
+
+func getRuntimeDef(runtimeDef, versionStr string) string {
+	if !strings.HasPrefix(runtimeDef, "http") {
+		// runtimeDef is some local file
+		return runtimeDef
+	}
+
+	if versionStr == "" {
+		// no specific version string
+		return runtimeDef
+	}
+
+	version, err := semver.NewVersion(versionStr)
+	if err != nil {
+		// should not arrive here, since we check for validateVersionIfExists earlier
+		return runtimeDef
+	}
+
+	// specific version means the runtimeDef is the default value in cli-v2 repo
+	return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
 }

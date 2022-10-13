@@ -141,7 +141,7 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	runtime.Name = name
 	runtime.Namespace = name
 
-	if store.DevMode {
+	if store.Get().DevMode {
 		devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
 		if err != nil {
 			return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
@@ -458,7 +458,7 @@ func updateKustomization(fs apfs.FS, directory, fromURL, toURL string) error {
 }
 
 func buildFullURL(urlString, ref string) string {
-	if store.DevMode {
+	if store.Get().DevMode {
 		return urlString
 	}
 

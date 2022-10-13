@@ -34,7 +34,7 @@ var (
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
-	DevMode                  = true
+	devMode                  = "true"
 )
 
 type Version struct {
@@ -147,6 +147,7 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	IngressHost                       string
 	IscRuntimesDir                    string
+	DevMode                           bool
 }
 
 // Get returns the global store
@@ -247,6 +248,7 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
+	s.DevMode = devMode == "true"
 
 	initVersion()
 }
