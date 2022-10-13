@@ -17,5 +17,5 @@ go build -ldflags=" \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.AddClusterDefURL=${ADD_CLUSTER_DEF_URL}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.FallbackAddClusterDefURL=${FALLBACK_ADD_CLUSTER_DEF_URL}' \
     -X 'github.com/codefresh-io/cli-v2/pkg/store.SegmentWriteKey=${SEGMENT_WRITE_KEY}' \
-    -X 'github.com/codefresh-io/cli-v2/pkg/store.DevMode=${DEV_MODE}'" \
+    -X 'github.com/codefresh-io/cli-v2/pkg/store.devMode=${DEV_MODE}'" \
     -v -o ${OUT_FILE} ${MAIN}
