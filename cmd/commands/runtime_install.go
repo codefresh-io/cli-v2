@@ -20,10 +20,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"io"
+	appsv1 "k8s.io/api/apps/v1"
 	"net"
 	"net/url"
 	"os"
+	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 	"strconv"
 	"strings"
 	"sync"
@@ -59,19 +62,16 @@ import (
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
-	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
-	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -119,6 +119,22 @@ type (
 		useGatewayAPI     bool
 		featuresToInstall []runtime.InstallFeature
 		runtimeDef        string
+	}
+
+	CreateIngressOptions struct {
+		HostName                  string
+		InternalHostName          string
+		IngressHost               string
+		IngressClass              string
+		InternalIngressHost       string
+		IngressController         routingutil.RoutingController
+		GatewayName               string
+		GatewayNamespace          string
+		InsCloneOpts              *apgit.CloneOptions
+		InternalIngressAnnotation map[string]string
+		ExternalIngressAnnotation map[string]string
+
+		useGatewayAPI bool
 	}
 
 	tunnelServer struct {
@@ -1019,10 +1035,35 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
-				return createWorkflowsIngress(ctx, opts, rt)
+				return CreateInternalRouterIngress(ctx, &CreateIngressOptions{
+					HostName:                  opts.HostName,
+					InternalHostName:          opts.InternalHostName,
+					IngressHost:               opts.IngressHost,
+					IngressClass:              opts.IngressClass,
+					InternalIngressHost:       opts.InternalIngressHost,
+					IngressController:         opts.IngressController,
+					GatewayName:               opts.GatewayName,
+					GatewayNamespace:          opts.GatewayNamespace,
+					InsCloneOpts:              opts.InsCloneOpts,
+					InternalIngressAnnotation: opts.InternalIngressAnnotation,
+					ExternalIngressAnnotation: opts.ExternalIngressAnnotation,
+					useGatewayAPI:             opts.useGatewayAPI,
+				}, rt)
 			},
 		}); err != nil {
-			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
+			return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
+		}
+	}
+
+	// this will add `/workflows` suffix to the argo-server deployment
+	// we need this both in ingress and tunnel mode
+	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) || rt.Spec.AccessMode == platmodel.AccessModeTunnel {
+		if err = util.Retry(ctx, &util.RetryOptions{
+			Func: func() error {
+				return configureArgoWorkflows(ctx, opts, rt)
+			},
+		}); err != nil {
+			return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
 		}
 	}
 
@@ -1031,7 +1072,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			return configureAppProxy(ctx, opts, rt)
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
+		return fmt.Errorf("failed to patch App-Proxy configuration: %w", err)
 	}
 
 	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts); err != nil {
@@ -1097,7 +1138,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 	}
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, nil)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
@@ -1356,13 +1397,14 @@ func persistRuntime(ctx context.Context, cloneOpts *apgit.CloneOptions, rt *runt
 	return apu.PushWithMessage(ctx, r, "Persisted runtime data")
 }
 
-func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions, rt *runtime.Runtime) error {
 	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
-	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
+	internalIngressEnabled := opts.InternalHostName != ""
+	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().InternalRouterIngressFilePath, apstore.Default.OverlaysDir, rt.Name)
 
 	routeOpts := routingutil.CreateRouteOpts{
 		RuntimeName:       rt.Name,
@@ -1370,17 +1412,68 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		IngressClass:      opts.IngressClass,
 		Hostname:          opts.HostName,
 		IngressController: opts.IngressController,
+		Annotations:       opts.ExternalIngressAnnotation,
 		GatewayName:       opts.GatewayName,
 		GatewayNamespace:  opts.GatewayNamespace,
 	}
-	routeName, route := routingutil.CreateWorkflowsRoute(&routeOpts, opts.useGatewayAPI)
+	routeName, route := routingutil.CreateInternalRouterRoute(&routeOpts, opts.useGatewayAPI, !internalIngressEnabled)
 	routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
 	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
-		return fmt.Errorf("failed to write yaml of workflows route. Error: %w", err)
+		return fmt.Errorf("failed to write yaml of webhooks routes. Error: %w", err)
 	}
 
-	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
+	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
+	if err != nil {
+		return err
+	}
+
+	if util.StringIndexOf(kust.Resources, routeFileName) == -1 {
+		kust.Resources = append(kust.Resources, routeFileName)
+	}
+
+	if internalIngressEnabled {
+		routeOpts := routingutil.CreateRouteOpts{
+			RuntimeName:       rt.Name,
+			Namespace:         rt.Namespace,
+			IngressClass:      opts.IngressClass,
+			Hostname:          opts.InternalHostName,
+			Annotations:       opts.InternalIngressAnnotation,
+			IngressController: opts.IngressController,
+			GatewayName:       opts.GatewayName,
+			GatewayNamespace:  opts.GatewayNamespace,
+		}
+
+		routeName, route := routingutil.CreateInternalRouterInternalRoute(&routeOpts, opts.useGatewayAPI)
+		routeFileName := fmt.Sprintf("%s-internal.yaml", routeName)
+
+		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
+			return fmt.Errorf("failed to write yaml of app-proxy route. Error: %w", err)
+		}
+
+		if util.StringIndexOf(kust.Resources, routeFileName) == -1 {
+			kust.Resources = append(kust.Resources, routeFileName)
+		}
+	}
+
+	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing Internal Router ingress manifests")
+
+	return apu.PushWithMessage(ctx, r, "Created Internal Router Ingresses")
+}
+
+func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
+
+	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "route-patch.json"), workflowsRoutePatch, 0666); err != nil {
 		return err
 	}
 
@@ -1389,7 +1482,6 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		return err
 	}
 
-	kust.Resources = append(kust.Resources, routeFileName)
 	kust.Patches = append(kust.Patches, kusttypes.Patch{
 		Target: &kusttypes.Selector{
 			ResId: kustid.ResId{
@@ -1398,18 +1490,18 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 					Version: appsv1.SchemeGroupVersion.Version,
 					Kind:    "Deployment",
 				},
-				Name: store.Get().ArgoWFServiceName,
+				Name: store.Get().ArgoWfServiceName,
 			},
 		},
-		Path: "ingress-patch.json",
+		Path: "route-patch.json",
 	})
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Argo Workflows ingress manifests")
+	log.G(ctx).Info("Pushing Argo Workflows configuration")
 
-	return apu.PushWithMessage(ctx, r, "Created Workflows Ingress")
+	return apu.PushWithMessage(ctx, r, "Configured Argo Workflows ")
 }
 
 func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {
@@ -1448,33 +1540,6 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		},
 	})
-
-	hostName := opts.HostName
-	if opts.InternalHostName != "" {
-		hostName = opts.InternalHostName
-	}
-
-	if opts.shouldInstallIngress() {
-		routeOpts := routingutil.CreateRouteOpts{
-			RuntimeName:       rt.Name,
-			Namespace:         rt.Namespace,
-			IngressClass:      opts.IngressClass,
-			Hostname:          hostName,
-			Annotations:       opts.InternalIngressAnnotation,
-			IngressController: opts.IngressController,
-			GatewayName:       opts.GatewayName,
-			GatewayNamespace:  opts.GatewayNamespace,
-		}
-
-		routeName, route := routingutil.CreateAppProxyRoute(&routeOpts, opts.useGatewayAPI)
-		routeFileName := fmt.Sprintf("%s.yaml", routeName)
-
-		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
-			return fmt.Errorf("failed to write yaml of app-proxy ingress. Error: %w", err)
-		}
-
-		kust.Resources = append(kust.Resources, routeFileName)
-	}
 
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
