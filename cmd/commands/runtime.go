@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	"io"
 	"mime"
 	"net/http"
@@ -27,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
@@ -898,7 +899,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
 
-	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.541"))
+	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.542"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
 	isTunnel := curRt.Spec.AccessMode == platmodel.AccessModeTunnel
 	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
