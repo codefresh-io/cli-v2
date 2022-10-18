@@ -75,6 +75,7 @@ type (
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
+		SkipIngress               bool
 		runtimeDef                string
 
 		versionStr        string
@@ -821,6 +822,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
+	cmd.Flags().BoolVar(&opts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
@@ -897,11 +899,11 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
 
-	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.543"))
+	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.544"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
 	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
 
-	if needsInternalRouter && isIngress && isNotAlb {
+	if !opts.SkipIngress && needsInternalRouter && isIngress && isNotAlb {
 		log.G(ctx).Info("Migrating to Internal Router ")
 
 		err = migrateInternalRouter(ctx, opts, newRt)
