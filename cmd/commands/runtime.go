@@ -899,7 +899,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
 
-	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.544"))
+	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.543"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
 	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
 
