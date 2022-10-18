@@ -15,11 +15,7 @@
 package routing
 
 import (
-	"fmt"
-
 	"github.com/codefresh-io/cli-v2/pkg/store"
-
-	"github.com/codefresh-io/cli-v2/pkg/util"
 )
 
 type (
@@ -55,12 +51,12 @@ const ExactPath RoutePathType = "Exact"
 const PrefixPath RoutePathType = "Prefix"
 const RegexPath RoutePathType = "Regex"
 
-func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
+func CreateInternalRouterInternalRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
 	var route interface{}
 	var routeName string
 
 	createRouteOpts := CreateRouteOpts{
-		Name:             opts.RuntimeName + store.Get().AppProxyIngressName,
+		Name:             opts.RuntimeName + store.Get().InternalRouterInternalIngressName,
 		Namespace:        opts.Namespace,
 		GatewayName:      opts.GatewayName,
 		GatewayNamespace: opts.GatewayNamespace,
@@ -71,8 +67,8 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, int
 			{
 				pathType:    PrefixPath,
 				path:        store.Get().AppProxyIngressPath,
-				serviceName: store.Get().AppProxyServiceName,
-				servicePort: store.Get().AppProxyServicePort,
+				serviceName: store.Get().InternalRouterServiceName,
+				servicePort: store.Get().InternalRouterServicePort,
 			},
 		},
 		Annotations:       opts.Annotations,
@@ -81,7 +77,7 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, int
 
 	if useGatewayAPI {
 		// routeName = "http-route"
-		// This is a workaround until the Gateway API will suport the websocket protocol
+		// This is a workaround until the Gateway API will support the websocket protocol
 		route = createHTTPProxy(&createRouteOpts)
 		routeName = "http-proxy"
 	} else {
@@ -94,12 +90,12 @@ func CreateAppProxyRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, int
 	return routeName, route
 }
 
-func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
+func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool, includeInternalRoutes bool) (string, interface{}) {
 	var route interface{}
 	var routeName string
 
 	createRouteOpts := CreateRouteOpts{
-		Name:             store.Get().DemoPipelinesIngressObjectName,
+		Name:             opts.RuntimeName + store.Get().InternalRouterIngressName,
 		Namespace:        opts.Namespace,
 		GatewayName:      opts.GatewayName,
 		GatewayNamespace: opts.GatewayNamespace,
@@ -109,65 +105,38 @@ func CreateDemoPipelinesRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string
 		Paths: []RoutePath{
 			{
 				pathType:    PrefixPath,
-				path:        util.GenerateIngressPathForDemoGitEventSource(opts.RuntimeName),
-				serviceName: store.Get().DemoGitEventSourceObjectName + "-eventsource-svc",
-				servicePort: store.Get().DemoGitEventSourceServicePort,
+				path:        store.Get().WebhooksIngressPath,
+				serviceName: store.Get().InternalRouterServiceName,
+				servicePort: store.Get().InternalRouterServicePort,
 			},
-		},
-		Annotations:       opts.Annotations,
-		IngressController: opts.IngressController,
-	}
-
-	if useGatewayAPI {
-		route = createHTTPRoute(&createRouteOpts)
-		routeName = "http-route"
-	} else {
-		route = CreateIngress(&createRouteOpts)
-		routeName = "ingress"
-	}
-
-	opts.IngressController.Decorate(route)
-
-	return routeName, route
-}
-
-func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, interface{}) {
-	var route interface{}
-	var routeName string
-
-	createRouteOpts := CreateRouteOpts{
-		Name:             opts.RuntimeName + store.Get().WorkflowsIngressName,
-		Namespace:        opts.Namespace,
-		GatewayName:      opts.GatewayName,
-		GatewayNamespace: opts.GatewayNamespace,
-		Hostname:         opts.Hostname,
-		RuntimeName:      opts.RuntimeName,
-		IngressClass:     opts.IngressClass,
-		Paths: []RoutePath{
 			{
-				pathType:    RegexPath,
-				path:        fmt.Sprintf("/%s(/|$)(.*)", store.Get().WorkflowsIngressPath),
-				serviceName: store.Get().ArgoWFServiceName,
-				servicePort: store.Get().ArgoWFServicePort,
+				pathType:    PrefixPath,
+				path:        store.Get().ArgoWfIngressPath,
+				serviceName: store.Get().InternalRouterServiceName,
+				servicePort: store.Get().InternalRouterServicePort,
 			},
 		},
 		Annotations:       opts.Annotations,
 		IngressController: opts.IngressController,
 	}
 
+	// when using internal ingress -- we need to extract app-proxy
+	// to a separate ingress (with its own host and annotations)
+	if includeInternalRoutes {
+		createRouteOpts.Paths = append(createRouteOpts.Paths,
+			RoutePath{
+				pathType:    PrefixPath,
+				path:        store.Get().AppProxyIngressPath,
+				serviceName: store.Get().InternalRouterServiceName,
+				servicePort: store.Get().InternalRouterServicePort,
+			},
+		)
+	}
+
 	if useGatewayAPI {
-		route = createHTTPRoute(&createRouteOpts)
-		routeName = "http-route"
+		route = createHTTPProxy(&createRouteOpts)
+		routeName = "http-proxy"
 	} else {
-		if createRouteOpts.Annotations == nil {
-			createRouteOpts.Annotations = make(map[string]string)
-		}
-		mergeAnnotations(createRouteOpts.Annotations, map[string]string{
-			"ingress.kubernetes.io/protocol":               "https",
-			"ingress.kubernetes.io/rewrite-target":         "/$2",
-			"nginx.ingress.kubernetes.io/backend-protocol": "https",
-			"nginx.ingress.kubernetes.io/rewrite-target":   "/$2",
-		})
 		route = CreateIngress(&createRouteOpts)
 		routeName = "ingress"
 	}
@@ -175,10 +144,4 @@ func CreateWorkflowsRoute(opts *CreateRouteOpts, useGatewayAPI bool) (string, in
 	opts.IngressController.Decorate(route)
 
 	return routeName, route
-}
-
-func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {
-	for key, element := range newAnnotation {
-		annotation[key] = element
-	}
 }

@@ -27,6 +27,8 @@ import (
 	"sync"
 	"time"
 
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
+
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
@@ -69,12 +71,13 @@ type (
 
 	RuntimeUpgradeOptions struct {
 		RuntimeName               string
-		Version                   *semver.Version
 		CloneOpts                 *apgit.CloneOptions
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
 		DisableTelemetry          bool
+		runtimeDef                string
 
+		versionStr        string
 		featuresToInstall []runtime.InstallFeature
 	}
 
@@ -786,6 +789,11 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				finalParameters["Version"] = versionStr
 			}
 
+			err = validateVersionIfExists(opts.versionStr)
+			if err != nil {
+				return err
+			}
+
 			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
 			if err != nil {
 				return err
@@ -798,13 +806,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			var err error
 			ctx := cmd.Context()
 
-			if versionStr != "" {
-				opts.Version, err = semver.NewVersion(versionStr)
-				if err != nil {
-					return err
-				}
-			}
-
 			opts.CommonConfig = &runtime.CommonConfig{
 				CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
 			}
@@ -815,11 +816,15 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().StringVar(&opts.versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
 	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
+	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
+
+	util.Die(cmd.Flags().MarkHidden("runtime-def"))
+	cmd.MarkFlagsMutuallyExclusive("version", "runtime-def")
 
 	return cmd
 }
@@ -829,7 +834,8 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	log.G(ctx).Info("Downloading runtime definition")
 
-	newRt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
+	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -891,6 +897,21 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
 
+	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.543"))
+	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
+	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
+
+	if needsInternalRouter && isIngress && isNotAlb {
+		log.G(ctx).Info("Migrating to Internal Router ")
+
+		err = migrateInternalRouter(ctx, opts, newRt)
+		if err != nil {
+			return fmt.Errorf("failed to migrate internal router: %w", err)
+		}
+
+		handleCliStep(reporter.UpgradeStepMigrateInternalRouter, "Migrate internal router", err, false, false)
+	}
+
 	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
 
 	return nil
@@ -914,6 +935,55 @@ func NewRuntimeLogsCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().IsDownloadRuntimeLogs, "download", false, "If true, will download logs from all componnents that consist of current runtime")
 	cmd.Flags().StringVar(&store.Get().IngressHost, "ingress-host", "", "Set runtime ingress host")
 	return cmd
+}
+
+func migrateInternalRouter(ctx context.Context, opts *RuntimeUpgradeOptions, newRt *runtime.Runtime) error {
+	dbRuntime, err := getRuntime(ctx, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to get runtime: %s. Error: %w", opts.RuntimeName, err)
+	}
+
+	gatewayName := ""
+	gatewaysNamespace := ""
+
+	if dbRuntime.GatewayName != nil {
+		gatewayName = *dbRuntime.GatewayName
+	}
+
+	if dbRuntime.GatewayNamespace != nil {
+		gatewaysNamespace = *dbRuntime.GatewayNamespace
+	}
+
+	createOpts := &CreateIngressOptions{
+		IngressHost:         newRt.Spec.IngressHost,
+		IngressClass:        newRt.Spec.IngressClass,
+		InternalIngressHost: newRt.Spec.InternalIngressHost,
+		IngressController:   routingutil.GetIngressController(newRt.Spec.IngressController),
+		InsCloneOpts:        opts.CloneOpts,
+		useGatewayAPI:       gatewayName != "",
+		GatewayName:         gatewayName,
+		GatewayNamespace:    gatewaysNamespace,
+	}
+
+	if err = parseHostName(newRt.Spec.IngressHost, &createOpts.HostName); err != nil {
+		return err
+	}
+
+	if createOpts.InternalIngressHost != "" {
+		if err := parseHostName(newRt.Spec.InternalIngressHost, &createOpts.InternalHostName); err != nil {
+			return err
+		}
+	}
+
+	if err := util.Retry(ctx, &util.RetryOptions{
+		Func: func() error {
+			return CreateInternalRouterIngress(ctx, createOpts, newRt)
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
+	}
+
+	return nil
 }
 
 func isAllRequiredFlagsForDownloadRuntimeLogs() bool {

@@ -129,6 +129,7 @@ const (
 	UpgradeStepUpgradeRuntime              CliStep = "upgrade.run.step.upgrade-runtime"
 	UpgradeStepPushRuntimeDefinition       CliStep = "upgrade.run.step.push-runtime-definition"
 	UpgradeStepInstallNewComponents        CliStep = "upgrade.run.step.install-new-components"
+	UpgradeStepMigrateInternalRouter       CliStep = "upgrade.run.step.migrate-internal-router"
 	UpgradePhaseFinish                     CliStep = "upgrade.run.phase.finish"
 
 	// General
@@ -151,7 +152,7 @@ func G() AnalyticsReporter {
 }
 
 func Init(user *codefresh.User, flow FlowType) {
-	writeKey := store.Get().SegmentWriteKey
+	writeKey := store.SegmentWriteKey
 	if writeKey == "" {
 		log.G().Debug("No segment write key was provided. Using the noop reporter.")
 		return
