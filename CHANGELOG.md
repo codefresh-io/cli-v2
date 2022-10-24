@@ -1,3 +1,3 @@
 # Changelog:
 
-* Updated `cap-app-proxy` to 1.1134.0
+* Protect against http git providers
