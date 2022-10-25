@@ -469,7 +469,7 @@ func buildFullURL(urlString, ref string) string {
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", "v"+ref)
+		v.Add("ref", "v" + ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
