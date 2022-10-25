@@ -36,6 +36,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 
+	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -896,13 +897,11 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		}
 	}
 
-	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
-
-	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.543"))
+	hasLatestInternalRouter := !curRt.Spec.Version.LessThan(semver.MustParse("v0.0.549"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
-	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
 
-	if !opts.SkipIngress && needsInternalRouter && isIngress && isNotAlb {
+	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
+	if !opts.SkipIngress && !hasLatestInternalRouter && isIngress {
 		log.G(ctx).Info("Migrating to Internal Router ")
 
 		err = migrateInternalRouter(ctx, opts, newRt)
@@ -910,20 +909,6 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 			return fmt.Errorf("failed to migrate internal router: %w", err)
 		}
 		handleCliStep(reporter.UpgradeStepMigrateInternalRouter, "Migrate internal router", err, false, false)
-
-		newRt.Spec.InternalRouterApplied = true
-		log.G(ctx).Info("Adding new flag to runtime: internalRouterApplied = true")
-		handleCliStep(reporter.UpgradeStepAddInternalRouterAppliedFlag, "Adding internalRouterApplied flag to runtime definition", err, false, false)
-		if err := newRt.Save(fs, fs.Join(apstore.Default.BootsrtrapDir, newRt.Name+".yaml"), opts.CommonConfig); err != nil {
-			return fmt.Errorf("failed to save runtime definition: %w", err)
-		}
-
-		log.G(ctx).Info("Pushing runtime definition with new flag")
-		err = apu.PushWithMessage(ctx, r, "New flag added to runtime: internalRouterApplied")
-		handleCliStep(reporter.UpgradeStepPushInternalRouterAppliedFlag, "Pushing runtime definition with internalRouterApplied flag", err, false, false)
-		if err != nil {
-			return err
-		}
 	}
 
 	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)

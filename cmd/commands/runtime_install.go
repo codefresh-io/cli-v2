@@ -644,7 +644,6 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt.Spec.IngressHost = opts.IngressHost
 	rt.Spec.InternalIngressHost = opts.InternalIngressHost
 	rt.Spec.Repo = opts.InsCloneOpts.Repo
-	rt.Spec.InternalRouterApplied = true
 	if opts.shouldInstallIngress() {
 		rt.Spec.IngressClass = opts.IngressClass
 		rt.Spec.IngressController = string(opts.IngressController.Name())
@@ -1033,7 +1032,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// bitbucket cloud take more time to push a commit
 	// the perpuse of all retries is to avoid issues of cloning before pervious commit was pushed
-	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.shouldInstallIngress() {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return CreateInternalRouterIngress(ctx, &CreateIngressOptions{

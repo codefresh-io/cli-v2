@@ -62,18 +62,17 @@ type (
 	}
 
 	RuntimeSpec struct {
-		DefVersion            *semver.Version      `json:"defVersion"`
-		Version               *semver.Version      `json:"version"`
-		BootstrapSpecifier    string               `json:"bootstrapSpecifier"`
-		Components            []AppDef             `json:"components"`
-		Cluster               string               `json:"cluster"`
-		IngressHost           string               `json:"ingressHost,omitempty"`
-		IngressClass          string               `json:"ingressClassName,omitempty"`
-		InternalIngressHost   string               `json:"internalIngressHost,omitempty"`
-		IngressController     string               `json:"ingressController,omitempty"`
-		InternalRouterApplied bool                 `json:"internalRouterApplied,omitempty"`
-		AccessMode            platmodel.AccessMode `json:"accessMode"`
-		Repo                  string               `json:"repo"`
+		DefVersion          *semver.Version      `json:"defVersion"`
+		Version             *semver.Version      `json:"version"`
+		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
+		Components          []AppDef             `json:"components"`
+		Cluster             string               `json:"cluster"`
+		IngressHost         string               `json:"ingressHost,omitempty"`
+		IngressClass        string               `json:"ingressClassName,omitempty"`
+		InternalIngressHost string               `json:"internalIngressHost,omitempty"`
+		IngressController   string               `json:"ingressController,omitempty"`
+		AccessMode          platmodel.AccessMode `json:"accessMode"`
+		Repo                string               `json:"repo"`
 	}
 
 	CommonConfig struct {
