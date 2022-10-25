@@ -1,3 +1,3 @@
 # Changelog:
 
-* Protect against http git providers
+* Protect against http git urls
