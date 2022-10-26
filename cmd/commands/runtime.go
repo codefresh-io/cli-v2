@@ -897,20 +897,17 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		}
 	}
 
-	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
-
-	needsInternalRouter := curRt.Spec.Version.LessThan(semver.MustParse("v0.0.543"))
+	hasLatestInternalRouter := !curRt.Spec.Version.LessThan(semver.MustParse("v0.0.549"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
-	isNotAlb := curRt.Spec.IngressController != string(routingutil.IngressControllerALB)
 
-	if !opts.SkipIngress && needsInternalRouter && isIngress && isNotAlb {
+	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
+	if !opts.SkipIngress && !hasLatestInternalRouter && isIngress {
 		log.G(ctx).Info("Migrating to Internal Router ")
 
 		err = migrateInternalRouter(ctx, opts, newRt)
 		if err != nil {
 			return fmt.Errorf("failed to migrate internal router: %w", err)
 		}
-
 		handleCliStep(reporter.UpgradeStepMigrateInternalRouter, "Migrate internal router", err, false, false)
 	}
 
@@ -979,7 +976,7 @@ func migrateInternalRouter(ctx context.Context, opts *RuntimeUpgradeOptions, new
 
 	if err := util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
-			return CreateInternalRouterIngress(ctx, createOpts, newRt)
+			return CreateInternalRouterIngress(ctx, createOpts, newRt, true)
 		},
 	}); err != nil {
 		return fmt.Errorf("failed to patch Internal Router ingress: %w", err)

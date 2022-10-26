@@ -1032,7 +1032,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// bitbucket cloud take more time to push a commit
 	// the perpuse of all retries is to avoid issues of cloning before pervious commit was pushed
-	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.shouldInstallIngress() {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
 				return CreateInternalRouterIngress(ctx, &CreateIngressOptions{
@@ -1048,7 +1048,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 					InternalIngressAnnotation: opts.InternalIngressAnnotation,
 					ExternalIngressAnnotation: opts.ExternalIngressAnnotation,
 					useGatewayAPI:             opts.useGatewayAPI,
-				}, rt)
+				}, rt, false)
 			},
 		}); err != nil {
 			return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
@@ -1397,7 +1397,7 @@ func persistRuntime(ctx context.Context, cloneOpts *apgit.CloneOptions, rt *runt
 	return apu.PushWithMessage(ctx, r, "Persisted runtime data")
 }
 
-func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions, rt *runtime.Runtime) error {
+func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions, rt *runtime.Runtime, onlyWebhooks bool) error {
 	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
@@ -1416,7 +1416,7 @@ func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions
 		GatewayName:       opts.GatewayName,
 		GatewayNamespace:  opts.GatewayNamespace,
 	}
-	routeName, route := routingutil.CreateInternalRouterRoute(&routeOpts, opts.useGatewayAPI, !internalIngressEnabled)
+	routeName, route := routingutil.CreateInternalRouterRoute(&routeOpts, opts.useGatewayAPI, !internalIngressEnabled, onlyWebhooks)
 	routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
 	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
@@ -1432,7 +1432,7 @@ func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions
 		kust.Resources = append(kust.Resources, routeFileName)
 	}
 
-	if internalIngressEnabled {
+	if !onlyWebhooks && internalIngressEnabled {
 		routeOpts := routingutil.CreateRouteOpts{
 			RuntimeName:       rt.Name,
 			Namespace:         rt.Namespace,

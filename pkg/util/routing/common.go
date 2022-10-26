@@ -90,7 +90,7 @@ func CreateInternalRouterInternalRoute(opts *CreateRouteOpts, useGatewayAPI bool
 	return routeName, route
 }
 
-func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool, includeInternalRoutes bool) (string, interface{}) {
+func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool, includeInternalRoutes bool, onlyWebhooks bool) (string, interface{}) {
 	var route interface{}
 	var routeName string
 
@@ -109,20 +109,26 @@ func CreateInternalRouterRoute(opts *CreateRouteOpts, useGatewayAPI bool, includ
 				serviceName: store.Get().InternalRouterServiceName,
 				servicePort: store.Get().InternalRouterServicePort,
 			},
-			{
-				pathType:    PrefixPath,
-				path:        store.Get().ArgoWfIngressPath,
-				serviceName: store.Get().InternalRouterServiceName,
-				servicePort: store.Get().InternalRouterServicePort,
-			},
 		},
 		Annotations:       opts.Annotations,
 		IngressController: opts.IngressController,
 	}
 
+	// on upgrade, we do not want collisions with existing ingresses
+	if !onlyWebhooks {
+		createRouteOpts.Paths = append(createRouteOpts.Paths,
+			RoutePath{
+				pathType:    PrefixPath,
+				path:        store.Get().ArgoWfIngressPath,
+				serviceName: store.Get().InternalRouterServiceName,
+				servicePort: store.Get().InternalRouterServicePort,
+			},
+		)
+	}
+
 	// when using internal ingress -- we need to extract app-proxy
 	// to a separate ingress (with its own host and annotations)
-	if includeInternalRoutes {
+	if !onlyWebhooks && includeInternalRoutes {
 		createRouteOpts.Paths = append(createRouteOpts.Paths,
 			RoutePath{
 				pathType:    PrefixPath,
