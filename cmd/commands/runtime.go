@@ -595,7 +595,10 @@ func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, name
 	}
 
 	for _, secret := range secrets.Items {
-		kubeutil.DeleteSecretWithFinalizer(ctx, kubeFactory, &secret)
+		err = kubeutil.DeleteSecretWithFinalizer(ctx, kubeFactory, &secret)
+		if err != nil {
+			log.G().Warn("failed to delete secret: %w", err)
+		}
 	}
 
 	return nil
