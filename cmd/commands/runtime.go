@@ -897,7 +897,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		}
 	}
 
-	hasLatestInternalRouter := !curRt.Spec.Version.LessThan(semver.MustParse("v0.0.550"))
+	hasLatestInternalRouter := !curRt.Spec.Version.LessThan(semver.MustParse("v0.0.549"))
 	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
 
 	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
