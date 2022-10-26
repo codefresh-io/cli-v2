@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -500,6 +501,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	// check whether the runtime exists
 	var err error
+
 	if !opts.SkipChecks {
 		_, err = getRuntime(ctx, opts.RuntimeName)
 	}
@@ -575,8 +577,26 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		cfConfig.GetCurrentContext().DefaultRuntime = ""
 	}
 
+	err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to do post uninstall cleanup: %w", err)
+	}
+
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)
 	appendLogToSummary(uninstallDoneStr, nil)
+
+	return nil
+}
+
+func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+	secrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secrets.Items {
+		kubeutil.DeleteSecretWithFinalizer(ctx, kubeFactory, &secret)
+	}
 
 	return nil
 }
