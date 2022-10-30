@@ -158,7 +158,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		Short: "Adds a new git-source to an existing runtime",
 		Args:  cobra.MaximumNArgs(2),
 		Example: util.Doc(`
-			<BIN> git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow
+			<BIN> git-source create runtime_name git-source-name --git-src-repo https://github.com/owner/repo-name/my-workflow --provider <git-on-perm-provider>
 		`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -200,6 +200,10 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			insCloneOpts.Parse()
 			gsCloneOpts.Parse()
+
+			if gsCloneOpts.Provider == "" {
+				gsCloneOpts.Provider = insCloneOpts.Provider
+			}
 
 			gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(gsCloneOpts.Provider), gsCloneOpts.Repo)
 			if err != nil {
@@ -487,7 +491,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 		Short: "edit a git-source of a runtime",
 		Args:  cobra.MaximumNArgs(2),
 		Example: util.Doc(`
-			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
+			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir --provider <git-on-perm-provider>
 		`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			store.Get().Silent = true
