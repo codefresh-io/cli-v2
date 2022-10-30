@@ -398,6 +398,10 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
+	if strings.HasPrefix(opts.InsCloneOpts.Repo, "http:") {
+		return fmt.Errorf("Invalid URL for Git repository - http is not allowed")
+	}
+
 	baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), baseURL)
 	if err != nil {

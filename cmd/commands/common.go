@@ -154,6 +154,10 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
 		Validate: func(value string) error {
+			if strings.HasPrefix(value, "http:") {
+				return fmt.Errorf("Invalid URL for Git repository - http is not allowed")
+			}
+
 			host, orgRepo, _, _, _, _, _ := aputil.ParseGitUrl(value)
 			if host != "" && orgRepo != "" {
 				return nil

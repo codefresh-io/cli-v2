@@ -243,7 +243,7 @@ func init() {
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.TCPConnectionTesterGenerateName = "cf-tcp-connections-tester-"
 	s.TCPConnectionTesterName = "cf-tcp-connections-tester"
-	s.MinKubeVersion = "v1.18.0"
+	s.MinKubeVersion = "v1.21.0"
 	s.MaxKubeVersion = "v1.25.0"
 	s.MasterIngressName = "-master"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
