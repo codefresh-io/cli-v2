@@ -579,7 +579,11 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
 	if err != nil {
-		return fmt.Errorf("failed to do post uninstall cleanup: %w", err)
+		errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
+		if !opts.Force {
+			return fmt.Errorf(errorMsg)
+		}
+		log.G().Warn(errorMsg)
 	}
 
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)
@@ -597,7 +601,7 @@ func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, name
 	for _, secret := range secrets.Items {
 		err = kubeutil.DeleteSecretWithFinalizer(ctx, kubeFactory, &secret)
 		if err != nil {
-			log.G().Warn("failed to delete secret: %w", err)
+			log.G().Warnf("failed to delete secret: %w", err)
 		}
 	}
 
