@@ -611,3 +611,34 @@ func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory kub
 
 	return true, nil
 }
+
+func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory kube.Factory, secret *v1.Secret) error {
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	secret.Finalizers = nil
+	secret, err = client.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to remove finalizers from secret %s", secret.Name)
+	}
+
+	err = client.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
+
+	return err
+}
+
+func GetSecretsWithLabel(ctx context.Context, kubeFactory kube.Factory, namespace, label string) (*v1.SecretList, error) {
+	client, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	secrets, err := client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secrets: %w", err)
+	}
+
+	return secrets, nil
+}
