@@ -491,7 +491,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 		Short: "edit a git-source of a runtime",
 		Args:  cobra.MaximumNArgs(2),
 		Example: util.Doc(`
-			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir --provider <git-on-perm-provider>
+			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
 		`),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			store.Get().Silent = true

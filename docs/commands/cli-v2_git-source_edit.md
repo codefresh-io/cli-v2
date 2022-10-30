@@ -10,7 +10,7 @@ cli-v2 git-source edit RUNTIME_NAME GITSOURCE_NAME [flags]
 
 ```
 
-            cli-v2 git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir --provider <git-on-perm-provider>
+            cli-v2 git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
         
 ```
 
