@@ -29,10 +29,6 @@ import (
 	"sync"
 	"time"
 
-	billyUtils "github.com/go-git/go-billy/v5/util"
-	appsv1 "k8s.io/api/apps/v1"
-	kustid "sigs.k8s.io/kustomize/kyaml/resid"
-
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
