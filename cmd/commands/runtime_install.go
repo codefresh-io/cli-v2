@@ -20,13 +20,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	billyUtils "github.com/go-git/go-billy/v5/util"
 	"io"
-	appsv1 "k8s.io/api/apps/v1"
 	"net"
 	"net/url"
 	"os"
-	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,16 +59,19 @@ import (
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -103,7 +103,6 @@ type (
 		SuggestedSharedConfigRepo      string
 		InternalIngressAnnotation      map[string]string
 		ExternalIngressAnnotation      map[string]string
-		EnableGitProviders             bool
 		AccessMode                     platmodel.AccessMode
 		TunnelRegisterHost             string
 		TunnelDomain                   string
@@ -269,7 +268,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
-	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket|bitbucket-server|gitlab)")
 	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
@@ -290,7 +288,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
-	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
 	util.Die(cmd.Flags().MarkHidden("access-mode"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-register-host"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
@@ -409,10 +406,6 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), baseURL)
 	if err != nil {
 		return err
-	}
-
-	if opts.gitProvider.Type() != cfgit.GITHUB && !opts.EnableGitProviders {
-		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
 	}
 
 	opts.InsCloneOpts.Provider = string(opts.gitProvider.Type())

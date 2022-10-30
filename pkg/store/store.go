@@ -83,6 +83,7 @@ type Store struct {
 	DocsLink                          string
 	LabelKeyCFType                    string
 	LabelKeyCFInternal                string
+	LabelSelectorSealedSecret         string
 	AnnotationKeySyncWave             string
 	MarketplaceGitSourceName          string
 	MarketplaceRepo                   string
@@ -193,6 +194,7 @@ func init() {
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
+	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
 	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
