@@ -65,7 +65,7 @@ func WriteKustomization(fs fs.FS, kust *kusttypes.Kustomization, directory strin
 }
 
 func BuildKustomization(k *kusttypes.Kustomization) ([]byte, error) {
-	td, err := os.MkdirTemp(".", "csdp-add-cluster")
+	td, err := os.MkdirTemp("", "csdp-add-cluster")
 	if err != nil {
 		return nil, err
 	}

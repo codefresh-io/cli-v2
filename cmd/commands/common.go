@@ -33,9 +33,9 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -47,8 +47,8 @@ var (
 	die  = util.Die
 	exit = os.Exit
 
-	//go:embed assets/workflows-ingress-patch.json
-	workflowsIngressPatch []byte
+	//go:embed assets/workflows-route-patch.json
+	workflowsRoutePatch []byte
 
 	cfConfig *config.Config
 
@@ -154,6 +154,10 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	repoPrompt := promptui.Prompt{
 		Label: "Repository URL",
 		Validate: func(value string) error {
+			if strings.HasPrefix(value, "http:") {
+				return fmt.Errorf("Invalid URL for Git repository - http is not allowed")
+			}
+
 			host, orgRepo, _, _, _, _, _ := aputil.ParseGitUrl(value)
 			if host != "" && orgRepo != "" {
 				return nil

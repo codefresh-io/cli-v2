@@ -4,8 +4,8 @@ metadata:
   name: "{{ name }}"
   namespace: "{{ namespace }}"
 spec:
-  defVersion: 2.0.0
-  version: 0.0.536
+  defVersion: 2.1.1
+  version: 0.0.556
   bootstrapSpecifier: github.com/codefresh-io/cli-v2/manifests/argo-cd
   components:
     - name: events
@@ -22,10 +22,14 @@ spec:
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/app-proxy
       syncWave: 9
+    - name: internal-router
+      type: kustomize
+      url: github.com/codefresh-io/cli-v2/manifests/internal-router
+      syncWave: 10
     - name: sealed-secrets
       type: kustomize
       url: github.com/codefresh-io/cli-v2/manifests/sealed-secrets
     - name: codefresh-tunnel-client
       type: helm
-      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=0.1.3
+      url: github.com/codefresh-io/codefresh-tunnel-charts/codefresh-tunnel-client?ref=0.1.8
       feature: ingressless

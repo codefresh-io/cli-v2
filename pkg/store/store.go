@@ -29,11 +29,12 @@ var (
 	version                  = "v99.99.99"
 	buildDate                = ""
 	gitCommit                = ""
-	segmentWriteKey          = ""
-	maxDefVersion            = "2.0.0"
+	SegmentWriteKey          = ""
+	maxDefVersion            = "2.1.1"
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+	devMode                  = "true"
 )
 
 type Version struct {
@@ -49,8 +50,8 @@ type Store struct {
 	ArgoCDServerName                  string
 	ArgoCDTokenKey                    string
 	ArgoCDTokenSecret                 string
-	ArgoWFServiceName                 string
-	ArgoWFServicePort                 int32
+	ArgoWfIngressPath                 string
+	ArgoWfServiceName                 string
 	BinaryName                        string
 	Codefresh                         string
 	CFComponentType                   string
@@ -70,15 +71,19 @@ type Store struct {
 	EventReportingEndpoint            string
 	EventsReporterName                string
 	GitSourceName                     string
-	WorkflowsIngressName              string
-	WorkflowsIngressPath              string
+	InternalRouterServiceName         string
+	InternalRouterServicePort         int32
+	InternalRouterIngressName         string
+	InternalRouterInternalIngressName string
+	InternalRouterIngressFilePath     string
+	WebhooksIngressPath               string
 	AppProxyIngressName               string
 	AppProxyIngressPath               string
-	AppProxyServicePort               int32
 	AppProxyServiceName               string
 	DocsLink                          string
 	LabelKeyCFType                    string
 	LabelKeyCFInternal                string
+	LabelSelectorSealedSecret         string
 	AnnotationKeySyncWave             string
 	MarketplaceGitSourceName          string
 	MarketplaceRepo                   string
@@ -102,8 +107,6 @@ type Store struct {
 	WebhooksRootPath                  string
 	DemoGitEventSourceTargetPort      string
 	DemoGitEventSourceServicePort     int32
-	DemoPipelinesIngressFileName      string
-	DemoPipelinesIngressObjectName    string
 	DemoGitSensorFileName             string
 	DemoGitSensorObjectName           string
 	DemoGitEventName                  string
@@ -128,7 +131,6 @@ type Store struct {
 	RolloutReporterName               string
 	RolloutResourceName               string
 	RolloutReporterServiceAccount     string
-	SegmentWriteKey                   string
 	DefaultNamespace                  string
 	NetworkTesterName                 string
 	NetworkTesterGenerateName         string
@@ -147,6 +149,7 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	IngressHost                       string
 	IscRuntimesDir                    string
+	DevMode                           bool
 }
 
 // Get returns the global store
@@ -159,8 +162,8 @@ func init() {
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
-	s.ArgoWFServiceName = "argo-server"
-	s.ArgoWFServicePort = 2746
+	s.ArgoWfIngressPath = "/workflows"
+	s.ArgoWfServiceName = "argo-server"
 	s.BinaryName = binaryName
 	s.Codefresh = "codefresh"
 	s.GitSourceName = "default-git-source"
@@ -179,15 +182,19 @@ func init() {
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/2.0/api/events"
 	s.EventsReporterName = "events-reporter"
-	s.WorkflowsIngressName = "-workflows-ingress"
-	s.WorkflowsIngressPath = "workflows"
+	s.WebhooksIngressPath = "/webhooks"
+	s.InternalRouterIngressName = "-internal-router-ingress"
+	s.InternalRouterInternalIngressName = "-internal-router-internal-ingress"
+	s.InternalRouterIngressFilePath = "internal-router"
+	s.InternalRouterServiceName = "internal-router"
+	s.InternalRouterServicePort = 80
 	s.AppProxyIngressName = "-cap-app-proxy"
 	s.AppProxyIngressPath = "/app-proxy"
-	s.AppProxyServicePort = 3017
 	s.AppProxyServiceName = "cap-app-proxy"
 	s.DocsLink = "https://codefresh.io/csdp-docs/"
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
+	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
 	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.RuntimeDefURL = RuntimeDefURL
@@ -210,8 +217,6 @@ func init() {
 	s.WebhooksRootPath = "/webhooks"
 	s.DemoGitEventSourceTargetPort = "80"
 	s.DemoGitEventSourceServicePort = 80
-	s.DemoPipelinesIngressObjectName = fmt.Sprintf("%s-%s", "cdp", s.GitSourceName)
-	s.DemoPipelinesIngressFileName = fmt.Sprintf("%s.ingress.yaml", s.DemoPipelinesIngressObjectName)
 	s.DemoGitSensorFileName = "push-commit.sensor.yaml"
 	s.DemoGitSensorObjectName = "push-commit"
 	s.DemoGitEventName = "push-commit"
@@ -230,7 +235,6 @@ func init() {
 	s.WorkflowResourceName = "workflows"
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
-	s.SegmentWriteKey = segmentWriteKey
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	s.DefaultNamespace = "default"
@@ -239,7 +243,7 @@ func init() {
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.TCPConnectionTesterGenerateName = "cf-tcp-connections-tester-"
 	s.TCPConnectionTesterName = "cf-tcp-connections-tester"
-	s.MinKubeVersion = "v1.18.0"
+	s.MinKubeVersion = "v1.21.0"
 	s.MaxKubeVersion = "v1.25.0"
 	s.MasterIngressName = "-master"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
@@ -248,6 +252,7 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
+	s.DevMode = devMode == "true"
 
 	initVersion()
 }

@@ -93,7 +93,6 @@ type (
 		DisableRollback                bool
 		DisableTelemetry               bool
 		FromRepo                       bool
-		Version                        *semver.Version
 		GsCloneOpts                    *apgit.CloneOptions
 		InsCloneOpts                   *apgit.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
@@ -104,11 +103,11 @@ type (
 		SuggestedSharedConfigRepo      string
 		InternalIngressAnnotation      map[string]string
 		ExternalIngressAnnotation      map[string]string
-		EnableGitProviders             bool
 		AccessMode                     platmodel.AccessMode
 		TunnelRegisterHost             string
 		TunnelDomain                   string
 		TunnelSubdomain                string
+		IpsAllowList                   string
 		SkipIngress                    bool
 		BypassIngressClassCheck        bool
 
@@ -118,6 +117,23 @@ type (
 		gitProvider       cfgit.Provider
 		useGatewayAPI     bool
 		featuresToInstall []runtime.InstallFeature
+		runtimeDef        string
+	}
+
+	CreateIngressOptions struct {
+		HostName                  string
+		InternalHostName          string
+		IngressHost               string
+		IngressClass              string
+		InternalIngressHost       string
+		IngressController         routingutil.RoutingController
+		GatewayName               string
+		GatewayNamespace          string
+		InsCloneOpts              *apgit.CloneOptions
+		InternalIngressAnnotation map[string]string
+		ExternalIngressAnnotation map[string]string
+
+		useGatewayAPI bool
 	}
 
 	tunnelServer struct {
@@ -126,6 +142,7 @@ type (
 
 	tunnel struct {
 		SubdomainPrefix string `json:"subdomainPrefix"`
+		IpsAllowList    string `json:"ipsAllowList"`
 	}
 
 	ctcValues struct {
@@ -251,10 +268,11 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
-	cmd.Flags().BoolVar(&installationOpts.EnableGitProviders, "enable-git-providers", false, "Enable git providers (bitbucket|bitbucket-server|gitlab)")
+	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
+	cmd.Flags().StringVar(&installationOpts.IpsAllowList, "ips-allow-list", "", "lists the rules to configure which IP addresses (IPv4/IPv6) and subnet masks can access your client (e.g \"192.168.0.0/16, FE80:CD00:0000:0CDE:1257::/64\")")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -270,10 +288,13 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
-	util.Die(cmd.Flags().MarkHidden("enable-git-providers"))
 	util.Die(cmd.Flags().MarkHidden("access-mode"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-register-host"))
 	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
+	util.Die(cmd.Flags().MarkHidden("ips-allow-list"))
+	util.Die(cmd.Flags().MarkHidden("runtime-def"))
+	cmd.MarkFlagsMutuallyExclusive("runtime-def", "version")
+	cmd.MarkFlagsMutuallyExclusive("runtime-def", "set-default-resources")
 
 	return cmd
 }
@@ -284,12 +305,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	handleCliStep(reporter.InstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.Version, err = getVersionIfExists(opts.versionStr)
+	err = validateVersionIfExists(opts.versionStr)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
-	if err != nil {
-		return err
-	}
-
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
 			opts.RuntimeName, err = getRuntimeNameFromUserInput()
@@ -381,14 +398,14 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 		return err
 	}
 
+	if strings.HasPrefix(opts.InsCloneOpts.Repo, "http:") {
+		return fmt.Errorf("Invalid URL for Git repository - http is not allowed")
+	}
+
 	baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
 	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), baseURL)
 	if err != nil {
 		return err
-	}
-
-	if opts.gitProvider.Type() != cfgit.GITHUB && !opts.EnableGitProviders {
-		return fmt.Errorf("Unsupported git provider type %s", opts.gitProvider.Type())
 	}
 
 	opts.InsCloneOpts.Provider = string(opts.gitProvider.Type())
@@ -593,18 +610,13 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 }
 
 func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	err := preInstallationChecks(ctx, opts)
+	rt, err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
 	handleCliStep(reporter.InstallPhaseStart, "Runtime installation phase started", nil, false, true)
-
-	rt, err := runtimeInstallPreparations(opts)
-	if err != nil {
-		return err
-	}
 
 	if opts.FromRepo {
 		// in case of a runtime recovery, we don't want to clear the repo when failure occures
@@ -775,22 +787,6 @@ To complete the installation:
 
 	summaryArr = append(summaryArr, summaryLog{installationSuccessMsg, Info})
 	return nil
-}
-
-func runtimeInstallPreparations(opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, opts.featuresToInstall)
-	handleCliStep(reporter.InstallStepDownloadRuntimeDefinition, "Downloading runtime definition", err, false, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
-	}
-
-	rt.Spec.Cluster, err = util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
-	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current server address: %w", err)
-	}
-
-	return rt, nil
 }
 
 func createRuntimeComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
@@ -1033,13 +1029,38 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// bitbucket cloud take more time to push a commit
 	// the perpuse of all retries is to avoid issues of cloning before pervious commit was pushed
-	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+	if opts.shouldInstallIngress() {
 		if err = util.Retry(ctx, &util.RetryOptions{
 			Func: func() error {
-				return createWorkflowsIngress(ctx, opts, rt)
+				return CreateInternalRouterIngress(ctx, &CreateIngressOptions{
+					HostName:                  opts.HostName,
+					InternalHostName:          opts.InternalHostName,
+					IngressHost:               opts.IngressHost,
+					IngressClass:              opts.IngressClass,
+					InternalIngressHost:       opts.InternalIngressHost,
+					IngressController:         opts.IngressController,
+					GatewayName:               opts.GatewayName,
+					GatewayNamespace:          opts.GatewayNamespace,
+					InsCloneOpts:              opts.InsCloneOpts,
+					InternalIngressAnnotation: opts.InternalIngressAnnotation,
+					ExternalIngressAnnotation: opts.ExternalIngressAnnotation,
+					useGatewayAPI:             opts.useGatewayAPI,
+				}, rt, false)
 			},
 		}); err != nil {
-			return fmt.Errorf("failed to patch Argo-Workflows ingress: %w", err)
+			return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
+		}
+	}
+
+	// this will add `/workflows` suffix to the argo-server deployment
+	// we need this both in ingress and tunnel mode
+	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) || rt.Spec.AccessMode == platmodel.AccessModeTunnel {
+		if err = util.Retry(ctx, &util.RetryOptions{
+			Func: func() error {
+				return configureArgoWorkflows(ctx, opts, rt)
+			},
+		}); err != nil {
+			return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
 		}
 	}
 
@@ -1048,7 +1069,7 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			return configureAppProxy(ctx, opts, rt)
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to patch App-Proxy ingress: %w", err)
+		return fmt.Errorf("failed to patch App-Proxy configuration: %w", err)
 	}
 
 	if err = createEventsReporter(ctx, opts.InsCloneOpts, opts); err != nil {
@@ -1100,8 +1121,9 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return nil
 }
 
-func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) error {
+func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
 	var err error
+
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
@@ -1109,13 +1131,14 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 	err = checkIscProvider(ctx, opts.InsCloneOpts)
 	handleCliStep(reporter.InstallStepRunPreCheckGitProvider, "Checking Account Git Provider", err, true, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	rt, err := runtime.Download(opts.Version, opts.RuntimeName, nil) // no need to send featuresToInstall, since we only use the runtime to get the DefVersion anyway
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
-		return fmt.Errorf("failed to download runtime definition: %w", err)
+		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
@@ -1124,38 +1147,47 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) err
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
+		return nil, util.DecorateErrorWithDocsLink(err, store.Get().DownloadCliLink)
 	}
 
 	err = checkRuntimeCollisions(ctx, opts.KubeFactory, opts.RuntimeName)
 	handleCliStep(reporter.InstallStepRunPreCheckRuntimeCollision, "Checking for runtime collisions", err, true, false)
 	if err != nil {
-		return fmt.Errorf("runtime collision check failed: %w", err)
+		return nil, fmt.Errorf("runtime collision check failed: %w", err)
+	}
+
+	rt.Spec.Cluster, err = util.KubeServerByContextName(opts.kubeContext, opts.kubeconfig)
+	handleCliStep(reporter.InstallStepGetServerAddress, "Getting kube server address", err, false, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current server address: %w", err)
 	}
 
 	if !opts.FromRepo {
 		err = checkExistingRuntimes(ctx, opts.RuntimeName)
 	}
+
 	handleCliStep(reporter.InstallStepRunPreCheckExisitingRuntimes, "Checking for exisiting runtimes", err, true, false)
 	if err != nil {
-		return fmt.Errorf("existing runtime check failed: %w", err)
+		return nil, fmt.Errorf("existing runtime check failed: %w", err)
 	}
 
 	if !opts.SkipClusterChecks {
-		err = kubeutil.EnsureClusterRequirements(ctx, kubeutil.RuntimeInstallOptions{
+		err = kubeutil.EnsureClusterRequirements(ctx, kubeutil.ClusterRequirementsOptions{
 			KubeFactory:        opts.KubeFactory,
 			Namespace:          opts.RuntimeName,
 			ContextUrl:         cfConfig.GetCurrentContext().URL,
 			AccessMode:         opts.AccessMode,
 			TunnelRegisterHost: opts.TunnelRegisterHost,
+			IsCustomInstall:    opts.IsCustomInstall(),
 		})
 	}
+
 	handleCliStep(reporter.InstallStepRunPreCheckValidateClusterRequirements, "Ensuring cluster requirements", err, true, false)
 	if err != nil {
-		return fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
+		return nil, fmt.Errorf("validation of minimum cluster requirements failed: %w", err)
 	}
 
-	return nil
+	return rt, nil
 }
 
 func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
@@ -1362,13 +1394,14 @@ func persistRuntime(ctx context.Context, cloneOpts *apgit.CloneOptions, rt *runt
 	return apu.PushWithMessage(ctx, r, "Persisted runtime data")
 }
 
-func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions, rt *runtime.Runtime, onlyWebhooks bool) error {
 	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err
 	}
 
-	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().WorkflowsIngressPath, apstore.Default.OverlaysDir, rt.Name)
+	internalIngressEnabled := opts.InternalHostName != ""
+	overlaysDir := fs.Join(apstore.Default.AppsDir, store.Get().InternalRouterIngressFilePath, apstore.Default.OverlaysDir, rt.Name)
 
 	routeOpts := routingutil.CreateRouteOpts{
 		RuntimeName:       rt.Name,
@@ -1376,17 +1409,68 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		IngressClass:      opts.IngressClass,
 		Hostname:          opts.HostName,
 		IngressController: opts.IngressController,
+		Annotations:       opts.ExternalIngressAnnotation,
 		GatewayName:       opts.GatewayName,
 		GatewayNamespace:  opts.GatewayNamespace,
 	}
-	routeName, route := routingutil.CreateWorkflowsRoute(&routeOpts, opts.useGatewayAPI)
+	routeName, route := routingutil.CreateInternalRouterRoute(&routeOpts, opts.useGatewayAPI, !internalIngressEnabled, onlyWebhooks)
 	routeFileName := fmt.Sprintf("%s.yaml", routeName)
 
 	if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
-		return fmt.Errorf("failed to write yaml of workflows route. Error: %w", err)
+		return fmt.Errorf("failed to write yaml of webhooks routes. Error: %w", err)
 	}
 
-	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "ingress-patch.json"), workflowsIngressPatch, 0666); err != nil {
+	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
+	if err != nil {
+		return err
+	}
+
+	if util.StringIndexOf(kust.Resources, routeFileName) == -1 {
+		kust.Resources = append(kust.Resources, routeFileName)
+	}
+
+	if !onlyWebhooks && internalIngressEnabled {
+		routeOpts := routingutil.CreateRouteOpts{
+			RuntimeName:       rt.Name,
+			Namespace:         rt.Namespace,
+			IngressClass:      opts.IngressClass,
+			Hostname:          opts.InternalHostName,
+			Annotations:       opts.InternalIngressAnnotation,
+			IngressController: opts.IngressController,
+			GatewayName:       opts.GatewayName,
+			GatewayNamespace:  opts.GatewayNamespace,
+		}
+
+		routeName, route := routingutil.CreateInternalRouterInternalRoute(&routeOpts, opts.useGatewayAPI)
+		routeFileName := fmt.Sprintf("%s-internal.yaml", routeName)
+
+		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
+			return fmt.Errorf("failed to write yaml of app-proxy route. Error: %w", err)
+		}
+
+		if util.StringIndexOf(kust.Resources, routeFileName) == -1 {
+			kust.Resources = append(kust.Resources, routeFileName)
+		}
+	}
+
+	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Pushing Internal Router ingress manifests")
+
+	return apu.PushWithMessage(ctx, r, "Created Internal Router Ingresses")
+}
+
+func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
+	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
+
+	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "route-patch.json"), workflowsRoutePatch, 0666); err != nil {
 		return err
 	}
 
@@ -1395,7 +1479,6 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 		return err
 	}
 
-	kust.Resources = append(kust.Resources, routeFileName)
 	kust.Patches = append(kust.Patches, kusttypes.Patch{
 		Target: &kusttypes.Selector{
 			ResId: kustid.ResId{
@@ -1404,18 +1487,18 @@ func createWorkflowsIngress(ctx context.Context, opts *RuntimeInstallOptions, rt
 					Version: appsv1.SchemeGroupVersion.Version,
 					Kind:    "Deployment",
 				},
-				Name: store.Get().ArgoWFServiceName,
+				Name: store.Get().ArgoWfServiceName,
 			},
 		},
-		Path: "ingress-patch.json",
+		Path: "route-patch.json",
 	})
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
 	}
 
-	log.G(ctx).Info("Pushing Argo Workflows ingress manifests")
+	log.G(ctx).Info("Pushing Argo Workflows configuration")
 
-	return apu.PushWithMessage(ctx, r, "Created Workflows Ingress")
+	return apu.PushWithMessage(ctx, r, "Configured Argo Workflows ")
 }
 
 func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {
@@ -1454,33 +1537,6 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 			},
 		},
 	})
-
-	hostName := opts.HostName
-	if opts.InternalHostName != "" {
-		hostName = opts.InternalHostName
-	}
-
-	if opts.shouldInstallIngress() {
-		routeOpts := routingutil.CreateRouteOpts{
-			RuntimeName:       rt.Name,
-			Namespace:         rt.Namespace,
-			IngressClass:      opts.IngressClass,
-			Hostname:          hostName,
-			Annotations:       opts.InternalIngressAnnotation,
-			IngressController: opts.IngressController,
-			GatewayName:       opts.GatewayName,
-			GatewayNamespace:  opts.GatewayNamespace,
-		}
-
-		routeName, route := routingutil.CreateAppProxyRoute(&routeOpts, opts.useGatewayAPI)
-		routeFileName := fmt.Sprintf("%s.yaml", routeName)
-
-		if err := writeObjectToYaml(fs, fs.Join(overlaysDir, routeFileName), &route, cleanUpFieldsIngress); err != nil {
-			return fmt.Errorf("failed to write yaml of app-proxy ingress. Error: %w", err)
-		}
-
-		kust.Resources = append(kust.Resources, routeFileName)
-	}
 
 	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
 		return err
@@ -2008,13 +2064,14 @@ func printPreviousVsNewConfigsToUser(previousConfigurations map[string]string, n
 	fmt.Printf("%vIngress host:%v       %s %v--> %s%v\n", BOLD, BOLD_RESET, previousConfigurations["IngressHost"], GREEN, newConfigurations["IngressHost"], COLOR_RESET)
 }
 
-func getVersionIfExists(versionStr string) (*semver.Version, error) {
+func validateVersionIfExists(versionStr string) error {
+	var err error
 	if versionStr != "" {
 		log.G().Infof("vesionStr: %s", versionStr)
-		return semver.NewVersion(versionStr)
+		_, err = semver.NewVersion(versionStr)
 	}
 
-	return nil, nil
+	return err
 }
 
 func initializeGitSourceCloneOpts(opts *RuntimeInstallOptions) {
@@ -2034,6 +2091,7 @@ func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 			},
 			Tunnel: tunnel{
 				SubdomainPrefix: opts.TunnelSubdomain,
+				IpsAllowList:    opts.IpsAllowList,
 			},
 		}
 		data, err := yaml.Marshal(values)
@@ -2049,4 +2107,29 @@ func (opts *RuntimeInstallOptions) GetValues(name string) (string, error) {
 
 func (opts *RuntimeInstallOptions) shouldInstallIngress() bool {
 	return !opts.SkipIngress && opts.AccessMode == platmodel.AccessModeIngress
+}
+
+func (opts *RuntimeInstallOptions) IsCustomInstall() bool {
+	return opts.runtimeDef != store.RuntimeDefURL
+}
+
+func getRuntimeDef(runtimeDef, versionStr string) string {
+	if !strings.HasPrefix(runtimeDef, "http") {
+		// runtimeDef is some local file
+		return runtimeDef
+	}
+
+	if versionStr == "" {
+		// no specific version string
+		return runtimeDef
+	}
+
+	version, err := semver.NewVersion(versionStr)
+	if err != nil {
+		// should not arrive here, since we check for validateVersionIfExists earlier
+		return runtimeDef
+	}
+
+	// specific version means the runtimeDef is the default value in cli-v2 repo
+	return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
 }
