@@ -56,8 +56,8 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 			},
 		},
 		"Should fail if required scope is not in res header": {
-			requiredScopes: [][]string{{"repository:admin"}},
-			wantErr:        "the provided token is missing required token scopes, got: scope 1, scope 2 \nrequired: repository:admin",
+			requiredScopes: [][]string{{"scope 3"}},
+			wantErr:        "the provided token is missing required token scopes, got: scope 1, scope 2 required: [[scope 3]]",
 			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
@@ -72,13 +72,13 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		},
 		"Should succeed if all required scopes or higher are in the res header": {
 			requiredScopes: [][]string{
-				{"repository:write", "repository:admin"},
-				{"team"},
+				{"scope 3:write", "scope 3:admin"},
+				{"scope 4"},
 			},
 			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
-					header.Add("X-Oauth-Scopes", "scope 1, scope 2, repository:write, team")
+					header.Add("X-Oauth-Scopes", "scope 1, scope 2, scope 3:write, scope 4")
 					res := &http.Response{
 						StatusCode: 200,
 						Header:     header,
