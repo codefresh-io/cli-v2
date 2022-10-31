@@ -61,8 +61,8 @@ var (
 		"account:read account:write":        "account:read",
 		"repository:admin repository:write": "repository:write",
 		"repository:admin":                  "repository:admin",
-		"team team:write":                   "workspace membership read (team), workspace membership write (team:write)",
-		"webhook":                           "webhook read and write",
+		"team team:write":                   "workspace membership:read (team), workspace membership:write (team:write)",
+		"webhook":                           "webhook:read and write",
 	}
 )
 
