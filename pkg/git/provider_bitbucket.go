@@ -58,11 +58,11 @@ var (
 	}
 
 	scopesApiMap = map[string]string{
-		"account:read account:write":        "account:read / account:write",
-		"repository:admin repository:write": "repository:admin / repository:write",
+		"account:read account:write":        "account:read",
+		"repository:admin repository:write": "repository:write",
 		"repository:admin":                  "repository:admin",
 		"team team:write":                   "workspace membership read (team), workspace membership write (team:write)",
-		"webhook":                           "webhook read, webhook write",
+		"webhook":                           "webhook read and write",
 	}
 )
 
