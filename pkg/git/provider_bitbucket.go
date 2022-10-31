@@ -56,6 +56,14 @@ var (
 		{"team", "team:write"},
 		{"webhook"},
 	}
+
+	scopesApiMap = map[string]string{
+		"account:read account:write":        "account:read",
+		"repository:admin repository:write": "repository:write",
+		"repository:admin":                  "repository:admin",
+		"team team:write":                   "workspace membership:write (team:write)",
+		"webhook":                           "webhook:read and write",
+	}
 )
 
 func NewBitbucketProvider(baseURL string, client *http.Client) (Provider, error) {
@@ -107,6 +115,7 @@ func (bb *bitbucket) verifyToken(ctx context.Context, token string, username str
 	if err != nil {
 		return fmt.Errorf("failed checking token scope permission: %w", err)
 	}
+
 	for _, requiredScope := range requiredScopes {
 		isScopeIncluded := false
 		for _, scopeOpt := range requiredScope {
@@ -115,7 +124,8 @@ func (bb *bitbucket) verifyToken(ctx context.Context, token string, username str
 			}
 		}
 		if !isScopeIncluded {
-			return fmt.Errorf("the provided token is missing required token scopes, got: %s required: %v", scopes, requiredScopes)
+			var requestedScopes = bb.getRequestedScopes(requiredScopes)
+			return fmt.Errorf("the provided token is missing required token scopes, got: %s \nrequired: %v", scopes, requestedScopes)
 		}
 	}
 
@@ -153,4 +163,30 @@ func (bb *bitbucket) request(ctx context.Context, username, token, method, urlPa
 	}
 
 	return bb.c.Do(req)
+}
+
+func (bb *bitbucket) getRequestedScopes(requiredScopes [][]string) string {
+	var requestedScopes string = ""
+
+	for _, requiredScopeOpts := range requiredScopes {
+		var scopeOpts = ""
+		for _, requiredScope := range requiredScopeOpts {
+			if len(scopeOpts) > 0 {
+				scopeOpts += " "
+			}
+			scopeOpts += requiredScope
+		}
+
+		if len(requestedScopes) > 0 {
+			requestedScopes += ", "
+		}
+
+		if len(scopesApiMap[scopeOpts]) > 0 {
+			requestedScopes += scopesApiMap[scopeOpts]
+		} else {
+			requestedScopes += scopeOpts
+		}
+	}
+
+	return requestedScopes
 }
