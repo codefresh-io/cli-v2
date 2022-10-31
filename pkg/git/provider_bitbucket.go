@@ -176,7 +176,10 @@ func (bb *bitbucket) getRequestedScopes(requiredScopes [][]string) string {
 			}
 			scopeOpts += requiredScope
 		}
-		requestedScopes += scopesApiMap[scopeOpts] + ", "
+		if len(requestedScopes) > 0 {
+			requestedScopes += ", "
+		}
+		requestedScopes += scopesApiMap[scopeOpts]
 	}
 
 	return requestedScopes
