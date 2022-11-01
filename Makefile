@@ -11,7 +11,7 @@ RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download
 ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 FALLBACK_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
-DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
+DEV_RUNTIME_DEF_URL="<csdp-official-clone>/csdp/hybrid/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize" # specify dev branch using ?ref=<branch> here if you want to test a change
 
 CLI_SRCS := $(shell find . -name '*.go')

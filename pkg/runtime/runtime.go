@@ -154,10 +154,6 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 
 		if component.Type == "kustomize" {
 			url := component.URL
-			if store.Get().SetDefaultResources {
-				url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-			}
-
 			component.URL = runtime.Spec.fullURL(url)
 		}
 
@@ -312,18 +308,10 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 
 func (r *RuntimeSpec) FullSpecifier() string {
 	url := r.BootstrapSpecifier
-	if store.Get().SetDefaultResources {
-		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-	}
-
 	return buildFullURL(url, r.Version.String())
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
-	if store.Get().SetDefaultResources {
-		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-	}
-
 	return buildFullURL(url, r.Version.String())
 }
 

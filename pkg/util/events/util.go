@@ -111,10 +111,6 @@ func CreateEventSource(opts *CreateEventSourceOptions) *eventsourcev1alpha1.Even
 
 	tpl := &eventsourcev1alpha1.Template{Container: &v1.Container{}}
 
-	if store.Get().SetDefaultResources {
-		SetDefaultResourceRequirements(tpl.Container)
-	}
-
 	if opts.ServiceAccountName != "" {
 		tpl.ServiceAccountName = opts.ServiceAccountName
 	}
@@ -204,10 +200,6 @@ func CreateSensor(opts *CreateSensorOptions) *sensorsv1alpha1.Sensor {
 	}
 
 	tpl := &sensorsv1alpha1.Template{Container: &v1.Container{}}
-
-	if store.Get().SetDefaultResources {
-		SetDefaultResourceRequirements(tpl.Container)
-	}
 
 	return &sensorsv1alpha1.Sensor{
 		TypeMeta: metav1.TypeMeta{

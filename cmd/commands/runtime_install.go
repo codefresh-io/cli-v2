@@ -253,7 +253,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Username, "personal-git-user", "", "The Personal git user that match the token, required for bitbucket cloud")
-	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
+	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: stable)")
 	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
@@ -263,7 +263,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&installationOpts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	cmd.Flags().BoolVar(&installationOpts.BypassIngressClassCheck, "bypass-ingress-class-check", false, "Disables the ingress class check during pre-installation")
 	cmd.Flags().BoolVar(&installationOpts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the installation process")
-	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	cmd.Flags().BoolVar(&installationOpts.FromRepo, "from-repo", false, "Installs a runtime from an existing repo. Used for recovery after cluster failure")
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
@@ -294,7 +293,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	util.Die(cmd.Flags().MarkHidden("ips-allow-list"))
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
 	cmd.MarkFlagsMutuallyExclusive("runtime-def", "version")
-	cmd.MarkFlagsMutuallyExclusive("runtime-def", "set-default-resources")
 
 	return cmd
 }
@@ -2136,5 +2134,5 @@ func getRuntimeDef(runtimeDef, versionStr string) string {
 	}
 
 	// specific version means the runtimeDef is the default value in cli-v2 repo
-	return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
+	return runtimeDef + "?ref=v" + version.String()
 }

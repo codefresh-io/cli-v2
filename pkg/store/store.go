@@ -31,8 +31,8 @@ var (
 	buildDate                = ""
 	gitCommit                = ""
 	SegmentWriteKey          = ""
-	maxDefVersion            = "2.1.1"
-	RuntimeDefURL            = "manifests/runtime.yaml"
+	maxDefVersion            = "2.1.2"
+	RuntimeDefURL            = "https://github.com/codefresh-io/csdp-official/csdp/hybrid/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 	devMode                  = "true"
@@ -120,7 +120,6 @@ type Store struct {
 	ArgoCD                            string
 	Silent                            bool
 	InsecureIngressHost               bool
-	SetDefaultResources               bool
 	MinimumMemorySizeRequired         string
 	MinimumCpuRequired                string
 	MinimumLocalDiskSizeRequired      string
