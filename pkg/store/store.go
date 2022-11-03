@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 )
 
 var s Store
@@ -155,6 +156,11 @@ type Store struct {
 // Get returns the global store
 func Get() *Store {
 	return &s
+}
+
+func (s *Store) DefaultRuntimeDefRepoURL() string {
+	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(s.RuntimeDefURL)
+	return host + orgRepo + suffix
 }
 
 func init() {
