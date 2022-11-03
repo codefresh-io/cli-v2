@@ -110,11 +110,6 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	)
 
 	if strings.HasPrefix(runtimeDef, "http") {
-		// urlString := store.RuntimeDefURL
-		// if version != nil {
-		// 	urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
-		// }
-
 		res, err := http.Get(runtimeDef)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download runtime definition: %w", err)
@@ -362,7 +357,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 			}
 			newCloneOpts.Parse()
 
-			if a.Type == "kustomize" {
+			if a.Type == "kustomize" || a.Type == "dir" {
 				return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
 			}
 		
@@ -512,7 +507,9 @@ func buildFullURL(urlString, ref string) string {
 		return urlString
 	}
 
-	if urlString != store.Get().RuntimeDefURL {
+	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(urlString)
+	repoUrl := host + orgRepo + suffix
+	if repoUrl != store.Get().RuntimeDefRepoUrl() {
 		return urlString
 	}
 
