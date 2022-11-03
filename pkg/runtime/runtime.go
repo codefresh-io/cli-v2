@@ -360,7 +360,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 			if a.Type == "kustomize" || a.Type == "dir" {
 				return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
 			}
-		
+
 			if a.Type == "helm" {
 				values := ""
 				if len(optionalValues) > 0 {
@@ -501,7 +501,8 @@ func buildFullURL(urlString, ref string) string {
 
 	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(urlString)
 	repoUrl := host + orgRepo + suffix
-	if repoUrl != store.Get().RuntimeDefRepoUrl() {
+	if repoUrl != store.Get().DefaultRuntimeDefRepoURL() {
+		// if the url is not from codefresh-io/cli-v2 - don't change it
 		return urlString
 	}
 

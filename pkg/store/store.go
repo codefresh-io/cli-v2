@@ -21,7 +21,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-
 )
 
 var s Store
@@ -159,7 +158,7 @@ func Get() *Store {
 	return &s
 }
 
-func (s *Store) RuntimeDefRepoUrl() string {
+func (s *Store) DefaultRuntimeDefRepoURL() string {
 	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(s.RuntimeDefURL)
 	return host + orgRepo + suffix
 }
