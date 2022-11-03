@@ -448,14 +448,6 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.Clo
 	return aputil.PushWithMessage(ctx, r, commitMsg)
 }
 
-func (a *AppDef) updateApp(fs apfs.FS, newComponent *AppDef) error {
-	if a.Type == "kustomize" {
-		return a.updateKustApp(fs, newComponent)
-	}
-
-	return nil
-}
-
 func (a *AppDef) updateKustApp(fs apfs.FS, newComponent *AppDef) error {
 	log.G().Infof("Upgrading \"%s\"", a.Name)
 	baseDir := fs.Join(apstore.Default.AppsDir, a.Name, apstore.Default.BaseDir)
