@@ -30,7 +30,7 @@ var (
 	buildDate                = ""
 	gitCommit                = ""
 	SegmentWriteKey          = ""
-	maxDefVersion            = "2.1.1"
+	maxDefVersion            = "2.1.2"
 	RuntimeDefURL            = "manifests/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
