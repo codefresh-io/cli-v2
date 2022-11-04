@@ -110,11 +110,6 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	)
 
 	if strings.HasPrefix(runtimeDef, "http") {
-		// urlString := store.RuntimeDefURL
-		// if version != nil {
-		// 	urlString = strings.Replace(urlString, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
-		// }
-
 		res, err := http.Get(runtimeDef)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download runtime definition: %w", err)
@@ -225,7 +220,7 @@ func (r *Runtime) Install(ctx context.Context, f apkube.Factory, cloneOpts *apgi
 }
 
 func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
-	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec)
+	newComponents, err := r.Spec.upgrade(fs, &newRt.Spec, r.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +250,7 @@ func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *
 	return nil
 }
 
-func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) {
+func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec, runtimeName string) ([]AppDef, error) {
 	log.G().Infof("Upgrading bootstrap specifier")
 	argocdDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ArgoCDName)
 	if err := updateKustomization(fs, argocdDir, r.FullSpecifier(), newRt.FullSpecifier()); err != nil {
@@ -274,9 +269,16 @@ func (r *RuntimeSpec) upgrade(fs apfs.FS, newRt *RuntimeSpec) ([]AppDef, error) 
 	for _, newComponent := range newRt.Components {
 		curComponent := r.component(newComponent.Name)
 		if curComponent != nil {
-			log.G().Infof("Upgrading \"%s\"", newComponent.Name)
-			baseDir := fs.Join(apstore.Default.AppsDir, curComponent.Name, apstore.Default.BaseDir)
-			if err := updateKustomization(fs, baseDir, curComponent.URL, newComponent.URL); err != nil {
+			var err error
+			if curComponent.Type == "kustomize" {
+				err = curComponent.updateKustApp(fs, &newComponent)
+			} else if curComponent.Type == "helm" {
+				err = curComponent.updateHelmApp(fs, &newComponent, runtimeName)
+			} else {
+				err = fmt.Errorf("unknown component type \"%s\"", curComponent.Type)
+			}
+
+			if err != nil {
 				return nil, fmt.Errorf("failed to upgrade app \"%s\": %w", curComponent.Name, err)
 			}
 		} else {
@@ -355,6 +357,10 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 			}
 			newCloneOpts.Parse()
 
+			if a.Type == "kustomize" || a.Type == "dir" {
+				return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
+			}
+
 			if a.Type == "helm" {
 				values := ""
 				if len(optionalValues) > 0 {
@@ -363,7 +369,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 				return a.createHelmAppDirectly(ctx, newCloneOpts, runtimeName, cfType, values)
 			}
 
-			return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
+			return fmt.Errorf("failed to create app \"%s\", unknown type \"%s\"", a.Name, a.Type)
 		},
 	})
 }
@@ -401,12 +407,6 @@ func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, 
 }
 
 func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, values string) error {
-	r, fs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed getting repository while creating helm app: %w", err)
-	}
-
-	helmAppPath := cloneOpts.FS.Join(apstore.Default.AppsDir, a.Name, runtimeName, "config_helm.json")
 	host, orgRepo, path, gitRef, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
 	repoUrl := host + orgRepo + suffix
 	config := &HelmConfig{
@@ -428,6 +428,13 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.Clo
 		},
 		Values: values,
 	}
+
+	r, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting repository while creating helm app: %w", err)
+	}
+
+	helmAppPath := fs.Join(apstore.Default.AppsDir, a.Name, runtimeName, "config_helm.json")
 	err = fs.WriteJson(helmAppPath, config)
 	if err != nil {
 		return fmt.Errorf("failed to write helm app config file: %w", err)
@@ -437,7 +444,37 @@ func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.Clo
 	if fs.Root() != "" {
 		commitMsg += fmt.Sprintf(" installation-path: '%s'", fs.Root())
 	}
+
 	return aputil.PushWithMessage(ctx, r, commitMsg)
+}
+
+func (a *AppDef) updateKustApp(fs apfs.FS, newComponent *AppDef) error {
+	log.G().Infof("Upgrading \"%s\"", a.Name)
+	baseDir := fs.Join(apstore.Default.AppsDir, a.Name, apstore.Default.BaseDir)
+	if err := updateKustomization(fs, baseDir, a.URL, newComponent.URL); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *AppDef) updateHelmApp(fs apfs.FS, newComponent *AppDef, runtimeName string) error {
+	log.G().Infof("Upgrading \"%s\"", a.Name)
+	helmAppPath := fs.Join(apstore.Default.AppsDir, a.Name, runtimeName, "config_helm.json")
+	var config HelmConfig
+	err := fs.ReadJson(helmAppPath, &config)
+	if err != nil {
+		return err
+	}
+
+	host, orgRepo, path, gitRef, _, suffix, _ := apaputil.ParseGitUrl(newComponent.URL)
+	repoUrl := host + orgRepo + suffix
+	config.SrcRepoURL = repoUrl
+	config.SrcPath = path
+	config.SrcTargetRevision = gitRef
+	config.Labels[util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal)] = strconv.FormatBool(newComponent.IsInternal)
+	config.Annotations[util.EscapeAppsetFieldName(store.Get().AnnotationKeySyncWave)] = strconv.Itoa(newComponent.SyncWave)
+	return fs.WriteJson(helmAppPath, config)
 }
 
 func (a *AppDef) delete(fs apfs.FS) error {
@@ -462,14 +499,17 @@ func buildFullURL(urlString, ref string) string {
 		return urlString
 	}
 
-	if urlString != store.Get().RuntimeDefURL {
+	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(urlString)
+	repoUrl := host + orgRepo + suffix
+	if repoUrl != store.Get().DefaultRuntimeDefRepoURL() {
+		// if the url is not from codefresh-io/cli-v2 - don't change it
 		return urlString
 	}
 
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", "v" + ref)
+		v.Add("ref", "v"+ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
