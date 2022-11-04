@@ -1932,12 +1932,17 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 }
 
 func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, triggers []string, dataKey string) error {
+	triggerUrl, err := url.JoinPath(cfConfig.GetCurrentContext().URL, store.Get().EventReportingEndpoint)
+	if err != nil {
+		return err
+	}
+
 	sensor := eventsutil.CreateSensor(&eventsutil.CreateSensorOptions{
 		Name:            name,
 		Namespace:       namespace,
 		EventSourceName: eventSourceName,
 		EventBusName:    store.Get().EventBusName,
-		TriggerURL:      cfConfig.GetCurrentContext().URL + store.Get().EventReportingEndpoint,
+		TriggerURL:      triggerUrl,
 		Triggers:        triggers,
 		TriggerDestKey:  dataKey,
 	})
