@@ -817,6 +817,8 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				finalParameters["Version"] = versionStr
 			}
 
+			opts.runtimeDef = store.GetRuntimeDefURL(opts.versionStr)
+
 			err = validateVersionIfExists(opts.versionStr)
 			if err != nil {
 				return err
@@ -847,10 +849,9 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.versionStr, "version", "", "The runtime version to upgrade to, defaults to stable")
 	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
-	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
+	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
 	cmd.Flags().BoolVar(&opts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
-
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
 	cmd.MarkFlagsMutuallyExclusive("version", "runtime-def")
 
@@ -873,6 +874,13 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
 	}
 	handleCliStep(reporter.UpgradeStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	if newRt.Spec.RequiredCLIVersion.GreaterThan(store.Get().Version.Version) {
+		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
+	}
 	if err != nil {
 		return err
 	}

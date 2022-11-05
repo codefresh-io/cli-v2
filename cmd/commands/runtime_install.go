@@ -222,6 +222,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
+			installationOpts.runtimeDef = store.GetRuntimeDefURL(installationOpts.versionStr)
+
 			finalParameters = map[string]string{
 				"Codefresh context":         cfConfig.CurrentContext,
 				"Kube context":              installationOpts.kubeContext,
@@ -267,7 +269,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
-	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
+	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
@@ -1139,8 +1141,18 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+	if rt.Spec.RequiredCLIVersion == nil {
+		rt.Spec.RequiredCLIVersion = store.Get().Version.Version
+	}
+
+	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) || rt.Spec.RequiredCLIVersion.GreaterThan(store.Get().Version.Version) {
 		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+	} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) || rt.Spec.RequiredCLIVersion.LessThan(store.Get().Version.Version) {
+		val, ok := store.Get().DefVersionComptability[rt.Spec.DefVersion.String()]
+		if !ok {
+			val = rt.Spec.RequiredCLIVersion.String()
+		}
+		err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
 	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
@@ -2113,7 +2125,7 @@ func (opts *RuntimeInstallOptions) shouldInstallIngress() bool {
 }
 
 func (opts *RuntimeInstallOptions) IsCustomInstall() bool {
-	return opts.runtimeDef != store.RuntimeDefURL
+	return opts.runtimeDef != store.RuntimeDefURL && opts.runtimeDef != store.OldRuntimeDefURL
 }
 
 func getRuntimeDef(runtimeDef, versionStr string) string {

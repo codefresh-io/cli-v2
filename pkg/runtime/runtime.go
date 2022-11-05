@@ -63,6 +63,7 @@ type (
 
 	RuntimeSpec struct {
 		DefVersion          *semver.Version      `json:"defVersion"`
+		RequiredCLIVersion  *semver.Version      `json:"requiredCLIVersion"`
 		Version             *semver.Version      `json:"version"`
 		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
 		Components          []AppDef             `json:"components"`
@@ -136,14 +137,14 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	runtime.Name = name
 	runtime.Namespace = name
 
-	if store.Get().DevMode {
-		devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
-		if err != nil {
-			return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
-		}
+	// if store.Get().DevMode {
+	// 	devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
+	// 	}
 
-		runtime.Spec.Version = &devVersion
-	}
+	// 	runtime.Spec.Version = &devVersion
+	// }
 
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
@@ -487,9 +488,8 @@ func buildFullURL(urlString, ref string) string {
 		return urlString
 	}
 
-	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(urlString)
-	repoUrl := host + orgRepo + suffix
-	if repoUrl != store.Get().DefaultRuntimeDefRepoURL() {
+	_, orgRepo, _, _, _, _, _ := apaputil.ParseGitUrl(urlString)
+	if store.Get().IsCustomDefURL(orgRepo) {
 		// if the url is not from codefresh-io/cli-v2 - don't change it
 		return urlString
 	}
@@ -497,7 +497,10 @@ func buildFullURL(urlString, ref string) string {
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
 	if v.Get("ref") == "" {
-		v.Add("ref", "v"+ref)
+		if strings.Contains(urlString, "cli-v2") {
+			ref = "v" + ref
+		}
+		v.Add("ref", ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
