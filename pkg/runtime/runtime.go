@@ -137,14 +137,14 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	runtime.Name = name
 	runtime.Namespace = name
 
-	// if store.Get().DevMode {
-	// 	devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
-	// 	}
+	if store.Get().DevMode {
+		devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
+		if err != nil {
+			return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
+		}
 
-	// 	runtime.Spec.Version = &devVersion
-	// }
+		runtime.Spec.Version = &devVersion
+	}
 
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
