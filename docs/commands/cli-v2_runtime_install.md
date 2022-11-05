@@ -51,12 +51,11 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider string                              The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
       --provider-api-url string                      Git provider API url
       --repo string                                  Repository URL [GIT_REPO]
-      --set-default-resources                        If true, will set default requests and limits on all of the runtime components
       --shared-config-repo string                    URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)
       --skip-cluster-checks                          Skips the cluster's checks
       --skip-ingress                                 Skips the creation of ingress resources
   -b, --upsert-branch                                If true will try to checkout the specified branch and create it if it doesn't exist
-      --version string                               The runtime version to install (default: latest)
+      --version string                               The runtime version to install (default: stable)
       --wait-timeout duration                        How long to wait for the runtime components to be ready (default 8m0s)
 ```
 
