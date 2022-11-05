@@ -1147,7 +1147,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 
 	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) || rt.Spec.RequiredCLIVersion.GreaterThan(store.Get().Version.Version) {
 		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
-	} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) || rt.Spec.RequiredCLIVersion.LessThan(store.Get().Version.Version) {
+	} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
 		val, ok := store.Get().DefVersionComptability[rt.Spec.DefVersion.String()]
 		if !ok {
 			val = rt.Spec.RequiredCLIVersion.String()
