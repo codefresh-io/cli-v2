@@ -201,17 +201,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
 			}
 
-			if installationOpts.AccessMode == platmodel.AccessModeTunnel {
-				installationOpts.featuresToInstall = append(installationOpts.featuresToInstall, runtime.InstallFeatureIngressless)
-				accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
-				if err != nil {
-					return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
-				}
-
-				installationOpts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, installationOpts.RuntimeName)
-				installationOpts.IngressHost = fmt.Sprintf("https://%s.%s", installationOpts.TunnelSubdomain, installationOpts.TunnelDomain)
-			}
-
 			err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
 			handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, true, false)
 			if err != nil {
@@ -220,10 +209,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				}
 
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
-			}
-
-			if installationOpts.runtimeDef == "" {
-				installationOpts.runtimeDef = runtime.GetRuntimeDefURL(installationOpts.versionStr)
 			}
 
 			finalParameters = map[string]string{
@@ -339,6 +324,14 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	if opts.AccessMode == platmodel.AccessModeTunnel {
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", err, true, false)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", err, true, false)
+		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
+		accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
+		if err != nil {
+			return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
+		}
+
+		opts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, opts.RuntimeName)
+		opts.IngressHost = fmt.Sprintf("https://%s.%s", opts.TunnelSubdomain, opts.TunnelDomain)
 	} else {
 		err = ensureRoutingControllerSupported(ctx, opts)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
@@ -385,6 +378,10 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		}
 
 		log.G(ctx).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
+	}
+
+	if opts.runtimeDef == "" {
+		opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
 	}
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
