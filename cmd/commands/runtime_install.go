@@ -1144,18 +1144,15 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if rt.Spec.RequiredCLIVersion == nil {
-		rt.Spec.RequiredCLIVersion = store.Get().Version.Version
-	}
-
-	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) || rt.Spec.RequiredCLIVersion.GreaterThan(store.Get().Version.Version) {
+	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
 		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
 	} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
-		val, ok := store.Get().DefVersionComptability[rt.Spec.DefVersion.String()]
-		if !ok {
-			val = rt.Spec.RequiredCLIVersion.String()
-		}
+		val := store.Get().DefVersionComptability[rt.Spec.DefVersion.String()]
 		err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
+	}
+
+	if rt.Spec.RequiredCLIVersion != nil && !rt.Spec.RequiredCLIVersion.Check(store.Get().Version.Version) {
+		err = fmt.Errorf("to install this version, please use cli version %s", rt.Spec.RequiredCLIVersion.String())
 	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)

@@ -880,8 +880,8 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
-	if newRt.Spec.RequiredCLIVersion.GreaterThan(store.Get().Version.Version) {
-		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
+	if newRt.Spec.RequiredCLIVersion != nil && !newRt.Spec.RequiredCLIVersion.Check(store.Get().Version.Version) {
+		err = fmt.Errorf("to upgrade this version, please use cli version %s", newRt.Spec.RequiredCLIVersion.String())
 	}
 	if err != nil {
 		return err
