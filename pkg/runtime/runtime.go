@@ -496,11 +496,12 @@ func buildFullURL(urlString, ref string) string {
 
 	urlObj, _ := url.Parse(urlString)
 	v := urlObj.Query()
-	if v.Get("ref") == "" {
+	currRef := v.Get("ref")
+	if currRef == "" || currRef == "stable" {
 		if strings.Contains(urlString, "cli-v2") {
 			ref = "v" + ref
 		}
-		v.Add("ref", ref)
+		v.Set("ref", ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
