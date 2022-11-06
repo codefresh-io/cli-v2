@@ -27,7 +27,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	eventsutil "github.com/codefresh-io/cli-v2/pkg/util/events"
 	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
@@ -1161,10 +1160,6 @@ func createDemoGitlabSensor() *sensorsv1alpha1.Sensor {
 func createDemoEventSource(name string) *eventsourcev1alpha1.EventSource {
 	tpl := &eventsourcev1alpha1.Template{Container: &corev1.Container{}}
 
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
-	}
-
 	return &eventsourcev1alpha1.EventSource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       eventsourcereg.Kind,
@@ -1184,10 +1179,6 @@ func createDemoSensor(name string, triggers []sensorsv1alpha1.Trigger, dependenc
 	tpl := &sensorsv1alpha1.Template{
 		Container:          &corev1.Container{},
 		ServiceAccountName: store.Get().WorkflowTriggerServiceAccount,
-	}
-
-	if store.Get().SetDefaultResources {
-		eventsutil.SetDefaultResourceRequirements(tpl.Container)
 	}
 
 	return &sensorsv1alpha1.Sensor{

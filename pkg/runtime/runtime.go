@@ -63,6 +63,7 @@ type (
 
 	RuntimeSpec struct {
 		DefVersion          *semver.Version      `json:"defVersion"`
+		RequiredCLIVersion  string               `json:"requiredCLIVersion"`
 		Version             *semver.Version      `json:"version"`
 		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
 		Components          []AppDef             `json:"components"`
@@ -136,15 +137,6 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	runtime.Name = name
 	runtime.Namespace = name
 
-	if store.Get().DevMode {
-		devVersion, err := runtime.Spec.Version.SetPrerelease("dev")
-		if err != nil {
-			return nil, fmt.Errorf("failed making dev prerelease version: %w", err)
-		}
-
-		runtime.Spec.Version = &devVersion
-	}
-
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
 		component := runtime.Spec.Components[i]
@@ -154,10 +146,6 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 
 		if component.Type == "kustomize" {
 			url := component.URL
-			if store.Get().SetDefaultResources {
-				url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-			}
-
 			component.URL = runtime.Spec.fullURL(url)
 		}
 
@@ -312,18 +300,10 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 
 func (r *RuntimeSpec) FullSpecifier() string {
 	url := r.BootstrapSpecifier
-	if store.Get().SetDefaultResources {
-		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-	}
-
 	return buildFullURL(url, r.Version.String())
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
-	if store.Get().SetDefaultResources {
-		url = strings.Replace(url, "manifests/", "manifests/default-resources/", 1)
-	}
-
 	return buildFullURL(url, r.Version.String())
 }
 
@@ -495,23 +475,47 @@ func updateKustomization(fs apfs.FS, directory, fromURL, toURL string) error {
 }
 
 func buildFullURL(urlString, ref string) string {
-	if store.Get().DevMode {
-		return urlString
-	}
+	urlObj, _ := url.Parse(urlString)
+	v := urlObj.Query()
+	currRef := v.Get("ref")
 
-	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(urlString)
-	repoUrl := host + orgRepo + suffix
-	if repoUrl != store.Get().DefaultRuntimeDefRepoURL() {
+	_, orgRepo, _, _, _, _, _ := apaputil.ParseGitUrl(urlString)
+	if store.Get().IsCustomDefURL(orgRepo) {
 		// if the url is not from codefresh-io/cli-v2 - don't change it
 		return urlString
 	}
 
-	urlObj, _ := url.Parse(urlString)
-	v := urlObj.Query()
-	if v.Get("ref") == "" {
-		v.Add("ref", "v"+ref)
+	if currRef == "" {
+		if strings.Contains(urlString, "cli-v2") {
+			ref = "v" + ref
+		}
+		v.Add("ref", ref)
 		urlObj.RawQuery = v.Encode()
 	}
 
 	return urlObj.String()
+}
+
+func GetRuntimeDefURL(versionStr string) string {
+	runtimeDefURL := store.Get().RuntimeDefURL
+	if versionStr == "" {
+		return runtimeDefURL
+	}
+
+	version := semver.MustParse(versionStr)
+	if version.Compare(store.Get().LastRuntimeVersionInCLI) <= 0 {
+		runtimeDefURL = store.Get().RuntimeDefURL
+	}
+
+	return runtimeDefURL
+}
+
+func CheckRuntimeVersionCompatible(requiredCLIVersion string) error {
+	// The error is ignored, because it is expected for older runtime to not have the requiredCLIVersion field
+	requiredCLIVersionConstraint, _ := semver.NewConstraint(requiredCLIVersion)
+	if requiredCLIVersionConstraint != nil && !requiredCLIVersionConstraint.Check(store.Get().Version.Version) {
+		return fmt.Errorf("to install this version, please install cli version %s", requiredCLIVersionConstraint.String())
+	}
+
+	return nil
 }

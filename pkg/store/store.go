@@ -26,16 +26,18 @@ import (
 var s Store
 
 var (
-	binaryName               = "cli-v2"
-	version                  = "v99.99.99"
-	buildDate                = ""
-	gitCommit                = ""
-	SegmentWriteKey          = ""
-	maxDefVersion            = "2.1.1"
-	RuntimeDefURL            = "manifests/runtime.yaml"
+	binaryName      = "cli-v2"
+	version         = "v99.99.99"
+	buildDate       = ""
+	gitCommit       = ""
+	SegmentWriteKey = ""
+	// please do not touch this field it is deprecated, it's only here to allow to install runtimes with version < 0.0.569
+	maxDefVersion            = "2.1.2"
+	RuntimeDefURL            = "https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
+	OldRuntimeDefURL         = "https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
-	devMode                  = "true"
+	lastRuntimeVersionInCLI  = "v0.0.569"
 )
 
 type Version struct {
@@ -89,7 +91,9 @@ type Store struct {
 	MarketplaceGitSourceName          string
 	MarketplaceRepo                   string
 	MaxDefVersion                     *semver.Version
+	LastRuntimeVersionInCLI           *semver.Version
 	RuntimeDefURL                     string
+	OldRuntimeDefURL                  string
 	Version                           Version
 	WaitTimeout                       time.Duration
 	WorkflowName                      string
@@ -150,7 +154,7 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	IngressHost                       string
 	IscRuntimesDir                    string
-	DevMode                           bool
+	DefVersionToLastCLIVersion        map[string]string
 }
 
 // Get returns the global store
@@ -158,9 +162,11 @@ func Get() *Store {
 	return &s
 }
 
-func (s *Store) DefaultRuntimeDefRepoURL() string {
-	host, orgRepo, _, _, _, suffix, _ := apaputil.ParseGitUrl(s.RuntimeDefURL)
-	return host + orgRepo + suffix
+func (s *Store) IsCustomDefURL(orgRepo string) bool {
+	_, runtimeDefOrgRepo, _, _, _, _, _ := apaputil.ParseGitUrl(s.RuntimeDefURL)
+	_, oldRuntimeDefOrgRepo, _, _, _, _, _ := apaputil.ParseGitUrl(s.OldRuntimeDefURL)
+
+	return orgRepo != runtimeDefOrgRepo && orgRepo != oldRuntimeDefOrgRepo
 }
 
 func init() {
@@ -203,7 +209,9 @@ func init() {
 	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
 	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
+	s.LastRuntimeVersionInCLI = semver.MustParse(lastRuntimeVersionInCLI)
 	s.RuntimeDefURL = RuntimeDefURL
+	s.OldRuntimeDefURL = OldRuntimeDefURL
 	s.MarketplaceGitSourceName = "marketplace-git-source"
 	s.MarketplaceRepo = "https://github.com/codefresh-io/argo-hub.git"
 	s.WaitTimeout = 8 * time.Minute
@@ -258,7 +266,13 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
-	s.DevMode = devMode == "true"
+	s.DefVersionToLastCLIVersion = map[string]string{
+		"1.0.0": "0.0.237",
+		"1.0.1": "0.0.510",
+		"2.0.0": "0.0.541",
+		"2.1.0": "0.0.548",
+		"2.1.1": "0.0.569",
+	}
 
 	initVersion()
 }

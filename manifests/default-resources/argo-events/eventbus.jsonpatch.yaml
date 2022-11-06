@@ -1,9 +1,0 @@
-- op: add
-  path: /spec/nats/native/containerTemplate/resources
-  value:
-    limits:
-      cpu: 500m
-      memory: 8Gi
-    requests:
-      cpu: 200m
-      memory: 500Mi

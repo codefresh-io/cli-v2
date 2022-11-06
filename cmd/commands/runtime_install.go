@@ -222,6 +222,10 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
+			if installationOpts.runtimeDef == "" {
+				installationOpts.runtimeDef = runtime.GetRuntimeDefURL(installationOpts.versionStr)
+			}
+
 			finalParameters = map[string]string{
 				"Codefresh context":         cfConfig.CurrentContext,
 				"Kube context":              installationOpts.kubeContext,
@@ -253,7 +257,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GatewayNamespace, "gateway-namespace", "", "The namespace of the gateway")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Token, "personal-git-token", "", "The Personal git token for your user")
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Username, "personal-git-user", "", "The Personal git user that match the token, required for bitbucket cloud")
-	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: latest)")
+	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: stable)")
 	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
@@ -268,7 +272,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.NamespaceLabels, "namespace-labels", nil, "Optional labels that will be set on the namespace resource. (e.g. \"key1=value1,key2=value2\"")
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
-	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
+	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
 	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
@@ -293,6 +297,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	util.Die(cmd.Flags().MarkHidden("tunnel-domain"))
 	util.Die(cmd.Flags().MarkHidden("ips-allow-list"))
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
+	util.Die(cmd.Flags().MarkHidden("set-default-resources"))
 	cmd.MarkFlagsMutuallyExclusive("runtime-def", "version")
 	cmd.MarkFlagsMutuallyExclusive("runtime-def", "set-default-resources")
 
@@ -1141,8 +1146,15 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+	if rt.Spec.DefVersion != nil {
+		if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+			err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+		} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
+			val := store.Get().DefVersionToLastCLIVersion[rt.Spec.DefVersion.String()]
+			err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
+		}
+	} else {
+		err = runtime.CheckRuntimeVersionCompatible(rt.Spec.RequiredCLIVersion)
 	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
@@ -2115,7 +2127,7 @@ func (opts *RuntimeInstallOptions) shouldInstallIngress() bool {
 }
 
 func (opts *RuntimeInstallOptions) IsCustomInstall() bool {
-	return opts.runtimeDef != store.RuntimeDefURL
+	return opts.runtimeDef != store.RuntimeDefURL && opts.runtimeDef != store.OldRuntimeDefURL
 }
 
 func getRuntimeDef(runtimeDef, versionStr string) string {
@@ -2135,6 +2147,9 @@ func getRuntimeDef(runtimeDef, versionStr string) string {
 		return runtimeDef
 	}
 
-	// specific version means the runtimeDef is the default value in cli-v2 repo
-	return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
+	// specific version means the runtimeDef is the default value in cli-v2/csdp-official repo
+	if strings.Contains(runtimeDef, "cli-v2") {
+		return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
+	}
+	return runtimeDef + "?ref=v" + version.String()
 }

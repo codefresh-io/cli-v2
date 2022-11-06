@@ -768,7 +768,6 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		versionStr      string
 		finalParameters map[string]string
 		opts            = &RuntimeUpgradeOptions{
 			featuresToInstall: make([]runtime.InstallFeature, 0),
@@ -813,8 +812,12 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				"Repository URL":    opts.CloneOpts.Repo,
 			}
 
-			if versionStr != "" {
-				finalParameters["Version"] = versionStr
+			if opts.versionStr != "" {
+				finalParameters["Version"] = opts.versionStr
+			}
+
+			if opts.runtimeDef == "" {
+				opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
 			}
 
 			err = validateVersionIfExists(opts.versionStr)
@@ -844,15 +847,15 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.versionStr, "version", "", "The runtime version to upgrade to, defaults to latest")
+	cmd.Flags().StringVar(&opts.versionStr, "version", "", "The runtime version to upgrade to, defaults to stable")
 	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
-	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", store.RuntimeDefURL, "Install runtime from a specific manifest")
+	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
 	cmd.Flags().BoolVar(&opts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
-
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
+	util.Die(cmd.Flags().MarkHidden("set-default-resources"))
 	cmd.MarkFlagsMutuallyExclusive("version", "runtime-def")
 
 	return cmd
@@ -870,10 +873,15 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+	if newRt.Spec.DefVersion != nil && newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
 		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
 	}
 	handleCliStep(reporter.UpgradeStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
+	if err != nil {
+		return err
+	}
+
+	err = runtime.CheckRuntimeVersionCompatible(newRt.Spec.RequiredCLIVersion)
 	if err != nil {
 		return err
 	}
