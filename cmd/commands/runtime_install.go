@@ -2148,6 +2148,6 @@ func getRuntimeDef(runtimeDef, versionStr string) string {
 		return runtimeDef
 	}
 
-	// specific version means the runtimeDef is the default value in cli-v2 repo
+	// specific version means the runtimeDef is the default value in cli-v2/csdp-official repo
 	return runtimeDef + "?ref=v" + version.String()
 }
