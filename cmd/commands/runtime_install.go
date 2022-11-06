@@ -216,10 +216,15 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
-				"Ingress host":              installationOpts.IngressHost,
 				"Ingress class":             installationOpts.IngressClass,
-				"Internal ingress host":     installationOpts.InternalIngressHost,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
+			}
+
+			if installationOpts.AccessMode == platmodel.AccessModeTunnel {
+				finalParameters["Tunnel URL"] = installationOpts.IngressHost
+			} else {
+				finalParameters["Ingress host"] = installationOpts.IngressHost
+				finalParameters["Internal ingress host"] = installationOpts.InternalIngressHost
 			}
 
 			if err := getApprovalFromUser(ctx, finalParameters, "runtime install"); err != nil {
