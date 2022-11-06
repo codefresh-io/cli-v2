@@ -26,17 +26,17 @@ import (
 var s Store
 
 var (
-	binaryName               = "cli-v2"
-	version                  = "v99.99.99"
-	buildDate                = ""
-	gitCommit                = ""
-	SegmentWriteKey          = ""
+	binaryName      = "cli-v2"
+	version         = "v99.99.99"
+	buildDate       = ""
+	gitCommit       = ""
+	SegmentWriteKey = ""
+	// please do not touch this field it is deprecated, it's only here to allow to install runtimes with version < 0.0.569
 	maxDefVersion            = "2.1.2"
 	RuntimeDefURL            = "https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
 	OldRuntimeDefURL         = "https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
 	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
-	devMode                  = "true"
 	lastRuntimeVersionInCLI  = "v0.0.569"
 )
 
@@ -154,8 +154,7 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	IngressHost                       string
 	IscRuntimesDir                    string
-	DevMode                           bool
-	DefVersionComptability            map[string]string
+	DefVersionToLastCLIVersion        map[string]string
 }
 
 // Get returns the global store
@@ -168,20 +167,6 @@ func (s *Store) IsCustomDefURL(orgRepo string) bool {
 	_, oldRuntimeDefOrgRepo, _, _, _, _, _ := apaputil.ParseGitUrl(s.OldRuntimeDefURL)
 
 	return orgRepo != runtimeDefOrgRepo && orgRepo != oldRuntimeDefOrgRepo
-}
-
-func GetRuntimeDefURL(versionStr string) string {
-	runtimeDefURL := s.RuntimeDefURL
-	if versionStr == "" {
-		return runtimeDefURL
-	}
-
-	version := semver.MustParse(versionStr)
-	if version.Compare(s.LastRuntimeVersionInCLI) <= 0 {
-		runtimeDefURL = OldRuntimeDefURL
-	}
-
-	return runtimeDefURL
 }
 
 func init() {
@@ -281,8 +266,7 @@ func init() {
 	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
-	s.DevMode = devMode == "true"
-	s.DefVersionComptability = map[string]string{
+	s.DefVersionToLastCLIVersion = map[string]string{
 		"1.0.0": "0.0.237",
 		"1.0.1": "0.0.510",
 		"2.0.0": "0.0.541",

@@ -768,7 +768,6 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
 	var (
-		versionStr      string
 		finalParameters map[string]string
 		opts            = &RuntimeUpgradeOptions{
 			featuresToInstall: make([]runtime.InstallFeature, 0),
@@ -813,11 +812,13 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 				"Repository URL":    opts.CloneOpts.Repo,
 			}
 
-			if versionStr != "" {
-				finalParameters["Version"] = versionStr
+			if opts.versionStr != "" {
+				finalParameters["Version"] = opts.versionStr
 			}
 
-			opts.runtimeDef = store.GetRuntimeDefURL(opts.versionStr)
+			if opts.runtimeDef == "" {
+				opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
+			}
 
 			err = validateVersionIfExists(opts.versionStr)
 			if err != nil {
@@ -872,7 +873,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+	if newRt.Spec.DefVersion != nil && newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
 		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
 	}
 	handleCliStep(reporter.UpgradeStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
@@ -880,10 +881,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
-	requiredCliVersionConstraint, _ := semver.NewConstraint(newRt.Spec.RequiredCLIVersion)
-	if requiredCliVersionConstraint != nil && !requiredCliVersionConstraint.Check(store.Get().Version.Version) {
-		err = fmt.Errorf("to upgrade to this version, please install cli version %s", requiredCliVersionConstraint.String())
-	}
+	err = runtime.CheckRuntimeVersionCompatible(newRt.Spec.RequiredCLIVersion)
 	if err != nil {
 		return err
 	}

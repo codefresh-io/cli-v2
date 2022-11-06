@@ -222,7 +222,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
-			installationOpts.runtimeDef = store.GetRuntimeDefURL(installationOpts.versionStr)
+			if installationOpts.runtimeDef == "" {
+				installationOpts.runtimeDef = runtime.GetRuntimeDefURL(installationOpts.versionStr)
+			}
 
 			finalParameters = map[string]string{
 				"Codefresh context":         cfConfig.CurrentContext,
@@ -1144,16 +1146,15 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
 
-	if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
-	} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
-		val := store.Get().DefVersionComptability[rt.Spec.DefVersion.String()]
-		err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
-	}
-
-	requiredCliVersionConstraint, _ := semver.NewConstraint(rt.Spec.RequiredCLIVersion)
-	if requiredCliVersionConstraint != nil && requiredCliVersionConstraint.Check(store.Get().Version.Version) {
-		err = fmt.Errorf("to install this version, please install cli version %s", requiredCliVersionConstraint.String())
+	if rt.Spec.DefVersion != nil {
+		if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+			err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+		} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
+			val := store.Get().DefVersionToLastCLIVersion[rt.Spec.DefVersion.String()]
+			err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
+		}
+	} else {
+		err = runtime.CheckRuntimeVersionCompatible(rt.Spec.RequiredCLIVersion)
 	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
@@ -2147,5 +2148,8 @@ func getRuntimeDef(runtimeDef, versionStr string) string {
 	}
 
 	// specific version means the runtimeDef is the default value in cli-v2/csdp-official repo
+	if strings.Contains(runtimeDef, "cli-v2") {
+		return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
+	}
 	return runtimeDef + "?ref=v" + version.String()
 }
