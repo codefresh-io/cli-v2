@@ -880,8 +880,9 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return err
 	}
 
-	if newRt.Spec.RequiredCLIVersion != nil && !newRt.Spec.RequiredCLIVersion.Check(store.Get().Version.Version) {
-		err = fmt.Errorf("to upgrade this version, please use cli version %s", newRt.Spec.RequiredCLIVersion.String())
+	requiredCliVersionConstraint, _ := semver.NewConstraint(newRt.Spec.RequiredCLIVersion)
+	if requiredCliVersionConstraint != nil && !requiredCliVersionConstraint.Check(store.Get().Version.Version) {
+		err = fmt.Errorf("to upgrade to this version, please install cli version %s", requiredCliVersionConstraint.String())
 	}
 	if err != nil {
 		return err

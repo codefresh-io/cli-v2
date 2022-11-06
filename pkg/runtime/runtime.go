@@ -63,7 +63,7 @@ type (
 
 	RuntimeSpec struct {
 		DefVersion          *semver.Version      `json:"defVersion"`
-		RequiredCLIVersion  *semver.Constraints  `json:"requiredCLIVersion"`
+		RequiredCLIVersion  string               `json:"requiredCLIVersion"`
 		Version             *semver.Version      `json:"version"`
 		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
 		Components          []AppDef             `json:"components"`

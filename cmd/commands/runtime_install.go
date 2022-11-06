@@ -1151,8 +1151,9 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
 	}
 
-	if rt.Spec.RequiredCLIVersion != nil && !rt.Spec.RequiredCLIVersion.Check(store.Get().Version.Version) {
-		err = fmt.Errorf("to install this version, please use cli version %s", rt.Spec.RequiredCLIVersion.String())
+	requiredCliVersionConstraint, _ := semver.NewConstraint(rt.Spec.RequiredCLIVersion)
+	if requiredCliVersionConstraint != nil && requiredCliVersionConstraint.Check(store.Get().Version.Version) {
+		err = fmt.Errorf("to install this version, please install cli version %s", requiredCliVersionConstraint.String())
 	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
