@@ -124,6 +124,7 @@ type Store struct {
 	ArgoCD                            string
 	Silent                            bool
 	InsecureIngressHost               bool
+	SetDefaultResources               bool
 	MinimumMemorySizeRequired         string
 	MinimumCpuRequired                string
 	MinimumLocalDiskSizeRequired      string
