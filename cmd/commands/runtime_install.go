@@ -2041,7 +2041,7 @@ func getRuntimeDataFromCodefreshCM(_ context.Context, repofs fs.FS, runtimeName 
 func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err error, disableRollback *bool) {
 	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
-		log.G(ctx).Warnf("installation failed due to error : %s, performing installation rollback", err.Error())
+		log.G(ctx).Errorf("installation failed due to error : %s, performing installation rollback", err.Error())
 
 		err := runRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
