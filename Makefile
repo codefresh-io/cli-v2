@@ -76,10 +76,7 @@ cli-local: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
 	@ln $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH) /usr/local/bin/$(CLI_NAME)-dev
 
 .PHONY: cli-e2e
-cli-e2e: cli-package
-
-.PHONY: cli-package
-cli-package: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
+cli-e2e: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
 	@cp $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH) $(OUT_DIR)/$(CLI_NAME)
 
 $(OUT_DIR)/$(CLI_NAME)-linux-amd64: GO_FLAGS='GOOS=linux GOARCH=amd64 CGO_ENABLED=0'
@@ -175,8 +172,3 @@ $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.50.1
-
-.PHONY: e2e-local-manifests
-e2e-local-manifests:
-	cat /codefresh/volume/cli-v2/manifests/runtime.yaml | sed 's@github.com/codefresh-io/cli-v2/@/codefresh/volume/cli-v2/@' > /tmp/tmp_runtime.yaml
-	mv /tmp/tmp_runtime.yaml manifests/runtime.yaml
