@@ -625,6 +625,9 @@ func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory kube.Factory, se
 	}
 
 	err = client.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
+	if errors.IsNotFound(err) {
+		return nil
+	}
 
 	return err
 }

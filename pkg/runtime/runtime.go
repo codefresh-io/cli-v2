@@ -504,7 +504,7 @@ func GetRuntimeDefURL(versionStr string) string {
 
 	version := semver.MustParse(versionStr)
 	if version.Compare(store.Get().LastRuntimeVersionInCLI) <= 0 {
-		runtimeDefURL = store.Get().RuntimeDefURL
+		runtimeDefURL = store.Get().OldRuntimeDefURL
 	}
 
 	return runtimeDefURL
