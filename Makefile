@@ -1,4 +1,4 @@
-VERSION=v0.0.569
+VERSION=v0.1.1
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -7,11 +7,12 @@ CLI_NAME?=cf
 IMAGE_REPOSITORY?=quay.io
 IMAGE_NAMESPACE?=codefresh
 
-RUNTIME_DEF_URL="https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
+RUNTIME_DEF_URL="https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
 ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 FALLBACK_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
-DEV_RUNTIME_DEF_URL="manifests/runtime.yaml"
+# when developing, point this to your local clone of csdp-official
+DEV_RUNTIME_DEF_URL="https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
 DEV_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize" # specify dev branch using ?ref=<branch> here if you want to test a change
 
 CLI_SRCS := $(shell find . -name '*.go')
