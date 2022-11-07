@@ -1,4 +1,4 @@
-VERSION=v0.1.2
+VERSION=v0.1.3
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -76,7 +76,10 @@ cli-local: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
 	@ln $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH) /usr/local/bin/$(CLI_NAME)-dev
 
 .PHONY: cli-e2e
-cli-e2e: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
+cli-e2e: cli-package
+
+.PHONY: cli-package
+cli-package: $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH)
 	@cp $(OUT_DIR)/$(CLI_NAME)-$(shell go env GOOS)-$(shell go env GOARCH) $(OUT_DIR)/$(CLI_NAME)
 
 $(OUT_DIR)/$(CLI_NAME)-linux-amd64: GO_FLAGS='GOOS=linux GOARCH=amd64 CGO_ENABLED=0'
