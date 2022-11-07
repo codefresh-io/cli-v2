@@ -2153,5 +2153,5 @@ func getRuntimeDef(runtimeDef, versionStr string) string {
 	if strings.Contains(runtimeDef, "cli-v2") {
 		return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
 	}
-	return runtimeDef + "?ref=v" + version.String()
+	return strings.Replace(runtimeDef, "stable", version.String(), 1)
 }
