@@ -585,6 +585,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 
 func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
 	fi, err := gsFs.ReadDir(".")
+	rt, err := preInstallationChecks(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
 	}
@@ -605,7 +606,7 @@ func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRe
 			return fmt.Errorf("failed to create calendar example pipeline. Error: %w", err)
 		}
 
-		if opts.AccessMode == platmodel.AccessModeIngress {
+		if opts.AccessMode == platmodel.AccessModeIngress &&  rt.Spec.Version < 0.0.561 {
 			err = createDemoGitPipeline(&gitSourceGitDemoPipelineOptions{
 				runtimeName:       opts.RuntimeName,
 				gsCloneOpts:       opts.GsCloneOpts,
