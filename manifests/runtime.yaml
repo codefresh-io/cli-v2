@@ -1,3 +1,4 @@
+# This file should not be changed. The sole purpose of it staying here is backward compatibility
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
