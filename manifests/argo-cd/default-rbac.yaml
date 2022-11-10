@@ -1,0 +1,23 @@
+# allow default service account to read the codefresh-cm configmap
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: codefresh-config-reader
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    resourceNames: ["codefresh-cm", "codefresh-token"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: codefresh-config-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: codefresh-config-reader
+subjects:
+  - kind: ServiceAccount
+    name: default
