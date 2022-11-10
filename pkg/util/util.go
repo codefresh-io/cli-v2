@@ -365,7 +365,7 @@ func Retry(ctx context.Context, opts *RetryOptions) error {
 			break
 		}
 
-		log.G(ctx).Debug("retry: %s \n err: %s\n Function call failed, trying again", try, err.Error())
+		log.G(ctx).Debugf("retry: %d \n err: %s\n Function call failed, trying again", try, err.Error())
 
 		if opts.Sleep != 0 {
 			time.Sleep(opts.Sleep)
