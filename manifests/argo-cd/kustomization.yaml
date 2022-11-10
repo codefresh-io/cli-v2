@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://raw.githubusercontent.com/codefresh-io/argo-cd/release-2.3/manifests/install.yaml
+  - default-rbac.yaml
+images:
+  - name: quay.io/codefresh/argocd
+    newName: quay.io/codefresh/argocd
+    newTag: v2.3.4-cap-CR-14428-dest-server-validation
+
+# will be effective on argo-cd 2.1
+configMapGenerator:
+  - name: argocd-cm
+    behavior: merge
+    literals:
+      - "timeout.reconciliation=20s"
+      - "accounts.admin=apiKey,login" # need to be able to generate apikey for generic eventsource
+  - name: argocd-cmd-params-cm
+    behavior: merge
+    literals:
+      - "server.insecure=true"
+
+patches:
+  # reset the crbs to `subject.namespace: default`, so that argo-cd will later change them to the actual ns
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: default
+
+  # Istio protocol selection: https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/
+  # Ovveride the default protocol selection which is done by the port name (http), since this port is being used for both http and grpc.
+  - target:
+      version: v1
+      kind: Service
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/ports/0/appProtocol
+        value: tcp
+
+  - target:
+      version: v1
+      group: apps
+      kind: Deployment
+      name: argocd-server
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: ARGOCD_SYNC_WAVE_DELAY
+          value: "10"

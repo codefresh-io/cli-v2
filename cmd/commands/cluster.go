@@ -65,7 +65,7 @@ type (
 )
 
 var (
-	minAddClusterSupportedVersion       = semver.MustParse("0.0.283")
+	minAddClusterSupportedVersion = semver.MustParse("0.0.283")
 	minAddClusterLabelsSupportedVersion = semver.MustParse("0.0.462")
 
 	serviceAccountGVK = resid.Gvk{
@@ -384,7 +384,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 			return nil, "", fmt.Errorf("failed encoding annotations: %w", err)
 		}
 
-		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("annotations="+annotationsStr))
+		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("annotations=" + annotationsStr))
 	}
 
 	if len(opts.labels) > 0 {
@@ -393,7 +393,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 			return nil, "", fmt.Errorf("failed encoding labels: %w", err)
 		}
 
-		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("labels="+labelsStr))
+		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("labels=" + labelsStr))
 	}
 
 	if opts.tag != "" {
@@ -410,7 +410,17 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 
 	manifests, err := kustutil.BuildKustomization(k)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to build kustomization: %w", err)
+		// go to fallback add-cluster manifests
+		// remove this once all manifests has been moved official-csdp repo.
+		// once we are sure no one will be looking for those manifests in cli-v2 we can remove this.
+		fallbackResourceUrl := fmt.Sprintf("%s?ref=v%s", store.FallbackAddClusterDefURL, version)
+		k.Resources[0] = fallbackResourceUrl
+		log.G().Warnf("Failed to get \"add-cluster\" manifests from %s, using fallback of %s", resourceUrl, fallbackResourceUrl)
+
+		manifests, err = kustutil.BuildKustomization(k)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to build kustomization: %w", err)
+		}
 	}
 
 	return manifests, nameSuffix, nil

@@ -32,11 +32,12 @@ var (
 	gitCommit       = ""
 	SegmentWriteKey = ""
 	// please do not touch this field it is deprecated, it's only here to allow to install runtimes with version < 0.0.569
-	maxDefVersion           = "2.1.2"
-	RuntimeDefURL           = "https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
-	OldRuntimeDefURL        = "https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
-	AddClusterDefURL        = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
-	lastRuntimeVersionInCLI = "v0.0.569"
+	maxDefVersion            = "2.1.2"
+	RuntimeDefURL            = "https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
+	OldRuntimeDefURL         = "https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
+	AddClusterDefURL         = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
+	FallbackAddClusterDefURL = "https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
+	lastRuntimeVersionInCLI  = "v0.0.569"
 )
 
 type Version struct {

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: internal-router
+spec:
+  selector:
+    matchLabels:
+      app: internal-router
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: internal-router
+    spec:
+      containers:
+        - name: nginx
+          # do not upgrade to 1.23 until it's really critical
+          # 1.23 removed support for "Transfer-Encoding: identity" header value
+          # and it will break SSE from app-proxy
+          image: nginx:1.22-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /etc/nginx/templates
+              readOnly: false
+              name: internal-router-config
+            - mountPath: /var/log/nginx
+              name: log
+          readinessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            httpGet:
+              port: 80
+              path: /readyz
+          livenessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 10
+            httpGet:
+              port: 80
+              path: /healthz
+      volumes:
+        - name: internal-router-config
+          configMap:
+            name: internal-router-config
+            items:
+              - key: default.conf.template
+                path: default.conf.template
+        - name: log
+          emptyDir: { }

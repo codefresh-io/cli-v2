@@ -1,4 +1,4 @@
-VERSION=v0.1.5
+VERSION=v0.1.4
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -9,6 +9,7 @@ IMAGE_NAMESPACE?=codefresh
 
 RUNTIME_DEF_URL="https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
 ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
+FALLBACK_ADD_CLUSTER_DEF_URL="https://github.com/codefresh-io/cli-v2/manifests/add-cluster/kustomize"
 
 # when developing, point this to your local clone of csdp-official
 DEV_RUNTIME_DEF_URL="https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
@@ -105,6 +106,7 @@ $(OUT_DIR)/$(CLI_NAME)-%: $(CLI_SRCS)
 	GIT_COMMIT=$(GIT_COMMIT) \
 	RUNTIME_DEF_URL=$(RUNTIME_DEF_URL) \
 	ADD_CLUSTER_DEF_URL=$(ADD_CLUSTER_DEF_URL) \
+	FALLBACK_ADD_CLUSTER_DEF_URL=$(FALLBACK_ADD_CLUSTER_DEF_URL) \
 	SEGMENT_WRITE_KEY=$(SEGMENT_WRITE_KEY) \
 	DEV_MODE=$(DEV_MODE) \
 	OUT_FILE=$(OUT_DIR)/$(CLI_NAME)-$* \

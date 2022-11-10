@@ -1,0 +1,152 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cap-app-proxy
+  name: cap-app-proxy
+spec:
+  selector:
+    matchLabels:
+      app: cap-app-proxy
+  template:
+    metadata:
+      labels:
+        app: cap-app-proxy
+    spec:
+      serviceAccountName: cap-app-proxy
+      containers:
+        - env:
+            - name: ARGO_CD_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoCdUrl
+                  optional: true
+            - name: ARGO_CD_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoCdUsername
+                  optional: true
+            - name: ARGO_CD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argocd-initial-admin-secret
+                  key: password
+            - name: ARGO_CD_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoCdInsecure
+            - name: ARGO_WORKFLOWS_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoWorkflowsInsecure
+            - name: ARGO_WORKFLOWS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: argoWorkflowsUrl
+                  optional: true
+            - name: CF_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: cfHost
+                  optional: true
+            - name: CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: cors
+                  optional: true
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: env
+                  optional: true
+            - name: GRAPHQL_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: graphqlDebug
+                  optional: true
+            - name: GRAPHQL_PLAYGROUND
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: graphqlPlayground
+                  optional: true
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: port
+                  optional: true
+            - name: REPOS_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: reposDir
+                  optional: true
+            - name: RUNTIME_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: runtimeName
+                  optional: true
+            - name: RUNTIME_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: codefresh-token
+                  key: token
+            - name: RUNTIME_STORE_IV
+              valueFrom:
+                secretKeyRef:
+                  name: codefresh-token
+                  key: encryptionIV
+                  optional: true
+            - name: STORE_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: storeBackend
+                  optional: true
+            - name: STRIP_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: cap-app-proxy-cm
+                  key: stripPrefix
+                  optional: true
+          image: quay.io/codefresh/cap-app-proxy
+          imagePullPolicy: Always
+          name: cap-app-proxy
+          readinessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            httpGet:
+              port: http
+              path: /api/readyz
+          livenessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 10
+            httpGet:
+              port: http
+              path: /api/healthz
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "2048Mi"
+              cpu: "2"

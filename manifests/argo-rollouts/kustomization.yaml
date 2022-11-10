@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/codefresh-io/argo-rollouts/releases/download/v1.2.0-cap-CR-10626/install.yaml
+patches:
+  - target:
+      group: apiextensions.k8s.io
+      version: v1
+      kind: CustomResourceDefinition
+    patch: |-
+      - op: remove
+        path: /spec/preserveUnknownFields
+
+  # reset the crbs to `subject.namespace: default`, so that argo-rollouts will later change them to the actual ns
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: default

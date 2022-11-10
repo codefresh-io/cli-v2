@@ -1,0 +1,94 @@
+version: '1.0'
+mode: parallel
+
+stages:
+  - Prepare
+  - Test
+  - Release
+
+steps:
+  main_clone:
+    stage: Prepare
+    title: clone repository
+    type: git-clone
+    git: cf_github
+    repo: ${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}
+    revision: ${{CF_BRANCH}}
+
+  prepare_env_vars:
+    stage: Prepare
+    title: prepare-env
+    image: codefresh/semver:latest
+    working_directory: manifests/add-cluster
+    commands:
+      - cf_export CHART_VERSION=$(yq ".version" helm/Chart.yaml | tr -d '"')
+      - cf_export IMAGE_VERSION=$(yq ".appVersion" helm/Chart.yaml | tr -d '"')
+    when:
+      steps:
+        - name: main_clone
+          on:
+            - success
+  
+  compare_versions:
+    stage: Test
+    title: Compare versions
+    image: codefresh/semver:latest
+    commands:
+      - hack/compare-versions.sh
+    when:
+      steps:
+        - name: prepare_env_vars
+          on:
+            - success
+
+  build_image:
+    stage: Release
+    type: build
+    title: build and push add-cluster image
+    working_directory: manifests/add-cluster
+    image_name: codefresh/csdp-add-cluster
+    tag: ${{IMAGE_VERSION}}
+    tags:
+      - latest
+      - ${{IMAGE_VERSION}}
+    registry: ${{REGISTRY_INTEGRATION_QUAY}}
+    buildkit: true
+    when:
+      steps:
+        - name: compare_versions
+          on:
+            - success
+      branch:
+        only: ["main"]
+
+  build_dev_image:
+    stage: Release
+    type: build
+    title: build and push add-cluster dev image
+    working_directory: manifests/add-cluster
+    image_name: codefresh/csdp-add-cluster
+    tag: ${{CF_BRANCH}}
+    registry: ${{REGISTRY_INTEGRATION_QUAY}}
+    buildkit: true
+    when:
+      steps:
+        - name: compare_versions
+          on:
+            - success
+      branch:
+        ignore: ["main"]
+
+  publish_chart:
+    stage: Release
+    title: publish helm chart
+    image: quay.io/codefresh/golang-ci-helper:latest # change it
+    working_directory: manifests/add-cluster
+    environment:
+      - CHART_VERSION=${{CHART_VERSION}}
+    commands:
+      - echo "inside publish helm chart ${CHART_VERSION}"
+    when:
+      steps:
+        - name: build_image
+          on:
+            - success
