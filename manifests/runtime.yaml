@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# no need to bump this version anymore (0.0.569)
-=======
 # This file should not be changed. The sole purpose of it staying here is backward compatibility
->>>>>>> a9c1e99c0ea8ab3600c28fe6895c648eef04d003
 apiVersion: codefresh.io/v1alpha1
 kind: Runtime
 metadata:
