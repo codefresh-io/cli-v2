@@ -1,0 +1,37 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app: cap-app-proxy
+  name: cap-app-proxy
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmap
+      - pods
+    verbs:
+      - get
+      - create
+      - delete
+      - deletecollection
+      - update
+      - patch
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - applications
+    verbs:
+      - get
+      - list
+      - watch

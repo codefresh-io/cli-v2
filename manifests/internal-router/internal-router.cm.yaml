@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: internal-router-config
+data:
+  default.conf.template: |
+    server {
+      listen 80 default_server;
+      root /usr/local/app;
+      access_log /dev/stdout main;
+      error_log /dev/stdout;
+    
+    
+      location /app-proxy {
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        chunked_transfer_encoding off;
+    
+        proxy_pass http://cap-app-proxy:3017;
+      }
+    
+      location /workflows/ {
+        # sse
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        chunked_transfer_encoding off;
+    
+        proxy_pass https://argo-server:2746/;
+      }
+    
+      location ~ /webhooks/([^/]+)/([^/]+) {
+        resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+        proxy_pass http://$2-eventsource-svc.$1.svc.cluster.local;
+      }
+    
+      location /readyz {
+        return 200 'ok';
+      }
+    
+      location /healthz {
+        return 200 'ok';
+      }
+    }
