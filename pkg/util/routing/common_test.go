@@ -2,9 +2,11 @@ package routing_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/codefresh-io/cli-v2/pkg/util/routing"
 	v1 "k8s.io/api/networking/v1"
@@ -17,7 +19,7 @@ func TestCreateInternalRouterRoute(t *testing.T) {
 	tests := map[string]struct {
 		routeOpts    *routing.CreateRouteOpts
 		wantFilePath string
-		assertFn     func(t *testing.T, want interface{}, received interface{})
+		getExpected  func() interface{}
 	}{
 		string(routing.IngressControllerALB): {
 			routeOpts: &routing.CreateRouteOpts{
@@ -30,14 +32,13 @@ func TestCreateInternalRouterRoute(t *testing.T) {
 				GatewayName:       "",
 				GatewayNamespace:  "",
 			},
-			wantFilePath: "testdata/alb-ingress.yaml",
-			assertFn: func(t *testing.T, wantRoute, receivedRoute interface{}) {
-				received := receivedRoute.(*v1.Ingress)
-				want := wantRoute.(*v1.Ingress)
-
-				if want.String() != received.String() {
-					t.Fatalf("Received: %v\n, want: %v\n", received.String(), want.String())
+			getExpected: func() interface{} {
+				ingress, err := yamlToIngress("testdata/alb-ingress.yaml")
+				if err != nil {
+					log.Fatal(err)
 				}
+
+				return ingress
 			},
 		},
 		string(routing.IngressControllerNginxCommunity): {
@@ -51,30 +52,37 @@ func TestCreateInternalRouterRoute(t *testing.T) {
 				GatewayName:       "",
 				GatewayNamespace:  "",
 			},
-			wantFilePath: "testdata/nginx-ingress.yaml",
-			assertFn: func(t *testing.T, wantRoute, receivedRoute interface{}) {
-				received := receivedRoute.(*v1.Ingress)
-				want := wantRoute.(*v1.Ingress)
-
-				if want.String() != received.String() {
-					t.Fatalf("Received: %v\n, want: %v\n", received.String(), want.String())
+			getExpected: func() interface{} {
+				ingress, err := yamlToIngress("testdata/nginx-ingress.yaml")
+				if err != nil {
+					log.Fatal(err)
 				}
+
+				return ingress
 			},
 		},
 	}
 
 	for tname, tt := range tests {
 		t.Run(tname, func(t *testing.T) {
-			var want *v1.Ingress
-			ingressFile, err := ioutil.ReadFile(tt.wantFilePath)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(ingressFile), 100).Decode(&want)
 			_, received := routing.CreateInternalRouterRoute(tt.routeOpts, false, true, false)
-
-			tt.assertFn(t, want, received)
+			assert.Equal(t, tt.getExpected(), received)
 		})
 	}
+}
+
+func yamlToIngress(path string) (*v1.Ingress, error) {
+	var want *v1.Ingress
+	ingressFile, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	d := yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(ingressFile), 100)
+	err = d.Decode(&want)
+	if err != nil {
+		return nil, err
+	}
+
+	return want, nil
 }
