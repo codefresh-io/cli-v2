@@ -95,7 +95,7 @@ func GetIngressController(name string) RoutingController {
 }
 
 func (ingressControllerALB) Decorate(route interface{}) {
-	ingress, ok := route.(netv1.Ingress)
+	ingress, ok := route.(*netv1.Ingress)
 	if !ok {
 		log.G().Error("Cant decorate, this is not an ingress!")
 		return
@@ -110,7 +110,7 @@ func (ingressControllerALB) Decorate(route interface{}) {
 }
 
 func (ingressControllerNginxEnterprise) Decorate(route interface{}) {
-	ingress, ok := route.(netv1.Ingress)
+	ingress, ok := route.(*netv1.Ingress)
 	if !ok {
 		log.G().Error("Cant decorate, this is not an ingress!")
 		return
