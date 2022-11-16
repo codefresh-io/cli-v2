@@ -13,37 +13,6 @@ import (
 
 // TestCreateInternalRouterRoute calls routing.CreateInternalRouterRoute, checking
 // that a correct route is returned.
-// func TestCreateInternalRouterRoute(t *testing.T) {
-// 	var want v1.Ingress
-// 	ingressFile, err := ioutil.ReadFile("testdata/ingress.yaml")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(ingressFile), 100).Decode(&want)
-
-// 	routeOpts := &routing.CreateRouteOpts{
-// 		RuntimeName:       "test-runtime",
-// 		Namespace:         "test-runtime",
-// 		IngressClass:      "alb",
-// 		Hostname:          "testing.foo.bar.com",
-// 		IngressController: routing.GetIngressController(string(routing.IngressControllerALB)),
-// 		Annotations:       nil,
-// 		GatewayName:       "",
-// 		GatewayNamespace:  "",
-// 	}
-// 	_, route := routing.CreateInternalRouterRoute(routeOpts, false, true, false)
-// 	ingress, ok := route.(*v1.Ingress)
-// 	if !ok {
-// 		log.Fatal("Not an ingress")
-// 	}
-
-// 	if want.String() != ingress.String() {
-// 		t.Fatalf("Received: %v\n, want: %v\n", ingress.String(), want.String())
-// 	}
-// }
-
-// TestCreateInternalRouterRoute calls routing.CreateInternalRouterRoute, checking
-// that a correct route is returned.
 func TestCreateInternalRouterRoute(t *testing.T) {
 	tests := map[string]struct {
 		routeOpts    *routing.CreateRouteOpts
