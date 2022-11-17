@@ -2132,26 +2132,20 @@ func (opts *RuntimeInstallOptions) IsCustomInstall() bool {
 	return opts.runtimeDef != store.RuntimeDefURL && opts.runtimeDef != store.OldRuntimeDefURL
 }
 
-func getRuntimeDef(runtimeDef, versionStr string) string {
+func getRuntimeDef(runtimeDef, version string) string {
 	if !strings.HasPrefix(runtimeDef, "http") {
 		// runtimeDef is some local file
 		return runtimeDef
 	}
 
-	if versionStr == "" {
+	if version == "" {
 		// no specific version string
-		return runtimeDef
-	}
-
-	version, err := semver.NewVersion(versionStr)
-	if err != nil {
-		// should not arrive here, since we check for validateVersionIfExists earlier
 		return runtimeDef
 	}
 
 	// specific version means the runtimeDef is the default value in cli-v2/csdp-official repo
 	if strings.Contains(runtimeDef, "cli-v2") {
-		return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version.String(), 1)
+		return strings.Replace(runtimeDef, "/releases/latest/download", "/releases/download/v"+version, 1)
 	}
-	return strings.Replace(runtimeDef, "stable", version.String(), 1)
+	return strings.Replace(runtimeDef, "stable", version, 1)
 }
