@@ -16,7 +16,6 @@ package git
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strings"
@@ -50,8 +49,7 @@ var providers = map[ProviderType]func(string, *http.Client) (Provider, error){
 func GetProvider(providerType ProviderType, baseURL string, insecure bool) (Provider, error) {
 	client := &http.Client{}
 	if insecure {
-		client.Transport = http.DefaultTransport
-		client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		client.Transport = apgit.DefaultTransportWithInsecure()
 	}
 
 	if providerType != "" {
