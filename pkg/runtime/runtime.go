@@ -65,6 +65,7 @@ type (
 		DefVersion          *semver.Version      `json:"defVersion"`
 		RequiredCLIVersion  string               `json:"requiredCLIVersion"`
 		Version             *semver.Version      `json:"version"`
+		Ref                 string               `json:"ref"`
 		BootstrapSpecifier  string               `json:"bootstrapSpecifier"`
 		Components          []AppDef             `json:"components"`
 		Cluster             string               `json:"cluster"`
@@ -300,11 +301,19 @@ func (a *RuntimeSpec) component(name string) *AppDef {
 
 func (r *RuntimeSpec) FullSpecifier() string {
 	url := r.BootstrapSpecifier
-	return buildFullURL(url, r.Version.String())
+	ref := r.Version.String()
+	if r.Ref != "" {
+		ref = r.Ref
+	}
+	return buildFullURL(url, ref)
 }
 
 func (r *RuntimeSpec) fullURL(url string) string {
-	return buildFullURL(url, r.Version.String())
+	ref := r.Version.String()
+	if r.Ref != "" {
+		ref = r.Ref
+	}
+	return buildFullURL(url, ref)
 }
 
 // A component with no "Feature" value (or "") will always be installed
