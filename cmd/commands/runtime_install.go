@@ -410,7 +410,7 @@ func ensureGitData(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	}
 
 	baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(opts.InsCloneOpts.Repo)
-	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), baseURL)
+	opts.gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(opts.InsCloneOpts.Provider), baseURL, opts.InsCloneOpts.Auth.Insecure)
 	if err != nil {
 		return err
 	}
