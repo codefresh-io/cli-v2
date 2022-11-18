@@ -122,7 +122,7 @@ $(OUT_DIR)/$(CLI_NAME).image: $(CLI_SRCS)
 .PHONY: lint
 lint: $(GOBIN)/golangci-lint tidy
 	@echo linting go code...
-	@golangci-lint run --fix --timeout 6m
+	@golangci-lint run --fix --timeout 10m
 
 .PHONY: test
 test:
