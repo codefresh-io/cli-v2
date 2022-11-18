@@ -4,8 +4,7 @@ go 1.19
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/argoproj-labs/argocd-autopilot v0.4.7
-	github.com/argoproj/applicationset v0.4.1
+	github.com/argoproj-labs/argocd-autopilot v0.4.8
 	github.com/argoproj/argo-cd/v2 v2.5.2
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
 	github.com/argoproj/argo-workflows/v3 v3.3.1
@@ -258,8 +257,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
-
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923

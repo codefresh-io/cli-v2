@@ -51,8 +51,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	appset "github.com/argoproj/applicationset/api/v1alpha1"
-	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
@@ -1740,9 +1739,9 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 	// adding another gitGenerator to the project's ApplicationSet
 	// to support helm applications without adding the support in autopilot (TBD)
 	kustGenerator := appSet.Spec.Generators[0].Git
-	appSet.Spec.Generators = append(appSet.Spec.Generators, appset.ApplicationSetGenerator{
-		Git: &appset.GitGenerator{
-			Files: []appset.GitFileGeneratorItem{
+	appSet.Spec.Generators = append(appSet.Spec.Generators, argocdv1alpha1.ApplicationSetGenerator{
+		Git: &argocdv1alpha1.GitGenerator{
+			Files: []argocdv1alpha1.GitFileGeneratorItem{
 				{
 					Path: strings.Replace(kustGenerator.Files[0].Path, "config.json", "config_helm.json", 1),
 				},
@@ -1750,11 +1749,11 @@ func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
 			RepoURL:             kustGenerator.RepoURL,
 			RequeueAfterSeconds: kustGenerator.RequeueAfterSeconds,
 			Revision:            kustGenerator.Revision,
-			Template: appset.ApplicationSetTemplate{
-				Spec: argocd.ApplicationSpec{
-					Source: argocd.ApplicationSource{
+			Template: argocdv1alpha1.ApplicationSetTemplate{
+				Spec: argocdv1alpha1.ApplicationSpec{
+					Source: argocdv1alpha1.ApplicationSource{
 						Chart: "{{ srcChart }}",
-						Helm: &argocd.ApplicationSourceHelm{
+						Helm: &argocdv1alpha1.ApplicationSourceHelm{
 							ReleaseName: fmt.Sprintf("%s-{{ appName }}", rt.Name),
 							Values:      "{{ values }}",
 						},

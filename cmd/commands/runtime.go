@@ -43,7 +43,6 @@ import (
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
-	appset "github.com/argoproj/applicationset/api/v1alpha1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
@@ -1063,9 +1062,9 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	return err
 }
 
-var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *appset.ApplicationSet, error) {
+var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
 	proj := &argocdv1alpha1.AppProject{}
-	appSet := &appset.ApplicationSet{}
+	appSet := &argocdv1alpha1.ApplicationSet{}
 	if err := repofs.ReadYamls(name, proj, appSet); err != nil {
 		return nil, nil, err
 	}
