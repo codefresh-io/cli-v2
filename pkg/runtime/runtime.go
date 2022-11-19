@@ -521,10 +521,10 @@ func GetRuntimeDefURL(versionStr string) string {
 
 func CheckRuntimeVersionCompatible(requiredCLIVersion string) error {
 	// The error is ignored, because it is expected for older runtime to not have the requiredCLIVersion field
-	// requiredCLIVersionConstraint, _ := semver.NewConstraint(requiredCLIVersion)
-	// if requiredCLIVersionConstraint != nil && !requiredCLIVersionConstraint.Check(store.Get().Version.Version) {
-	// 	return fmt.Errorf("to install this version, please install cli version %s", requiredCLIVersionConstraint.String())
-	// }
+	requiredCLIVersionConstraint, _ := semver.NewConstraint(requiredCLIVersion)
+	if requiredCLIVersionConstraint != nil && !requiredCLIVersionConstraint.Check(store.Get().Version.Version) {
+		return fmt.Errorf("to install this version, please install cli version %s", requiredCLIVersionConstraint.String())
+	}
 
 	return nil
 }
