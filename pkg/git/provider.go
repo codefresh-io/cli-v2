@@ -46,8 +46,16 @@ var providers = map[ProviderType]func(string, *http.Client) (Provider, error){
 	GITLAB:           NewGitlabProvider,
 }
 
-func GetProvider(providerType ProviderType, baseURL string) (Provider, error) {
-	client := &http.Client{}
+func GetProvider(providerType ProviderType, baseURL, certFile string) (Provider, error) {
+	transport, err := apgit.DefaultTransportWithCa(certFile)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Transport: transport,
+	}
+
 	if providerType != "" {
 		fn := providers[providerType]
 		if fn == nil {

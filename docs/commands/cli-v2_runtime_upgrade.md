@@ -29,6 +29,7 @@ cli-v2 runtime upgrade [RUNTIME_NAME] [flags]
 
 ```
       --disable-telemetry           If true, will disable analytics reporting for the upgrade process
+      --git-server-crt string       Git Server certificate file
   -t, --git-token string            Your git provider api token [GIT_TOKEN]
   -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                        help for upgrade
