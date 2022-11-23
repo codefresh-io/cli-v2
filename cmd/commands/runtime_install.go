@@ -559,7 +559,8 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 	}
 
 	//  should find a more dynamic way to get these additional components
-	additionalComponents := []string{"events-reporter", "workflow-reporter", "rollout-reporter"}
+	// XXX
+	additionalComponents := []string{"events-reporter", /*"workflow-reporter", */"rollout-reporter"}
 	for _, additionalComponentName := range additionalComponents {
 		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
 		componentNames = append(componentNames, componentFullName)
