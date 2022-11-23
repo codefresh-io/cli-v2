@@ -1060,15 +1060,16 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// this will add `/workflows` suffix to the argo-server deployment
 	// we need this both in ingress and tunnel mode
-	if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) || rt.Spec.AccessMode == platmodel.AccessModeTunnel {
-		if err = util.Retry(ctx, &util.RetryOptions{
-			Func: func() error {
-				return configureArgoWorkflows(ctx, opts, rt)
-			},
-		}); err != nil {
-			return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
-		}
-	}
+	// XXX
+	// if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) || rt.Spec.AccessMode == platmodel.AccessModeTunnel {
+	// 	if err = util.Retry(ctx, &util.RetryOptions{
+	// 		Func: func() error {
+	// 			return configureArgoWorkflows(ctx, opts, rt)
+	// 		},
+	// 	}); err != nil {
+	// 		return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
+	// 	}
+	// }
 
 	if err = util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
@@ -1082,21 +1083,22 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
-	if err = createReporter(
-		ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-			reporterName: store.Get().WorkflowReporterName,
-			gvr: []gvr{
-				{
-					resourceName: store.Get().WorkflowResourceName,
-					group:        "argoproj.io",
-					version:      "v1alpha1",
-				},
-			},
-			saName:     store.Get().CodefreshSA,
-			IsInternal: true,
-		}); err != nil {
-		return fmt.Errorf("failed to create workflows-reporter: %w", err)
-	}
+	// XXX
+	// if err = createReporter(
+	// 	ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+	// 		reporterName: store.Get().WorkflowReporterName,
+	// 		gvr: []gvr{
+	// 			{
+	// 				resourceName: store.Get().WorkflowResourceName,
+	// 				group:        "argoproj.io",
+	// 				version:      "v1alpha1",
+	// 			},
+	// 		},
+	// 		saName:     store.Get().CodefreshSA,
+	// 		IsInternal: true,
+	// 	}); err != nil {
+	// 	return fmt.Errorf("failed to create workflows-reporter: %w", err)
+	// }
 
 	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
 		reporterName: store.Get().RolloutReporterName,
