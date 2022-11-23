@@ -558,15 +558,17 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 		componentNames = append(componentNames, componentFullName)
 	}
 
-	//  should find a more dynamic way to get these additional components
-	// XXX
-	additionalComponents := []string{"events-reporter", /*"workflow-reporter", */"rollout-reporter"}
-	for _, additionalComponentName := range additionalComponents {
-		componentFullName := fmt.Sprintf("%s-%s", opts.RuntimeName, additionalComponentName)
-		componentNames = append(componentNames, componentFullName)
+	if rt.HasComponent("workflows") {
+		componentNames = append(componentNames, opts.RuntimeName+"-workflow-reporter")
 	}
+
+	if rt.HasComponent("rollouts") {
+		componentNames = append(componentNames, opts.RuntimeName+"-rollout-reporter")
+	}
+
+	//  should find a more dynamic way to get these additional components
 	argoCDFullName := store.Get().ArgoCD
-	componentNames = append(componentNames, argoCDFullName)
+	componentNames = append(componentNames, argoCDFullName, opts.RuntimeName+"-events-reporter")
 
 	return componentNames
 }
@@ -1061,16 +1063,15 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 
 	// this will add `/workflows` suffix to the argo-server deployment
 	// we need this both in ingress and tunnel mode
-	// XXX
-	// if opts.shouldInstallIngress() && rt.Spec.IngressController != string(routingutil.IngressControllerALB) || rt.Spec.AccessMode == platmodel.AccessModeTunnel {
-	// 	if err = util.Retry(ctx, &util.RetryOptions{
-	// 		Func: func() error {
-	// 			return configureArgoWorkflows(ctx, opts, rt)
-	// 		},
-	// 	}); err != nil {
-	// 		return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
-	// 	}
-	// }
+	if rt.HasComponent("workflows") && !opts.SkipIngress && rt.Spec.IngressController != string(routingutil.IngressControllerALB) {
+		if err = util.Retry(ctx, &util.RetryOptions{
+			Func: func() error {
+				return configureArgoWorkflows(ctx, opts, rt)
+			},
+		}); err != nil {
+			return fmt.Errorf("failed to patch Argo Worfkflows configuration: %w", err)
+		}
+	}
 
 	if err = util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
@@ -1084,47 +1085,50 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 		return fmt.Errorf("failed to create events-reporter: %w", err)
 	}
 
-	// XXX
-	// if err = createReporter(
-	// 	ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-	// 		reporterName: store.Get().WorkflowReporterName,
-	// 		gvr: []gvr{
-	// 			{
-	// 				resourceName: store.Get().WorkflowResourceName,
-	// 				group:        "argoproj.io",
-	// 				version:      "v1alpha1",
-	// 			},
-	// 		},
-	// 		saName:     store.Get().CodefreshSA,
-	// 		IsInternal: true,
-	// 	}); err != nil {
-	// 	return fmt.Errorf("failed to create workflows-reporter: %w", err)
-	// }
+	if rt.HasComponent("workflows") {
+		if err = createReporter(
+			ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+				reporterName: store.Get().WorkflowReporterName,
+				gvr: []gvr{
+					{
+						resourceName: store.Get().WorkflowResourceName,
+						group:        "argoproj.io",
+						version:      "v1alpha1",
+					},
+				},
+				saName:     store.Get().CodefreshSA,
+				IsInternal: true,
+			}); err != nil {
+			return fmt.Errorf("failed to create workflows-reporter: %w", err)
+		}
+	}
 
-	if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
-		reporterName: store.Get().RolloutReporterName,
-		gvr: []gvr{
-			{
-				resourceName: store.Get().RolloutResourceName,
-				group:        "argoproj.io",
-				version:      "v1alpha1",
+	if rt.HasComponent("rollouts") {
+		if err = createReporter(ctx, opts.InsCloneOpts, opts, reporterCreateOptions{
+			reporterName: store.Get().RolloutReporterName,
+			gvr: []gvr{
+				{
+					resourceName: store.Get().RolloutResourceName,
+					group:        "argoproj.io",
+					version:      "v1alpha1",
+				},
+				{
+					resourceName: store.Get().ReplicaSetResourceName,
+					group:        "apps",
+					version:      "v1",
+				},
+				{
+					resourceName: store.Get().AnalysisRunResourceName,
+					group:        "argoproj.io",
+					version:      "v1alpha1",
+				},
 			},
-			{
-				resourceName: store.Get().ReplicaSetResourceName,
-				group:        "apps",
-				version:      "v1",
-			},
-			{
-				resourceName: store.Get().AnalysisRunResourceName,
-				group:        "argoproj.io",
-				version:      "v1alpha1",
-			},
-		},
-		saName:       store.Get().RolloutReporterServiceAccount,
-		IsInternal:   true,
-		clusterScope: true,
-	}); err != nil {
-		return fmt.Errorf("failed to create rollout-reporter: %w", err)
+			saName:       store.Get().RolloutReporterServiceAccount,
+			IsInternal:   true,
+			clusterScope: true,
+		}); err != nil {
+			return fmt.Errorf("failed to create rollout-reporter: %w", err)
+		}
 	}
 
 	return nil
