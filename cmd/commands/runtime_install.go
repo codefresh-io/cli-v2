@@ -58,19 +58,16 @@ import (
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
-	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
-	kustid "sigs.k8s.io/kustomize/kyaml/resid"
 )
 
 type (
@@ -1474,45 +1471,6 @@ func CreateInternalRouterIngress(ctx context.Context, opts *CreateIngressOptions
 	log.G(ctx).Info("Pushing Internal Router ingress manifests")
 
 	return apu.PushWithMessage(ctx, r, "Created Internal Router Ingresses")
-}
-
-func configureArgoWorkflows(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	r, fs, err := opts.InsCloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
-	overlaysDir := fs.Join(apstore.Default.AppsDir, "workflows", apstore.Default.OverlaysDir, rt.Name)
-
-	if err = billyUtils.WriteFile(fs, fs.Join(overlaysDir, "route-patch.json"), workflowsRoutePatch, 0666); err != nil {
-		return err
-	}
-
-	kust, err := kustutil.ReadKustomization(fs, overlaysDir)
-	if err != nil {
-		return err
-	}
-
-	kust.Patches = append(kust.Patches, kusttypes.Patch{
-		Target: &kusttypes.Selector{
-			ResId: kustid.ResId{
-				Gvk: kustid.Gvk{
-					Group:   appsv1.SchemeGroupVersion.Group,
-					Version: appsv1.SchemeGroupVersion.Version,
-					Kind:    "Deployment",
-				},
-				Name: store.Get().ArgoWfServiceName,
-			},
-		},
-		Path: "route-patch.json",
-	})
-	if err = kustutil.WriteKustomization(fs, kust, overlaysDir); err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Pushing Argo Workflows configuration")
-
-	return apu.PushWithMessage(ctx, r, "Configured Argo Workflows ")
 }
 
 func mergeAnnotations(annotation map[string]string, newAnnotation map[string]string) {

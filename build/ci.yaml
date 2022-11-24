@@ -5,7 +5,6 @@ stages:
   - Prepare
   - Test
   - Build
-  - Push Dev
   - Release
 
 steps:
@@ -132,25 +131,6 @@ steps:
           on:
             - success
 
-  push_dev:
-    stage: Push Dev
-    title: push with dev tags
-    type: push
-    candidate: ${{build}}
-    tags:
-      - dev-${{CF_BRANCH_TAG_NORMALIZED}}
-    when:
-      steps:
-        - name: build
-          on:
-            - success
-      branch:
-        ignore: ["main"]
-    scale:
-      push_quay_dev:
-        title: push to quay
-        registry: "${{REGISTRY_INTEGRATION_QUAY}}"
-
   build_binaries:
     <<: *deps
     stage: Build
@@ -236,62 +216,3 @@ steps:
         - name: build
           on:
             - success
-
-  bump_brew_formula:
-    stage: Release
-    title: bump brew formula version
-    image: codefresh/build-cli
-    commands:
-      - |
-        echo "generate formula from template..."
-        sed -e "s/{{ version }}/${{VERSION}}/g" -e "s/{{ revision }}/${{CF_REVISION}}/g" ./brew/template.rb > ${{BREW_NAME}}.rb
-        echo "Updating file in GitHub"
-        FORMULA_SHA256=$(curl -X GET https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb \
-          -H "Authorization: token ${GITHUB_TOKEN}" \
-          -s | jq .sha)
-        echo "sha - ${FORMULA_SHA256}"
-        STATUS_CODE=$(curl -X PUT https://api.github.com/repos/codefresh-io/homebrew-cli/contents/Formula/${{BREW_NAME}}.rb \
-          -H "Authorization: token ${GITHUB_TOKEN}" \
-          -d "{ \
-            \"message\": \"update formula version to ${VERSION}\", \
-            \"content\": \"$(openssl base64 -A -in ${{BREW_NAME}}.rb)\", \
-            \"sha\": ${FORMULA_SHA256} \
-          }" -s -o response -w "%{http_code}")
-        echo "statusCode - ${STATUS_CODE}"
-        if [[ "$STATUS_CODE" -ge 300 ]]; then
-          cat ./response
-          echo "failed updating brew formula version"
-          exit 1
-        fi
-    when:
-      steps:
-        - name: create_release_bin
-          on:
-            - success
-      condition:
-        all:
-          whenVarExists: 'includes("${{BREW_NAME}}", "{{BREW_NAME}}") == false'
-
-
-  push_prod:
-    stage: Release
-    title: promote image
-    type: push
-    candidate: ${{build}}
-    tags:
-      - latest
-      - ${{VERSION}}
-    when:
-      condition:
-        all:
-          isBinary: '"${{REPO_TYPE}}" != "lib"'
-      steps:
-        - name: create_release_bin
-          on:
-            - success
-      branch:
-        only: ["main"]
-    scale:
-      push_quay:
-        title: push to quay
-        registry: "${{REGISTRY_INTEGRATION_QUAY}}"

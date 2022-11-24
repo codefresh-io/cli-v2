@@ -47,9 +47,6 @@ var (
 	die  = util.Die
 	exit = os.Exit
 
-	//go:embed assets/workflows-route-patch.json
-	workflowsRoutePatch []byte
-
 	cfConfig *config.Config
 
 	GREEN           = "\033[32m"
