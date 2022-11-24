@@ -262,7 +262,7 @@ func init() {
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
-	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
+	s.CFInternalReporters = []string{s.EventsReporterName, s.RolloutReporterName}
 	s.InCluster = "https://kubernetes.default.svc"
 	s.IscRuntimesDir = "runtimes"
 	s.DefVersionToLastCLIVersion = map[string]string{
