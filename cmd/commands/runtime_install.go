@@ -878,38 +878,6 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().GitSourceName, err))
 	}
 
-	if !opts.gitProvider.SupportsMarketplace() {
-		message = fmt.Sprintf("Skipping \"%s\" with git provider \"%s\"", store.Get().MarketplaceGitSourceName, opts.gitProvider.Type())
-		handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, message, err, false, true)
-		return nil
-	}
-
-	mpCloneOpts := &apgit.CloneOptions{
-		Repo:     store.Get().MarketplaceRepo,
-		FS:       fs.Create(memfs.New()),
-		Progress: opts.InsCloneOpts.Progress,
-	}
-	mpCloneOpts.Parse()
-
-	err = legacyGitSourceCreate(ctx, &GitSourceCreateOptions{
-		InsCloneOpts:        opts.InsCloneOpts,
-		GsCloneOpts:         mpCloneOpts,
-		GitProvider:         opts.gitProvider,
-		GsName:              store.Get().MarketplaceGitSourceName,
-		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: false,
-		Exclude:             "**/images/**/*",
-		Include:             "workflows/**/*.yaml",
-		GatewayName:         opts.GatewayName,
-		GatewayNamespace:    opts.GatewayNamespace,
-		useGatewayAPI:       opts.useGatewayAPI,
-	})
-	message = fmt.Sprintf("Creating %s", store.Get().MarketplaceGitSourceName)
-	handleCliStep(reporter.InstallStepCreateMarketplaceGitsource, message, err, false, true)
-	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\": %w", store.Get().MarketplaceGitSourceName, err))
-	}
-
 	return nil
 }
 
