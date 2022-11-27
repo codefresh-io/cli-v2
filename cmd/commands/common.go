@@ -87,34 +87,6 @@ func isValidIngressHost(ingressHost string) (bool, error) {
 	return regexp.MatchString(`^(http|https)://`, ingressHost)
 }
 
-func askUserIfToInstallDemoResources(cmd *cobra.Command, sampleInstall *bool) error {
-	if !store.Get().Silent && !cmd.Flags().Changed("demo-resources") {
-		templates := &promptui.SelectTemplates{
-			Selected: "{{ . | yellow }} ",
-		}
-
-		labelStr := fmt.Sprintf("%vInstall Codefresh demo resources?%v", CYAN, COLOR_RESET)
-
-		prompt := promptui.Select{
-			Label:     labelStr,
-			Items:     []string{"Yes (default)", "No"},
-			Templates: templates,
-		}
-
-		_, result, err := prompt.Run()
-
-		if err != nil {
-			return err
-		}
-
-		if result == "No" {
-			*sampleInstall = false
-		}
-	}
-
-	return nil
-}
-
 func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *apgit.CloneOptions, fromAPI bool) error {
 	ctx := cmd.Context()
 	if cloneOpts.Repo != "" {

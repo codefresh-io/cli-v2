@@ -245,7 +245,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.GitIntegrationRegistrationOpts.Username, "personal-git-user", "", "The Personal git user that match the token, required for bitbucket cloud")
 	cmd.Flags().StringVar(&installationOpts.versionStr, "version", "", "The runtime version to install (default: stable)")
 	cmd.Flags().StringVar(&installationOpts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
-	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", true, "Installs demo resources (default: true)")
+	cmd.Flags().BoolVar(&installationOpts.InstallDemoResources, "demo-resources", false, "Installs demo resources (default: true)")
 	cmd.Flags().BoolVar(&installationOpts.SkipClusterChecks, "skip-cluster-checks", false, "Skips the cluster's checks")
 	cmd.Flags().BoolVar(&installationOpts.DisableRollback, "disable-rollback", false, "If true, will not perform installation rollback after a failed installation")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be ready")
@@ -348,12 +348,6 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	}
 
 	if err = ensureGitData(cmd, opts); err != nil {
-		return err
-	}
-
-	err = askUserIfToInstallDemoResources(cmd, &opts.InstallDemoResources)
-	handleCliStep(reporter.InstallStepPreCheckShouldInstallDemoResources, "Asking user is demo resources should be installed", err, true, false)
-	if err != nil {
 		return err
 	}
 
@@ -867,7 +861,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GitProvider:         opts.gitProvider,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
-		CreateDemoResources: opts.InstallDemoResources,
+		CreateDemoResources: false,
 		HostName:            opts.HostName,
 		SkipIngress:         opts.SkipIngress,
 		IngressHost:         opts.IngressHost,
