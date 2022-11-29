@@ -221,6 +221,10 @@ func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]A
 	return newComponents, nil
 }
 
+func (r *Runtime) HasComponent(name string) bool {
+	return r.Spec.component(name) != nil
+}
+
 func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName string, valuesProvider HelmValuesProvider) error {
 	for _, component := range r.Components {
 		log.G(ctx).Infof("Creating component \"%s\"", component.Name)
