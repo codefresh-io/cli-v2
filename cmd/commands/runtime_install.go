@@ -325,29 +325,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if opts.AccessMode == platmodel.AccessModeTunnel {
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", err, true, false)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", err, true, false)
-		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
-		accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
-		if err != nil {
-			return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
-		}
-
-		opts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, opts.RuntimeName)
-		opts.IngressHost = fmt.Sprintf("https://%s.%s", opts.TunnelSubdomain, opts.TunnelDomain)
-	} else {
-		err = ensureRoutingControllerSupported(ctx, opts)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
-		if err != nil {
-			return err
-		}
-
-		err = getIngressHost(ctx, opts)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
-		if err != nil {
-			return err
-		}
+	if err = ensureAccessMode(ctx, opts); err != nil {
+		return err
 	}
 
 	if err = ensureGitData(cmd, opts); err != nil {
@@ -1156,6 +1135,11 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		}
 	} else {
 		err = runtime.CheckRuntimeVersionCompatible(rt.Spec.RequiredCLIVersion)
+	}
+
+	// If CLI version is not compatible with runtime version, no need to continue with the pre installation checks any further
+	if err != nil {
+		return nil, err
 	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
