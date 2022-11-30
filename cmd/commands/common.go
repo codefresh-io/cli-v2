@@ -325,7 +325,7 @@ func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error 
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
-		Label: "Runtime git api token",
+		Label: fmt.Sprintf("Runtime git api token: (required scopes should be as described in: %s )", store.Get().GitTokensLink),
 		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
@@ -400,6 +400,17 @@ func ensureKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 
 func ensureAccessMode(ctx context.Context, opts *RuntimeInstallOptions) error {
 	var err error
+
+	if opts.AccessMode == "" {
+		if opts.IngressClass != "" || opts.IngressHost != "" {
+			opts.AccessMode = platmodel.AccessModeIngress
+			return nil
+		} else if opts.TunnelDomain != "" || opts.TunnelRegisterHost != "" || opts.TunnelSubdomain != "" {
+			opts.AccessMode = platmodel.AccessModeTunnel
+			return nil
+		}
+	}
+
 	if !store.Get().Silent {
 		err = getAccessModeFromUserSelect(&opts.AccessMode)
 		if err != nil {
