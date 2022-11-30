@@ -325,7 +325,7 @@ func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error 
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
-		Label: fmt.Sprintf("Runtime git api token: (required scopes should be as described in: %s )", store.Get().GitTokensLink),
+		Label: fmt.Sprintf("Runtime git token: (required scopes should be as described in: %s )", store.Get().GitTokensLink),
 		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
@@ -404,17 +404,18 @@ func ensureAccessMode(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.AccessMode == "" {
 		if opts.IngressClass != "" || opts.IngressHost != "" {
 			opts.AccessMode = platmodel.AccessModeIngress
-			return nil
-		} else if opts.TunnelDomain != "" || opts.TunnelRegisterHost != "" || opts.TunnelSubdomain != "" {
+		} else if opts.TunnelSubdomain != "" {
 			opts.AccessMode = platmodel.AccessModeTunnel
-			return nil
-		}
-	}
-
-	if !store.Get().Silent {
-		err = getAccessModeFromUserSelect(&opts.AccessMode)
-		if err != nil {
-			return err
+		} else {
+			if store.Get().Silent {
+				// Tunnel mode if the default
+				opts.AccessMode = platmodel.AccessModeTunnel
+			} else {
+				err = getAccessModeFromUserSelect(&opts.AccessMode)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -512,7 +513,7 @@ func getAccessModeFromUserSelect(accessMode *platmodel.AccessMode) (error) {
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     []string{"Codefresh Tunneling (default)", "Ingress Based"},
+		Items:     []string{"Codefresh Tunnel Based", "Ingress Based"},
 		Templates: templates,
 	}
 
