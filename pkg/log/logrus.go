@@ -62,11 +62,14 @@ func GetLogrusEntry(l Logger) (*logrus.Entry, error) {
 	return adpt.Entry, nil
 }
 
-func initCommands(cmds []*cobra.Command, initFunc func(*cobra.Command)) {
-	for _, cmd := range cmds {
-		initFunc(cmd)
-		if cmd.HasSubCommands() {
-			initCommands(cmd.Commands(), initFunc)
+func initCommands(cmd *cobra.Command, initFunc func(*cobra.Command)) {
+	initFunc(cmd)
+
+	for _, subCmd := range cmd.Commands() {
+		if subCmd.HasSubCommands() {
+			initCommands(subCmd, initFunc)
+		} else {
+			initFunc(subCmd)
 		}
 	}
 }
@@ -104,7 +107,7 @@ func (l *logrusAdapter) AddPFlags(cmd *cobra.Command) {
 		}
 	}
 
-	cobra.OnInitialize(func() { initCommands(cmd.Commands(), initFunc) })
+	cobra.OnInitialize(func() { initCommands(cmd, initFunc) })
 
 	cmdutil.LogFormat = *format
 	cmdutil.LogLevel = l.c.Level

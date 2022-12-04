@@ -49,6 +49,7 @@ variables in advanced to simplify the use of those commands.
 	cfConfig = config.AddFlags(cmd.PersistentFlags())
 
 	cmd.AddCommand(NewVersionCommand())
+	cmd.AddCommand(NewUpgradeCommand())
 	cmd.AddCommand(NewConfigCommand())
 	cmd.AddCommand(NewRuntimeCommand())
 	cmd.AddCommand(NewGitSourceCommand())

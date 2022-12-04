@@ -9,6 +9,8 @@ if [[ -z "$VERSION" ]]; then
     exit 1
 fi
 
+echo "$VERSION" > ./dist/version.txt
+
 if [[ -z "$GITHUB_TOKEN" ]]; then
     echo "error: GITHUB_TOKEN token not defined"
     exit 1
@@ -19,7 +21,7 @@ if [[ -z "$PRERELEASE" ]]; then
 fi
 
 echo "uploading files:"
-ls -1a ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml
+ls -1a ./dist/version.txt ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml
 echo ""
 
 FILE="./docs/releases/release_notes.md"
@@ -28,8 +30,8 @@ cat $FILE | head -n 5 && echo ...
 echo ""
 
 if [[ "$DRY_RUN" == "1" ]]; then
-    echo "gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml"
+    echo "gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/version.txt ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml"
     exit 0
 fi
 
-gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml
+gh release create --repo $GIT_REPO -t $VERSION -F $FILE --prerelease=$PRERELEASE $VERSION ./dist/version.txt ./dist/*.tar.gz ./dist/*.sha256 ./manifests/runtime.yaml

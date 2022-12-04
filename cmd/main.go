@@ -23,6 +23,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	cliutil "github.com/codefresh-io/cli-v2/pkg/util/cli"
 
 	"github.com/sirupsen/logrus"
 )
@@ -36,6 +37,8 @@ func main() {
 	ctx = util.ContextWithCancelOnSignals(ctx, syscall.SIGINT, syscall.SIGTERM)
 
 	c := commands.NewRoot()
+
+	cliutil.AddCLIVersionCheck(c)
 
 	lgr.AddPFlags(c)
 
