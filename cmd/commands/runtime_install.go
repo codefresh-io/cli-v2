@@ -109,7 +109,6 @@ type (
 		IpsAllowList                   string
 		SkipIngress                    bool
 		BypassIngressClassCheck        bool
-		DownloadRuntimeDef             *runtime.Runtime
 
 		versionStr        string
 		kubeContext       string
@@ -196,10 +195,14 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.InstallFlow, installationOpts.DisableTelemetry)
 
-			if (accessMode != "") {
+			if accessMode != "" {
 				installationOpts.AccessMode = platmodel.AccessMode(strings.ToUpper(accessMode))
 				if !installationOpts.AccessMode.IsValid() {
 					return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
+				}
+
+				if installationOpts.AccessMode == platmodel.AccessModeTunnel && installationOpts.IngressHost != "" {
+					return fmt.Errorf("ingress host can't be set when access mode is Tunnel")
 				}
 			}
 
@@ -394,7 +397,6 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
-	opts.DownloadRuntimeDef = rt
 
 	return nil
 }
@@ -1145,7 +1147,11 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, err
 	}
 
-	rt := opts.DownloadRuntimeDef
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
+	}
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {
