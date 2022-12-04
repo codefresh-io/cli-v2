@@ -197,11 +197,12 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			if accessMode != "" {
 				installationOpts.AccessMode = platmodel.AccessMode(strings.ToUpper(accessMode))
-				if installationOpts.AccessMode == platmodel.AccessModeTunnel && installationOpts.IngressHost != "" {
-					return fmt.Errorf("ingress host can't be set when access mode is Tunnel.")
-				}
 				if !installationOpts.AccessMode.IsValid() {
 					return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
+				}
+
+				if installationOpts.AccessMode == platmodel.AccessModeTunnel && installationOpts.IngressHost != "" {
+					return fmt.Errorf("ingress host can't be set when access mode is Tunnel")
 				}
 			}
 
