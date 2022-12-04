@@ -109,6 +109,7 @@ type (
 		IpsAllowList                   string
 		SkipIngress                    bool
 		BypassIngressClassCheck        bool
+		DownloadRuntimeDef             *runtime.Runtime
 
 		versionStr        string
 		kubeContext       string
@@ -195,9 +196,11 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 			createAnalyticsReporter(ctx, reporter.InstallFlow, installationOpts.DisableTelemetry)
 
-			installationOpts.AccessMode = platmodel.AccessMode(strings.ToUpper(accessMode))
-			if !installationOpts.AccessMode.IsValid() {
-				return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
+			if (accessMode != "") {
+				installationOpts.AccessMode = platmodel.AccessMode(strings.ToUpper(accessMode))
+				if !installationOpts.AccessMode.IsValid() {
+					return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
+				}
 			}
 
 			err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
@@ -262,7 +265,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&installationOpts.InternalIngressAnnotation, "internal-ingress-annotation", nil, "Add annotations to the internal ingress")
 	cmd.Flags().StringToStringVar(&installationOpts.ExternalIngressAnnotation, "external-ingress-annotation", nil, "Add annotations to the external ingress")
 	cmd.Flags().StringVar(&installationOpts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
-	cmd.Flags().StringVar(&accessMode, "access-mode", string(platmodel.AccessModeIngress), "The access mode to the cluster, one of: ingress|tunnel")
+	cmd.Flags().StringVar(&accessMode, "access-mode", "", "The access mode to the cluster, one of: ingress|tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
 	cmd.Flags().StringVar(&installationOpts.IpsAllowList, "ips-allow-list", "", "lists the rules to configure which IP addresses (IPv4/IPv6) and subnet masks can access your client (e.g \"192.168.0.0/16, FE80:CD00:0000:0CDE:1257::/64\")")
@@ -301,6 +304,32 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 
 	err = validateVersionIfExists(opts.versionStr)
 	handleCliStep(reporter.InstallStepPreCheckValidateRuntimeVersion, "Validating runtime version", err, true, false)
+
+	if opts.runtimeDef == "" {
+		opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
+	}
+
+	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
+	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
+	if err != nil {
+		return fmt.Errorf("failed to download runtime definition: %w", err)
+	}
+
+	if rt.Spec.DefVersion != nil {
+		if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
+			err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
+		} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
+			val := store.Get().DefVersionToLastCLIVersion[rt.Spec.DefVersion.String()]
+			err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
+		}
+	} else {
+		err = runtime.CheckRuntimeVersionCompatible(rt.Spec.RequiredCLIVersion)
+	}
+	if err != nil {
+		return err
+	}
+
 	if opts.RuntimeName == "" {
 		if !store.Get().Silent {
 			opts.RuntimeName, err = getRuntimeNameFromUserInput()
@@ -325,29 +354,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		return err
 	}
 
-	if opts.AccessMode == platmodel.AccessModeTunnel {
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", err, true, false)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", err, true, false)
-		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
-		accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
-		if err != nil {
-			return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
-		}
-
-		opts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, opts.RuntimeName)
-		opts.IngressHost = fmt.Sprintf("https://%s.%s", opts.TunnelSubdomain, opts.TunnelDomain)
-	} else {
-		err = ensureRoutingControllerSupported(ctx, opts)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
-		if err != nil {
-			return err
-		}
-
-		err = getIngressHost(ctx, opts)
-		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
-		if err != nil {
-			return err
-		}
+	if err = ensureAccessMode(ctx, opts); err != nil {
+		return err
 	}
 
 	if err = ensureGitData(cmd, opts); err != nil {
@@ -384,12 +392,9 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 		log.G(ctx).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
 	}
 
-	if opts.runtimeDef == "" {
-		opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
-	}
-
 	opts.Insecure = true // installs argo-cd in insecure mode, we need this so that the eventsource can talk to the argocd-server with http
 	opts.CommonConfig = &runtime.CommonConfig{CodefreshBaseURL: cfConfig.GetCurrentContext().URL}
+	opts.DownloadRuntimeDef = rt
 
 	return nil
 }
@@ -1140,23 +1145,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 		return nil, err
 	}
 
-	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
-	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
-	}
-
-	if rt.Spec.DefVersion != nil {
-		if rt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-			err = fmt.Errorf("your cli version is out of date. please upgrade to the latest version before installing")
-		} else if rt.Spec.DefVersion.LessThan(store.Get().MaxDefVersion) {
-			val := store.Get().DefVersionToLastCLIVersion[rt.Spec.DefVersion.String()]
-			err = fmt.Errorf("to install this version, please downgrade your cli to version %s", val)
-		}
-	} else {
-		err = runtime.CheckRuntimeVersionCompatible(rt.Spec.RequiredCLIVersion)
-	}
+	rt := opts.DownloadRuntimeDef
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {

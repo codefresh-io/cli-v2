@@ -21,9 +21,16 @@ import (
 	"strings"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/manifoldco/promptui"
 )
 
 //go:generate mockgen -destination=./mocks/roundTripper.go -package=mocks net/http RoundTripper
+
+var (
+	CYAN        = "\033[36m"
+	COLOR_RESET = "\033[0m"
+)
 
 type (
 	ProviderType string
@@ -77,5 +84,44 @@ func GetProvider(providerType ProviderType, baseURL, certFile string) (Provider,
 		return NewBitbucketProvider(baseURL, client)
 	}
 
+	if !store.Get().Silent {
+		provider := getGitProviderFromUserSelect(baseURL, client)
+		if provider != nil {
+			return provider, nil
+		}
+	}
+
 	return nil, fmt.Errorf("failed getting provider for clone url %s", baseURL)
+}
+
+func getGitProviderFromUserSelect(baseURL string, client *http.Client) (Provider) {
+	var providers = map[string]func(string, *http.Client) (Provider, error){
+		"Bitbucket": NewBitbucketServerProvider,
+		"Github":    NewGithubProvider,
+		"Gitlab":    NewGitlabProvider,
+	}
+
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ .Name | yellow }}",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect git provider%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     []string{"Github", "Gitlab", "Bitbucket"},
+		Templates: templates,
+	}
+
+	_, label, err := prompt.Run()
+	if err != nil {
+		return nil
+	}
+
+	if fn, ok := providers[label]; ok {
+		provider, _ := fn(baseURL, client)
+		return provider
+	}
+
+	return nil
 }

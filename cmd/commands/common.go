@@ -30,6 +30,8 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/config"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/reporter"
+	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
@@ -323,7 +325,7 @@ func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error 
 
 func getGitTokenFromUserInput(cmd *cobra.Command) error {
 	gitTokenPrompt := promptui.Prompt{
-		Label: "Runtime git api token",
+		Label: fmt.Sprintf("Runtime git token: (required scopes should be as described in: %s )", store.Get().GitTokensLink),
 		Mask:  '*',
 	}
 	gitTokenInput, err := gitTokenPrompt.Run()
@@ -396,6 +398,55 @@ func ensureKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 	return contextName, nil
 }
 
+func ensureAccessMode(ctx context.Context, opts *RuntimeInstallOptions) error {
+	var err error
+
+	if opts.AccessMode == "" {
+		if opts.IngressClass != "" || opts.IngressHost != "" {
+			opts.AccessMode = platmodel.AccessModeIngress
+		} else if opts.TunnelSubdomain != "" {
+			opts.AccessMode = platmodel.AccessModeTunnel
+		} else {
+			if store.Get().Silent {
+				// Tunnel mode if the default
+				opts.AccessMode = platmodel.AccessModeTunnel
+			} else {
+				err = getAccessModeFromUserSelect(&opts.AccessMode)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if opts.AccessMode == platmodel.AccessModeTunnel {
+		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", nil, true, false)
+		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", nil, true, false)
+		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
+		accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
+		if err != nil {
+			return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
+		}
+
+		opts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, opts.RuntimeName)
+		opts.IngressHost = fmt.Sprintf("https://%s.%s", opts.TunnelSubdomain, opts.TunnelDomain)
+	} else {
+		err := ensureRoutingControllerSupported(ctx, opts)
+		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
+		if err != nil {
+			return err
+		}
+
+		err = getIngressHost(ctx, opts)
+		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "Getting ingressHost", err, true, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 	kubeconfigPath := kubeconfig.Value.String()
 
@@ -451,6 +502,34 @@ func getKubeContextNameFromUserSelect(kubeconfig string) (string, error) {
 	}
 
 	return contexts[index].Name, nil
+}
+
+func getAccessModeFromUserSelect(accessMode *platmodel.AccessMode) (error) {
+	templates := &promptui.SelectTemplates{
+		Selected: "{{ .Name | yellow }}",
+	}
+
+	labelStr := fmt.Sprintf("%vSelect access mode%v", CYAN, COLOR_RESET)
+
+	prompt := promptui.Select{
+		Label:     labelStr,
+		Items:     []string{"Codefresh Tunnel Based", "Ingress Based"},
+		Templates: templates,
+	}
+
+	index, _, err := prompt.Run()
+	if err != nil {
+		return err
+	}
+
+	switch index {
+	case 0:
+		*accessMode = platmodel.AccessModeTunnel
+	case 1:
+		*accessMode = platmodel.AccessModeIngress
+	}
+
+	return nil
 }
 
 func validateIngressHost(ingressHost string) error {

@@ -131,6 +131,7 @@ type Store struct {
 	AnalysisRunResourceName           string
 	WorkflowResourceName              string
 	RequirementsLink                  string
+	GitTokensLink                     string
 	DownloadCliLink                   string
 	RolloutReporterName               string
 	RolloutResourceName               string
@@ -249,6 +250,7 @@ func init() {
 	s.RolloutReporterName = "rollout-reporter"
 	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
+	s.GitTokensLink = "https://codefresh.io/csdp-docs/docs/reference/git-tokens/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	s.DefaultNamespace = "default"
 	s.NetworkTesterName = "cf-network-tester"
