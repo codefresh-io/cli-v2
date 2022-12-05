@@ -155,7 +155,13 @@ func (c *Config) GetCurrentContext() *AuthContext {
 	if c.contextOverride != "" {
 		ctx = c.contextOverride
 	}
-	return c.Contexts[ctx]
+
+	authCtx, ok := c.Contexts[ctx]
+	if !ok {
+		log.G().Fatalf(util.Doc("Current Codefresh context \"%s\" does not exist. "+
+			"You must select another context using '<BIN> config use-context <context>'"), ctx)
+	}
+	return authCtx
 }
 
 // NewClient creates a new codefresh client for the current context or for
@@ -172,7 +178,7 @@ func (c *Config) DeleteContext(name string) error {
 
 	delete(c.Contexts, name)
 	if c.CurrentContext == name {
-		log.G().Warnf(util.Doc("delete context is set as current context, specify a new current context with '<BIN> config use-context'"))
+		log.G().Warnf(util.Doc("Deleted context is set as current context, specify a new current context with '<BIN> config use-context'"))
 		c.CurrentContext = ""
 	}
 
