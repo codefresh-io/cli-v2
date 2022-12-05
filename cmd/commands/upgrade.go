@@ -16,6 +16,8 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
+
+	cliutil "github.com/codefresh-io/cli-v2/pkg/util/cli"
 )
 
 func NewUpgradeCommand() *cobra.Command {
@@ -26,9 +28,12 @@ func NewUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Upgrades the cli",
-		Args:  cobra.NoArgs,
+		Annotations: map[string]string{
+			cliutil.SkipVersionCheck: "true",
+		},
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil
+			return cliutil.UpgradeCLIToVersion(cmd.Context(), opts.version)
 		},
 	}
 

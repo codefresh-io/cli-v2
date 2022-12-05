@@ -254,7 +254,7 @@ func init() {
 	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
 	s.GitTokensLink = "https://codefresh.io/csdp-docs/docs/reference/git-tokens/"
 	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
-	s.CLIDownloadTemplate = "https://github.com/codefresh-io/cli-v2/releases/%s/download/cf-%s-%s.tar.gz"
+	s.CLIDownloadTemplate = "https://github.com/codefresh-io/cli-v2/releases/download/%s/cf-%s-%s.tar.gz"
 	s.CLILatestVersionFileLink = "https://github.com/codefresh-io/cli-v2/releases/latest/download/version.txt"
 	s.DefaultNamespace = "default"
 	s.NetworkTesterName = "cf-network-tester"
