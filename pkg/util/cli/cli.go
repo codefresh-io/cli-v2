@@ -1,3 +1,17 @@
+// Copyright 2022 The Codefresh Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli
 
 import (
@@ -34,11 +48,11 @@ const (
 	SkipVersionCheck = "skip-version-check"
 )
 
-func UpgradeCLIToVersion(ctx context.Context, version string) error {
+func UpgradeCLIToVersion(ctx context.Context, version, output string) error {
 	if version != "" {
 		_, err := semver.NewVersion(version)
 		if err != nil {
-			return fmt.Errorf("failed to parse specified version: %w", err)
+			return fmt.Errorf("failed to parse specified version '%s': %w", version, err)
 		}
 	} else {
 		latestVersion, err := getLatestCliVersion(ctx)
@@ -64,72 +78,23 @@ func UpgradeCLIToVersion(ctx context.Context, version string) error {
 		return fmt.Errorf("failed to get current binary path: %w", err)
 	}
 
-	log.G(ctx).Debugf("copying from '%s' to '%s'", binaryFile, curBinPath)
+	if output == "" {
+		output = curBinPath
+	}
+
+	log.G(ctx).Debugf("copying from '%s' to '%s'", binaryFile, output)
 	log.G(ctx).Info("Copying...")
-	if err := os.Rename(binaryFile, curBinPath); err != nil {
-		return fmt.Errorf("failed to copy new binary from '%s' to '%s': %w", binaryFile, curBinPath, err)
+	if err := os.Rename(binaryFile, output); err != nil {
+		return fmt.Errorf("failed to copy new binary from '%s' to '%s': %w", binaryFile, output, err)
 	}
 
 	log.G(ctx).Info("Done!")
 
+	if curBinPath != output {
+		log.G(ctx).Infof("New binary saved to: %s", output)
+	}
+
 	return nil
-}
-
-func downloadAndExtract(ctx context.Context, url, version string) (string, error) {
-	log.G(ctx).Debugf("Downloading cli using download link: %s", url)
-	log.G(ctx).Infof("Downloading CLI version: %s...", version)
-
-	// create temp file
-	tarfile, err := ioutil.TempFile("", fmt.Sprintf("*.cf-%s.tar.gz", version))
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer cleanTempFile(tarfile)
-
-	// download tar file
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to build request: %w", err)
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed send request: %w", err)
-	}
-	defer res.Body.Close()
-
-	var bytes int64
-	if bytes, err = io.Copy(tarfile, res.Body); err != nil {
-		return "", fmt.Errorf("failed to copy temp version file: %w", err)
-	}
-
-	// back to the beginning
-	_, _ = tarfile.Seek(0, 0)
-
-	log.G(ctx).Debugf("downloaded %v bytes", bytes)
-	log.G(ctx).Info("Extracting...")
-
-	binaryFile, err := decompressTarStream(ctx, tarfile, version)
-	if err != nil {
-		return "", fmt.Errorf("failed decompress cli tar file: %w", err)
-	}
-
-	log.G(ctx).Debugf("extracted new binary to: %s", binaryFile)
-
-	if err := os.Chmod(binaryFile, 0755); err != nil {
-		return "", fmt.Errorf("failed to change file permissions: %w", err)
-	}
-
-	return binaryFile, nil
-}
-
-func getCurrentBinaryPath() (string, error) {
-	binPath, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("failed to get binary path: %w", err)
-	}
-
-	return filepath.EvalSymlinks(binPath)
 }
 
 func AddCLIVersionCheck(cmd *cobra.Command) {
@@ -266,6 +231,63 @@ func hasSkipCheckAnnotation(cmd *cobra.Command) bool {
 
 	_, ok := cmd.Annotations[SkipVersionCheck]
 	return ok
+}
+
+func downloadAndExtract(ctx context.Context, url, version string) (string, error) {
+	log.G(ctx).Debugf("Downloading cli using download link: %s", url)
+	log.G(ctx).Infof("Downloading CLI version: %s...", version)
+
+	// create temp file
+	tarfile, err := ioutil.TempFile("", fmt.Sprintf("*.cf-%s.tar.gz", version))
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer cleanTempFile(tarfile)
+
+	// download tar file
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to build request: %w", err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed send request: %w", err)
+	}
+	defer res.Body.Close()
+
+	var bytes int64
+	if bytes, err = io.Copy(tarfile, res.Body); err != nil {
+		return "", fmt.Errorf("failed to copy temp version file: %w", err)
+	}
+
+	// back to the beginning
+	_, _ = tarfile.Seek(0, 0)
+
+	log.G(ctx).Debugf("downloaded %v bytes", bytes)
+	log.G(ctx).Info("Extracting...")
+
+	binaryFile, err := decompressTarStream(ctx, tarfile, version)
+	if err != nil {
+		return "", fmt.Errorf("failed decompress cli tar file: %w", err)
+	}
+
+	log.G(ctx).Debugf("extracted new binary to: %s", binaryFile)
+
+	if err := os.Chmod(binaryFile, 0755); err != nil {
+		return "", fmt.Errorf("failed to change file permissions: %w", err)
+	}
+
+	return binaryFile, nil
+}
+
+func getCurrentBinaryPath() (string, error) {
+	binPath, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("failed to get binary path: %w", err)
+	}
+
+	return filepath.EvalSymlinks(binPath)
 }
 
 func cleanTempFile(f *os.File) {

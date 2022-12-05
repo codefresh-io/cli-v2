@@ -23,6 +23,7 @@ import (
 func NewUpgradeCommand() *cobra.Command {
 	var opts struct {
 		version string
+		output  string
 	}
 
 	cmd := &cobra.Command{
@@ -33,11 +34,12 @@ func NewUpgradeCommand() *cobra.Command {
 		},
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cliutil.UpgradeCLIToVersion(cmd.Context(), opts.version)
+			return cliutil.UpgradeCLIToVersion(cmd.Context(), opts.version, opts.output)
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.version, "version", "", "specify a cli version to upgrade to")
+	cmd.Flags().StringVar(&opts.version, "version", "", "Specify a cli version to upgrade to")
+	cmd.Flags().StringVarP(&opts.output, "ouput", "o", "", "Where to save the new binary (default: replace the old binary)")
 
 	return cmd
 }
