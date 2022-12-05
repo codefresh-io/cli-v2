@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -245,7 +244,7 @@ func downloadAndExtract(ctx context.Context, url, version string) (string, error
 	log.G(ctx).Infof("Downloading CLI version: %s...", version)
 
 	// create temp file
-	tarfile, err := ioutil.TempFile("", fmt.Sprintf("*.cf-%s.tar.gz", version))
+	tarfile, err := os.CreateTemp("", fmt.Sprintf("*.cf-%s.tar.gz", version))
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -317,14 +316,14 @@ func decompressTarStream(ctx context.Context, r io.Reader, version string) (stri
 
 	tarReader := tar.NewReader(uncompressedStream)
 
-	td, err := ioutil.TempDir("", fmt.Sprintf("cf-%s-*", version))
+	td, err := os.MkdirTemp("", fmt.Sprintf("cf-%s-*", version))
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
 
 	binFileName := ""
 
-	for true {
+	for {
 		header, err := tarReader.Next()
 
 		if err == io.EOF {
