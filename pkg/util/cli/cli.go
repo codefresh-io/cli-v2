@@ -59,6 +59,13 @@ func UpgradeCLIToVersion(ctx context.Context, version, output string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get latest version: %w", err)
 		}
+
+		if latestVersion.Compare(store.Get().Version.Version) <= 0 {
+			log.G(ctx).Infof("You are already running with the latest version: %s", store.Get().Version.Version.String())
+			log.G(ctx).Info("You may still run the 'upgrade' command if you specify a version using --version")
+			return nil
+		}
+
 		version = latestVersion.String()
 	}
 
