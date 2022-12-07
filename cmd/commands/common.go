@@ -199,6 +199,14 @@ func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (s
 	return runtimeName, nil
 }
 
+func isRuntimesExist(ctx context.Context) (bool, error) {
+	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	if err != nil {
+		return true, fmt.Errorf("failed to get runtime list: %w", err)
+	}
+	return len(runtimes) > 0, nil
+}
+
 func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (string, error) {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
@@ -504,7 +512,7 @@ func getKubeContextNameFromUserSelect(kubeconfig string) (string, error) {
 	return contexts[index].Name, nil
 }
 
-func getAccessModeFromUserSelect(accessMode *platmodel.AccessMode) (error) {
+func getAccessModeFromUserSelect(accessMode *platmodel.AccessMode) error {
 	templates := &promptui.SelectTemplates{
 		Selected: "{{ .Name | yellow }}",
 	}
@@ -727,6 +735,14 @@ func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (stri
 	}
 
 	return setIscRepoResponse, nil
+}
+
+func resetIscRepoUrl(ctx context.Context) error {
+	err := cfConfig.NewClient().V2().Runtime().ResetSharedConfigRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to reset shared config repo. Error: %w", err)
+	}
+	return nil
 }
 
 func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
