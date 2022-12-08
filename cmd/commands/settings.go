@@ -36,8 +36,8 @@ func NewSettingCommand() *cobra.Command {
 
 func NewResetIscRepoUrlCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "reset-isc-url",
-		Short:             "Reset the URL of the shared configurations repo. ",
+		Use:               "reset-shared-config-repo",
+		Short:             "Reset the URL of the shared configuration repo",
 		Args:              cobra.NoArgs,
 		PersistentPreRunE: cfConfig.RequireAuthentication,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -51,7 +51,7 @@ func NewResetIscRepoUrlCommand() *cobra.Command {
 				return err
 			}
 			if runtimesExist {
-				return fmt.Errorf("reset account Internal Shared Repository url is not allowed. Please uninstall all runtimes from your account and try again")
+				return fmt.Errorf("unable to reset the shared configuration repo as there are runtimes installed in the account. Uninstall all the runtimes from your account and try again")
 			}
 
 			return nil
@@ -62,7 +62,7 @@ func NewResetIscRepoUrlCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to reset account Internal Shared Repository url: %w", err)
 			}
-			fmt.Printf("account Internal Shared Repository url was reset successfully \n")
+			fmt.Printf("shared configuration repo was reset successfully \n")
 			return nil
 		},
 	}
