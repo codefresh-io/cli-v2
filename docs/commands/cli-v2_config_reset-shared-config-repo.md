@@ -1,15 +1,15 @@
-## cli-v2 settings reset-isc-url
+## cli-v2 config reset-shared-config-repo
 
-Reset the URL of the shared configurations repo. 
+Reset the URL of the shared configuration repo
 
 ```
-cli-v2 settings reset-isc-url [flags]
+cli-v2 config reset-shared-config-repo [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for reset-isc-url
+  -h, --help   help for reset-shared-config-repo
 ```
 
 ### Options inherited from parent commands
@@ -24,5 +24,5 @@ cli-v2 settings reset-isc-url [flags]
 
 ### SEE ALSO
 
-* [cli-v2 settings](cli-v2_settings.md)	 - Settings commands
+* [cli-v2 config](cli-v2_config.md)	 - Manage Codefresh authentication contexts
 
