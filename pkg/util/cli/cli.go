@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -37,7 +38,7 @@ import (
 // we don't want to slow down the cli so it is noticable
 // so you get 2 seconds to check the version, which should
 // be enough for most configurations
-var getVersionTimeout = time.Second * 2
+var getVersionTimeout = time.Second * 30
 
 const (
 	color           = "\u001b[38;5;220m"
@@ -165,21 +166,21 @@ func checkCliVersion(ctx context.Context) {
 		return
 	}
 
-	msg := spaceAccordingly(`***********************************
-**   Newer version is available!
-**
-**         Current: %s
-**         Latest: %s
-**
-**   To get the latest version
-**   run: %s upgrade
-***********************************`, curV, v, store.Get().BinaryName)
+	msg := spaceAccordingly(`╔═════════════════════════════════╗
+║   Newer version is available!
+║
+║         Current: %s
+║         Latest: %s
+║
+║   To get the latest version
+║   run: %s upgrade
+╚═════════════════════════════════╝`, curV, v, store.Get().BinaryName)
 	log.G().Printf("%s%s%s", color, msg, clearColor)
 }
 
 func spaceAccordingly(msg string, params ...interface{}) string {
 	lines := strings.Split(msg, "\n")
-	fullLength := len(lines[0])
+	fullLength := utf8.RuneCountInString(lines[0])
 	tplIdx := 0
 
 	for idx, line := range lines {
@@ -188,13 +189,15 @@ func spaceAccordingly(msg string, params ...interface{}) string {
 			tplIdx++
 		}
 
-		reqSpaceLeft := fullLength - len(line)
+		reqSpaceLeft := fullLength - utf8.RuneCountInString(line)
 		space := strings.Builder{}
 		space.Grow(reqSpaceLeft)
-		for i := 0; i < reqSpaceLeft; i++ {
+		for i := 0; i < reqSpaceLeft-1; i++ {
 			_, _ = space.WriteString(" ")
 		}
-		line = fmt.Sprintf("%s%s**", line, space.String())
+		if idx != 0 && idx != len(lines)-1 {
+			line = fmt.Sprintf("%s%s║", line, space.String())
+		}
 		lines[idx] = line
 	}
 
@@ -261,6 +264,10 @@ func downloadAndExtract(ctx context.Context, url, version string) (string, error
 		return "", fmt.Errorf("failed send request: %w", err)
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusNotFound {
+		return "", fmt.Errorf("could not find version %s", version)
+	}
 
 	var bytes int64
 	if bytes, err = io.Copy(tarfile, res.Body); err != nil {
