@@ -22,7 +22,7 @@ import (
 func NewSettingCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "settings",
-		Short: "settings commands",
+		Short: "Settings commands",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
