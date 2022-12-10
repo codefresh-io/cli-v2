@@ -576,13 +576,16 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		cfConfig.GetCurrentContext().DefaultRuntime = ""
 	}
 
-	err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
-	if err != nil {
-		errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
-		if !opts.Force {
-			return fmt.Errorf(errorMsg)
+
+	if !opts.Managed {
+		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
+		if err != nil {
+			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
+			if !opts.Force {
+				return fmt.Errorf(errorMsg)
+			}
+			log.G().Warn(errorMsg)
 		}
-		log.G().Warn(errorMsg)
 	}
 
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)

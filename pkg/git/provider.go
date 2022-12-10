@@ -97,8 +97,8 @@ func GetProvider(providerType ProviderType, baseURL, certFile string) (Provider,
 func getGitProviderFromUserSelect(baseURL string, client *http.Client) (Provider) {
 	var providers = map[string]func(string, *http.Client) (Provider, error){
 		"Bitbucket": NewBitbucketServerProvider,
-		"Github":    NewGithubProvider,
-		"Gitlab":    NewGitlabProvider,
+		"GitHub":    NewGithubProvider,
+		"GitLab":    NewGitlabProvider,
 	}
 
 	templates := &promptui.SelectTemplates{
@@ -109,7 +109,7 @@ func getGitProviderFromUserSelect(baseURL string, client *http.Client) (Provider
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     []string{"Github", "Gitlab", "Bitbucket"},
+		Items:     []string{"GitHub", "GitLab", "Bitbucket"},
 		Templates: templates,
 	}
 

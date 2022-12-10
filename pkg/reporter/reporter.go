@@ -207,8 +207,6 @@ func (r *segmentAnalyticsReporter) Close(status CliStepStatus, err error) {
 		}
 	}
 
-	log.G().Infof("Closing with status %s", status)
-
 	r.ReportStep(CliStepData{
 		Step:        FINISH,
 		Status:      status,

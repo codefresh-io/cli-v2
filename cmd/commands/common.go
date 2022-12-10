@@ -521,7 +521,7 @@ func getAccessModeFromUserSelect(accessMode *platmodel.AccessMode) error {
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     []string{"Codefresh Tunnel Based", "Ingress Based"},
+		Items:     []string{"Codefresh tunnel-based", "Ingress-based"},
 		Templates: templates,
 	}
 
