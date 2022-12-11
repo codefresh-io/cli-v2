@@ -223,13 +223,16 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress class":             installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
+				"Git provider":              string(installationOpts.gitProvider.Type()),
 			}
 
 			if installationOpts.AccessMode == platmodel.AccessModeTunnel {
 				finalParameters["Tunnel URL"] = installationOpts.IngressHost
+				finalParameters["Access mode"] = "Codefresh tunnel-based"
 			} else {
 				finalParameters["Ingress host"] = installationOpts.IngressHost
 				finalParameters["Internal ingress host"] = installationOpts.InternalIngressHost
+				finalParameters["Access mode"] = "Ingress-based"
 			}
 
 			if err := getApprovalFromUser(ctx, finalParameters, "runtime install"); err != nil {
