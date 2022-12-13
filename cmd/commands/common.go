@@ -563,16 +563,18 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
 	}
 
-	for _, s := range servicesList.Items {
-		if s.ObjectMeta.Name == opts.IngressController.Name() && s.Spec.Type == "LoadBalancer" {
-			if len(s.Status.LoadBalancer.Ingress) > 0 {
-				ingress := s.Status.LoadBalancer.Ingress[0]
-				if ingress.Hostname != "" {
-					foundHostName = ingress.Hostname
-					break
-				} else {
-					foundHostName = ingress.IP
-					break
+	if opts.IngressController != nil {
+		for _, s := range servicesList.Items {
+			if s.ObjectMeta.Name == opts.IngressController.Name() && s.Spec.Type == "LoadBalancer" {
+				if len(s.Status.LoadBalancer.Ingress) > 0 {
+					ingress := s.Status.LoadBalancer.Ingress[0]
+					if ingress.Hostname != "" {
+						foundHostName = ingress.Hostname
+						break
+					} else {
+						foundHostName = ingress.IP
+						break
+					}
 				}
 			}
 		}
