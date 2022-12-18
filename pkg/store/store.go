@@ -147,6 +147,7 @@ type Store struct {
 	MinKubeVersion                    string
 	MaxKubeVersion                    string
 	MasterIngressName                 string
+	ClusterResourcesPath              string
 	InClusterPath                     string
 	SccName                           string
 	CFInternalGitSources              []string
@@ -265,6 +266,7 @@ func init() {
 	s.MinKubeVersion = "v1.21.0"
 	s.MaxKubeVersion = "v1.25.0"
 	s.MasterIngressName = "-master"
+	s.ClusterResourcesPath = "/bootstrap/cluster-resources.yaml"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 	s.SccName = "cf-scc"
 	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}

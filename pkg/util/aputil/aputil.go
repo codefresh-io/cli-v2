@@ -60,15 +60,11 @@ func AddCloneFlags(cmd *cobra.Command, o *CloneFlagsOptions) *git.CloneOptions {
 	return opts
 }
 
-func PushWithMessage(ctx context.Context, r git.Repository, msg string, progress ...io.Writer) error {
+func PushWithMessage(ctx context.Context, r git.Repository, msg string) error {
 	var (
 		err  error
 		prog io.Writer
 	)
-
-	if len(progress) > 0 {
-		prog = progress[0]
-	}
 
 	for try := 0; try < pushRetries; try++ {
 		_, err = r.Persist(ctx, &git.PushOptions{
