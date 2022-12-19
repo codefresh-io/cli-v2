@@ -30,7 +30,6 @@ import (
 	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -109,8 +108,6 @@ type (
 		useGatewayAPI     bool
 	}
 )
-
-var appProxyGitSourceSupport = semver.MustParse("0.0.328")
 
 func NewGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -214,15 +211,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
-	if err != nil {
-		return err
-	}
-
-	if version.LessThan(appProxyGitSourceSupport) {
-		return fmt.Errorf("Runtime \"%s\" (%s) does not support creating a git-source through the cli. Please upgrade to version %s or above", opts.RuntimeName, version.String(), appProxyGitSourceSupport)
-	}
-
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
@@ -398,15 +386,6 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 }
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
-	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
-	if err != nil {
-		return err
-	}
-
-	if version.LessThan(appProxyGitSourceSupport) {
-		return fmt.Errorf("Runtime \"%s\" (%s) does not support deleting a git-source through the cli. Please upgrade to version %s or above", opts.RuntimeName, version.String(), appProxyGitSourceSupport)
-	}
-
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
@@ -485,15 +464,6 @@ func NewGitSourceEditCommand() *cobra.Command {
 }
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
-	version, err := getRuntimeVersion(ctx, opts.RuntimeName)
-	if err != nil {
-		return err
-	}
-
-	if version.LessThan(appProxyGitSourceSupport) {
-		return fmt.Errorf("Runtime \"%s\" (%s) does not support editing a git-source through the cli. Please upgrade to version %s or above", opts.RuntimeName, version.String(), appProxyGitSourceSupport)
-	}
-
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
@@ -1411,19 +1381,6 @@ func deleteCommonRedundantFields(crd map[string]interface{}) {
 	delete(metadata, "creationTimestamp")
 }
 
-func getRuntimeVersion(ctx context.Context, runtimeName string) (*semver.Version, error) {
-	rt, err := getRuntime(ctx, runtimeName)
-	if err != nil {
-		return nil, err
-	}
-
-	if rt.RuntimeVersion == nil {
-		return nil, fmt.Errorf("runtime \"%s\" has no version", runtimeName)
-	}
-
-	return semver.MustParse(*rt.RuntimeVersion), nil
-}
-
 func writeObjectToYaml[Object any](
 	gsFs fs.FS,
 	filePath string,
@@ -1439,6 +1396,7 @@ func writeObjectToYaml[Object any](
 	return gsFs.WriteYamls(filePath, finalObject)
 }
 
+// used only from the runtime-install flow
 func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
 	// upsert git-source repo
 	gsRepo, gsFs, err := opts.GsCloneOpts.GetRepo(ctx)
