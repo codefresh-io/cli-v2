@@ -48,7 +48,7 @@ import (
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -96,7 +96,7 @@ type (
 		InsCloneOpts                   *apgit.CloneOptions
 		GitIntegrationCreationOpts     *apmodel.AddGitIntegrationArgs
 		GitIntegrationRegistrationOpts *GitIntegrationRegistrationOpts
-		KubeFactory                    kube.Factory
+		KubeFactory                    apkube.Factory
 		CommonConfig                   *runtime.CommonConfig
 		NamespaceLabels                map[string]string
 		SuggestedSharedConfigRepo      string
@@ -286,7 +286,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 		CreateIfNotExist: true,
 	}
 
-	installationOpts.KubeFactory = kube.AddFlags(cmd.Flags())
+	installationOpts.KubeFactory = apkube.AddFlags(cmd.Flags())
 	installationOpts.kubeconfig = cmd.Flag("kubeconfig").Value.String()
 
 	util.Die(cmd.Flags().MarkHidden("bypass-ingress-class-check"))
@@ -1233,12 +1233,12 @@ func checkIscProvider(ctx context.Context, opts *apgit.CloneOptions) error {
 	return nil
 }
 
-func checkRuntimeCollisions(ctx context.Context, kube kube.Factory, runtime string) error {
+func checkRuntimeCollisions(ctx context.Context, kubeFactory apkube.Factory, runtime string) error {
 	log.G(ctx).Debug("checking for argocd collisions in cluster")
 
-	cs, err := kube.KubernetesClientSet()
+	cs, err := kubeutil.GetClientSet(kubeFactory)
 	if err != nil {
-		return fmt.Errorf("failed to build kubernetes clientset: %w", err)
+		return err
 	}
 
 	crb, err := cs.RbacV1().ClusterRoleBindings().Get(ctx, store.Get().ArgoCDServerName, metav1.GetOptions{})
