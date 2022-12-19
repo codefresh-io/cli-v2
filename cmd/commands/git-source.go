@@ -108,12 +108,6 @@ type (
 		gatewayNamespace  string
 		useGatewayAPI     bool
 	}
-
-	dirConfig struct {
-		application.Config
-		Exclude string `json:"exclude"`
-		Include string `json:"include"`
-	}
 )
 
 var appProxyGitSourceSupport = semver.MustParse("0.0.328")
@@ -376,7 +370,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source delete runtime_name git-source_name 
 		`),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(_ *cobra.Command, args []string) error {
 			store.Get().Silent = true
 
 			if len(args) < 1 {
@@ -441,7 +435,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
 		`),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(_ *cobra.Command, args []string) error {
 			store.Get().Silent = true
 
 			if len(args) < 1 {
