@@ -47,7 +47,6 @@ import (
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
@@ -694,7 +693,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
 	}
 
-	err = patchClusterResourcesAppSet(ctx, opts.InsCloneOpts)
+	err = patchRuntimeRepo(ctx, opts.InsCloneOpts, "patch cluster-resources ApplicationSet", patchClusterResourcesAppSet)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to patch cluster-resources ApplicationSet: %w", err))
 	}
@@ -2153,12 +2152,7 @@ func getRuntimeDef(runtimeDef, version string) string {
 	return strings.Replace(runtimeDef, "stable", version, 1)
 }
 
-func patchClusterResourcesAppSet(ctx context.Context, cloneOpts *git.CloneOptions) error {
-	r, fs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return err
-	}
-
+func patchClusterResourcesAppSet(fs fs.FS) error {
 	appSet := &argocdv1alpha1.ApplicationSet{}
 	name := store.Get().ClusterResourcesPath
 	if err := fs.ReadYamls(name, appSet); err != nil {
@@ -2170,9 +2164,5 @@ func patchClusterResourcesAppSet(ctx context.Context, cloneOpts *git.CloneOption
 	}
 
 	appSet.ObjectMeta.Labels[store.Get().LabelKeyCFInternal] = "true"
-	if err = fs.WriteYamls(name, appSet); err != nil {
-		return err
-	}
-
-	return apu.PushWithMessage(ctx, r, "patch cluster-resources ApplicationSet")
+	return fs.WriteYamls(name, appSet)
 }

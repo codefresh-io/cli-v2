@@ -34,7 +34,10 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 
+	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
@@ -789,4 +792,17 @@ func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, er
 	}
 
 	return rt, nil
+}
+
+func patchRuntimeRepo(ctx context.Context, cloneOpts *git.CloneOptions, msg string, f func(fs fs.FS) error) error {
+	r, fs, err := cloneOpts.GetRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = f(fs); err != nil {
+		return err
+	}
+
+	return apu.PushWithMessage(ctx, r, msg)
 }

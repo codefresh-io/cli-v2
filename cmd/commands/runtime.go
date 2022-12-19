@@ -909,6 +909,11 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 		return fmt.Errorf("failed to upgrade runtime: %w", err)
 	}
 
+	err = patchClusterResourcesAppSet(fs)
+	if err != nil {
+		log.G(ctx).Warnf("failed to patch cluster-resources ApplicationSet: %w", err)
+	}
+
 	log.G(ctx).Info("Pushing new runtime definition")
 	err = apu.PushWithMessage(ctx, r, fmt.Sprintf("Upgraded to %s", newRt.Spec.Version))
 	handleCliStep(reporter.UpgradeStepPushRuntimeDefinition, "Pushing new runtime definition", err, false, false)
