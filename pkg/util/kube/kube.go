@@ -17,6 +17,7 @@ package kube
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -25,12 +26,13 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	authv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
@@ -39,7 +41,7 @@ import (
 
 type (
 	ClusterRequirementsOptions struct {
-		KubeFactory        kube.Factory
+		KubeFactory        apkube.Factory
 		Namespace          string
 		ContextUrl         string
 		AccessMode         platmodel.AccessMode
@@ -78,9 +80,9 @@ func EnsureClusterRequirements(ctx context.Context, opts ClusterRequirementsOpti
 	kubeFactory := opts.KubeFactory
 	var specificErrorMessages []string
 
-	client, err := kubeFactory.KubernetesClientSet()
+	client, err := GetClientSet(kubeFactory)
 	if err != nil {
-		return fmt.Errorf("cannot create kubernetes clientset: %w", err)
+		return err
 	}
 
 	kubeVersion, err := client.Discovery().ServerVersion()
@@ -216,9 +218,9 @@ func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *ClusterReq
 	}
 	env := prepareEnvVars(envVars)
 
-	client, err := runtimeInstallOptions.KubeFactory.KubernetesClientSet()
+	client, err := GetClientSet(runtimeInstallOptions.KubeFactory)
 	if err != nil {
-		return fmt.Errorf("failed to create kubernetes client: %w", err)
+		return err
 	}
 
 	job, err := launchJob(ctx, client, LaunchJobOptions{
@@ -252,10 +254,10 @@ func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *ClusterReq
 	return checkPodLastState(ctx, client, podLastState)
 }
 
-func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace string, name string) (*v1.Secret, error) {
-	client, err := kubeFactory.KubernetesClientSet()
+func GetClusterSecret(ctx context.Context, kubeFactory apkube.Factory, namespace string, name string) (*v1.Secret, error) {
+	client, err := GetClientSet(kubeFactory)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create kubernetes clientset: %w", err)
+		return nil, err
 	}
 
 	var (
@@ -285,18 +287,18 @@ func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace s
 	return res, nil
 }
 
-func WaitForJob(ctx context.Context, f kube.Factory, ns, jobName string) error {
+func WaitForJob(ctx context.Context, kubeFactory apkube.Factory, ns, jobName string) error {
 	var attempt int32
 	var jobErr error
-	_ = f.Wait(ctx, &kube.WaitOptions{
+	_ = kubeFactory.Wait(ctx, &apkube.WaitOptions{
 		Interval: time.Second * 5,
 		Timeout:  time.Minute,
-		Resources: []kube.Resource{
+		Resources: []apkube.Resource{
 			{
 				Name:      jobName,
 				Namespace: ns,
-				WaitFunc: func(ctx context.Context, f kube.Factory, ns, name string) (bool, error) {
-					cs, err := f.KubernetesClientSet()
+				WaitFunc: func(ctx context.Context, kubeFactory apkube.Factory, ns, name string) (bool, error) {
+					cs, err := GetClientSet(kubeFactory)
 					if err != nil {
 						return false, err
 					}
@@ -348,7 +350,7 @@ func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1
 	fmt.Printf("=====\n%s\n=====\n\n", logs)
 }
 
-func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
+func runNetworkTest(ctx context.Context, kubeFactory apkube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
 
 	envVars := map[string]string{
@@ -357,9 +359,9 @@ func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...strin
 	}
 	env := prepareEnvVars(envVars)
 
-	client, err := kubeFactory.KubernetesClientSet()
+	client, err := GetClientSet(kubeFactory)
 	if err != nil {
-		return fmt.Errorf("failed to create kubernetes client: %w", err)
+		return err
 	}
 
 	job, err := launchJob(ctx, client, LaunchJobOptions{
@@ -595,15 +597,15 @@ func getPodLogs(ctx context.Context, client kubernetes.Interface, namespace, nam
 	return strings.Trim(logsBuf.String(), "\n"), nil
 }
 
-func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory kube.Factory) (bool, error) {
-	client, err := kubeFactory.KubernetesClientSet()
+func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory apkube.Factory) (bool, error) {
+	client, err := GetClientSet(kubeFactory)
 	if err != nil {
-		return false, fmt.Errorf("failed to create kubernetes client: %w", err)
+		return false, err
 	}
 
 	_, err = client.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to get namespace %s: %w", namespace, err)
@@ -612,10 +614,10 @@ func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory kub
 	return true, nil
 }
 
-func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory kube.Factory, secret *v1.Secret) error {
-	client, err := kubeFactory.KubernetesClientSet()
+func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory apkube.Factory, secret *v1.Secret) error {
+	client, err := GetClientSet(kubeFactory)
 	if err != nil {
-		return fmt.Errorf("failed to create kubernetes client: %w", err)
+		return err
 	}
 
 	secret.Finalizers = nil
@@ -625,17 +627,17 @@ func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory kube.Factory, se
 	}
 
 	err = client.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		return nil
 	}
 
 	return err
 }
 
-func GetSecretsWithLabel(ctx context.Context, kubeFactory kube.Factory, namespace, label string) (*v1.SecretList, error) {
-	client, err := kubeFactory.KubernetesClientSet()
+func GetSecretsWithLabel(ctx context.Context, kubeFactory apkube.Factory, namespace, label string) (*v1.SecretList, error) {
+	client, err := GetClientSet(kubeFactory)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+		return nil, err
 	}
 
 	secrets, err := client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: label})
@@ -644,4 +646,23 @@ func GetSecretsWithLabel(ctx context.Context, kubeFactory kube.Factory, namespac
 	}
 
 	return secrets, nil
+}
+
+func GetClientSet(kubeFactory apkube.Factory) (kubernetes.Interface, error) {
+	cs, err := kubeFactory.KubernetesClientSet()
+	if err != nil {
+		if strings.Contains(err.Error(), "exec plugin: invalid apiVersion") {
+			return nil, errors.New("Kubeconfig user entry is using an invalid API version client.authentication.k8s.io/v1alpha1.\nSee details at https://support.codefresh.io/hc/en-us/articles/6947789386652-Failure-to-perform-actions-on-your-selected-Kubernetes-context")
+		}
+
+		return nil, fmt.Errorf("failed to build kubernetes clientset: %w", err)
+	}
+
+	return cs, nil
+}
+
+func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
+	cs, err := GetClientSet(kubeFactory)
+	aputil.Die(err)
+	return cs
 }

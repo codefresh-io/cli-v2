@@ -35,6 +35,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	"github.com/codefresh-io/cli-v2/pkg/util/kube"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -560,7 +561,7 @@ func setIngressHost(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	log.G(ctx).Info("Retrieving ingress controller info from your cluster...\n")
 
-	cs := opts.KubeFactory.KubernetesClientSetOrDie()
+	cs := kube.GetClientSetOrDie(opts.KubeFactory)
 	servicesList, err := cs.CoreV1().Services("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ingress controller info from your cluster: %w", err)
