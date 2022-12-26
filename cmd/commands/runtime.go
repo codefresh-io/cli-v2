@@ -595,12 +595,19 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 }
 
 func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
-	secrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
+	sealedSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
 	if err != nil {
 		return err
 	}
 
-	for _, secret := range secrets.Items {
+	gitIntegrationSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorGitIntegrationSecret)
+	if err != nil {
+		return err
+	}
+
+	secrets := append(sealedSecrets.Items, gitIntegrationSecrets.Items...)
+
+	for _, secret := range secrets {
 		err = kubeutil.DeleteSecretWithFinalizer(ctx, kubeFactory, &secret)
 		if err != nil {
 			log.G().Warnf("failed to delete secret: %w", err)
