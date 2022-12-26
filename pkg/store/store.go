@@ -86,6 +86,7 @@ type Store struct {
 	LabelKeyCFType                    string
 	LabelKeyCFInternal                string
 	LabelSelectorSealedSecret         string
+	LabelSelectorGitIntegrationSecret string
 	AnnotationKeySyncWave             string
 	MarketplaceGitSourceName          string
 	MarketplaceRepo                   string
@@ -210,6 +211,7 @@ func init() {
 	s.LabelKeyCFType = "codefresh.io/entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
+	s.LabelSelectorGitIntegrationSecret = "io.codefresh.integration-type=git"
 	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
 	s.MaxDefVersion = semver.MustParse(maxDefVersion)
 	s.LastRuntimeVersionInCLI = semver.MustParse(lastRuntimeVersionInCLI)
