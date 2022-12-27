@@ -339,10 +339,13 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 	return util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
 			newCloneOpts := &apgit.CloneOptions{
-				FS:       apfs.Create(memfs.New()),
-				Repo:     cloneOpts.Repo,
-				Auth:     cloneOpts.Auth,
-				Progress: cloneOpts.Progress,
+				FS:               apfs.Create(memfs.New()),
+				Repo:             cloneOpts.Repo,
+				Auth:             cloneOpts.Auth,
+				Progress:         cloneOpts.Progress,
+				CreateIfNotExist: false,
+				CloneForWrite:    true,
+				UpsertBranch:     false,
 			}
 			newCloneOpts.Parse()
 
