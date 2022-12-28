@@ -67,7 +67,7 @@ type (
 		config         *Config
 	}
 
-	AuthContextWithStatus struct {
+	authContextWithStatus struct {
 		AuthContext
 		current bool
 		status  string
@@ -262,9 +262,9 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	contexts := make([]*AuthContextWithStatus, 0, len(c.Contexts))
+	contexts := make([]*authContextWithStatus, 0, len(c.Contexts))
 	for _, context := range c.Contexts {
-		contexts = append(contexts, &AuthContextWithStatus{
+		contexts = append(contexts, &authContextWithStatus{
 			AuthContext: *context,
 		})
 	}
