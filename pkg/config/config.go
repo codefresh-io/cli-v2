@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
+	"sort"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
@@ -65,6 +65,13 @@ type (
 		OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
 		config         *Config
+	}
+
+	authContextWithStatus struct {
+		AuthContext
+		current bool
+		status  string
+		account string
 	}
 )
 
@@ -248,7 +255,6 @@ func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 
 func (c *Config) Write(ctx context.Context, w io.Writer) error {
 	tb := ansiterm.NewTabWriter(w, 0, 0, 4, ' ', 0)
-	writerLock := sync.Mutex{}
 	ar := util.NewAsyncRunner(len(c.Contexts))
 
 	_, err := fmt.Fprintln(tb, "CURRENT\tNAME\tURL\tACCOUNT\tSTATUS")
@@ -256,49 +262,63 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	for name, context := range c.Contexts {
+	contexts := make([]*authContextWithStatus, 0, len(c.Contexts))
+	for _, context := range c.Contexts {
+		contexts = append(contexts, &authContextWithStatus{
+			AuthContext: *context,
+		})
+	}
+
+	sort.SliceStable(contexts, func(i, j int) bool {
+		return contexts[i].Name < contexts[j].Name
+	})
+
+	for _, context := range contexts {
 		// capture local variables for closure
-		name := name
 		context := context
 
 		ar.Run(func() error {
-			status := "VALID"
-			accName := ""
-			current := ""
+			context.status = "VALID"
 
 			usr, err := context.GetUser(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
 				}
-				status = err.Error()
+				context.status = err.Error()
 
 			} else {
-				accName = usr.GetActiveAccount().Name
+				context.account = usr.GetActiveAccount().Name
 			}
 
-			if name == c.CurrentContext {
-				current = greenStar
+			if context.Name == c.CurrentContext {
+				context.current = true
 			}
 
-			writerLock.Lock()
-			_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
-				current,
-				name,
-				context.URL,
-				accName,
-				status,
-			)
-			writerLock.Unlock()
-			if err != nil {
-				return err
-			}
 			return nil
 		})
 	}
 
 	if err := ar.Wait(); err != nil {
 		return err
+	}
+
+	for _, context := range contexts {
+		current := ""
+		if context.current {
+			current = greenStar
+		}
+
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+			current,
+			context.Name,
+			context.URL,
+			context.account,
+			context.status,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return tb.Flush()
