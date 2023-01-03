@@ -1,4 +1,4 @@
-// Copyright 2022 The Codefresh Authors.
+// Copyright 2023 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,9 +71,9 @@ func Test_sanitizeClusterName(t *testing.T) {
 		name string
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name    string
+		args    args
+		want    string
 		wantErr bool
 	}{
 		{
@@ -81,7 +81,7 @@ func Test_sanitizeClusterName(t *testing.T) {
 			args: args{
 				name: "^-.Test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
-			want: "test----cluster------test-cluster--12-3",
+			want:    "test----cluster------test-cluster--12-3",
 			wantErr: false,
 		},
 		{
@@ -89,7 +89,7 @@ func Test_sanitizeClusterName(t *testing.T) {
 			args: args{
 				name: "^-.123test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			},
-			want: "test----cluster------test-cluster--12-3",
+			want:    "test----cluster------test-cluster--12-3",
 			wantErr: false,
 		},
 		{
@@ -97,7 +97,7 @@ func Test_sanitizeClusterName(t *testing.T) {
 			args: args{
 				name: "12345",
 			},
-			want: "",
+			want:    "",
 			wantErr: true,
 		},
 	}

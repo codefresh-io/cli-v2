@@ -1,4 +1,4 @@
-// Copyright 2022 The Codefresh Authors.
+// Copyright 2023 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,28 +14,29 @@
 
 package routing
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-import v1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+import (
+	v1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 type HTTPProxyRoute struct {
-		Path        string
-		PathType    string
-		ServiceName string
-		ServicePort int32
-	}
-
+	Path        string
+	PathType    string
+	ServiceName string
+	ServicePort int32
+}
 
 func createHTTPProxy(opts *CreateRouteOpts) *v1.HTTPProxy {
 	httpProxy := &v1.HTTPProxy{
-		TypeMeta:   metav1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1.SchemeGroupVersion.String(),
-			Kind: "HTTPProxy",
+			Kind:       "HTTPProxy",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: opts.Name,
+			Name:      opts.Name,
 			Namespace: opts.Namespace,
 		},
-		Spec:       v1.HTTPProxySpec{
+		Spec: v1.HTTPProxySpec{
 			VirtualHost: &v1.VirtualHost{
 				Fqdn: opts.Hostname,
 			},

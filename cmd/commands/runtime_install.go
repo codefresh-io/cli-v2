@@ -1,4 +1,4 @@
-// Copyright 2022 The Codefresh Authors.
+// Copyright 2023 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -213,6 +213,8 @@ func NewRuntimeInstallCommand() *cobra.Command {
 					return fmt.Errorf("installation canceled by user")
 				}
 
+				util.CheckNetworkErr(err)
+
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
@@ -314,6 +316,8 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	if opts.runtimeDef == "" {
 		opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
 	}
+
+	log.G(ctx).Info("Downloading runtime definition file")
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
 	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
@@ -629,6 +633,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	rt, err := preInstallationChecks(ctx, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
+		util.CheckNetworkErr(err)
 		return fmt.Errorf("pre installation checks failed: %w", err)
 	}
 
@@ -644,6 +649,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 		postInstallationHandler(ctx, opts, err, &opts.DisableRollback)
 	}()
 
+	log.G(ctx).Infof("Creating runtime: \"%s\"", opts.RuntimeName)
 	token, iv, err := createRuntimeOnPlatform(ctx, opts, rt)
 	handleCliStep(reporter.InstallStepCreateRuntimeOnPlatform, "Creating runtime on platform", err, false, true)
 	if err != nil {
@@ -2057,8 +2063,8 @@ func getRuntimeDataFromCodefreshCM(_ context.Context, repofs fs.FS, runtimeName 
 func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, err error, disableRollback *bool) {
 	if err != nil && !*disableRollback {
 		summaryArr = append(summaryArr, summaryLog{"----------Uninstalling runtime----------", Info})
-		log.G(ctx).Errorf("installation failed due to error : %s, performing installation rollback", err.Error())
-
+		log.G(ctx).Errorf("installation failed due to error: %s, performing installation rollback", err.Error())
+		util.CheckNetworkErr(err)
 		err := runRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName: opts.RuntimeName,
 			Timeout:     store.Get().WaitTimeout,

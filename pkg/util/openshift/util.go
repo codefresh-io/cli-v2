@@ -1,4 +1,4 @@
-// Copyright 2022 The Codefresh Authors.
+// Copyright 2023 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ func createScc(ctx context.Context, opts *OpenshiftOptions) error {
 		SELinuxContext: ocsecurityv1.SELinuxContextStrategyOptions{
 			Type: ocsecurityv1.SELinuxStrategyRunAsAny,
 		},
-		Users:    getServiceAccountsList(opts.RuntimeName),
+		Users: getServiceAccountsList(opts.RuntimeName),
 		// This is required to take precedence over the default SCC's
 		Priority: &sccPriority,
 	}

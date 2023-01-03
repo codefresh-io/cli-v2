@@ -1,4 +1,4 @@
-// Copyright 2022 The Codefresh Authors.
+// Copyright 2023 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import (
 // we don't want to slow down the cli so it is noticable
 // so you get 2 seconds to check the version, which should
 // be enough for most configurations
-var getVersionTimeout = time.Second * 30
+var getVersionTimeout = time.Second * 2
 
 const (
 	color           = "\u001b[38;5;220m"

@@ -1,4 +1,4 @@
-// Copyright 2022 The Codefresh Authors.
+// Copyright 2023 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -576,7 +576,6 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		cfConfig.GetCurrentContext().DefaultRuntime = ""
 	}
 
-
 	if !opts.Managed {
 		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
 		if err != nil {
@@ -1137,6 +1136,9 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 		log.G().Debug("Analytics Reporter disabled by the --disable-telemetry flag.")
 		return
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
 
 	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
 	// If error, it will default to noop reporter
