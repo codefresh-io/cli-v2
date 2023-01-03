@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -383,4 +384,22 @@ func ReverseMap[K, V comparable](gitProviders map[K]V) map[V]K {
 		reversedMap[value] = key
 	}
 	return reversedMap
+}
+
+// CheckNetworkErr if the provided error is a network error, it will
+// print a warning message to the user to let him know he may has
+// some network issues on the machine running this binary
+func CheckNetworkErr(err error) {
+	if isNetworkError(err) {
+		log.G().Warn("It appears your machine is experiencing some network issues. Please make sure your machine has a stable internet connection.")
+	}
+}
+
+func isNetworkError(err error) bool {
+	urlErr := &url.Error{}
+	if errors.As(err, &urlErr) && urlErr.Timeout() {
+		return true
+	}
+
+	return false
 }
