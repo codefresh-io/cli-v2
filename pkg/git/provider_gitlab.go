@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -119,7 +119,7 @@ func (g *gitlab) checkTokenType(token string, ctx context.Context) (string, erro
 		return "", fmt.Errorf("failed getting user: %w", err)
 	}
 
-	bodyBytes, err := ioutil.ReadAll(userRes.Body)
+	bodyBytes, err := io.ReadAll(userRes.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed reading user body: %w", err)
 	}
