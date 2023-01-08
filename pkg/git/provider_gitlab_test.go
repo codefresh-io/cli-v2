@@ -16,8 +16,11 @@ package git
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/codefresh-io/cli-v2/pkg/git/mocks"
@@ -38,8 +41,28 @@ func Test_gitlab_checkApiScope(t *testing.T) {
 		wantErr  string
 		beforeFn func(t *testing.T, c *mocks.MockRoundTripper)
 	}{
-		"Should fail if POST fails": {
+		"Should fail if POST projects fails": {
 			wantErr: "failed checking api scope: Post \"https://some.server/api/v4/projects\": some error",
+			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
+				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+					assert.Equal(t, "GET", req.Method)
+					assert.Equal(t, "https://some.server/api/v4/user", req.URL.String())
+					body, _ := json.Marshal(&useResBody{
+						Username: "username",
+						Bot:      false,
+					})
+					bodyReader := io.NopCloser(strings.NewReader(string(body[:])))
+					res := &http.Response{
+						StatusCode: 200,
+						Body:       bodyReader,
+					}
+					return res, nil
+				})
+				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
+			},
+		},
+		"Should fail if GET user fails": {
+			wantErr: "failed checking api scope: failed getting user: Get \"https://some.server/api/v4/user\": some error",
 			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},
@@ -47,6 +70,20 @@ func Test_gitlab_checkApiScope(t *testing.T) {
 		"Should fail if POST fails with 403": {
 			wantErr: "git-token is invalid or missing required \"api\" scope",
 			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
+				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+					assert.Equal(t, "GET", req.Method)
+					assert.Equal(t, "https://some.server/api/v4/user", req.URL.String())
+					body, _ := json.Marshal(&useResBody{
+						Username: "username",
+						Bot:      false,
+					})
+					bodyReader := io.NopCloser(strings.NewReader(string(body[:])))
+					res := &http.Response{
+						StatusCode: 200,
+						Body:       bodyReader,
+					}
+					return res, nil
+				})
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(&http.Response{
 					StatusCode: http.StatusForbidden,
 				}, nil)
@@ -54,6 +91,20 @@ func Test_gitlab_checkApiScope(t *testing.T) {
 		},
 		"Should succeed if POST returns 400": {
 			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
+				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+					assert.Equal(t, "GET", req.Method)
+					assert.Equal(t, "https://some.server/api/v4/user", req.URL.String())
+					body, _ := json.Marshal(&useResBody{
+						Username: "username",
+						Bot:      false,
+					})
+					bodyReader := io.NopCloser(strings.NewReader(string(body[:])))
+					res := &http.Response{
+						StatusCode: 200,
+						Body:       bodyReader,
+					}
+					return res, nil
+				})
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
 					assert.Equal(t, "POST", req.Method)
 					assert.Equal(t, "https://some.server/api/v4/projects", req.URL.String())
