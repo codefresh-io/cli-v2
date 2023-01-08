@@ -16,11 +16,14 @@ package git
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
@@ -31,6 +34,11 @@ type (
 		providerType ProviderType
 		apiURL       *url.URL
 		c            *http.Client
+	}
+
+	useResBody struct {
+		Username string `json:"username"`
+		Bot      bool   `json:"bot"`
 	}
 )
 
@@ -81,6 +89,16 @@ func (g *gitlab) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
 // if it returns 400 - the token has "api" scope
 // otherwise - the token does not have the scope
 func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
+
+	tokenType, err := g.checkTokenType(token, ctx)
+	if err != nil {
+		return fmt.Errorf("failed checking api scope: %w", err)
+	}
+
+	if tokenType == "project" {
+		return errors.New("runtime git-token is invalid, project token is not exceptable")
+	}
+
 	res, err := g.request(ctx, token, http.MethodPost, "projects")
 	if err != nil {
 		return fmt.Errorf("failed checking api scope: %w", err)
@@ -92,6 +110,36 @@ func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
 	}
 
 	return nil
+}
+
+func (g *gitlab) checkTokenType(token string, ctx context.Context) (string, error) {
+	userRes, err := g.request(ctx, token, http.MethodGet, "user")
+
+	if err != nil {
+		return "", fmt.Errorf("failed getting user: %w", err)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(userRes.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed reading user body: %w", err)
+	}
+
+	var body useResBody
+	err = json.Unmarshal(bodyBytes, &body)
+	if err != nil {
+		return "", fmt.Errorf("failed parse user body: %w", err)
+	}
+	if body.Bot {
+		if strings.HasPrefix(body.Username, "project") {
+			return "project", nil
+		}
+		return "group", nil
+	}
+
+	defer userRes.Body.Close()
+
+	return "personal", nil
+
 }
 
 // HEAD to projects.
