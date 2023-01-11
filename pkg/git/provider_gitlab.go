@@ -36,7 +36,7 @@ type (
 		c            *http.Client
 	}
 
-	useResBody struct {
+	gitlabUserResponse struct {
 		Username string `json:"username"`
 		Bot      bool   `json:"bot"`
 	}
@@ -119,24 +119,25 @@ func (g *gitlab) checkTokenType(token string, ctx context.Context) (string, erro
 		return "", fmt.Errorf("failed getting user: %w", err)
 	}
 
+	defer userRes.Body.Close()
+
 	bodyBytes, err := io.ReadAll(userRes.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed reading user body: %w", err)
 	}
 
-	var body useResBody
-	err = json.Unmarshal(bodyBytes, &body)
+	var user gitlabUserResponse
+	err = json.Unmarshal(bodyBytes, &user)
 	if err != nil {
 		return "", fmt.Errorf("failed parse user body: %w", err)
 	}
-	if body.Bot {
-		if strings.HasPrefix(body.Username, "project") {
+	if user.Bot {
+		if strings.HasPrefix(user.Username, "project") {
 			return "project", nil
 		}
 		return "group", nil
 	}
 
-	defer userRes.Body.Close()
 
 	return "personal", nil
 
