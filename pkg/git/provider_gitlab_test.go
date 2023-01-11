@@ -47,7 +47,7 @@ func Test_gitlab_checkApiScope(t *testing.T) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
 					assert.Equal(t, "GET", req.Method)
 					assert.Equal(t, "https://some.server/api/v4/user", req.URL.String())
-					body, _ := json.Marshal(&useResBody{
+					body, _ := json.Marshal(&gitlabUserResponse{
 						Username: "username",
 						Bot:      false,
 					})
@@ -73,7 +73,7 @@ func Test_gitlab_checkApiScope(t *testing.T) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
 					assert.Equal(t, "GET", req.Method)
 					assert.Equal(t, "https://some.server/api/v4/user", req.URL.String())
-					body, _ := json.Marshal(&useResBody{
+					body, _ := json.Marshal(&gitlabUserResponse{
 						Username: "username",
 						Bot:      false,
 					})
@@ -94,7 +94,7 @@ func Test_gitlab_checkApiScope(t *testing.T) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(req *http.Request) (*http.Response, error) {
 					assert.Equal(t, "GET", req.Method)
 					assert.Equal(t, "https://some.server/api/v4/user", req.URL.String())
-					body, _ := json.Marshal(&useResBody{
+					body, _ := json.Marshal(&gitlabUserResponse{
 						Username: "username",
 						Bot:      false,
 					})
