@@ -138,9 +138,7 @@ func (g *gitlab) checkTokenType(token string, ctx context.Context) (string, erro
 		return "group", nil
 	}
 
-
 	return "personal", nil
-
 }
 
 // HEAD to projects.
