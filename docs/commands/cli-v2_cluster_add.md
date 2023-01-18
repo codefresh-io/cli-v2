@@ -23,6 +23,7 @@ cli-v2 cluster add my-runtime --context my-context
       --labels stringToString        Set metadata labels (e.g. --label key=value) (default [])
       --name string                  Name of the cluster. If omitted, will use the context name
   -n, --namespace string             If present, the namespace scope for this CLI request
+      --system-namespace string      Use different system namespace (default "kube-system") (default "kube-system")
 ```
 
 ### Options inherited from parent commands
