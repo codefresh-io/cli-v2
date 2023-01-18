@@ -41,15 +41,16 @@ import (
 
 type (
 	ClusterAddOptions struct {
-		runtimeName string
-		clusterName string
-		kubeContext string
-		kubeconfig  string
-		annotations map[string]string
-		labels      map[string]string
-		tag         string
-		dryRun      bool
-		kubeFactory kube.Factory
+		runtimeName     string
+		clusterName     string
+		kubeContext     string
+		kubeconfig      string
+		systemNamespace string
+		annotations     map[string]string
+		labels          map[string]string
+		tag             string
+		dryRun          bool
+		kubeFactory     kube.Factory
 	}
 
 	ClusterRemoveOptions struct {
@@ -137,6 +138,7 @@ func newClusterAddCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&opts.clusterName, "name", "", "Name of the cluster. If omitted, will use the context name")
+	cmd.Flags().StringVar(&opts.systemNamespace, "system-namespace", "kube-system", "Use different system namespace (default \"kube-system\")")
 	cmd.Flags().StringToStringVar(&opts.annotations, "annotations", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringToStringVar(&opts.labels, "labels", nil, "Set metadata labels (e.g. --label key=value)")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
@@ -197,7 +199,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 
 	jobName := strings.TrimSuffix(store.Get().AddClusterJobName, "-") + nameSuffix
 
-	err = kubeutil.WaitForJob(ctx, opts.kubeFactory, "kube-system", jobName)
+	err = kubeutil.WaitForJob(ctx, opts.kubeFactory, opts.systemNamespace, jobName)
 	if err != nil {
 		return err
 	}
@@ -305,6 +307,13 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 	}
 
 	k := &kusttypes.Kustomization{
+		Namespace: opts.systemNamespace,
+		Patches: []kusttypes.Patch{{
+			Patch: fmt.Sprintf("[{\"op\": \"replace\", \"path\": \"/subjects/0/namespace\", \"value\": \"%s\"}]", opts.systemNamespace),
+			Target: &kusttypes.Selector{
+				ResId: resid.ResId{Gvk: clusterRoleBindinGVK, Name: "argocd-manager-role-binding"},
+			},
+		}},
 		ConfigMapGenerator: []kusttypes.ConfigMapArgs{
 			{
 				GeneratorArgs: kusttypes.GeneratorArgs{
