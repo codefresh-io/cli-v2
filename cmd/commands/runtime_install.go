@@ -696,7 +696,11 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	})
 	handleCliStep(reporter.InstallStepBootstrapRepo, "Bootstrapping repository", err, false, true)
 	if err != nil {
-		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
+		if err.Error() == "Local config: current-context unset" {
+			log.G(ctx).Warnf("failed running argocd login, resuming runtime install: %w", err)
+		} else {
+			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to bootstrap repository: %w", err))
+		}
 	}
 
 	err = patchRuntimeRepo(ctx, opts.InsCloneOpts, "patch cluster-resources ApplicationSet", patchClusterResourcesAppSet)
