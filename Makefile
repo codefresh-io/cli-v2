@@ -1,4 +1,4 @@
-VERSION=v0.1.29
+VERSION=v0.1.29-bankunited
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")

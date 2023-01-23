@@ -257,6 +257,8 @@ require (
 )
 
 replace (
+	github.com/argoproj-labs/argocd-autopilot => ../argocd-autopilot
+
 	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
