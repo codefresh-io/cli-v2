@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -1631,16 +1632,13 @@ func applySecretsToCluster(ctx context.Context, opts *RuntimeInstallOptions) err
 }
 
 func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *RuntimeInstallOptions) error {
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
-	u, err := url.Parse(cloneOpts.URL())
+	u, err := url.Parse(cloneOpts.Repo)
 	if err != nil {
 		return fmt.Errorf("failed to parse url: %w", err)
 	}
-	u.Path += "/" + resPath
-	q := u.Query()
-	q.Add("ref", cloneOpts.Revision())
-	u.RawQuery = q.Encode()
 
+	resPath := path.Join(apstore.Default.AppsDir, store.Get().EventsReporterName, opts.RuntimeName, "resources")
+	u = u.JoinPath(resPath)
 	appDef := &runtime.AppDef{
 		Name:       store.Get().EventsReporterName,
 		Type:       application.AppTypeDirectory,
@@ -1676,16 +1674,13 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 }
 
 func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *RuntimeInstallOptions, reporterCreateOpts reporterCreateOptions) error {
-	resPath := cloneOpts.FS.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
-	u, err := url.Parse(cloneOpts.URL())
+	u, err := url.Parse(cloneOpts.Repo)
 	if err != nil {
 		return fmt.Errorf("failed to parse url: %w", err)
 	}
-	u.Path += "/" + resPath
-	q := u.Query()
-	q.Add("ref", cloneOpts.Revision())
-	u.RawQuery = q.Encode()
 
+	resPath := path.Join(apstore.Default.AppsDir, reporterCreateOpts.reporterName, opts.RuntimeName, "resources")
+	u = u.JoinPath(resPath)
 	appDef := &runtime.AppDef{
 		Name:       reporterCreateOpts.reporterName,
 		Type:       application.AppTypeDirectory,

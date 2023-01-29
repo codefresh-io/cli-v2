@@ -179,10 +179,10 @@ github.com/antonmedv/expr v1.9.0/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj-labs/argocd-autopilot v0.4.10 h1:0I0U28wvwoZkh2/ECKEgMDFw71Dzh6WCSAU4TkWuxY8=
-github.com/argoproj-labs/argocd-autopilot v0.4.10/go.mod h1:iR9JosRv7UBOQBSDR64Rrg1qs1DURhR+kx8zK2GEap4=
-github.com/argoproj/argo-cd/v2 v2.5.2 h1:hyPi8NFXW3tG2yURslIMI20GfCdTN1/BDnt4+v5lpoA=
-github.com/argoproj/argo-cd/v2 v2.5.2/go.mod h1:3ToENm286PFVlZKNMutBzOwNyhevz4fw9dcgyiq3FIY=
+github.com/argoproj-labs/argocd-autopilot v0.4.11 h1:sUtW14AdjOlROWkM96jzldaEWCZj285vGi+uFmkcmvk=
+github.com/argoproj-labs/argocd-autopilot v0.4.11/go.mod h1:9bemL7fdzO7u/zaOEmII1UCfBPODKa8hDxZG2X6hH58=
+github.com/argoproj/argo-cd/v2 v2.5.9 h1:uupjZzBcZCrbRZM/0/nIwJLtCG9wbrFsiP6/cIR8xmM=
+github.com/argoproj/argo-cd/v2 v2.5.9/go.mod h1:dajeo9UYYdiC+Wjp9S+YPl2PPB5a0AUy2nYtT94qtpA=
 github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec h1:95S2LPUUdPO2jYxuR5z1uk1GL2m/u+ud2iFAr5gK6VI=
 github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec/go.mod h1:dF9hehH+HaEqz+OvQb0iXG8ynj4sQlISIQoettdl05Y=
 github.com/argoproj/argo-workflows/v3 v3.3.1 h1:cNhY6JRlMvwu0qhfCWtS/XmQ8nm2OjR7CBZ3K6zbcKI=
