@@ -143,7 +143,7 @@ func newClusterAddCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&opts.annotations, "annotations", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringToStringVar(&opts.labels, "labels", nil, "Set metadata labels (e.g. --label key=value)")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
-	cmd.Flags().BoolVar(&opts.skipTLSValidation, "skip-tls-validation", false, " - if true will skip tls validation of domain for cluster server url")
+	cmd.Flags().BoolVar(&opts.skipTLSValidation, "skip-tls-validation", false, "Set true to skip TLS validation of domain for cluster server URL")
 	cmd.Flags().StringVar(&opts.tag, "tag", "", "[dev only] - use a specific tag of the csdp-add-cluster image")
 
 	util.Die(cmd.Flags().MarkHidden("tag"))
