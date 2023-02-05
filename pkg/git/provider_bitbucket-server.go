@@ -73,7 +73,12 @@ func (bbs *bitbucketServer) Type() ProviderType {
 }
 
 func (bbs *bitbucketServer) ValidateToken(ctx context.Context, auth apgit.Auth) error {
-	return bbs.checkProjectAdminPermission(ctx, auth.Password)
+	_, err := bbs.getCurrentUsername(ctx, auth.Password)
+	if err != nil {
+		return fmt.Errorf("failed validate token: %w", err)
+	}
+
+	return nil
 }
 
 func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
