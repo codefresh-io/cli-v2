@@ -42,6 +42,7 @@ type (
 		Type() ProviderType
 		VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error
 		VerifyUserToken(ctx context.Context, auth apgit.Auth) error
+		ValidateToken(ctx context.Context, auth apgit.Auth) error
 	}
 )
 

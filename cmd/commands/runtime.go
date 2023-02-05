@@ -65,8 +65,9 @@ type (
 		DisableTelemetry bool
 		Managed          bool
 
-		kubeContext            string
-		skipAutopilotUninstall bool
+		kubeContext               string
+		skipAutopilotUninstall    bool
+		skipPermissionsValidation bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -78,8 +79,9 @@ type (
 		SkipIngress               bool
 		runtimeDef                string
 
-		versionStr        string
-		featuresToInstall []runtime.InstallFeature
+		versionStr                string
+		featuresToInstall         []runtime.InstallFeature
+		skipPermissionsValidation bool
 	}
 
 	gvr struct {
@@ -187,7 +189,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	}
 
 	if !opts.Managed {
-		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts)
+		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, opts.skipPermissionsValidation)
 	}
 
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
@@ -230,7 +232,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return err
 	}
 
-	err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts)
+	err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, opts.skipPermissionsValidation)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
@@ -483,6 +485,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
 	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
+	cmd.Flags().BoolVar(&opts.skipPermissionsValidation, "skip-permissions-validation", false, "Skip personal access token permissions validation (default: false)")
 
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CloneForWrite: true,
@@ -861,6 +864,8 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
 	cmd.Flags().BoolVar(&opts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
+	cmd.Flags().BoolVar(&opts.skipPermissionsValidation, "skip-permissions-validation", false, "Skip personal access token permissions validation (default: false)")
+
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
 	util.Die(cmd.Flags().MarkHidden("set-default-resources"))

@@ -72,6 +72,10 @@ func (bbs *bitbucketServer) Type() ProviderType {
 	return bbs.providerType
 }
 
+func (bbs *bitbucketServer) ValidateToken(ctx context.Context, auth apgit.Auth) error {
+	return bbs.checkProjectAdminPermission(ctx, auth.Password)
+}
+
 func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
 	return bbs.checkProjectAdminPermission(ctx, auth.Password)
 }

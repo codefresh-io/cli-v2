@@ -28,20 +28,21 @@ cli-v2 runtime uninstall [RUNTIME_NAME] [flags]
 ### Options
 
 ```
-      --context string          The name of the kubeconfig context to use
-      --disable-telemetry       If true, will disable the analytics reporting for the uninstall process
-      --fast-exit               If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified
-      --force                   If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster
-      --git-server-crt string   Git Server certificate file
-  -t, --git-token string        Your git provider api token [GIT_TOKEN]
-  -u, --git-user string         Your git provider user name [GIT_USER] (not required in GitHub)
-  -h, --help                    help for uninstall
-      --kubeconfig string       Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string        If present, the namespace scope for this CLI request
-      --repo string             Repository URL [GIT_REPO]
-      --skip-checks             If true, will not verify that runtime exists before uninstalling
-  -b, --upsert-branch           If true will try to checkout the specified branch and create it if it doesn't exist
-      --wait-timeout duration   How long to wait for the runtime components to be deleted (default 8m0s)
+      --context string                The name of the kubeconfig context to use
+      --disable-telemetry             If true, will disable the analytics reporting for the uninstall process
+      --fast-exit                     If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified
+      --force                         If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster
+      --git-server-crt string         Git Server certificate file
+  -t, --git-token string              Your git provider api token [GIT_TOKEN]
+  -u, --git-user string               Your git provider user name [GIT_USER] (not required in GitHub)
+  -h, --help                          help for uninstall
+      --kubeconfig string             Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string              If present, the namespace scope for this CLI request
+      --repo string                   Repository URL [GIT_REPO]
+      --skip-checks                   If true, will not verify that runtime exists before uninstalling
+      --skip-permissions-validation   Skip personal access token permissions validation (default: false)
+  -b, --upsert-branch                 If true will try to checkout the specified branch and create it if it doesn't exist
+      --wait-timeout duration         How long to wait for the runtime components to be deleted (default 8m0s)
 ```
 
 ### Options inherited from parent commands

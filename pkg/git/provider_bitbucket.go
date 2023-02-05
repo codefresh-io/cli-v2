@@ -110,6 +110,24 @@ func (bb *bitbucket) VerifyUserToken(ctx context.Context, auth apgit.Auth) error
 	return bb.verifyToken(ctx, auth.Password, auth.Username, patScopes)
 }
 
+func (bb *bitbucket) ValidateToken(ctx context.Context, auth apgit.Auth) error {
+	if auth.Password == "" {
+		return fmt.Errorf("user name is require for bitbucket cloud request")
+	}
+
+	res, err := bb.request(ctx, auth.Username, auth.Password, http.MethodHead, "user", nil)
+	if err != nil {
+		return fmt.Errorf("failed getting current user: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode == 401 {
+		return fmt.Errorf("invalid token")
+	}
+	return nil
+}
+
 func (bb *bitbucket) verifyToken(ctx context.Context, token string, username string, requiredScopes [][]string) error {
 	scopes, err := bb.getCurrentUserScopes(ctx, token, username)
 	if err != nil {

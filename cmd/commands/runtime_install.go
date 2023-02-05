@@ -111,13 +111,14 @@ type (
 		SkipIngress                    bool
 		BypassIngressClassCheck        bool
 
-		versionStr        string
-		kubeContext       string
-		kubeconfig        string
-		gitProvider       cfgit.Provider
-		useGatewayAPI     bool
-		featuresToInstall []runtime.InstallFeature
-		runtimeDef        string
+		versionStr                string
+		kubeContext               string
+		kubeconfig                string
+		gitProvider               cfgit.Provider
+		useGatewayAPI             bool
+		featuresToInstall         []runtime.InstallFeature
+		runtimeDef                string
+		SkipPermissionsValidation bool
 	}
 
 	CreateIngressOptions struct {
@@ -278,6 +279,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&installationOpts.TunnelRegisterHost, "tunnel-register-host", "register-tunnels.cf-cd.com", "The host name for registering a new tunnel")
 	cmd.Flags().StringVar(&installationOpts.TunnelDomain, "tunnel-domain", "tunnels.cf-cd.com", "The base domain for the tunnels")
 	cmd.Flags().StringVar(&installationOpts.IpsAllowList, "ips-allow-list", "", "lists the rules to configure which IP addresses (IPv4/IPv6) and subnet masks can access your client (e.g \"192.168.0.0/16, FE80:CD00:0000:0CDE:1257::/64\")")
+	cmd.Flags().BoolVar(&installationOpts.SkipPermissionsValidation, "skip-permissions-validation", false, "Skip personal access token permissions validation (default: false)")
 
 	installationOpts.InsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: true,
@@ -467,10 +469,10 @@ func getGitToken(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	var err error
 
 	if store.Get().Silent {
-		err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts)
+		err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts, opts.SkipPermissionsValidation)
 	} else {
 		handleValidationFailsWithRepeat(func() error {
-			err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts)
+			err = ensureGitRuntimeToken(cmd, opts.gitProvider, opts.InsCloneOpts, opts.SkipPermissionsValidation)
 			if isValidationError(err) {
 				fmt.Println(err)
 				return err
