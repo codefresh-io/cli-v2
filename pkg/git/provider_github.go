@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
@@ -110,8 +109,7 @@ func (g *github) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
 	}
 
 	if tokenType == "fine-grained" {
-		log.G(ctx).Warn("permission validation for github fine-grained token are not supported yet, skipping")
-		return g.ValidateToken(ctx, auth)
+		return fmt.Errorf("validation for github fine-grained PAT is not supported yet, please retry with --skip-permissions-validation or use a classic token")
 	}
 
 	err = g.verifyToken(ctx, auth.Password, user_token_scopes)
