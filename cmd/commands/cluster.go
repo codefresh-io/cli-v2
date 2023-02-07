@@ -31,6 +31,7 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/ghodss/yaml"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
