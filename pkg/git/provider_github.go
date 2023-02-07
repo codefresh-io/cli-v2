@@ -92,8 +92,7 @@ func (g *github) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error 
 	}
 
 	if tokenType == "fine-grained" {
-		log.G(ctx).Warn("permission validation for github fine-grained token are not supported yet, skipping")
-		return g.ValidateToken(ctx, auth)
+		return fmt.Errorf("validation for github fine-grained PAT is not supported yet, please retry with --skip-permissions-validation or use a classic token")
 	}
 
 	err = g.verifyToken(ctx, auth.Password, runtime_token_scopes)
