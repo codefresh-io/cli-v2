@@ -111,7 +111,7 @@ func (bb *bitbucket) VerifyUserToken(ctx context.Context, auth apgit.Auth) error
 }
 
 func (bb *bitbucket) ValidateToken(ctx context.Context, auth apgit.Auth) error {
-	if auth.Password == "" {
+	if auth.Username == "" {
 		return fmt.Errorf("user name is require for bitbucket cloud request")
 	}
 
