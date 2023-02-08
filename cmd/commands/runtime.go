@@ -65,8 +65,8 @@ type (
 		DisableTelemetry bool
 		Managed          bool
 
-		kubeContext               string
-		skipAutopilotUninstall    bool
+		kubeContext            string
+		skipAutopilotUninstall bool
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -78,8 +78,8 @@ type (
 		SkipIngress               bool
 		runtimeDef                string
 
-		versionStr                string
-		featuresToInstall         []runtime.InstallFeature
+		versionStr        string
+		featuresToInstall []runtime.InstallFeature
 	}
 
 	gvr struct {
@@ -187,7 +187,6 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	}
 
 	if !opts.Managed {
-		log.G(ctx).Debug("skipping permmission validation")
 		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, true)
 	}
 
@@ -231,7 +230,6 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return err
 	}
 
-	log.G(ctx).Debug("skipping permmission validation")
 	err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, true)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
