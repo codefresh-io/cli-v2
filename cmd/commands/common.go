@@ -280,7 +280,7 @@ func getValueFromUserInput(label, defaultValue string, validate promptui.Validat
 }
 
 // ensureGitRuntimeToken gets the runtime token from the user (if !silent), and verifys it with he provider (if available)
-func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions) error {
+func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions, skipPermissionsValidation bool) error {
 	ctx := cmd.Context()
 	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"
 	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
@@ -292,7 +292,12 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 	}
 
 	if gitProvider != nil {
-		err := gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth)
+		var err error
+		if skipPermissionsValidation {
+			err = gitProvider.ValidateToken(ctx, cloneOpts.Auth)
+		} else {
+			err = gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth)
+		}
 		if err != nil {
 			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""

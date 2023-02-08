@@ -85,6 +85,25 @@ func (g *gitlab) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
 	return g.checkReadRepositoryScope(ctx, auth.Password)
 }
 
+func (g *gitlab) ValidateToken(ctx context.Context, auth apgit.Auth) error {
+	if auth.Password == "" {
+		return fmt.Errorf("user name is require for bitbucket cloud request")
+	}
+
+	res, err := g.request(ctx, auth.Password, http.MethodHead, "user")
+
+	if err != nil {
+		return fmt.Errorf("failed getting user: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode == 401 {
+		return fmt.Errorf("invalid token")
+	}
+	return nil
+}
+
 // POST to projects without a body.
 // if it returns 400 - the token has "api" scope
 // otherwise - the token does not have the scope

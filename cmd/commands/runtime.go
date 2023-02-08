@@ -187,7 +187,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	}
 
 	if !opts.Managed {
-		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts)
+		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, true)
 	}
 
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
@@ -230,7 +230,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 		return err
 	}
 
-	err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts)
+	err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, true)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
