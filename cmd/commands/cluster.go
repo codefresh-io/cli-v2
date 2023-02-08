@@ -41,16 +41,17 @@ import (
 
 type (
 	ClusterAddOptions struct {
-		runtimeName     string
-		clusterName     string
-		kubeContext     string
-		kubeconfig      string
-		systemNamespace string
-		annotations     map[string]string
-		labels          map[string]string
-		tag             string
-		dryRun          bool
-		kubeFactory     kube.Factory
+		runtimeName       string
+		clusterName       string
+		kubeContext       string
+		kubeconfig        string
+		systemNamespace   string
+		annotations       map[string]string
+		labels            map[string]string
+		tag               string
+		dryRun            bool
+		skipTLSValidation bool
+		kubeFactory       kube.Factory
 	}
 
 	ClusterRemoveOptions struct {
@@ -142,6 +143,7 @@ func newClusterAddCommand() *cobra.Command {
 	cmd.Flags().StringToStringVar(&opts.annotations, "annotations", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmd.Flags().StringToStringVar(&opts.labels, "labels", nil, "Set metadata labels (e.g. --label key=value)")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "")
+	cmd.Flags().BoolVar(&opts.skipTLSValidation, "skip-tls-validation", false, "Set true to skip TLS validation for cluster domain")
 	cmd.Flags().StringVar(&opts.tag, "tag", "", "[dev only] - use a specific tag of the csdp-add-cluster image")
 
 	util.Die(cmd.Flags().MarkHidden("tag"))
@@ -325,6 +327,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 							fmt.Sprintf("ingressUrl=" + ingressUrl),
 							fmt.Sprintf("contextName=" + opts.clusterName),
 							fmt.Sprintf("server=" + server),
+							fmt.Sprintf("skipTLSValidation=%v", opts.skipTLSValidation),
 						},
 					},
 				},
