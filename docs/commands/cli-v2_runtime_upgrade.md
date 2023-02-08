@@ -28,17 +28,16 @@ cli-v2 runtime upgrade [RUNTIME_NAME] [flags]
 ### Options
 
 ```
-      --disable-telemetry             If true, will disable analytics reporting for the upgrade process
-      --git-server-crt string         Git Server certificate file
-  -t, --git-token string              Your git provider api token [GIT_TOKEN]
-  -u, --git-user string               Your git provider user name [GIT_USER] (not required in GitHub)
-  -h, --help                          help for upgrade
-      --repo string                   Repository URL [GIT_REPO]
-      --shared-config-repo string     URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)
-      --skip-ingress                  Skips the creation of ingress resources
-      --skip-permissions-validation   Skip personal access token permissions validation (default: false)
-  -b, --upsert-branch                 If true will try to checkout the specified branch and create it if it doesn't exist
-      --version string                The runtime version to upgrade to, defaults to stable
+      --disable-telemetry           If true, will disable analytics reporting for the upgrade process
+      --git-server-crt string       Git Server certificate file
+  -t, --git-token string            Your git provider api token [GIT_TOKEN]
+  -u, --git-user string             Your git provider user name [GIT_USER] (not required in GitHub)
+  -h, --help                        help for upgrade
+      --repo string                 Repository URL [GIT_REPO]
+      --shared-config-repo string   URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)
+      --skip-ingress                Skips the creation of ingress resources
+  -b, --upsert-branch               If true will try to checkout the specified branch and create it if it doesn't exist
+      --version string              The runtime version to upgrade to, defaults to stable
 ```
 
 ### Options inherited from parent commands
