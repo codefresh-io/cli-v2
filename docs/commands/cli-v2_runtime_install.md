@@ -55,7 +55,6 @@ cli-v2 runtime install [runtime_name] [flags]
       --shared-config-repo string                    URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)
       --skip-cluster-checks                          Skips the cluster's checks
       --skip-ingress                                 Skips the creation of ingress resources
-      --skip-permissions-validation                  Skip personal access token permissions validation (default: false)
   -b, --upsert-branch                                If true will try to checkout the specified branch and create it if it doesn't exist
       --version string                               The runtime version to install (default: stable)
       --wait-timeout duration                        How long to wait for the runtime components to be ready (default 8m0s)

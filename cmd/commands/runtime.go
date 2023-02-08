@@ -863,7 +863,6 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
 	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
 	cmd.Flags().BoolVar(&opts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
-
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
 	util.Die(cmd.Flags().MarkHidden("set-default-resources"))
