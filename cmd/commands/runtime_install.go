@@ -301,7 +301,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	util.Die(cmd.Flags().MarkHidden("ips-allow-list"))
 	util.Die(cmd.Flags().MarkHidden("runtime-def"))
 	util.Die(cmd.Flags().MarkHidden("set-default-resources"))
-	util.Die(cmd.Flags().MarkHidden("skip-permissions-validation"))
 	cmd.MarkFlagsMutuallyExclusive("runtime-def", "version")
 	cmd.MarkFlagsMutuallyExclusive("runtime-def", "set-default-resources")
 
