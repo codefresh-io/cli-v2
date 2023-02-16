@@ -266,7 +266,7 @@ func init() {
 	s.TCPConnectionTesterGenerateName = "cf-tcp-connections-tester-"
 	s.TCPConnectionTesterName = "cf-tcp-connections-tester"
 	s.MinKubeVersion = "v1.21.0"
-	s.MaxKubeVersion = "v1.25.0"
+	s.MaxKubeVersion = "v1.25.999"
 	s.MasterIngressName = "-master"
 	s.ClusterResourcesPath = "/bootstrap/cluster-resources.yaml"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
