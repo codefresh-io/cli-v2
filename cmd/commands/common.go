@@ -35,6 +35,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -447,6 +448,7 @@ func ensureAccessMode(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 		opts.TunnelSubdomain = fmt.Sprintf("%s-%s", accountId, opts.RuntimeName)
 		opts.IngressHost = fmt.Sprintf("https://%s.%s", opts.TunnelSubdomain, opts.TunnelDomain)
+		opts.IngressController = routingutil.GetIngressController("")
 	} else {
 		err := ensureRoutingControllerSupported(ctx, opts)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "Getting ingress class", err, true, false)
