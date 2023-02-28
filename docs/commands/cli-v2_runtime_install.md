@@ -32,7 +32,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --demo-resources                               Installs demo resources (default: true) (default true)
       --disable-rollback                             If true, will not perform installation rollback after a failed installation
       --disable-telemetry                            If true, will disable the analytics reporting for the installation process
-      --external-ingress-annotation stringToString   Add annotations to the external ingress (default [])
+      --external-ingress-annotation stringToString   Add annotations to the external ingress. (e.g. "key1=value1,key2=value2") (default [])
       --from-repo                                    Installs a runtime from an existing repo. Used for recovery after cluster failure
       --gateway-name string                          The gateway name
       --gateway-namespace string                     The namespace of the gateway
@@ -42,11 +42,11 @@ cli-v2 runtime install [runtime_name] [flags]
   -h, --help                                         help for install
       --ingress-class string                         The ingress class name
       --ingress-host string                          The ingress host
-      --internal-ingress-annotation stringToString   Add annotations to the internal ingress (default [])
+      --internal-ingress-annotation stringToString   Add annotations to the internal ingress. (e.g. "key1=value1,key2=value2") (default [])
       --internal-ingress-host string                 The internal ingress host (by default the external ingress will be used for both internal and external traffic)
       --kubeconfig string                            Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string                             If present, the namespace scope for this CLI request
-      --namespace-labels stringToString              Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2" (default [])
+      --namespace-labels stringToString              Optional labels that will be set on the namespace resource. (e.g. "key1=value1,key2=value2") (default [])
       --personal-git-token string                    The Personal git token for your user
       --personal-git-user string                     The Personal git user that match the token, required for bitbucket cloud
       --provider string                              The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
