@@ -188,8 +188,9 @@ func NewGitSourceCreateCommand() *cobra.Command {
 			ctx := cmd.Context()
 
 			runtimeNamespace := args[0]
-			if cmd.Flag("namespace").Value.String() != "" {
-				runtimeNamespace = cmd.Flag("namespace").Value.String()
+			namespace := cmd.Flag("namespace").Value.String()
+			if namespace != "" {
+				runtimeNamespace = namespace
 			}
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{

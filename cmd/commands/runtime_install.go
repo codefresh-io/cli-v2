@@ -197,8 +197,9 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			installationOpts.RuntimeNamespace = installationOpts.RuntimeName
-			if cmd.Flag("namespace").Value.String() != "" {
-				installationOpts.RuntimeNamespace = cmd.Flag("namespace").Value.String()
+			namespace := cmd.Flag("namespace").Value.String()
+			if namespace != "" {
+				installationOpts.RuntimeNamespace = namespace
 			}
 
 			createAnalyticsReporter(ctx, reporter.InstallFlow, installationOpts.DisableTelemetry)

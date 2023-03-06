@@ -171,8 +171,9 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 
 	if opts.RuntimeNamespace == "" {
 		err = nil
-		if cmd.Flag("namespace").Value.String() != "" {
-			opts.RuntimeNamespace = cmd.Flag("namespace").Value.String()
+		namespace := cmd.Flag("namespace").Value.String()
+		if namespace != "" {
+			opts.RuntimeNamespace = namespace
 		} else {
 			opts.RuntimeNamespace = opts.RuntimeName
 		}
