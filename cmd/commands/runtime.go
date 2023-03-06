@@ -164,21 +164,6 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	opts.RuntimeNamespace, err = getRuntimeNamespace(ctx, opts.RuntimeName)
-	if err != nil && !opts.SkipChecks {
-		return err
-	}
-
-	if opts.RuntimeNamespace == "" {
-		err = nil
-		namespace := cmd.Flag("namespace").Value.String()
-		if namespace != "" {
-			opts.RuntimeNamespace = namespace
-		} else {
-			opts.RuntimeNamespace = opts.RuntimeName
-		}
-	}
-
 	if !opts.Managed && !opts.SkipChecks {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
 		err = ensureRuntimeOnKubeContext(ctx, kubeconfig, opts.RuntimeName, opts.kubeContext)
@@ -232,6 +217,8 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	if err != nil {
 		return err
 	}
+
+	opts.RuntimeNamespace = *rt.Metadata.Namespace
 
 	if rt.Managed {
 		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
@@ -558,7 +545,6 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		}()
 
 		if !opts.Managed {
-			fmt.Printf("RuntimeNamespace here is: %s\n", opts.RuntimeNamespace)
 			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 				Namespace:       opts.RuntimeNamespace,
 				KubeContextName: opts.kubeContext,
