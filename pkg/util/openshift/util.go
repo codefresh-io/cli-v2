@@ -31,9 +31,10 @@ import (
 )
 
 type OpenshiftOptions struct {
-	KubeFactory  kube.Factory
-	RuntimeName  string
-	InsCloneOpts *git.CloneOptions
+	KubeFactory      kube.Factory
+	RuntimeName      string
+	RuntimeNamespace string
+	InsCloneOpts     *git.CloneOptions
 }
 
 const openshiftNs = "openshift"
@@ -83,7 +84,7 @@ func createScc(ctx context.Context, opts *OpenshiftOptions) error {
 			APIVersion: "security.openshift.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: opts.RuntimeName,
+			Namespace: opts.RuntimeNamespace,
 			Name:      store.Get().SccName,
 		},
 		AllowPrivilegedContainer: false,

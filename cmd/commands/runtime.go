@@ -56,6 +56,7 @@ import (
 type (
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
+		RuntimeNamespace string
 		Timeout          time.Duration
 		CloneOpts        *apgit.CloneOptions
 		KubeFactory      kube.Factory
@@ -71,6 +72,7 @@ type (
 
 	RuntimeUpgradeOptions struct {
 		RuntimeName               string
+		RuntimeNamespace          string
 		CloneOpts                 *apgit.CloneOptions
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
@@ -162,6 +164,20 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
+	opts.RuntimeNamespace, err = getRuntimeNamespace(ctx, opts.RuntimeName)
+	if err != nil && !opts.SkipChecks {
+		return err
+	}
+
+	if opts.RuntimeNamespace == "" {
+		err = nil
+		if cmd.Flag("namespace").Value.String() != "" {
+			opts.RuntimeNamespace = cmd.Flag("namespace").Value.String()
+		} else {
+			opts.RuntimeNamespace = opts.RuntimeName
+		}
+	}
+
 	if !opts.Managed && !opts.SkipChecks {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
 		err = ensureRuntimeOnKubeContext(ctx, kubeconfig, opts.RuntimeName, opts.kubeContext)
@@ -178,7 +194,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed {
+	if !opts.Managed && !opts.SkipChecks {
 		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
@@ -454,6 +470,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.CurrentContext,
 				"Runtime name":      opts.RuntimeName,
+				"Runtime namespace": opts.RuntimeNamespace,
 			}
 
 			if !opts.Managed {
@@ -540,8 +557,9 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		}()
 
 		if !opts.Managed {
+			fmt.Printf("RuntimeNamespace here is: %s\n", opts.RuntimeNamespace)
 			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-				Namespace:       opts.RuntimeName,
+				Namespace:       opts.RuntimeNamespace,
 				KubeContextName: opts.kubeContext,
 				Timeout:         opts.Timeout,
 				CloneOptions:    opts.CloneOpts,
@@ -577,7 +595,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	if !opts.Managed {
-		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
+		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeNamespace)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
 			if !opts.Force {
@@ -875,7 +893,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	log.G(ctx).Info("Downloading runtime definition")
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
+	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.RuntimeNamespace, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -930,7 +948,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		component.IsInternal = true
-		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType)
+		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, opts.RuntimeNamespace, store.Get().CFComponentType)
 		if err != nil {
 			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
 			break

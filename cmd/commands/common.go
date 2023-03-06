@@ -767,6 +767,15 @@ func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
 	return rt.Managed, nil
 }
 
+func getRuntimeNamespace(ctx context.Context, runtimeName string) (string, error) {
+	rt, err := getRuntime(ctx, runtimeName)
+	if err != nil {
+		return "", err
+	}
+
+	return *rt.Metadata.Namespace, nil
+}
+
 func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
 	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {

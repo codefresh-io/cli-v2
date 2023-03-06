@@ -77,6 +77,7 @@ import (
 type (
 	RuntimeInstallOptions struct {
 		RuntimeName                    string
+		RuntimeNamespace               string
 		RuntimeToken                   string
 		RuntimeStoreIV                 string
 		HostName                       string
@@ -195,6 +196,11 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				installationOpts.useGatewayAPI = true
 			}
 
+			installationOpts.RuntimeNamespace = installationOpts.RuntimeName
+			if cmd.Flag("namespace").Value.String() != "" {
+				installationOpts.RuntimeNamespace = cmd.Flag("namespace").Value.String()
+			}
+
 			createAnalyticsReporter(ctx, reporter.InstallFlow, installationOpts.DisableTelemetry)
 
 			if accessMode != "" {
@@ -224,6 +230,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				"Codefresh context":         cfConfig.CurrentContext,
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,
+				"Runtime namespace":         installationOpts.RuntimeNamespace,
 				"Repository URL":            installationOpts.InsCloneOpts.Repo,
 				"Ingress class":             installationOpts.IngressClass,
 				"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
@@ -323,7 +330,7 @@ func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstall
 	log.G(ctx).Info("Downloading runtime definition file")
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.RuntimeNamespace, opts.featuresToInstall)
 	handleCliStep(reporter.InstallStepRunPreCheckDownloadRuntimeDefinition, "Downloading runtime definition", err, true, true)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -593,10 +600,13 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		return "", "", err
 	}
 
+	cliInstallationType := platmodel.InstallationTypeCli
+
 	provider := platmodel.GitProviders(gitProvider)
 	repoURL := opts.InsCloneOpts.URL()
 	runtimeArgs := &platmodel.RuntimeInstallationArgs{
 		RuntimeName:      opts.RuntimeName,
+		RuntimeNamespace: opts.RuntimeNamespace,
 		Cluster:          rt.Spec.Cluster,
 		Managed:          new(bool),
 		RuntimeVersion:   rt.Spec.Version.String(),
@@ -608,6 +618,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		Recover:          &opts.FromRepo,
 		IngressHost:      &opts.IngressHost,
 		AccessMode:       &opts.AccessMode,
+		InstallationType: &cliInstallationType,
 	}
 
 	if opts.shouldInstallIngress() {
@@ -681,7 +692,7 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	log.G(ctx).WithField("version", rt.Spec.Version).Infof("Installing runtime \"%s\"", opts.RuntimeName)
 	err = apcmd.RunRepoBootstrap(ctx, &apcmd.RepoBootstrapOptions{
 		AppSpecifier:    appSpecifier,
-		Namespace:       opts.RuntimeName,
+		Namespace:       opts.RuntimeNamespace,
 		KubeFactory:     opts.KubeFactory,
 		CloneOptions:    opts.InsCloneOpts,
 		Insecure:        opts.Insecure,
@@ -708,9 +719,10 @@ func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
 	}
 
 	err = oc.PrepareOpenshiftCluster(ctx, &oc.OpenshiftOptions{
-		KubeFactory:  opts.KubeFactory,
-		RuntimeName:  opts.RuntimeName,
-		InsCloneOpts: opts.InsCloneOpts,
+		KubeFactory:      opts.KubeFactory,
+		RuntimeName:      opts.RuntimeName,
+		RuntimeNamespace: opts.RuntimeNamespace,
+		InsCloneOpts:     opts.InsCloneOpts,
 	})
 	if err != nil {
 		return fmt.Errorf("failed setting up environment for openshift %w", err)
@@ -857,7 +869,7 @@ func createMasterIngressResource(ctx context.Context, opts *RuntimeInstallOption
 
 	ingressOptions := routingutil.CreateRouteOpts{
 		Name:         opts.RuntimeName + store.Get().MasterIngressName,
-		Namespace:    opts.RuntimeName,
+		Namespace:    opts.RuntimeNamespace,
 		IngressClass: opts.IngressClass,
 		Hostname:     opts.HostName,
 		Annotations: map[string]string{
@@ -893,6 +905,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GitProvider:         opts.gitProvider,
 		GsName:              store.Get().GitSourceName,
 		RuntimeName:         opts.RuntimeName,
+		RuntimeNamespace:    opts.RuntimeNamespace,
 		CreateDemoResources: opts.InstallDemoResources,
 		HostName:            opts.HostName,
 		SkipIngress:         opts.SkipIngress,
@@ -929,6 +942,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 		GitProvider:         opts.gitProvider,
 		GsName:              store.Get().MarketplaceGitSourceName,
 		RuntimeName:         opts.RuntimeName,
+		RuntimeNamespace:    opts.RuntimeNamespace,
 		CreateDemoResources: false,
 		Exclude:             "**/images/**/*",
 		Include:             "workflows/**/*.yaml",
@@ -1165,7 +1179,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 	}
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
+	rt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.RuntimeNamespace, opts.featuresToInstall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
@@ -1199,7 +1213,7 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 	if !opts.SkipClusterChecks {
 		err = kubeutil.EnsureClusterRequirements(ctx, kubeutil.ClusterRequirementsOptions{
 			KubeFactory:        opts.KubeFactory,
-			Namespace:          opts.RuntimeName,
+			Namespace:          opts.RuntimeNamespace,
 			ContextUrl:         cfConfig.GetCurrentContext().URL,
 			AccessMode:         opts.AccessMode,
 			TunnelRegisterHost: opts.TunnelRegisterHost,
@@ -1289,7 +1303,7 @@ func checkRuntimeCollisions(ctx context.Context, kubeFactory apkube.Factory, run
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	_, err := getRuntime(ctx, runtime)
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "Runtime not found") {
 			return nil // runtime does not exist
 		}
 
@@ -1617,12 +1631,12 @@ func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func applySecretsToCluster(ctx context.Context, opts *RuntimeInstallOptions) error {
-	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeName, opts.RuntimeToken, opts.RuntimeStoreIV)
+	runtimeTokenSecret, err := getRuntimeTokenSecret(opts.RuntimeNamespace, opts.RuntimeToken, opts.RuntimeStoreIV)
 	if err != nil {
 		return fmt.Errorf("failed to create codefresh token secret: %w", err)
 	}
 
-	argoTokenSecret, err := getArgoCDTokenSecret(ctx, opts.kubeContext, opts.RuntimeName, opts.Insecure)
+	argoTokenSecret, err := getArgoCDTokenSecret(ctx, opts.kubeContext, opts.RuntimeNamespace, opts.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to create argocd token secret: %w", err)
 	}
@@ -1648,7 +1662,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 		URL:        u.String(),
 		IsInternal: true,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, opts.RuntimeNamespace, store.Get().CFComponentType); err != nil {
 		return err
 	}
 
@@ -1661,12 +1675,12 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 				return err
 			}
 
-			if err = createEventsReporterEventSource(repofs, resPath, opts.RuntimeName, opts.Insecure); err != nil {
+			if err = createEventsReporterEventSource(repofs, resPath, opts.RuntimeNamespace, opts.Insecure); err != nil {
 				return err
 			}
 			eventsReporterTriggers := []string{"events"}
 
-			if err = createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeName, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
+			if err = createSensor(repofs, store.Get().EventsReporterName, resPath, opts.RuntimeNamespace, store.Get().EventsReporterName, eventsReporterTriggers, "data"); err != nil {
 				return err
 			}
 
@@ -1690,7 +1704,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 		URL:        u.String(),
 		IsInternal: reporterCreateOpts.IsInternal,
 	}
-	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, store.Get().CFComponentType); err != nil {
+	if err := appDef.CreateApp(ctx, opts.KubeFactory, cloneOpts, opts.RuntimeName, opts.RuntimeNamespace, store.Get().CFComponentType); err != nil {
 		return err
 	}
 
@@ -1704,11 +1718,11 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 				return err
 			}
 
-			if err = createReporterRBAC(repofs, resPath, opts.RuntimeName, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
+			if err = createReporterRBAC(repofs, resPath, opts.RuntimeNamespace, reporterCreateOpts.saName, reporterCreateOpts.clusterScope); err != nil {
 				return err
 			}
 
-			if err = createReporterEventSource(repofs, resPath, opts.RuntimeName, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
+			if err = createReporterEventSource(repofs, resPath, opts.RuntimeNamespace, reporterCreateOpts, reporterCreateOpts.clusterScope); err != nil {
 				return err
 			}
 			var triggerNames []string
@@ -1716,7 +1730,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 				triggerNames = append(triggerNames, gvr.resourceName)
 			}
 
-			if err = createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeName, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
+			if err = createSensor(repofs, reporterCreateOpts.reporterName, resPath, opts.RuntimeNamespace, reporterCreateOpts.reporterName, triggerNames, "data.object"); err != nil {
 				return err
 			}
 
@@ -1817,7 +1831,7 @@ func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, in
 	})
 }
 
-func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterScope bool) error {
+func createReporterRBAC(repofs fs.FS, path, runtimeNamespace, saName string, clusterScope bool) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -1825,14 +1839,14 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterS
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      saName,
-			Namespace: runtimeName,
+			Namespace: runtimeNamespace,
 		},
 	}
 
 	roleKind := "Role"
 	roleMeta := metav1.ObjectMeta{
 		Name:      saName,
-		Namespace: runtimeName,
+		Namespace: runtimeNamespace,
 	}
 
 	if clusterScope {
@@ -1860,7 +1874,7 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterS
 	roleBindingKind := "RoleBinding"
 	roleBindingMeta := metav1.ObjectMeta{
 		Name:      saName,
-		Namespace: runtimeName,
+		Namespace: runtimeNamespace,
 	}
 
 	if clusterScope {
@@ -1879,7 +1893,7 @@ func createReporterRBAC(repofs fs.FS, path, runtimeName, saName string, clusterS
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Namespace: runtimeName,
+				Namespace: runtimeNamespace,
 				Name:      saName,
 			},
 		},
@@ -2064,13 +2078,14 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		log.G(ctx).Errorf("installation failed due to error: %s, performing installation rollback", err.Error())
 		util.CheckNetworkErr(err)
 		err := runRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-			RuntimeName: opts.RuntimeName,
-			Timeout:     store.Get().WaitTimeout,
-			CloneOpts:   opts.InsCloneOpts,
-			KubeFactory: opts.KubeFactory,
-			SkipChecks:  true,
-			Force:       true,
-			FastExit:    false,
+			RuntimeName:      opts.RuntimeName,
+			RuntimeNamespace: opts.RuntimeNamespace,
+			Timeout:          store.Get().WaitTimeout,
+			CloneOpts:        opts.InsCloneOpts,
+			KubeFactory:      opts.KubeFactory,
+			SkipChecks:       true,
+			Force:            true,
+			FastExit:         false,
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {

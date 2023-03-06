@@ -57,6 +57,7 @@ type (
 		GsCloneOpts         *git.CloneOptions
 		GsName              string
 		RuntimeName         string
+		RuntimeNamespace    string
 		CreateDemoResources bool
 		Exclude             string
 		Include             string
@@ -186,11 +187,17 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			runtimeNamespace := args[0]
+			if cmd.Flag("namespace").Value.String() != "" {
+				runtimeNamespace = cmd.Flag("namespace").Value.String()
+			}
+
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 				GsCloneOpts:         gsCloneOpts,
 				GitProvider:         gitProvider,
 				GsName:              args[1],
 				RuntimeName:         args[0],
+				RuntimeNamespace:    runtimeNamespace,
 				CreateDemoResources: false,
 				Include:             include,
 				Exclude:             exclude,
@@ -223,7 +230,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 		AppName:       opts.GsName,
 		AppSpecifier:  appSpecifier,
 		DestServer:    store.Get().InCluster,
-		DestNamespace: &opts.RuntimeName,
+		DestNamespace: &opts.RuntimeNamespace,
 		IsInternal:    &isInternal,
 		Include:       &opts.Include,
 		Exclude:       &opts.Exclude,
@@ -1424,7 +1431,7 @@ func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) er
 
 	appDef.IsInternal = util.StringIndexOf(store.Get().CFInternalGitSources, appDef.Name) > -1
 
-	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, store.Get().CFGitSourceType); err != nil {
+	if err := appDef.CreateApp(ctx, nil, opts.InsCloneOpts, opts.RuntimeName, opts.RuntimeNamespace, store.Get().CFGitSourceType); err != nil {
 		return fmt.Errorf("failed to create git-source application. Err: %w", err)
 	}
 
