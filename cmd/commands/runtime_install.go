@@ -254,7 +254,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := runRuntimeInstall(cmd.Context(), installationOpts)
+			err := runRuntimeInstall(cmd, installationOpts)
 			handleCliStep(reporter.InstallPhaseFinish, "Runtime installation phase finished", err, false, false)
 			return err
 		},
@@ -644,8 +644,9 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), nil
 }
 
-func runRuntimeInstall(ctx context.Context, opts *RuntimeInstallOptions) error {
-	rt, err := preInstallationChecks(ctx, opts)
+func runRuntimeInstall(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+	ctx := cmd.Context()
+	rt, err := preInstallationChecks(cmd, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
 	if err != nil {
 		util.CheckNetworkErr(err)
@@ -1166,9 +1167,9 @@ func installComponents(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 	return nil
 }
 
-func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
+func preInstallationChecks(cmd *cobra.Command, opts *RuntimeInstallOptions) (*runtime.Runtime, error) {
 	var err error
-
+	ctx := cmd.Context()
 	log.G(ctx).Debug("running pre-installation checks...")
 
 	handleCliStep(reporter.InstallPhaseRunPreCheckStart, "Running pre run installation checks", nil, true, false)
@@ -1184,6 +1185,9 @@ func preInstallationChecks(ctx context.Context, opts *RuntimeInstallOptions) (*r
 	if err != nil {
 		return nil, fmt.Errorf("failed to download runtime definition: %w", err)
 	}
+
+	opts.RuntimeNamespace = getRuntimeNamespace(cmd, opts.RuntimeName, rt.Spec.Version)
+	rt.SetNamespace(opts.RuntimeNamespace)
 
 	handleCliStep(reporter.InstallStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
 	if err != nil {
@@ -1304,7 +1308,7 @@ func checkRuntimeCollisions(ctx context.Context, kubeFactory apkube.Factory, run
 func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	_, err := getRuntime(ctx, runtime)
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "Runtime not found") {
+		if strings.Contains(err.Error(), "does not exist") {
 			return nil // runtime does not exist
 		}
 
