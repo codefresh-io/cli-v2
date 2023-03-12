@@ -1169,7 +1169,7 @@ func getRuntimeNamespace(cmd *cobra.Command, runtimeName string, runtimeVersion 
 
 	if !hasdifferentNamespaceSupport {
 		log.G().Infof("To specify a different namespace please use runtime version >= %s", differentNamespaceSupportVer.String())
-		cmd.Flag("namespace").Value.Set("")
+		_ = cmd.Flag("namespace").Value.Set("")
 		return namespace
 	}
 
