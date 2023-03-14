@@ -56,6 +56,7 @@ import (
 type (
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
+		RuntimeNamespace string
 		Timeout          time.Duration
 		CloneOpts        *apgit.CloneOptions
 		KubeFactory      kube.Factory
@@ -71,6 +72,7 @@ type (
 
 	RuntimeUpgradeOptions struct {
 		RuntimeName               string
+		RuntimeNamespace          string
 		CloneOpts                 *apgit.CloneOptions
 		CommonConfig              *runtime.CommonConfig
 		SuggestedSharedConfigRepo string
@@ -178,7 +180,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed {
+	if !opts.Managed && !opts.SkipChecks {
 		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
@@ -215,6 +217,8 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	if err != nil {
 		return err
 	}
+
+	opts.RuntimeNamespace = *rt.Metadata.Namespace
 
 	if rt.Managed {
 		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
@@ -454,6 +458,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.CurrentContext,
 				"Runtime name":      opts.RuntimeName,
+				"Runtime namespace": opts.RuntimeNamespace,
 			}
 
 			if !opts.Managed {
@@ -541,7 +546,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 		if !opts.Managed {
 			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-				Namespace:       opts.RuntimeName,
+				Namespace:       opts.RuntimeNamespace,
 				KubeContextName: opts.kubeContext,
 				Timeout:         opts.Timeout,
 				CloneOptions:    opts.CloneOpts,
@@ -577,7 +582,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	if !opts.Managed {
-		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeName)
+		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeNamespace)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
 			if !opts.Force {
@@ -875,7 +880,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	log.G(ctx).Info("Downloading runtime definition")
 
 	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.featuresToInstall)
+	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.RuntimeNamespace, opts.featuresToInstall)
 	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to download runtime definition: %w", err)
@@ -930,7 +935,7 @@ func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
 	for _, component := range newComponents {
 		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
 		component.IsInternal = true
-		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, store.Get().CFComponentType)
+		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, opts.RuntimeNamespace, store.Get().CFComponentType)
 		if err != nil {
 			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
 			break
@@ -1155,4 +1160,23 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 	}
 
 	reporter.Init(user, flow)
+}
+
+func getRuntimeNamespace(cmd *cobra.Command, runtimeName string, runtimeVersion *semver.Version) string {
+	namespace := runtimeName
+	differentNamespaceSupportVer := semver.MustParse("0.1.26")
+	hasdifferentNamespaceSupport := runtimeVersion.GreaterThan(differentNamespaceSupportVer)
+
+	if !hasdifferentNamespaceSupport {
+		log.G().Infof("To specify a different namespace please use runtime version >= %s", differentNamespaceSupportVer.String())
+		_ = cmd.Flag("namespace").Value.Set("")
+		return namespace
+	}
+
+	namespaceVal := cmd.Flag("namespace").Value.String()
+	if namespaceVal != "" {
+		namespace = namespaceVal
+	}
+
+	return namespace
 }

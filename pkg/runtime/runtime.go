@@ -105,7 +105,7 @@ const (
 	InstallFeatureIngressless InstallFeature = "ingressless"
 )
 
-func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Runtime, error) {
+func Download(runtimeDef, name string, namespace string, featuresToInstall []InstallFeature) (*Runtime, error) {
 	var (
 		body []byte
 		err  error
@@ -136,7 +136,7 @@ func Download(runtimeDef, name string, featuresToInstall []InstallFeature) (*Run
 	}
 
 	runtime.Name = name
-	runtime.Namespace = name
+	runtime.Namespace = namespace
 
 	filteredComponets := make([]AppDef, 0)
 	for i := range runtime.Spec.Components {
@@ -205,7 +205,7 @@ func (r *Runtime) Save(fs apfs.FS, filename string, config *CommonConfig) error 
 }
 
 func (r *Runtime) Install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, valuesProvider HelmValuesProvider) error {
-	return r.Spec.install(ctx, f, cloneOpts, r.Name, valuesProvider)
+	return r.Spec.install(ctx, f, cloneOpts, r.Name, r.Namespace, valuesProvider)
 }
 
 func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]AppDef, error) {
@@ -221,7 +221,7 @@ func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]A
 	return newComponents, nil
 }
 
-func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName string, valuesProvider HelmValuesProvider) error {
+func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName , runtimeNamespace string, valuesProvider HelmValuesProvider) error {
 	for _, component := range r.Components {
 		log.G(ctx).Infof("Creating component \"%s\"", component.Name)
 		component.IsInternal = true
@@ -230,7 +230,7 @@ func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *
 			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
 		}
 
-		err = component.CreateApp(ctx, f, cloneOpts, runtimeName, store.Get().CFComponentType, values)
+		err = component.CreateApp(ctx, f, cloneOpts, runtimeName, runtimeNamespace, store.Get().CFComponentType, values)
 		if err != nil {
 			return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err))
 		}
@@ -335,7 +335,7 @@ func shouldInstallFeature(featuresToInstall []InstallFeature, featureName Instal
 	return false
 }
 
-func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, optionalValues ...string) error {
+func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, runtimeNamespace, cfType string, optionalValues ...string) error {
 	return util.Retry(ctx, &util.RetryOptions{
 		Func: func() error {
 			newCloneOpts := &apgit.CloneOptions{
@@ -350,7 +350,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 			newCloneOpts.Parse()
 
 			if a.Type == "kustomize" || a.Type == "dir" {
-				return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, cfType)
+				return a.createAppUsingAutopilot(ctx, f, newCloneOpts, runtimeName, runtimeNamespace, cfType)
 			}
 
 			if a.Type == "helm" {
@@ -358,7 +358,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 				if len(optionalValues) > 0 {
 					values = optionalValues[0]
 				}
-				return a.createHelmAppDirectly(ctx, newCloneOpts, runtimeName, cfType, values)
+				return a.createHelmAppDirectly(ctx, newCloneOpts, runtimeName, runtimeNamespace, cfType, values)
 			}
 
 			return fmt.Errorf("failed to create app \"%s\", unknown type \"%s\"", a.Name, a.Type)
@@ -366,7 +366,7 @@ func (a *AppDef) CreateApp(ctx context.Context, f apkube.Factory, cloneOpts *apg
 	})
 }
 
-func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, cfType string) error {
+func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, runtimeNamespace, cfType string) error {
 	timeout := time.Duration(0)
 	if a.Wait {
 		timeout = store.Get().WaitTimeout
@@ -380,7 +380,7 @@ func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, 
 			AppName:       a.Name,
 			AppSpecifier:  a.URL,
 			AppType:       a.Type,
-			DestNamespace: runtimeName,
+			DestNamespace: runtimeNamespace,
 			Labels: map[string]string{
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFType):     cfType,
 				util.EscapeAppsetFieldName(store.Get().LabelKeyCFInternal): strconv.FormatBool(a.IsInternal),
@@ -398,14 +398,14 @@ func (a *AppDef) createAppUsingAutopilot(ctx context.Context, f apkube.Factory, 
 	return apcmd.RunAppCreate(ctx, appCreateOpts)
 }
 
-func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, runtimeName, cfType string, values string) error {
+func (a *AppDef) createHelmAppDirectly(ctx context.Context, cloneOpts *apgit.CloneOptions, runtimeName, runtimeNamespace, cfType string, values string) error {
 	host, orgRepo, path, gitRef, _, suffix, _ := apaputil.ParseGitUrl(a.URL)
 	repoUrl := host + orgRepo + suffix
 	config := &HelmConfig{
 		Config: apapp.Config{
 			AppName:           a.Name,
 			UserGivenName:     a.Name,
-			DestNamespace:     runtimeName,
+			DestNamespace:     runtimeNamespace,
 			DestServer:        apstore.Default.DestServer,
 			SrcRepoURL:        repoUrl,
 			SrcPath:           path,
