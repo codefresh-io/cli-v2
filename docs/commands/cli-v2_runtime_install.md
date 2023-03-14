@@ -28,6 +28,7 @@ cli-v2 runtime install [runtime_name] [flags]
 ### Options
 
 ```
+      --access-mode string                           The access mode to the cluster, one of: ingress|tunnel
       --context string                               The name of the kubeconfig context to use
       --demo-resources                               Installs demo resources (default: true) (default true)
       --disable-rollback                             If true, will not perform installation rollback after a failed installation
