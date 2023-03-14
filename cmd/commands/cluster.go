@@ -184,7 +184,12 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, version.String())
+	addClusterRef := version.String()
+	if runtime.InstallationType == model.InstallationTypeHelm {
+		addClusterRef = "stable"
+	}
+
+	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, addClusterRef)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
