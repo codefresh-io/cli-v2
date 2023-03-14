@@ -184,7 +184,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 	log.G(ctx).Info("Building \"add-cluster\" manifests")
 
 	csdpToken := cfConfig.GetCurrentContext().Token
-	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, version.String())
+	manifests, nameSuffix, err := createAddClusterManifests(opts, ingressUrl, server, csdpToken, version.String(), &runtime.InstallationType)
 	if err != nil {
 		return fmt.Errorf("failed getting add-cluster resources: %w", err)
 	}
@@ -296,13 +296,17 @@ func getSuffixToClusterName(clusters []model.Cluster, name string, tempName stri
 	return counter
 }
 
-func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdpToken, version string) ([]byte, string, error) {
+func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdpToken, version string, installationType *model.InstallationType) ([]byte, string, error) {
 	nameSuffix := getClusterResourcesNameSuffix()
 	resourceUrl := store.AddClusterDefURL
 	if strings.HasPrefix(resourceUrl, "http") {
 		ref := version
 		if opts.tag != "" {
 			ref = opts.tag
+		}
+
+		if model.InstallationType(installationType.String()) == model.InstallationTypeHelm {
+			ref = "stable"
 		}
 
 		resourceUrl = fmt.Sprintf("%s?ref=%s", resourceUrl, ref)
