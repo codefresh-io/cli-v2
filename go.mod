@@ -7,7 +7,7 @@ require (
 	github.com/argoproj-labs/argocd-autopilot v0.4.13
 	github.com/argoproj/argo-cd/v2 v2.5.9
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
-	github.com/argoproj/argo-workflows/v3 v3.3.1
+	github.com/argoproj/argo-workflows/v3 v3.3.5
 	github.com/briandowns/spinner v1.18.1
 	github.com/codefresh-io/go-sdk v0.54.0
 	github.com/fatih/color v1.13.0
@@ -202,7 +202,7 @@ require (
 	github.com/vmihailenco/go-tinylfu v0.2.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0 // indirect
+	github.com/whilp/git-urls v1.0.0 // indirect
 	github.com/xanzy/go-gitlab v0.71.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
