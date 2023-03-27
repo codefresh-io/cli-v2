@@ -606,7 +606,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 	repoURL := opts.InsCloneOpts.URL()
 	runtimeArgs := &platmodel.RuntimeInstallationArgs{
 		RuntimeName:      opts.RuntimeName,
-		RuntimeNamespace: opts.RuntimeNamespace,
+		RuntimeNamespace: &opts.RuntimeNamespace,
 		Cluster:          rt.Spec.Cluster,
 		Managed:          new(bool),
 		RuntimeVersion:   rt.Spec.Version.String(),
