@@ -154,9 +154,8 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	}
 
 	if *installationType == platmodel.InstallationTypeHelm {
-		return fmt.Errorf("This runtime was installed using Helm, please use Helm to uninstall it as well.")
+		return errors.New("This runtime was installed using Helm, please use Helm to uninstall it as well.")
 	}
-
 
 	if !opts.SkipChecks {
 		opts.Managed, err = isRuntimeManaged(ctx, opts.RuntimeName)
@@ -229,7 +228,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 	}
 
 	if rt.InstallationType == platmodel.InstallationTypeHelm {
-		return fmt.Errorf("This runtime was installed using Helm, please use Helm to upgrade it as well.")
+		return errors.New("This runtime was installed using Helm, please use Helm to upgrade it as well.")
 	}
 
 	opts.RuntimeNamespace = *rt.Metadata.Namespace
