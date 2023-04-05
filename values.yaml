@@ -12,8 +12,11 @@ global:
         apiUrl: https://api.github.com/
       
     userToken:
-      token: '6384b7ebe6a11d5f7e7791c2.7b404c2053ecb06c7f93a4f9ca83c4de' # atgardner
+      # token: '6384b7ebe6a11d5f7e7791c2.7b404c2053ecb06c7f93a4f9ca83c4de' # atgardner
       # token: '6315aae7c6f9803691133626.d35cbba0a5c68c34be58ae5c127954d1' # ngrok
+      secretKeyRef:
+        name: user-token
+        key: token
 
   runtime:
     name: helm-runtime

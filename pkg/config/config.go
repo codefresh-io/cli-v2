@@ -64,14 +64,13 @@ type (
 		Beta           bool   `mapstructure:"beta" json:"beta"`
 		OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
-		config         *Config
 	}
 
-	authContextWithStatus struct {
-		AuthContext
+	authContextStatus struct {
 		current bool
 		status  string
 		account string
+		user    string
 	}
 )
 
@@ -136,10 +135,6 @@ func (c *Config) Load(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for _, v := range c.Contexts {
-		v.config = c
-	}
-
 	c.validate()
 
 	return nil
@@ -177,6 +172,34 @@ func (c *Config) NewClient() codefresh.Codefresh {
 	return c.clientForContext(c.GetCurrentContext())
 }
 
+func (c *Config) NewAdHocClient(ctx context.Context, url, token string) (codefresh.Codefresh, error) {
+	if url == "" {
+		url = store.Get().DefaultAPI
+	}
+
+	authCtx := &AuthContext{
+		Name:  "ad-hoc",
+		URL:   url,
+		Token: token,
+		Type:  "APIKey",
+		Beta:  false,
+	}
+
+	// validate new context
+	_, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
+	if err != nil {
+		if url == store.Get().DefaultAPI {
+			err = fmt.Errorf("failed to create client with token \"%s\": %w", token, err)
+		} else {
+			err = fmt.Errorf("failed to create client with url \"%s\" and token \"%s\": %w", url, token, err)
+		}
+
+		return nil, err
+	}
+
+	return c.clientForContext(authCtx), nil
+}
+
 // Delete
 func (c *Config) DeleteContext(name string) error {
 	if _, exists := c.Contexts[name]; !exists {
@@ -198,7 +221,7 @@ func (c *Config) UseContext(ctx context.Context, name string) error {
 	}
 
 	c.CurrentContext = name
-	_, err := c.GetCurrentContext().GetUser(ctx)
+	_, err := c.GetUser(ctx)
 	if err != nil {
 		return err
 	}
@@ -212,16 +235,15 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	}
 
 	authCtx := &AuthContext{
-		Name:   name,
-		URL:    url,
-		Token:  token,
-		Type:   "APIKey",
-		Beta:   false,
-		config: c,
+		Name:  name,
+		URL:   url,
+		Token: token,
+		Type:  "APIKey",
+		Beta:  false,
 	}
 
 	// validate new context
-	usr, err := authCtx.GetUser(ctx)
+	usr, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
@@ -257,42 +279,44 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 	tb := ansiterm.NewTabWriter(w, 0, 0, 4, ' ', 0)
 	ar := util.NewAsyncRunner(len(c.Contexts))
 
-	_, err := fmt.Fprintln(tb, "CURRENT\tNAME\tURL\tACCOUNT\tSTATUS")
+	_, err := fmt.Fprintln(tb, "CURRENT\tNAME\tURL\tACCOUNT\tUSER\tSTATUS")
 	if err != nil {
 		return err
 	}
 
-	contexts := make([]*authContextWithStatus, 0, len(c.Contexts))
+	contexts := make([]*AuthContext, 0, len(c.Contexts))
+	statuses := make([]*authContextStatus, 0, len(c.Contexts))
 	for _, context := range c.Contexts {
-		contexts = append(contexts, &authContextWithStatus{
-			AuthContext: *context,
-		})
+		contexts = append(contexts, context)
+		statuses = append(statuses, &authContextStatus{})
 	}
 
 	sort.SliceStable(contexts, func(i, j int) bool {
 		return contexts[i].Name < contexts[j].Name
 	})
 
-	for _, context := range contexts {
+	for i, authCtx := range contexts {
 		// capture local variables for closure
-		context := context
+		authCtx := authCtx
+		status := statuses[i]
 
 		ar.Run(func() error {
-			context.status = "VALID"
+			status.status = "VALID"
 
-			usr, err := context.GetUser(ctx)
+			usr, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
 				}
-				context.status = err.Error()
 
+				status.status = err.Error()
 			} else {
-				context.account = usr.GetActiveAccount().Name
+				status.account = usr.GetActiveAccount().Name
+				status.user = usr.Name
 			}
 
-			if context.Name == c.CurrentContext {
-				context.current = true
+			if authCtx.Name == c.CurrentContext {
+				status.current = true
 			}
 
 			return nil
@@ -303,18 +327,20 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	for _, context := range contexts {
+	for i, context := range contexts {
+		status := statuses[i]
 		current := ""
-		if context.current {
+		if status.current {
 			current = greenStar
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			current,
 			context.Name,
 			context.URL,
-			context.account,
-			context.status,
+			status.account,
+			status.user,
+			status.status,
 		)
 		if err != nil {
 			return err
@@ -322,6 +348,19 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 	}
 
 	return tb.Flush()
+}
+
+func (c *Config) GetUser(ctx context.Context) (*codefresh.User, error) {
+	return c.NewClient().Users().GetCurrent(ctx)
+}
+
+func (c *Config) GetAccountId(ctx context.Context) (string, error) {
+	user, err := c.GetUser(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed getting account id: %w", err)
+	}
+
+	return user.GetActiveAccount().ID, nil
 }
 
 func (c *Config) validate() {
@@ -350,18 +389,6 @@ func init() {
 	if err != nil {
 		log.G().WithError(err).Fatal("failed to get user home directory")
 	}
+
 	defaultPath = homedir
-}
-
-func (a *AuthContext) GetUser(ctx context.Context) (*codefresh.User, error) {
-	return a.config.clientForContext(a).Users().GetCurrent(ctx)
-}
-
-func (a *AuthContext) GetAccountId(ctx context.Context) (string, error) {
-	user, err := a.GetUser(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed getting account id: %w", err)
-	}
-
-	return user.GetActiveAccount().ID, nil
 }

@@ -19,28 +19,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/ghodss/yaml"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/spf13/cobra"
 )
 
-const (
-	// standard installation using an ingress resource
-	ProtocolHttps Protocol = "https"
-	// ingressless installation, using an FRP tunnel
-	ProtocolHttp Protocol = "http"
-)
-
 type (
-	SecretKeyRef struct {
-		Name string `json:"name,omitempty"`
-		Key  string `json:"key,omitempty"`
-	}
-
 	Values struct {
 		Global *Global `json:"global,omitempty"`
 	}
@@ -98,10 +88,23 @@ type (
 		SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty"`
 	}
 
+	SecretKeyRef struct {
+		Name string `json:"name,omitempty"`
+		Key  string `json:"key,omitempty"`
+	}
+
 	HelmValidateValuesOptions struct {
 		helmFile    string
+		namespace   string
 		kubeFactory apkube.Factory
 	}
+)
+
+const (
+	// standard installation using an ingress resource
+	ProtocolHttps Protocol = "https"
+	// ingressless installation, using an FRP tunnel
+	ProtocolHttp Protocol = "http"
 )
 
 func NewHelmCommand() *cobra.Command {
@@ -129,8 +132,16 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 		Args:    cobra.NoArgs,
 		Short:   "Validate helm installation values file",
 		Example: util.Doc("<BIN> helm validate --values <values_file.yaml>"),
+		PreRun: func(cmd *cobra.Command, _ []string) {
+			opts.namespace = cmd.Flag("namespace").Value.String()
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runHelmValidate(cmd.Context(), opts)
+			err := runHelmValidate(cmd.Context(), opts)
+			if err != nil {
+				return fmt.Errorf("failed validating file \"%s\": %w", opts.helmFile, err)
+			}
+
+			return nil
 		},
 	}
 
@@ -140,19 +151,82 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 	return cmd
 }
 
-func runHelmValidate(_ context.Context, opts *HelmValidateValuesOptions) error {
-	valuesStr, err := os.ReadFile(opts.helmFile)
+func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error {
+	values, err := readValuesFile(opts.helmFile)
 	if err != nil {
-		return fmt.Errorf("failed reading values file '%s': %w", opts.helmFile, err)
+		return err
+	}
+
+	err = basicValuesCheck(values)
+	if err != nil {
+		return err
+	}
+
+	if opts.namespace == "" {
+		opts.namespace = values.Global.Runtime.Name
+	}
+
+	cfClient, err := getPlatformClient(ctx, opts, values.Global.Codefresh)
+	if err != nil {
+		return err
+	}
+
+	err = checkUserPermission(ctx, cfClient)
+
+	err = checkRuntimeName(ctx, cfClient, values.Global.Runtime)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func readValuesFile(helmFile string) (*Values, error) {
+	valuesStr, err := os.ReadFile(helmFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed reading file: %w", err)
 	}
 
 	values := &Values{}
 	err = yaml.Unmarshal(valuesStr, values)
 	if err != nil {
-		return fmt.Errorf("failed unmarshaling values file '%s': %w", opts.helmFile, err)
+		return nil, fmt.Errorf("failed unmarshaling file: %w", err)
+	}
+
+	return values, nil
+}
+
+func basicValuesCheck(values *Values) error {
+	if values.Global == nil {
+		return fmt.Errorf("missing \"global\" section in values file")
+	}
+
+	if values.Global.Codefresh == nil {
+		return fmt.Errorf("missing \"global.codefresh\" section in values file")
+	}
+
+	if values.Global.Codefresh.UserToken == nil {
+		return fmt.Errorf("missing \"global.codefresh.userToken\" section in values file")
+	}
+
+	if values.Global.Runtime == nil {
+		return fmt.Errorf("missing \"global.runtime\" section in values file")
+	}
+
+	if values.Global.Runtime.Name == "" {
+		return fmt.Errorf("missing \"global.runtime.name\" section in values file")
 	}
 
 	return nil
+}
+
+func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, cf *Codefresh) (codefresh.Codefresh, error) {
+	userToken, err := getUserToken(ctx, opts, cf)
+	if err != nil {
+		return nil, err
+	}
+
+	return cfConfig.NewAdHocClient(ctx, cf.Url, userToken)
 }
 
 func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, cf *Codefresh) (string, error) {
@@ -166,16 +240,48 @@ func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, cf *Code
 	}
 
 	if userToken.SecretKeyRef == nil {
-		return "", errors.New("userToken must contain ")
+		return "", errors.New("userToken must contain either a \"token\" field, or a \"secretKeyRef\"")
 	}
 
 	secretKeyRef := userToken.SecretKeyRef
-	cs := opts.kubeFactory.KubernetesClientSetOrDie()
-	secret, err :=cs.CoreV1().Secrets("").Get(ctx, secretKeyRef.Name, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed reading userToken secretKeyRef %s: %w", secretKeyRef.Name, err)
+	if secretKeyRef.Name == "" {
+		return "", errors.New("userToken.secretKeyRef must include a \"name\" field")
 	}
 
-	value := secret.Data[secretKeyRef.Key]
-	return string(value), nil
+	if secretKeyRef.Key == "" {
+		return "", errors.New("userToken.secretKeyRef must include a \"key\" field")
+	}
+
+	token, err := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, secretKeyRef.Name, secretKeyRef.Key)
+	if err != nil {
+		return "", err
+	}
+
+	return string(token), nil
+}
+
+func checkUserPermission(ctx context.Context, cfClient codefresh.Codefresh) error {
+	user, err := cfClient.V2().UsersV2().GetCurrent(ctx)
+	if err != nil {
+		return err
+	}
+
+	if user.IsAdmin == nil || !*user.IsAdmin {
+		return fmt.Errorf("user \"%s\" does not have Admin role", user.Name)
+	}
+
+	return nil
+}
+
+func checkRuntimeName(ctx context.Context, cfClient codefresh.Codefresh, runtime *Runtime) error {
+	_, err := cfClient.V2().Runtime().Get(ctx, runtime.Name)
+	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil // runtime does not exist
+		}
+
+		return fmt.Errorf("failed to get runtime: %w", err)
+	}
+
+	return fmt.Errorf("runtime \"%s\" already exists", runtime.Name)
 }

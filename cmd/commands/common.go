@@ -318,7 +318,7 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		currentUser, err := cfConfig.GetCurrentContext().GetUser(ctx)
+		currentUser, err := cfConfig.GetUser(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}
@@ -441,7 +441,7 @@ func ensureAccessMode(ctx context.Context, opts *RuntimeInstallOptions) error {
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", nil, true, false)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", nil, true, false)
 		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
-		accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
+		accountId, err := cfConfig.GetAccountId(ctx)
 		if err != nil {
 			return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
 		}

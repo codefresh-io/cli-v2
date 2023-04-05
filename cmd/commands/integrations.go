@@ -445,7 +445,7 @@ func NewGitAuthCommand() *cobra.Command {
 
 func RunGitAuthCommand(ctx context.Context, cmd *cobra.Command) error {
 	var err error
-	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
+	user, err := cfConfig.GetUser(ctx)
 	if err != nil {
 		return err
 	}

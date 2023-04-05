@@ -666,3 +666,18 @@ func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
 	aputil.Die(err)
 	return cs
 }
+
+func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespace, name, key string) (string, error) {
+	cs := kubeFactory.KubernetesClientSetOrDie()
+	secret, err := cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed reading secret \"%s\": %w", name, err)
+	}
+
+	token, ok := secret.Data[key]
+	if !ok {
+		return "", fmt.Errorf("secret \"%s\" does not contain key \"%s\"", name, key)
+	}
+
+	return string(token), nil
+}

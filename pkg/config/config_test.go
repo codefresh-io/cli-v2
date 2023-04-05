@@ -144,7 +144,7 @@ func TestConfig_GetUser(t *testing.T) {
 			}
 
 			tt.beforeFn(usersMock)
-			user, err := tt.config.GetCurrentContext().GetUser(context.Background())
+			user, err := tt.config.GetUser(context.Background())
 
 			tt.assertFn(t, user, usersMock, err)
 		})
