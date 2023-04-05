@@ -1,0 +1,67 @@
+global:
+  codefresh:
+    # url: https://g.codefresh.io # atgardner
+    # url: https://noam-platform.ngrok.io # ngrok
+
+    accountId: 5f6a52f5f0f4b845ef443a58 # atgardner
+    # accountId: 6315a825c6f9807db4132fec # ngrok
+
+    gitIntegration:
+      provider:
+        name: GITHUB
+        apiUrl: https://api.github.com/
+      
+    userToken:
+      token: '6384b7ebe6a11d5f7e7791c2.7b404c2053ecb06c7f93a4f9ca83c4de' # atgardner
+      # token: '6315aae7c6f9803691133626.d35cbba0a5c68c34be58ae5c127954d1' # ngrok
+
+  runtime:
+    name: helm-runtime
+
+    # ingress:
+    #   enabled: true
+    #   hosts:
+    #   - noam.pipeline-team.cf-cd.com
+    
+    # gitCredentials:
+    #   password:
+    #     value: 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
+
+# argo-cd:
+  # global:
+    # image:
+      # repository: quay.io/noam_codefresh/argocd
+      # tag: v2.5.5-cap-CR-16899-send-heartbeat
+      # imagePullPolicy: Always
+
+# argo-workflows:
+#   enabled: false
+
+# argo-rollouts:
+#   enabled: false
+
+# app-proxy:
+  # image:
+    # repository: quay.io/noam_codefresh/cap-app-proxy
+    # tag: fix-git-intg
+    # pullPolicy: Always
+
+  # initContainer:
+    # image:
+      # repository: quay.io/noam_codefresh/cap-app-proxy-init
+      # tag: fix-git-intg
+      # pullPolicy: Always
+
+    # command:
+    #   - "sleep"
+    #   - "600"
+
+# event-reporters:
+#   events:
+#     argoCDServerServiceName: host.k3d.internal
+#     argoCDServerServicePort: "8082"
+
+# tunnel-client:
+#   tunnelServer:
+#     host: "6315a825c6f9807db4132fec-helm-runtime.noam-frps.ngrok.io"
+#     subdomainHost: "noam-frps.ngrok.io"
