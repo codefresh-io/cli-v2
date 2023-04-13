@@ -1,6 +1,6 @@
 ## cli-v2 helm
 
-helm blah blah
+Helm related commands
 
 ```
 cli-v2 helm [flags]

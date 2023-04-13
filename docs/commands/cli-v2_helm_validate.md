@@ -9,7 +9,7 @@ cli-v2 helm validate [flags]
 ### Examples
 
 ```
-cli-v2 helm validate --values <values_file.yaml>
+cli-v2 helm validate --values <values_file.yaml> [--namespace <namespace>] [--version <version>]
 ```
 
 ### Options
@@ -36,5 +36,5 @@ cli-v2 helm validate --values <values_file.yaml>
 
 ### SEE ALSO
 
-* [cli-v2 helm](cli-v2_helm.md)	 - helm blah blah
+* [cli-v2 helm](cli-v2_helm.md)	 - Helm related commands
 

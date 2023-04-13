@@ -51,7 +51,7 @@ type (
 func NewHelmCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "helm",
-		Short: "helm blah blah",
+		Short: "Helm related commands",
 		Args:  cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
@@ -72,7 +72,7 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 		Aliases: []string{"v"},
 		Args:    cobra.NoArgs,
 		Short:   "Validate helm installation values file",
-		Example: util.Doc("<BIN> helm validate --values <values_file.yaml>"),
+		Example: util.Doc("<BIN> helm validate --values <values_file.yaml> [--namespace <namespace>] [--version <version>]"),
 		PreRun: func(cmd *cobra.Command, _ []string) {
 			opts.namespace = cmd.Flag("namespace").Value.String()
 		},
