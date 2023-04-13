@@ -27,12 +27,12 @@ import (
 
 func TestConfig_Write(t *testing.T) {
 	tests := map[string]struct {
-		config   Config
+		config   ConfigImpl
 		beforeFn func(usersMock *mocks.UsersAPI)
 		assertFn func(t *testing.T, usersMock *mocks.UsersAPI, out string, err error)
 	}{
 		"Basic": {
-			config: Config{
+			config: ConfigImpl{
 				Contexts: map[string]*AuthContext{
 					"foo": {
 						Type:  "APIKey",
@@ -54,7 +54,7 @@ func TestConfig_Write(t *testing.T) {
 					ActiveAccountName: "bar",
 				}, nil)
 			},
-			assertFn: func(t *testing.T, usersMock *mocks.UsersAPI, out string, err error) {
+			assertFn: func(t *testing.T, usersMock *mocks.UsersAPI, out string, _ error) {
 				usersMock.AssertCalled(t, "GetCurrent", mock.Anything)
 				assert.Contains(t, out, "foo")
 				assert.Contains(t, out, "VALID")
@@ -74,10 +74,6 @@ func TestConfig_Write(t *testing.T) {
 			cfMock.On("Users").Return(usersMock)
 			newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return cfMock }
 
-			for _, c := range tt.config.Contexts {
-				c.config = &tt.config
-			}
-
 			tt.beforeFn(usersMock)
 			w := &bytes.Buffer{}
 			err := tt.config.Write(context.Background(), w)
@@ -89,12 +85,12 @@ func TestConfig_Write(t *testing.T) {
 
 func TestConfig_GetUser(t *testing.T) {
 	tests := map[string]struct {
-		config   Config
+		config   ConfigImpl
 		beforeFn func(usersMock *mocks.UsersAPI)
 		assertFn func(t *testing.T, user *codefresh.User, usersMock *mocks.UsersAPI, err error)
 	}{
 		"Basic": {
-			config: Config{
+			config: ConfigImpl{
 				Contexts: map[string]*AuthContext{
 					"foo": {
 						Type:  "APIKey",
@@ -117,7 +113,7 @@ func TestConfig_GetUser(t *testing.T) {
 					ActiveAccountName: "bar",
 				}, nil)
 			},
-			assertFn: func(t *testing.T, user *codefresh.User, usersMock *mocks.UsersAPI, err error) {
+			assertFn: func(t *testing.T, user *codefresh.User, usersMock *mocks.UsersAPI, _ error) {
 				usersMock.AssertCalled(t, "GetCurrent", mock.Anything)
 				assert.Equal(t, "bar", user.GetActiveAccount().Name)
 				assert.Equal(t, "1234", user.GetActiveAccount().ID)
@@ -129,19 +125,11 @@ func TestConfig_GetUser(t *testing.T) {
 	defer func() { newCodefresh = orgCf }()
 
 	for tname, tt := range tests {
-		for _, v := range tt.config.Contexts {
-			v.config = &tt.config
-		}
-
 		t.Run(tname, func(t *testing.T) {
 			usersMock := &mocks.UsersAPI{}
 			cfMock := &mocks.Codefresh{}
 			cfMock.On("Users").Return(usersMock)
 			newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return cfMock }
-
-			for _, c := range tt.config.Contexts {
-				c.config = &tt.config
-			}
 
 			tt.beforeFn(usersMock)
 			user, err := tt.config.GetUser(context.Background())

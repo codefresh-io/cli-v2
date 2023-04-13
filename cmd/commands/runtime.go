@@ -469,7 +469,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Codefresh context": cfConfig.CurrentContext,
+				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
 				"Runtime namespace": opts.RuntimeNamespace,
 			}
@@ -833,7 +833,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Codefresh context": cfConfig.CurrentContext,
+				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
 				"Repository URL":    opts.CloneOpts.Repo,
 			}

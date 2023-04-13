@@ -44,7 +44,7 @@ type (
 		devel       bool
 		namespace   string
 		kubeFactory apkube.Factory
-		helm        *helm.Helm
+		helm        helm.Helm
 	}
 )
 

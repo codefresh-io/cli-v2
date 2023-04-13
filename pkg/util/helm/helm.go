@@ -27,13 +27,21 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 )
 
-type Helm struct {
-	devel         bool
-	chartPathOpts *action.ChartPathOptions
-}
+//go:generate mockgen -destination=./mocks/helm.go -package=helm -source=./helm.go Helm
 
-func AddFlags(flags *pflag.FlagSet) *Helm {
-	helm := &Helm{
+type (
+	Helm interface {
+		GetValues(valuesFile string) (chartutil.Values, error)
+	}
+
+	helmImpl struct {
+		devel         bool
+		chartPathOpts *action.ChartPathOptions
+	}
+)
+
+func AddFlags(flags *pflag.FlagSet) Helm {
+	helm := &helmImpl{
 		chartPathOpts: &action.ChartPathOptions{},
 	}
 
@@ -46,7 +54,7 @@ func AddFlags(flags *pflag.FlagSet) *Helm {
 	return helm
 }
 
-func (h *Helm) GetValues(valuesFile string) (chartutil.Values, error) {
+func (h *helmImpl) GetValues(valuesFile string) (chartutil.Values, error) {
 	if h.chartPathOpts.Version == "" && h.devel {
 		h.chartPathOpts.Version = ">0.0.0-0"
 	}
@@ -64,7 +72,7 @@ func (h *Helm) GetValues(valuesFile string) (chartutil.Values, error) {
 	return chartutil.CoalesceValues(chart, values)
 }
 
-func (h *Helm) loadHelmChart() (*chart.Chart, error) {
+func (h *helmImpl) loadHelmChart() (*chart.Chart, error) {
 	cp, err := h.chartPathOpts.LocateChart("gitops-runtime", cli.New())
 	if err != nil {
 		return nil, err

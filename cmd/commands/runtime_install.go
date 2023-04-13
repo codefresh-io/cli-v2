@@ -228,7 +228,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Codefresh context":         cfConfig.CurrentContext,
+				"Codefresh context":         cfConfig.GetCurrentContext().Name,
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,
 				"Runtime namespace":         installationOpts.RuntimeNamespace,

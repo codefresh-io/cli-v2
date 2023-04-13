@@ -35,8 +35,8 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -57,7 +57,7 @@ var (
 	//go:embed assets/workflows-route-patch.json
 	workflowsRoutePatch []byte
 
-	cfConfig *config.Config
+	cfConfig config.Config
 
 	GREEN           = "\033[32m"
 	RED             = "\033[31m"
