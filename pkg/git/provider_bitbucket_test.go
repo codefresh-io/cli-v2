@@ -37,17 +37,17 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 	tests := map[string]struct {
 		requiredScopes [][]string
 		wantErr        string
-		beforeFn       func(t *testing.T, c *mocks.MockRoundTripper)
+		beforeFn       func(c *mocks.MockRoundTripper)
 	}{
 		"Should fail if HEAD fails": {
 			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://some.server/api/2.0/user\": some error",
-			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
+			beforeFn: func(c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},
 		},
 		"Should fail if no x-oauth-Scopes in res headers": {
 			wantErr: "failed checking token scope permission: invalid token",
-			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
+			beforeFn: func(c *mocks.MockRoundTripper) {
 				header := http.Header{}
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
 					StatusCode: 200,
@@ -58,7 +58,7 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		"Should fail if required scope is not in res header": {
 			requiredScopes: [][]string{{"scope 3"}},
 			wantErr:        "the provided token is missing required token scopes, got: scope 1, scope 2 \nrequired: scope 3",
-			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
+			beforeFn: func(c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
 					header.Add("X-Oauth-Scopes", "scope 1, scope 2")
@@ -75,7 +75,7 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 				{"scope 3:write", "scope 3:admin"},
 				{"scope 4"},
 			},
-			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
+			beforeFn: func(c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
 					header.Add("X-Oauth-Scopes", "scope 1, scope 2, scope 3:write, scope 4")
@@ -92,7 +92,7 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockTransport := mocks.NewMockRoundTripper(ctrl)
-			tt.beforeFn(t, mockTransport)
+			tt.beforeFn(mockTransport)
 			g := newBitbucket(mockTransport)
 			err := g.verifyToken(context.Background(), "token", "username", tt.requiredScopes)
 			if err != nil || tt.wantErr != "" {

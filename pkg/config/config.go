@@ -47,11 +47,6 @@ const (
 	defaultRequestTimeout = time.Second * 30
 )
 
-var (
-	greenStar = color.GreenString("*")
-	defaultPath = ""
-)
-
 type (
 	Config interface {
 		CreateContext(ctx context.Context, name, token, url string) error
@@ -97,6 +92,8 @@ type (
 
 // Errors
 var (
+	greenStar = color.GreenString("*")
+	defaultPath = ""
 	ErrInvalidConfig = errors.New("invalid config")
 
 	ErrContextDoesNotExist = func(context string) error {
@@ -280,9 +277,13 @@ func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url string)
 }
 
 func (c *ConfigImpl) clientForContext(ctx *AuthContext) codefresh.Codefresh {
+	return clientForContext(ctx, c.insecure, c.requestTimeout)
+}
+
+func clientForContext(ctx *AuthContext, insecure bool, timeout time.Duration) codefresh.Codefresh {
 	httpClient := &http.Client{}
-	httpClient.Timeout = c.requestTimeout
-	if c.insecure {
+	httpClient.Timeout = timeout
+	if insecure {
 		customTransport := http.DefaultTransport.(*http.Transport).Clone()
 		customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		httpClient.Transport = customTransport
