@@ -17,6 +17,8 @@ package helm
 import (
 	"fmt"
 
+	"github.com/codefresh-io/cli-v2/pkg/util"
+
 	"github.com/spf13/pflag"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -38,6 +40,9 @@ func AddFlags(flags *pflag.FlagSet) *Helm {
 	flags.BoolVar(&helm.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored")
 	flags.StringVar(&helm.chartPathOpts.Version, "version", "", "specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used")
 	flags.StringVar(&helm.chartPathOpts.RepoURL, "repo", "https://chartmuseum.codefresh.io/gitops-runtime", "chart repository url where to locate the requested chart")
+
+	util.Die(flags.MarkHidden("repo"))
+
 	return helm
 }
 
