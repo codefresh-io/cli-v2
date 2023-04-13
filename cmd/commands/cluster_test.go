@@ -17,7 +17,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 )
 
 func Test_getSuffixToClusterName(t *testing.T) {
@@ -29,14 +29,14 @@ func Test_getSuffixToClusterName(t *testing.T) {
 	cluster2.Metadata.Name = "test-cluster-1"
 	cluster3.Metadata.Name = "test-cluster-2"
 
-	clusters := []model.Cluster{
+	clusters := []platmodel.Cluster{
 		cluster1,
 		cluster2,
 		cluster3,
 	}
 
 	type args struct {
-		clusters []model.Cluster
+		clusters []platmodel.Cluster
 		name     string
 		tempName string
 		counter  int
@@ -169,10 +169,10 @@ func Test_validateClusterName(t *testing.T) {
 	}
 }
 
-func getEmptyClusterEntity() model.Cluster {
+func getEmptyClusterEntity() platmodel.Cluster {
 	empty := ""
-	return model.Cluster{
-		Metadata: &model.ObjectMeta{
+	return platmodel.Cluster{
+		Metadata: &platmodel.ObjectMeta{
 			Group:       "",
 			Version:     "",
 			Kind:        "",
@@ -188,9 +188,9 @@ func getEmptyClusterEntity() model.Cluster {
 			Created:     &empty,
 			UID:         &empty,
 		},
-		Errors:       []model.Error{},
-		ReferencedBy: []model.BaseEntity{},
-		References:   []model.BaseEntity{},
+		Errors:       []platmodel.Error{},
+		ReferencedBy: []platmodel.BaseEntity{},
+		References:   []platmodel.BaseEntity{},
 		Server:       "",
 		Namespaces:   []string{},
 	}

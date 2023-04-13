@@ -6,29 +6,26 @@ global:
     accountId: 5f6a52f5f0f4b845ef443a58 # atgardner
     # accountId: 6315a825c6f9807db4132fec # ngrok
 
-    gitIntegration:
-      provider:
-        name: GITHUB
-        apiUrl: https://api.github.com/
-      
     userToken:
-      # token: '6384b7ebe6a11d5f7e7791c2.7b404c2053ecb06c7f93a4f9ca83c4de' # atgardner
+      token: '6384b7ebe6a11d5f7e7791c2.7b404c2053ecb06c7f93a4f9ca83c4de' # atgardner
       # token: '6315aae7c6f9803691133626.d35cbba0a5c68c34be58ae5c127954d1' # ngrok
-      secretKeyRef:
-        name: user-token
-        key: token
+      # secretKeyRef:
+      #   name: user-token
+      #   key: token
 
   runtime:
     name: helm-runtime
 
-    # ingress:
-    #   enabled: true
-    #   hosts:
-    #   - noam.pipeline-team.cf-cd.com
+    ingress:
+      # enabled: true
+      className: nginx
+      hosts:
+      - noam.pipeline-team.cf-cd.com
+      - a8c089ec6151b45f8b2cfd629efbb599-f30d835b53447788.elb.us-east-1.amazonaws.com
     
     # gitCredentials:
-    #   password:
-    #     value: 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
+      # password:
+      #   value: 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
 
 # argo-cd:
   # global:

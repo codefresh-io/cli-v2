@@ -32,6 +32,7 @@ import (
 	authv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -661,14 +662,8 @@ func GetClientSet(kubeFactory apkube.Factory) (kubernetes.Interface, error) {
 	return cs, nil
 }
 
-func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
-	cs, err := GetClientSet(kubeFactory)
-	aputil.Die(err)
-	return cs
-}
-
 func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespace, name, key string) (string, error) {
-	cs := kubeFactory.KubernetesClientSetOrDie()
+	cs := GetClientSetOrDie(kubeFactory)
 	secret, err := cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed reading secret \"%s\": %w", name, err)
@@ -680,4 +675,15 @@ func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespa
 	}
 
 	return string(token), nil
+}
+
+func GetIngressClass(ctx context.Context, kubeFactory apkube.Factory, name string) (*netv1.IngressClass, error) {
+	cs := GetClientSetOrDie(kubeFactory)
+	return cs.NetworkingV1().IngressClasses().Get(ctx, name, metav1.GetOptions{})
+}
+
+func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
+	cs, err := GetClientSet(kubeFactory)
+	aputil.Die(err)
+	return cs
 }

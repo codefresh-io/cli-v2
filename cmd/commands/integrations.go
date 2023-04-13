@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -47,14 +48,14 @@ type (
 	}
 )
 
-var gitProvidersByName = map[string]apmodel.GitProviders{
-	"bitbucket":        apmodel.GitProvidersBitbucket,
-	"bitbucket-server": apmodel.GitProvidersBitbucketServer,
-	"github":           apmodel.GitProvidersGithub,
-	"gitlab":           apmodel.GitProvidersGitlab,
+var cliToModelMap = map[string]string{
+	string(cfgit.BITBUCKET):        apmodel.GitProvidersBitbucket.String(),
+	string(cfgit.BITBUCKET_SERVER): apmodel.GitProvidersBitbucketServer.String(),
+	string(cfgit.GITHUB):           apmodel.GitProvidersGithub.String(),
+	string(cfgit.GITLAB):           apmodel.GitProvidersGitlab.String(),
 }
 
-var gitProvidersByValue = util.ReverseMap(gitProvidersByName)
+var modelToCliMap = util.ReverseMap(cliToModelMap)
 
 func NewIntegrationCommand() *cobra.Command {
 	var (
@@ -219,7 +220,7 @@ func NewGitIntegrationAddCommand(client *sdk.AppProxyAPI) *cobra.Command {
 
 			opts.APIURL = &apiURL
 
-			if opts.Provider, err = parseGitProvider(provider); err != nil {
+			if opts.Provider, err = cliToModelGitProvider(provider); err != nil {
 				return err
 			}
 
@@ -496,10 +497,24 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	return fmt.Errorf("invalid output format: %s", format)
 }
 
-func parseGitProvider(provider string) (apmodel.GitProviders, error) {
-	p, ok := gitProvidersByName[provider]
+// cliToModelGitProvider converts cli lower provider string (bitbucket|bitbucket-server|github|gitlab)
+// to model provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
+func cliToModelGitProvider(provider string) (apmodel.GitProviders, error) {
+	p, ok := cliToModelMap[provider]
 	if !ok {
 		return apmodel.GitProviders(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
 	}
-	return p, nil
+
+	return apmodel.GitProviders(p), nil
+}
+
+// cliToModelGitProvider converts model provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
+// to cli lower provider string (bitbucket|bitbucket-server|github|gitlab)
+func modelToCliGitProvider(provider string) (cfgit.ProviderType, error) {
+	p, ok := modelToCliMap[provider]
+	if !ok {
+		return cfgit.ProviderType(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
+	}
+
+	return cfgit.ProviderType(p), nil
 }
