@@ -26,7 +26,6 @@ import (
 )
 
 //go:generate mockgen -destination=./mocks/roundTripper.go -package=mocks net/http RoundTripper
-//go:generate mockgen -destination=./mocks/provider.go -package=mocks -source=./provider.go Provider
 
 var (
 	CYAN        = "\033[36m"

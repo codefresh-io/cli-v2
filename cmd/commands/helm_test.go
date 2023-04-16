@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"testing"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
@@ -45,7 +44,7 @@ func generateAccount(name string, gitProvider platmodel.GitProviders, gitApiUrl 
 
 func Test_getUserToken(t *testing.T) {
 	tests := map[string]struct {
-		run bool
+		run             bool
 		namespace       string
 		userTokenValues chartutil.Values
 		clientSet       kubernetes.Interface
@@ -108,7 +107,7 @@ func Test_getUserToken(t *testing.T) {
 			wantErr: "secret \"some-secret\" does not contain key \"some-key\"",
 		},
 		"should fail if no explicit token and key contains empty string": {
-			run: true,
+			run:       true,
 			namespace: "some-namespace",
 			userTokenValues: chartutil.Values{
 				"secretKeyRef": chartutil.Values{
@@ -290,7 +289,7 @@ func Test_checkGitCredentials(t *testing.T) {
 		activeAccount *platmodel.Account
 		clientSet     kubernetes.Interface
 		wantErr       string
-		beforeFn      func(provider *gitmocks.MockProvider)
+		beforeFn      func(rt *gitmocks.MockRoundTripper)
 	}{
 		"should succeed if all values are correct": {
 			git: chartutil.Values{
@@ -300,11 +299,16 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			activeAccount: generateAccount("some-account", platmodel.GitProvidersGithub, "some-api-url"),
-			beforeFn: func(p *gitmocks.MockProvider) {
-				p.EXPECT().VerifyRuntimeToken(context.Background(), apgit.Auth{
-					Username: "some-username",
-					Password: "some-password",
-				}).Return(nil)
+			beforeFn: func(rt *gitmocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
+					header := http.Header{}
+					header.Add("X-Oauth-Scopes", "repo, admin:repo_hook")
+					res := &http.Response{
+						StatusCode: 200,
+						Header:     header,
+					}
+					return res, nil
+				})
 			},
 		},
 		"should succeed if there is no git password at all (skip-check)": {
@@ -369,12 +373,9 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			activeAccount: generateAccount("some-account", platmodel.GitProvidersGithub, "some-api-url"),
-			wantErr:       "some-error",
-			beforeFn: func(p *gitmocks.MockProvider) {
-				p.EXPECT().VerifyRuntimeToken(context.Background(), apgit.Auth{
-					Username: "some-username",
-					Password: "some-password",
-				}).Return(errors.New("some-error"))
+			wantErr:       "git-token invalid: Head \"/api/v3\": some error",
+			beforeFn: func(rt *gitmocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
 			},
 		},
 	}
@@ -385,8 +386,6 @@ func Test_checkGitCredentials(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var mockKube *kubemocks.MockFactory
 			ctrl := gomock.NewController(t)
-			mockProvider := gitmocks.NewMockProvider(ctrl)
-
 			if tt.clientSet != nil {
 				mockKube = kubemocks.NewMockFactory(ctrl)
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
@@ -396,14 +395,18 @@ func Test_checkGitCredentials(t *testing.T) {
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
+			rt := gitmocks.NewMockRoundTripper(ctrl)
 			cfgit.GetProvider = func(providerType cfgit.ProviderType, baseURL, certFile string) (cfgit.Provider, error) {
-				return mockProvider, nil
+				client := &http.Client{
+					Transport: rt,
+				}
+				return cfgit.NewGithubProvider(baseURL, client)
 			}
 			user := &platmodel.User{
 				ActiveAccount: tt.activeAccount,
 			}
 			if tt.beforeFn != nil {
-				tt.beforeFn(mockProvider)
+				tt.beforeFn(rt)
 			}
 
 			err := checkGitCredentials(context.Background(), opts, user, tt.git)
@@ -532,7 +535,7 @@ func Test_getValueFromSecretKeyRef(t *testing.T) {
 				"key":  "some-key",
 			},
 			clientSet: v1fake.NewSimpleClientset(),
-			wantErr: "failed reading secret \"some-secret\": secrets \"some-secret\" not found",
+			wantErr:   "failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
 	}
 	for name, tt := range tests {
