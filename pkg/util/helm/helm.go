@@ -86,7 +86,7 @@ func PathValue[V any](values chartutil.Values, path string) (V, error) {
 
 	value, err := values.PathValue(path)
 	if err != nil {
-		return v, nil
+		return v, err
 	}
 
 	v, ok := value.(V)

@@ -64,15 +64,15 @@ func TestConfig_Write(t *testing.T) {
 		},
 	}
 
-	orgCf := newCodefresh
-	defer func() { newCodefresh = orgCf }()
+	orgCf := NewCodefresh
+	defer func() { NewCodefresh = orgCf }()
 
 	for tname, tt := range tests {
 		t.Run(tname, func(t *testing.T) {
 			usersMock := &mocks.UsersAPI{}
 			cfMock := &mocks.Codefresh{}
 			cfMock.On("Users").Return(usersMock)
-			newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return cfMock }
+			NewCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return cfMock }
 
 			tt.beforeFn(usersMock)
 			w := &bytes.Buffer{}
@@ -121,15 +121,15 @@ func TestConfig_GetUser(t *testing.T) {
 		},
 	}
 
-	orgCf := newCodefresh
-	defer func() { newCodefresh = orgCf }()
+	orgCf := NewCodefresh
+	defer func() { NewCodefresh = orgCf }()
 
 	for tname, tt := range tests {
 		t.Run(tname, func(t *testing.T) {
 			usersMock := &mocks.UsersAPI{}
 			cfMock := &mocks.Codefresh{}
 			cfMock.On("Users").Return(usersMock)
-			newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return cfMock }
+			NewCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return cfMock }
 
 			tt.beforeFn(usersMock)
 			user, err := tt.config.GetUser(context.Background())

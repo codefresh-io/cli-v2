@@ -42,8 +42,8 @@ import (
 //go:generate mockgen -destination=./mocks/config.go -package=config -source=./config.go Config
 
 const (
-	configFileName = ".cfconfig"
-	configFileFormat = "yaml"
+	configFileName        = ".cfconfig"
+	configFileFormat      = "yaml"
 	defaultRequestTimeout = time.Second * 30
 )
 
@@ -92,8 +92,8 @@ type (
 
 // Errors
 var (
-	greenStar = color.GreenString("*")
-	defaultPath = ""
+	greenStar        = color.GreenString("*")
+	defaultPath      = ""
 	ErrInvalidConfig = errors.New("invalid config")
 
 	ErrContextDoesNotExist = func(context string) error {
@@ -104,7 +104,7 @@ var (
 		)
 	}
 
-	newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
+	NewCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
 )
 
 func AddFlags(f *pflag.FlagSet) Config {
@@ -208,9 +208,9 @@ func (c *ConfigImpl) NewAdHocClient(ctx context.Context, url, token string) (cod
 	_, err := client.Users().GetCurrent(ctx)
 	if err != nil {
 		if url == store.Get().DefaultAPI {
-			err = fmt.Errorf("failed to create client with token \"%s\": %w", token, err)
+			err = fmt.Errorf("failed to create codefresh client with token \"%s\": %w", token, err)
 		} else {
-			err = fmt.Errorf("failed to create client with url \"%s\" and token \"%s\": %w", url, token, err)
+			err = fmt.Errorf("failed to create codefresh client with url \"%s\" and token \"%s\": %w", url, token, err)
 		}
 
 		return nil, err
@@ -277,19 +277,15 @@ func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url string)
 }
 
 func (c *ConfigImpl) clientForContext(ctx *AuthContext) codefresh.Codefresh {
-	return clientForContext(ctx, c.insecure, c.requestTimeout)
-}
-
-func clientForContext(ctx *AuthContext, insecure bool, timeout time.Duration) codefresh.Codefresh {
 	httpClient := &http.Client{}
-	httpClient.Timeout = timeout
-	if insecure {
+	httpClient.Timeout = c.requestTimeout
+	if c.insecure {
 		customTransport := http.DefaultTransport.(*http.Transport).Clone()
 		customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		httpClient.Transport = customTransport
 	}
 
-	return newCodefresh(&codefresh.ClientOptions{
+	return NewCodefresh(&codefresh.ClientOptions{
 		Host: ctx.URL,
 		Auth: codefresh.AuthOptions{
 			Token: ctx.Token,
