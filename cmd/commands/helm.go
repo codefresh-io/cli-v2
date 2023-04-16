@@ -40,8 +40,6 @@ import (
 type (
 	HelmValidateValuesOptions struct {
 		valuesFile  string
-		version     string
-		devel       bool
 		namespace   string
 		kubeFactory apkube.Factory
 		helm        helm.Helm

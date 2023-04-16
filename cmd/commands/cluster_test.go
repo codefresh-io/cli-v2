@@ -67,9 +67,6 @@ func Test_getSuffixToClusterName(t *testing.T) {
 }
 
 func Test_sanitizeClusterName(t *testing.T) {
-	type args struct {
-		name string
-	}
 	tests := map[string]struct {
 		name    string
 		want    string
