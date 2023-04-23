@@ -164,7 +164,6 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
 			featuresToInstall:              make([]runtime.InstallFeature, 0),
 		}
-		finalParameters map[string]string
 		accessMode      string
 	)
 
@@ -227,7 +226,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 				return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
 			}
 
-			finalParameters = map[string]string{
+			finalParameters := map[string]string{
 				"Codefresh context":         cfConfig.GetCurrentContext().Name,
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,

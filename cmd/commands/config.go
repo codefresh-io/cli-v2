@@ -304,7 +304,19 @@ func NewUpdateCsdpSettingsCommand() *cobra.Command {
 			return updateCsdpSettingsPreRunHandler(opts)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runUpdateCsdpSettings(cmd.Context(), opts)
+			ctx := cmd.Context()
+			if opts.inferred {
+				finalParameters := map[string]string{
+					"git provider":       string(opts.gitProvider),
+					"git API url":        opts.gitApiURL,
+					"shared config repo": opts.sharedConfigRepo,
+				}
+				if err := getApprovalFromUser(ctx, finalParameters, "Update CSDP Settings"); err != nil {
+					return err
+				}
+			}
+
+			return runUpdateCsdpSettings(ctx, opts)
 		},
 	}
 
