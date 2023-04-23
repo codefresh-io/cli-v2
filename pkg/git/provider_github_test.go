@@ -35,40 +35,46 @@ func newGithub(transport http.RoundTripper) *github {
 
 func TestNewGithubProvider(t *testing.T) {
 	tests := map[string]struct {
-		baseUrl    string
-		wantApiUrl string
+		baseURL    string
+		wantApiURL string
+		wantCloud  bool
 		wantErr    string
 	}{
 		"should use cloud api path when base is cloud host": {
-			baseUrl:    "https://github.com",
-			wantApiUrl: "https://api.github.com",
+			baseURL:    "https://github.com",
+			wantApiURL: "https://api.github.com",
+			wantCloud:  true,
 		},
 		"should use cloud api path when base is cloud host with path": {
-			baseUrl:    "https://github.com/org/repo",
-			wantApiUrl: "https://api.github.com",
+			baseURL:    "https://github.com/org/repo",
+			wantApiURL: "https://api.github.com",
+			wantCloud:  true,
 		},
 		"should use standard api path when base is host only": {
-			baseUrl:    "https://some.server",
-			wantApiUrl: "https://some.server/api/v3",
+			baseURL:    "https://some.server",
+			wantApiURL: "https://some.server/api/v3",
+			wantCloud:  false,
 		},
 		"should use baseUrl as apiUrl if it on-prem and has path": {
-			baseUrl:    "https://some.server/some/api/v-whatever",
-			wantApiUrl: "https://some.server/some/api/v-whatever",
+			baseURL:    "https://some.server/some/api/v-whatever",
+			wantApiURL: "https://some.server/some/api/v-whatever",
+			wantCloud:  false,
 		},
 		"should fail when base is not a valid url": {
-			baseUrl: "https://contains-bad-\x7f",
+			baseURL: "https://contains-bad-\x7f",
 			wantErr: "parse \"https://contains-bad-\\x7f\": net/url: invalid control character in URL",
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := NewGithubProvider(tt.baseUrl, &http.Client{})
+			got, err := NewGithubProvider(tt.baseURL, &http.Client{})
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
 			}
 
-			assert.Equal(t, tt.wantApiUrl, got.ApiURL())
+			assert.Equal(t, tt.wantApiURL, got.ApiURL())
+			assert.Equal(t, tt.wantCloud, got.IsCloud())
 		})
 	}
 }

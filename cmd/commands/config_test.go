@@ -27,47 +27,51 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 	tests := map[string]struct {
 		opts            *updateCsdpSettingsOpts
 		wantGitProvider cfgit.ProviderType
-		wantGitApiUrl   string
+		wantGitApiURL   string
+		wantInferred    bool
 		wantErr         string
 	}{
 		"should succeed when all values are available and matching": {
 			opts: &updateCsdpSettingsOpts{
 				gitProvider:      cfgit.GITHUB,
-				gitApiUrl:        cfgit.GITHUB_CLOUD_API_URL,
-				sharedConfigRepo: cfgit.GITHUB_CLOUD_BASE_URL + "org/repo.git",
+				gitApiURL:        "https://api.github.com",
+				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
 			wantGitProvider: cfgit.GITHUB,
-			wantGitApiUrl:   cfgit.GITHUB_CLOUD_API_URL,
+			wantGitApiURL:   "https://api.github.com",
+			wantInferred:    false,
 		},
 		"should succeed when shared-config-repo has cloud values": {
 			opts: &updateCsdpSettingsOpts{
-				sharedConfigRepo: cfgit.GITHUB_CLOUD_BASE_URL + "org/repo.git",
+				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
 			wantGitProvider: cfgit.GITHUB,
-			wantGitApiUrl:   cfgit.GITHUB_CLOUD_API_URL,
+			wantGitApiURL:   "https://api.github.com",
+			wantInferred:    true,
 		},
 		"should succeed when shared-config-repo is on-prem and all values are supplied": {
 			opts: &updateCsdpSettingsOpts{
 				gitProvider:      cfgit.GITHUB,
-				gitApiUrl:        "https://some.ghe.server/api/v3",
+				gitApiURL:        "https://some.ghe.server/api/v3",
 				sharedConfigRepo: "https://some.ghe.server/org/repo.git",
 			},
 			wantGitProvider: cfgit.GITHUB,
-			wantGitApiUrl:   "https://some.ghe.server/api/v3",
+			wantGitApiURL:   "https://some.ghe.server/api/v3",
+			wantInferred:    false,
 		},
 		"should fail when user supplies wrong git-provider": {
 			opts: &updateCsdpSettingsOpts{
 				gitProvider:      cfgit.GITLAB,
-				sharedConfigRepo: cfgit.GITHUB_CLOUD_BASE_URL + "org/repo.git",
+				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
-			wantErr: "supplied provider \"gitlab\" does not match inferred provider \"github\" for url \"https://github.com/\"",
+			wantErr: "supplied provider \"gitlab\" does not match inferred cloud provider \"github\" for url \"https://github.com/org/repo.git\"",
 		},
-		"should fail when user supplies wrong git-api-url": {
+		"should fail when user supplies wrong git-api-url on cloud provider": {
 			opts: &updateCsdpSettingsOpts{
-				gitApiUrl:        "https://www.github.com/wrong/api",
-				sharedConfigRepo: cfgit.GITHUB_CLOUD_BASE_URL + "org/repo.git",
+				gitApiURL:        "https://github.com/wrong/api",
+				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
-			wantErr: "supplied git-api-url \"https://www.github.com/wrong/api\" does not match inferred git-api-url \"https://api.github.com\" from shared-config-repo",
+			wantErr: "supplied git-api-url \"https://github.com/wrong/api\" does not match inferred git-api-url \"https://api.github.com\" from github cloud",
 		},
 	}
 	for name, tt := range tests {
@@ -79,7 +83,7 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.wantGitProvider, tt.opts.gitProvider)
-			assert.Equal(t, tt.wantGitApiUrl, tt.opts.gitApiUrl)
+			assert.Equal(t, tt.wantGitApiURL, tt.opts.gitApiURL)
 		})
 	}
 }

@@ -81,6 +81,10 @@ func (g *github) SupportsMarketplace() bool {
 	return true
 }
 
+func (g *github) IsCloud() bool {
+	return g.ApiURL() == GITHUB_CLOUD_API_URL
+}
+
 func (g *github) Type() ProviderType {
 	return g.providerType
 }

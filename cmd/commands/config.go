@@ -26,7 +26,6 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -35,8 +34,9 @@ import (
 type (
 	updateCsdpSettingsOpts struct {
 		gitProvider      cfgit.ProviderType
-		gitApiUrl        string
+		gitApiURL        string
 		sharedConfigRepo string
+		inferred         bool
 	}
 )
 
@@ -69,7 +69,7 @@ commands, respectively:
 	cmd.AddCommand(NewConfigDeleteContextCommand())
 	cmd.AddCommand(NewConfigSetRuntimeCommand())
 	cmd.AddCommand(NewConfigGetRuntimeCommand())
-	cmd.AddCommand(NewResetIscRepoUrlCommand())
+	cmd.AddCommand(NewResetIscRepoURLCommand())
 	cmd.AddCommand(NewUpdateCsdpSettingsCommand())
 
 	return cmd
@@ -281,7 +281,7 @@ func runConfigDeleteContext(ctx context.Context, context string) error {
 	return nil
 }
 
-func NewResetIscRepoUrlCommand() *cobra.Command {
+func NewResetIscRepoURLCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:        "reset-shared-config-repo",
 		Deprecated: "use update-csdp-settings command instead",
@@ -309,7 +309,7 @@ func NewUpdateCsdpSettingsCommand() *cobra.Command {
 	}
 
 	cmd.Flags().Var(&opts.gitProvider, "git-provider", "The git provider, one of: bitbucket|bitbucket-server|github|gitlab")
-	cmd.Flags().StringVar(&opts.gitApiUrl, "git-api-url", "", "Your git server's API URL")
+	cmd.Flags().StringVar(&opts.gitApiURL, "git-api-url", "", "Your git server's API URL")
 	cmd.Flags().StringVar(&opts.sharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo")
 	cmd.Flags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
 	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "shared-config-repo"))
@@ -318,7 +318,11 @@ func NewUpdateCsdpSettingsCommand() *cobra.Command {
 }
 
 func updateCsdpSettingsPreRunHandler(opts *updateCsdpSettingsOpts) error {
-	baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(opts.sharedConfigRepo)
+	baseURL := opts.sharedConfigRepo
+	if opts.gitApiURL != "" {
+		baseURL = opts.gitApiURL
+	}
+
 	provider, err := cfgit.GetProvider(opts.gitProvider, baseURL, "")
 	if err != nil {
 		return err
@@ -326,12 +330,14 @@ func updateCsdpSettingsPreRunHandler(opts *updateCsdpSettingsOpts) error {
 
 	if opts.gitProvider == "" {
 		opts.gitProvider = provider.Type()
+		opts.inferred = true
 	}
 
-	if opts.gitApiUrl == "" {
-		opts.gitApiUrl = provider.ApiURL()
-	} else if opts.gitApiUrl != provider.ApiURL() {
-		return fmt.Errorf("supplied git-api-url \"%s\" does not match inferred git-api-url \"%s\" from shared-config-repo", opts.gitApiUrl, provider.ApiURL())
+	if opts.gitApiURL == "" {
+		opts.gitApiURL = provider.ApiURL()
+		opts.inferred = true
+	} else if opts.gitApiURL != provider.ApiURL() && provider.IsCloud() {
+		return fmt.Errorf("supplied git-api-url \"%s\" does not match inferred git-api-url \"%s\" from %s cloud", opts.gitApiURL, provider.ApiURL(), provider.Type())
 	}
 
 	return nil
@@ -344,10 +350,10 @@ func runUpdateCsdpSettings(ctx context.Context, opts *updateCsdpSettingsOpts) er
 	}
 
 	platGitProvider := platmodel.GitProviders(apGitProvider)
-	return cfConfig.NewClient().V2().AccountV2().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiUrl, opts.sharedConfigRepo)
+	return cfConfig.NewClient().V2().AccountV2().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiURL, opts.sharedConfigRepo)
 }
 
-func getGitApiUrlFromUserInput(def string) (string, error) {
+func getGitApiURLFromUserInput(def string) (string, error) {
 	repoPrompt := promptui.Prompt{
 		Label:   "Git API URL",
 		Default: def,

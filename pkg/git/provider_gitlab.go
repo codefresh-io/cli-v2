@@ -80,6 +80,10 @@ func (g *gitlab) SupportsMarketplace() bool {
 	return false
 }
 
+func (g *gitlab) IsCloud() bool {
+	return g.apiURL.Host == GITLAB_CLOUD_DOMAIN
+}
+
 func (g *gitlab) Type() ProviderType {
 	return g.providerType
 }

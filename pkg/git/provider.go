@@ -21,7 +21,6 @@ import (
 	"net/url"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/manifoldco/promptui"
 	"golang.org/x/exp/maps"
@@ -38,6 +37,7 @@ type (
 		ApiURL() string
 		BaseURL() string
 		SupportsMarketplace() bool
+		IsCloud() bool
 		Type() ProviderType
 		VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error
 		VerifyUserToken(ctx context.Context, auth apgit.Auth) error
@@ -88,7 +88,7 @@ func (pt *ProviderType) Type() string {
 	return "ProviderType"
 }
 
-func getProvider(providerType ProviderType, baseURL, certFile string) (Provider, error) {
+func getProvider(providerType ProviderType, cloneURL, certFile string) (Provider, error) {
 	transport, err := apgit.DefaultTransportWithCa(certFile)
 	if err != nil {
 		return nil, err
@@ -98,8 +98,7 @@ func getProvider(providerType ProviderType, baseURL, certFile string) (Provider,
 		Transport: transport,
 	}
 
-	host, _, _, _, _, _, _ := aputil.ParseGitUrl(baseURL)
-	u, err := url.Parse(host)
+	u, err := url.Parse(cloneURL)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +106,7 @@ func getProvider(providerType ProviderType, baseURL, certFile string) (Provider,
 	inferredType, ok := cloudProvidersByDomain[u.Hostname()]
 	if ok {
 		if providerType != "" && providerType != inferredType {
-			return nil, fmt.Errorf("supplied provider \"%s\" does not match inferred provider \"%s\" for url \"%s\"", providerType, inferredType, baseURL)
+			return nil, fmt.Errorf("supplied provider \"%s\" does not match inferred cloud provider \"%s\" for url \"%s\"", providerType, inferredType, cloneURL)
 		}
 
 		providerType = inferredType
@@ -119,17 +118,17 @@ func getProvider(providerType ProviderType, baseURL, certFile string) (Provider,
 			return nil, fmt.Errorf("invalid git provider %s", providerType)
 		}
 
-		return fn(host, client)
+		return fn(cloneURL, client)
 	}
 
 	if !store.Get().Silent {
-		provider := getGitProviderFromUserSelect(host, client)
+		provider := getGitProviderFromUserSelect(cloneURL, client)
 		if provider != nil {
 			return provider, nil
 		}
 	}
 
-	return nil, fmt.Errorf("failed getting git provider for url %s", baseURL)
+	return nil, fmt.Errorf("failed getting git provider for url %s", cloneURL)
 }
 
 func getGitProviderFromUserSelect(baseURL string, client *http.Client) Provider {

@@ -35,36 +35,37 @@ func newBitbucket(transport http.RoundTripper) *bitbucket {
 
 func TestNewBitbucketProvider(t *testing.T) {
 	tests := map[string]struct {
-		baseUrl    string
-		wantApiUrl string
+		baseURL    string
+		wantApiURL string
 		wantErr    string
 	}{
 		"should use standard api path when base is host only": {
-			baseUrl:    "https://bitbucket.org",
-			wantApiUrl: "https://bitbucket.org/api/2.0",
+			baseURL:    "https://bitbucket.org",
+			wantApiURL: "https://bitbucket.org/api/2.0",
 		},
 		"should ignore baseUrl path if it contains it": {
-			baseUrl:    "https://bitbucket.org/some/api/v-whatever",
-			wantApiUrl: "https://bitbucket.org/api/2.0",
+			baseURL:    "https://bitbucket.org/some/api/v-whatever",
+			wantApiURL: "https://bitbucket.org/api/2.0",
 		},
 		"should fail when base is not a valid url": {
-			baseUrl: "https://bitbucket.org/\x7f",
+			baseURL: "https://bitbucket.org/\x7f",
 			wantErr: "parse \"https://bitbucket.org/\\x7f\": net/url: invalid control character in URL",
 		},
 		"should fail if base is not in bitbucket-cloud": {
-			baseUrl: "https://some-server",
+			baseURL: "https://some-server",
 			wantErr: "wrong domain for bitbucket provider: \"https://some-server\", expected \"bitbucket.org\"\n  maybe you meant to use \"bitbucket-server\" for on-prem git provider?",
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := NewBitbucketProvider(tt.baseUrl, &http.Client{})
+			got, err := NewBitbucketProvider(tt.baseURL, &http.Client{})
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
 			}
 
-			assert.Equal(t, tt.wantApiUrl, got.ApiURL())
+			assert.Equal(t, tt.wantApiURL, got.ApiURL())
+			assert.True(t, got.IsCloud())
 		})
 	}
 }

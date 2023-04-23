@@ -79,6 +79,10 @@ func (bbs *bitbucketServer) SupportsMarketplace() bool {
 	return false
 }
 
+func (_ *bitbucketServer) IsCloud() bool {
+	return false
+}
+
 func (bbs *bitbucketServer) Type() ProviderType {
 	return bbs.providerType
 }
