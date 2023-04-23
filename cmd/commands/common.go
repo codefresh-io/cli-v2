@@ -752,14 +752,6 @@ func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (stri
 	return setIscRepoResponse, nil
 }
 
-func resetIscRepoUrl(ctx context.Context) error {
-	err := cfConfig.NewClient().V2().Runtime().ResetSharedConfigRepo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to reset shared config repo. Error: %w", err)
-	}
-	return nil
-}
-
 func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
 	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {

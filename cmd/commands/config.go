@@ -16,14 +16,27 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/manifoldco/promptui"
 
 	"github.com/spf13/cobra"
+)
+
+type (
+	updateCsdpSettingsOpts struct {
+		gitProvider      cfgit.ProviderType
+		gitApiUrl        string
+		sharedConfigRepo string
+	}
 )
 
 func NewConfigCommand() *cobra.Command {
@@ -56,6 +69,7 @@ commands, respectively:
 	cmd.AddCommand(NewConfigSetRuntimeCommand())
 	cmd.AddCommand(NewConfigGetRuntimeCommand())
 	cmd.AddCommand(NewResetIscRepoUrlCommand())
+	cmd.AddCommand(NewUpdateCsdpSettingsCommand())
 
 	return cmd
 }
@@ -78,6 +92,7 @@ func NewConfigCreateContextCommand() *cobra.Command {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide context name to use")
 			}
+
 			return RunConfigCreateContext(cmd.Context(), args[0], apiKey, url)
 		},
 	}
@@ -93,12 +108,13 @@ func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) er
 	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
 		return err
 	}
+
 	log.G().Infof("New context created: \"%s\"", context)
-	return RunConfigUseContext(ctx, context)
+	return runConfigUseContext(ctx, context)
 }
 
 func NewConfigGetContextsCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:     "get-contexts",
 		Aliases: []string{"view"},
 		Args:    cobra.NoArgs,
@@ -107,20 +123,18 @@ func NewConfigGetContextsCommand() *cobra.Command {
 # List all authentication contexts:
 
 		<BIN> config get-contexts`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunConfigGetContexts(cmd.Context())
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runConfigGetContexts(cmd.Context())
 		},
 	}
-
-	return cmd
 }
 
-func RunConfigGetContexts(ctx context.Context) error {
+func runConfigGetContexts(ctx context.Context) error {
 	return cfConfig.Write(ctx, os.Stdout)
 }
 
 func NewConfigCurrentContextCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "current-context",
 		Short: "Shows the currently selected Codefresh authentication context",
 		Args:  cobra.NoArgs,
@@ -128,15 +142,13 @@ func NewConfigCurrentContextCommand() *cobra.Command {
 # Shows the current context:
 
 		<BIN> config current-context`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunConfigCurrentContext(cmd.Context())
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runConfigCurrentContext(cmd.Context())
 		},
 	}
-
-	return cmd
 }
 
-func RunConfigCurrentContext(ctx context.Context) error {
+func runConfigCurrentContext(ctx context.Context) error {
 	cur := cfConfig.GetCurrentContext()
 	if cur.Name == "" {
 		log.G(ctx).Fatal(util.Doc("no currently selected context, use '<BIN> config use-context' to select a context"))
@@ -147,7 +159,7 @@ func RunConfigCurrentContext(ctx context.Context) error {
 }
 
 func NewConfigSetRuntimeCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "set-runtime RUNTIME",
 		Short: "Sets the default runtime name to use for the current authentication context",
 		Args:  cobra.MaximumNArgs(1),
@@ -160,14 +172,12 @@ func NewConfigSetRuntimeCommand() *cobra.Command {
 				return fmt.Errorf("must provide runtime name to use")
 			}
 
-			return RunConfigSetRuntime(cmd.Context(), args[0])
+			return runConfigSetRuntime(cmd.Context(), args[0])
 		},
 	}
-
-	return cmd
 }
 
-func RunConfigSetRuntime(ctx context.Context, runtime string) error {
+func runConfigSetRuntime(ctx context.Context, runtime string) error {
 	_, err := getRuntime(ctx, runtime)
 	if err != nil {
 		return err
@@ -190,7 +200,7 @@ func RunConfigSetRuntime(ctx context.Context, runtime string) error {
 }
 
 func NewConfigGetRuntimeCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "get-runtime",
 		Short: "Gets the default runtime for the current authentication context",
 		Args:  cobra.NoArgs,
@@ -198,15 +208,13 @@ func NewConfigGetRuntimeCommand() *cobra.Command {
 # Prints the default runtime:
 
 		<BIN> config get-runtime`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunConfigGetRuntime(cmd.Context())
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runConfigGetRuntime(cmd.Context())
 		},
 	}
-
-	return cmd
 }
 
-func RunConfigGetRuntime(ctx context.Context) error {
+func runConfigGetRuntime(ctx context.Context) error {
 	cur := cfConfig.GetCurrentContext()
 	if cur.DefaultRuntime == "" {
 		return fmt.Errorf(util.Doc("no default runtime is set for current context, use '<BIN> config set-runtime' to set one"))
@@ -218,7 +226,7 @@ func RunConfigGetRuntime(ctx context.Context) error {
 }
 
 func NewConfigUseContextCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "use-context CONTEXT",
 		Short: "Switch the current authentication context",
 		Args:  cobra.MaximumNArgs(1),
@@ -230,14 +238,13 @@ func NewConfigUseContextCommand() *cobra.Command {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide context name to use")
 			}
-			return RunConfigUseContext(cmd.Context(), args[0])
+
+			return runConfigUseContext(cmd.Context(), args[0])
 		},
 	}
-
-	return cmd
 }
 
-func RunConfigUseContext(ctx context.Context, context string) error {
+func runConfigUseContext(ctx context.Context, context string) error {
 	if err := cfConfig.UseContext(ctx, context); err != nil {
 		return err
 	}
@@ -246,7 +253,7 @@ func RunConfigUseContext(ctx context.Context, context string) error {
 }
 
 func NewConfigDeleteContextCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "delete-context CONTEXT",
 		Short: "Delete the specified authentication context",
 		Args:  cobra.MaximumNArgs(1),
@@ -258,14 +265,13 @@ func NewConfigDeleteContextCommand() *cobra.Command {
 			if len(args) < 1 {
 				return fmt.Errorf("must provide context name to use")
 			}
-			return RunConfigDeleteContext(cmd.Context(), args[0])
+
+			return runConfigDeleteContext(cmd.Context(), args[0])
 		},
 	}
-
-	return cmd
 }
 
-func RunConfigDeleteContext(ctx context.Context, context string) error {
+func runConfigDeleteContext(ctx context.Context, context string) error {
 	if err := cfConfig.DeleteContext(context); err != nil {
 		return err
 	}
@@ -275,38 +281,86 @@ func RunConfigDeleteContext(ctx context.Context, context string) error {
 }
 
 func NewResetIscRepoUrlCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:        "reset-shared-config-repo",
+		Deprecated: "use update-csdp-settings command instead",
+		Hidden:     true,
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return errors.New("command removed")
+		},
+	}
+}
+
+func runResetIscRepoUrl(ctx context.Context) error {
+	err := cfConfig.NewClient().V2().Runtime().ResetSharedConfigRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to reset shared config repo. Error: %w", err)
+	}
+
+	return nil
+}
+
+func NewUpdateCsdpSettingsCommand() *cobra.Command {
+	opts := &updateCsdpSettingsOpts{}
 	cmd := &cobra.Command{
-		Use:               "reset-shared-config-repo",
-		Aliases:           []string{"reset-isc"},
-		Short:             "Reset the URL of the shared configuration repo",
+		Use:               "update-csdp-settings",
+		Aliases:           []string{"update-csdp"},
+		Short:             "Updates the account's CSDP settings (gitProvider|gitApiUrl|sharedConfigRepo) if possible",
 		Args:              cobra.NoArgs,
 		PersistentPreRunE: cfConfig.RequireAuthentication,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			var err error
-			var runtimesExist bool
-
-			ctx := cmd.Context()
-
-			runtimesExist, err = isRuntimesExist(ctx)
-			if err != nil {
-				return err
-			}
-			if runtimesExist {
-				return fmt.Errorf("unable to reset the shared configuration repo as there are runtimes installed in the account. Uninstall all the runtimes from your account and try again")
-			}
-
-			return nil
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return updateCsdpSettingsPreRunHandler(opts)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
-			err := resetIscRepoUrl(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to reset account Internal Shared Repository url: %w", err)
-			}
-			fmt.Printf("shared configuration repo was reset successfully \n")
-			return nil
+			return runUpdateCsdpSettings(cmd.Context(), opts)
 		},
 	}
 
+	cmd.Flags().Var(&opts.gitProvider, "git-provider", "The git provider, one of: bitbucket|bitbucket-server|github|gitlab")
+	cmd.Flags().StringVar(&opts.gitApiUrl, "git-api-url", "", "Your git server's API URL")
+	cmd.Flags().StringVar(&opts.sharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo")
+	cmd.Flags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "shared-config-repo"))
+
 	return cmd
+}
+
+func updateCsdpSettingsPreRunHandler(opts *updateCsdpSettingsOpts) error {
+	baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(opts.sharedConfigRepo)
+	provider, err := cfgit.GetProvider(opts.gitProvider, baseURL, "")
+	if err != nil {
+		return err
+	}
+
+	if opts.gitProvider == "" {
+		opts.gitProvider = provider.Type()
+	}
+
+	if opts.gitApiUrl == "" {
+		opts.gitApiUrl = provider.ApiURL()
+	} else if opts.gitApiUrl != provider.ApiURL() {
+		return fmt.Errorf("supplied git-api-url \"%s\" does not match inferred git-api-url \"%s\" from shared-config-repo", opts.gitApiUrl, provider.ApiURL())
+	}
+
+	return nil
+}
+
+func runUpdateCsdpSettings(_ context.Context, opts *updateCsdpSettingsOpts) error {
+	fmt.Printf("updating csdp settings, gitProvider: %s, gitApiUrl: %s, sharedConfigRepo: %s", opts.gitProvider, opts.gitApiUrl, opts.sharedConfigRepo)
+	return nil
+}
+
+func getGitApiUrlFromUserInput(def string) (string, error) {
+	repoPrompt := promptui.Prompt{
+		Label: "Git API URL",
+		Default: def,
+		Validate: func(value string) error {
+			if !strings.HasPrefix(value, "https://") {
+				return fmt.Errorf("Invalid URL for Git API URL - must start with \"https://\"")
+			}
+
+			return nil
+		},
+	}
+	return repoPrompt.Run()
 }

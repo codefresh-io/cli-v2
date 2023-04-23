@@ -22,7 +22,6 @@ import (
 
 func TestGetProvider(t *testing.T) {
 	tests := map[string]struct {
-		run          bool
 		providerType ProviderType
 		baseUrl      string
 		wantType     ProviderType
@@ -56,7 +55,6 @@ func TestGetProvider(t *testing.T) {
 			wantApiUrl:   "https://some.on-prem-provider.com/rest/api/1.0",
 		},
 		"should fail if provider does not match known cloud url, and no providerType was supplied": {
-			run:          true,
 			providerType: GITLAB,
 			baseUrl:      "https://github.com/org/repo",
 			wantErr:      "supplied provider \"gitlab\" does not match inferred provider \"github\" for url \"https://github.com/org/repo\"",
@@ -68,9 +66,6 @@ func TestGetProvider(t *testing.T) {
 		},
 	}
 	for name, tt := range tests {
-		// if !(tt.run) {
-		// 	continue
-		// }
 		t.Run(name, func(t *testing.T) {
 			got, err := GetProvider(tt.providerType, tt.baseUrl, "")
 			if err != nil || tt.wantErr != "" {
