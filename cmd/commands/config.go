@@ -364,18 +364,3 @@ func runUpdateCsdpSettings(ctx context.Context, opts *updateCsdpSettingsOpts) er
 	platGitProvider := platmodel.GitProviders(apGitProvider)
 	return cfConfig.NewClient().V2().AccountV2().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiURL, opts.sharedConfigRepo)
 }
-
-func getGitApiURLFromUserInput(def string) (string, error) {
-	repoPrompt := promptui.Prompt{
-		Label:   "Git API URL",
-		Default: def,
-		Validate: func(value string) error {
-			if !strings.HasPrefix(value, "https://") {
-				return fmt.Errorf("Invalid URL for Git API URL - must start with \"https://\"")
-			}
-
-			return nil
-		},
-	}
-	return repoPrompt.Run()
-}
