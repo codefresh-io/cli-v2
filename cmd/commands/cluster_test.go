@@ -17,7 +17,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 )
 
 func Test_getSuffixToClusterName(t *testing.T) {
@@ -29,14 +29,14 @@ func Test_getSuffixToClusterName(t *testing.T) {
 	cluster2.Metadata.Name = "test-cluster-1"
 	cluster3.Metadata.Name = "test-cluster-2"
 
-	clusters := []model.Cluster{
+	clusters := []platmodel.Cluster{
 		cluster1,
 		cluster2,
 		cluster3,
 	}
 
 	type args struct {
-		clusters []model.Cluster
+		clusters []platmodel.Cluster
 		name     string
 		tempName string
 		counter  int
@@ -67,43 +67,25 @@ func Test_getSuffixToClusterName(t *testing.T) {
 }
 
 func Test_sanitizeClusterName(t *testing.T) {
-	type args struct {
-		name string
-	}
-	tests := []struct {
+	tests := map[string]struct {
 		name    string
-		args    args
 		want    string
 		wantErr bool
 	}{
-		{
-			name: "should return sanitized string",
-			args: args{
-				name: "^-.Test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
-			},
+		"should return sanitized string": {
+			name:    "^-.123test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
 			want:    "test----cluster------test-cluster--12-3",
 			wantErr: false,
 		},
-		{
-			name: "should return sanitized string",
-			args: args{
-				name: "^-.123test!@-:cluster&*`;')test.cluster(-12_3=+::±§.",
-			},
-			want:    "test----cluster------test-cluster--12-3",
-			wantErr: false,
-		},
-		{
-			name: "should return error of sanitization failed",
-			args: args{
-				name: "12345",
-			},
+		"should return error of sanitization failed": {
+			name:    "12345",
 			want:    "",
 			wantErr: true,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := sanitizeClusterName(tt.args.name)
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := sanitizeClusterName(tt.name)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sanitizeClusterName() error = %v, wantErr %v", err, tt.wantErr)
@@ -116,63 +98,44 @@ func Test_sanitizeClusterName(t *testing.T) {
 }
 
 func Test_validateClusterName(t *testing.T) {
-	type args struct {
-		name string
-	}
-	tests := []struct {
+	tests := map[string]struct {
 		name    string
-		args    args
 		wantErr bool
 	}{
-		{
-			name: "name should be valid",
-			args: args{
-				name: "test-cluster-123",
-			},
+		"name should be valid": {
+			name:    "test-cluster-123",
 			wantErr: false,
 		},
-		{
-			name: "name should not be valid (contains uppercase)",
-			args: args{
-				name: "Test-cluster",
-			},
+		"name should not be valid (contains uppercase)": {
+			name:    "Test-cluster",
 			wantErr: true,
 		},
-		{
-			name: "name should not be valid (contains invalid chars)",
-			args: args{
-				name: "test-cluster:test/cluster.123#",
-			},
+		"name should not be valid (contains invalid chars)": {
+			name:    "test-cluster:test/cluster.123#",
 			wantErr: true,
 		},
-		{
-			name: "name should not be valid (begins with numeric char)",
-			args: args{
-				name: "2test-cluster",
-			},
+		"name should not be valid (begins with numeric char)": {
+			name:    "2test-cluster",
 			wantErr: true,
 		},
-		{
-			name: "name should not be valid (too long)",
-			args: args{
-				name: "this-cluster-name-is-too-long-1-this-cluster-name-is-too-long-1-this-cluster-name-is-too-long-1-123",
-			},
+		"name should not be valid (too long)": {
+			name:    "this-cluster-name-is-too-long-1-this-cluster-name-is-too-long-1-this-cluster-name-is-too-long-1-123",
 			wantErr: true,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := validateClusterName(tt.args.name); (err != nil) != tt.wantErr {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if err := validateClusterName(tt.name); (err != nil) != tt.wantErr {
 				t.Errorf("validateClusterName() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func getEmptyClusterEntity() model.Cluster {
+func getEmptyClusterEntity() platmodel.Cluster {
 	empty := ""
-	return model.Cluster{
-		Metadata: &model.ObjectMeta{
+	return platmodel.Cluster{
+		Metadata: &platmodel.ObjectMeta{
 			Group:       "",
 			Version:     "",
 			Kind:        "",
@@ -188,9 +151,9 @@ func getEmptyClusterEntity() model.Cluster {
 			Created:     &empty,
 			UID:         &empty,
 		},
-		Errors:       []model.Error{},
-		ReferencedBy: []model.BaseEntity{},
-		References:   []model.BaseEntity{},
+		Errors:       []platmodel.Error{},
+		ReferencedBy: []platmodel.BaseEntity{},
+		References:   []platmodel.BaseEntity{},
 		Server:       "",
 		Namespaces:   []string{},
 	}

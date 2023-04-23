@@ -28,7 +28,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/ghodss/yaml"
 
 	"github.com/Masterminds/semver/v3"
@@ -185,7 +185,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 
 	csdpToken := cfConfig.GetCurrentContext().Token
 	addClusterRef := version.String()
-	if runtime.InstallationType == model.InstallationTypeHelm {
+	if runtime.InstallationType == platmodel.InstallationTypeHelm {
 		addClusterRef = "stable"
 	}
 
@@ -288,7 +288,7 @@ func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName
 	return name, nil
 }
 
-func getSuffixToClusterName(clusters []model.Cluster, name string, tempName string, counter int) int {
+func getSuffixToClusterName(clusters []platmodel.Cluster, name string, tempName string, counter int) int {
 	for _, cluster := range clusters {
 		if cluster.Metadata.Name == tempName {
 			counter++

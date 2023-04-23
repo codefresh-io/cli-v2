@@ -469,7 +469,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Codefresh context": cfConfig.CurrentContext,
+				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
 				"Runtime namespace": opts.RuntimeNamespace,
 			}
@@ -833,7 +833,7 @@ func NewRuntimeUpgradeCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Codefresh context": cfConfig.CurrentContext,
+				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
 				"Repository URL":    opts.CloneOpts.Repo,
 			}
@@ -1158,7 +1158,7 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
-	user, err := cfConfig.GetCurrentContext().GetUser(ctx)
+	user, err := cfConfig.GetUser(ctx)
 	// If error, it will default to noop reporter
 	if err != nil {
 		log.G().Debug("Failed to get user from context")

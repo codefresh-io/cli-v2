@@ -37,18 +37,18 @@ func Test_github_verifyToken(t *testing.T) {
 	tests := map[string]struct {
 		requiredScopes []string
 		wantErr        string
-		beforeFn       func(t *testing.T, c *mocks.MockRoundTripper)
+		beforeFn       func(rt *mocks.MockRoundTripper)
 	}{
 		"Should fail if HEAD fails": {
 			wantErr: "Head \"https://some.server/api/v3\": some error",
-			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
+			beforeFn: func(rt *mocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},
 		},
 		"Should fail if no X-Oauth-Scopes in res headers": {
 			wantErr: "missing scopes header on response",
-			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
+			beforeFn: func(rt *mocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
 					StatusCode: 200,
 				}, nil)
 			},
@@ -56,8 +56,8 @@ func Test_github_verifyToken(t *testing.T) {
 		"Should fail if required scope is not in res header": {
 			requiredScopes: []string{"scope 3"},
 			wantErr:        "the provided token is missing one or more of the required scopes: scope 3",
-			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
+			beforeFn: func(rt *mocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
 					header.Add("X-Oauth-Scopes", "scope 1, scope 2")
 					res := &http.Response{
@@ -70,8 +70,8 @@ func Test_github_verifyToken(t *testing.T) {
 		},
 		"Should succeed if all required scopes are in the res header": {
 			requiredScopes: []string{"scope 3", "scope 4"},
-			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
+			beforeFn: func(rt *mocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
 					header.Add("X-Oauth-Scopes", "scope 1, scope 2, scope 3, scope 4")
 					res := &http.Response{
@@ -87,7 +87,7 @@ func Test_github_verifyToken(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockTransport := mocks.NewMockRoundTripper(ctrl)
-			tt.beforeFn(t, mockTransport)
+			tt.beforeFn(mockTransport)
 			g := newGithub(mockTransport)
 			err := g.verifyToken(context.Background(), "token", tt.requiredScopes)
 			if err != nil || tt.wantErr != "" {

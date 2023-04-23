@@ -53,6 +53,7 @@ cli-v2 runtime install [runtime_name] [flags]
       --provider string                              The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
       --provider-api-url string                      Git provider API url
       --repo string                                  Repository URL [GIT_REPO]
+      --request-timeout string                       The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --shared-config-repo string                    URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)
       --skip-cluster-checks                          Skips the cluster's checks
       --skip-ingress                                 Skips the creation of ingress resources
@@ -65,12 +66,11 @@ cli-v2 runtime install [runtime_name] [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-context string        Run the next command using a specific authentication context
-      --cfconfig string            Custom path for authentication contexts config file (default "/home/user")
-      --insecure                   Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
-      --insecure-ingress-host      Disable certificate validation of ingress host (default: false)
-      --request-timeout duration   Request timeout (default 30s)
-      --silent                     Disables the command wizard
+      --auth-context string     Run the next command using a specific authentication context
+      --cfconfig string         Custom path for authentication contexts config file (default "/home/user")
+      --insecure                Disable certificate validation for TLS connections (e.g. to g.codefresh.io)
+      --insecure-ingress-host   Disable certificate validation of ingress host (default: false)
+      --silent                  Disables the command wizard
 ```
 
 ### SEE ALSO

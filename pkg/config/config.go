@@ -39,15 +39,31 @@ import (
 	"github.com/spf13/viper"
 )
 
-const configFileName = ".cfconfig"
-const configFileFormat = "yaml"
-const defaultRequestTimeout = time.Second * 30
+//go:generate mockgen -destination=./mocks/config.go -package=config -source=./config.go Config
 
-var greenStar = color.GreenString("*")
-var defaultPath = ""
+const (
+	configFileName        = ".cfconfig"
+	configFileFormat      = "yaml"
+	defaultRequestTimeout = time.Second * 30
+)
 
 type (
-	Config struct {
+	Config interface {
+		CreateContext(ctx context.Context, name, token, url string) error
+		DeleteContext(name string) error
+		GetAccountId(ctx context.Context) (string, error)
+		GetCurrentContext() *AuthContext
+		GetUser(ctx context.Context) (*codefresh.User, error)
+		Load(cmd *cobra.Command, args []string) error
+		NewAdHocClient(ctx context.Context, url, token string) (codefresh.Codefresh, error)
+		NewClient() codefresh.Codefresh
+		RequireAuthentication(cmd *cobra.Command, args []string) error
+		Save() error
+		UseContext(ctx context.Context, name string) error
+		Write(ctx context.Context, w io.Writer) error
+	}
+
+	ConfigImpl struct {
 		insecure        bool
 		path            string
 		contextOverride string
@@ -64,19 +80,20 @@ type (
 		Beta           bool   `mapstructure:"beta" json:"beta"`
 		OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
-		config         *Config
 	}
 
-	authContextWithStatus struct {
-		AuthContext
+	authContextStatus struct {
 		current bool
 		status  string
 		account string
+		user    string
 	}
 )
 
 // Errors
 var (
+	greenStar        = color.GreenString("*")
+	defaultPath      = ""
 	ErrInvalidConfig = errors.New("invalid config")
 
 	ErrContextDoesNotExist = func(context string) error {
@@ -87,11 +104,11 @@ var (
 		)
 	}
 
-	newCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
+	NewCodefresh = func(opts *codefresh.ClientOptions) codefresh.Codefresh { return codefresh.New(opts) }
 )
 
-func AddFlags(f *pflag.FlagSet) *Config {
-	conf := &Config{path: defaultPath}
+func AddFlags(f *pflag.FlagSet) Config {
+	conf := &ConfigImpl{path: defaultPath}
 
 	f.StringVar(&conf.path, "cfconfig", defaultPath, "Custom path for authentication contexts config file")
 	f.StringVar(&conf.contextOverride, "auth-context", "", "Run the next command using a specific authentication context")
@@ -103,7 +120,7 @@ func AddFlags(f *pflag.FlagSet) *Config {
 
 // RequireAuthentication is ment to be used as cobra PreRunE or PersistentPreRunE function
 // on commands that require authentication context.
-func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error {
+func (c *ConfigImpl) RequireAuthentication(cmd *cobra.Command, args []string) error {
 	if err := c.Load(cmd, args); err != nil {
 		return err
 	}
@@ -117,7 +134,7 @@ func (c *Config) RequireAuthentication(cmd *cobra.Command, args []string) error 
 	return nil
 }
 
-func (c *Config) Load(cmd *cobra.Command, args []string) error {
+func (c *ConfigImpl) Load(cmd *cobra.Command, args []string) error {
 	viper.SetConfigType(configFileFormat)
 	viper.SetConfigName(configFileName)
 	viper.AddConfigPath(c.path)
@@ -136,17 +153,13 @@ func (c *Config) Load(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for _, v := range c.Contexts {
-		v.config = c
-	}
-
 	c.validate()
 
 	return nil
 }
 
 // Save persists the config to the file it was read from
-func (c *Config) Save() error {
+func (c *ConfigImpl) Save() error {
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		return err
@@ -157,7 +170,7 @@ func (c *Config) Save() error {
 
 // GetCurrentContext returns current authentication context
 // or the one specified with --auth-context.
-func (c *Config) GetCurrentContext() *AuthContext {
+func (c *ConfigImpl) GetCurrentContext() *AuthContext {
 	ctx := c.CurrentContext
 	if c.contextOverride != "" {
 		ctx = c.contextOverride
@@ -173,12 +186,41 @@ func (c *Config) GetCurrentContext() *AuthContext {
 
 // NewClient creates a new codefresh client for the current context or for
 // override context (if specified with --auth-context).
-func (c *Config) NewClient() codefresh.Codefresh {
+func (c *ConfigImpl) NewClient() codefresh.Codefresh {
 	return c.clientForContext(c.GetCurrentContext())
 }
 
+func (c *ConfigImpl) NewAdHocClient(ctx context.Context, url, token string) (codefresh.Codefresh, error) {
+	if url == "" {
+		url = store.Get().DefaultAPI
+	}
+
+	authCtx := &AuthContext{
+		Name:  "ad-hoc",
+		URL:   url,
+		Token: token,
+		Type:  "APIKey",
+		Beta:  false,
+	}
+
+	// validate new context
+	client := c.clientForContext(authCtx)
+	_, err := client.Users().GetCurrent(ctx)
+	if err != nil {
+		if url == store.Get().DefaultAPI {
+			err = fmt.Errorf("failed to create codefresh client with token \"%s\": %w", token, err)
+		} else {
+			err = fmt.Errorf("failed to create codefresh client with url \"%s\" and token \"%s\": %w", url, token, err)
+		}
+
+		return nil, err
+	}
+
+	return client, nil
+}
+
 // Delete
-func (c *Config) DeleteContext(name string) error {
+func (c *ConfigImpl) DeleteContext(name string) error {
 	if _, exists := c.Contexts[name]; !exists {
 		return ErrContextDoesNotExist(name)
 	}
@@ -192,13 +234,13 @@ func (c *Config) DeleteContext(name string) error {
 	return c.Save()
 }
 
-func (c *Config) UseContext(ctx context.Context, name string) error {
+func (c *ConfigImpl) UseContext(ctx context.Context, name string) error {
 	if _, exists := c.Contexts[name]; !exists {
 		return ErrContextDoesNotExist(name)
 	}
 
 	c.CurrentContext = name
-	_, err := c.GetCurrentContext().GetUser(ctx)
+	_, err := c.GetUser(ctx)
 	if err != nil {
 		return err
 	}
@@ -206,22 +248,21 @@ func (c *Config) UseContext(ctx context.Context, name string) error {
 	return c.Save()
 }
 
-func (c *Config) CreateContext(ctx context.Context, name, token, url string) error {
+func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url string) error {
 	if _, exists := c.Contexts[name]; exists {
 		return fmt.Errorf("authentication context with the name \"%s\" already exists", name)
 	}
 
 	authCtx := &AuthContext{
-		Name:   name,
-		URL:    url,
-		Token:  token,
-		Type:   "APIKey",
-		Beta:   false,
-		config: c,
+		Name:  name,
+		URL:   url,
+		Token: token,
+		Type:  "APIKey",
+		Beta:  false,
 	}
 
 	// validate new context
-	usr, err := authCtx.GetUser(ctx)
+	usr, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
@@ -235,7 +276,7 @@ func (c *Config) CreateContext(ctx context.Context, name, token, url string) err
 	return nil
 }
 
-func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
+func (c *ConfigImpl) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 	httpClient := &http.Client{}
 	httpClient.Timeout = c.requestTimeout
 	if c.insecure {
@@ -244,7 +285,7 @@ func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 		httpClient.Transport = customTransport
 	}
 
-	return newCodefresh(&codefresh.ClientOptions{
+	return NewCodefresh(&codefresh.ClientOptions{
 		Host: ctx.URL,
 		Auth: codefresh.AuthOptions{
 			Token: ctx.Token,
@@ -253,46 +294,48 @@ func (c *Config) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 	})
 }
 
-func (c *Config) Write(ctx context.Context, w io.Writer) error {
+func (c *ConfigImpl) Write(ctx context.Context, w io.Writer) error {
 	tb := ansiterm.NewTabWriter(w, 0, 0, 4, ' ', 0)
 	ar := util.NewAsyncRunner(len(c.Contexts))
 
-	_, err := fmt.Fprintln(tb, "CURRENT\tNAME\tURL\tACCOUNT\tSTATUS")
+	_, err := fmt.Fprintln(tb, "CURRENT\tNAME\tURL\tACCOUNT\tUSER\tSTATUS")
 	if err != nil {
 		return err
 	}
 
-	contexts := make([]*authContextWithStatus, 0, len(c.Contexts))
+	contexts := make([]*AuthContext, 0, len(c.Contexts))
+	statuses := make([]*authContextStatus, 0, len(c.Contexts))
 	for _, context := range c.Contexts {
-		contexts = append(contexts, &authContextWithStatus{
-			AuthContext: *context,
-		})
+		contexts = append(contexts, context)
+		statuses = append(statuses, &authContextStatus{})
 	}
 
 	sort.SliceStable(contexts, func(i, j int) bool {
 		return contexts[i].Name < contexts[j].Name
 	})
 
-	for _, context := range contexts {
+	for i, authCtx := range contexts {
 		// capture local variables for closure
-		context := context
+		authCtx := authCtx
+		status := statuses[i]
 
 		ar.Run(func() error {
-			context.status = "VALID"
+			status.status = "VALID"
 
-			usr, err := context.GetUser(ctx)
+			usr, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
 				}
-				context.status = err.Error()
 
+				status.status = err.Error()
 			} else {
-				context.account = usr.GetActiveAccount().Name
+				status.account = usr.GetActiveAccount().Name
+				status.user = usr.Name
 			}
 
-			if context.Name == c.CurrentContext {
-				context.current = true
+			if authCtx.Name == c.CurrentContext {
+				status.current = true
 			}
 
 			return nil
@@ -303,18 +346,20 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	for _, context := range contexts {
+	for i, context := range contexts {
+		status := statuses[i]
 		current := ""
-		if context.current {
+		if status.current {
 			current = greenStar
 		}
 
-		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(tb, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			current,
 			context.Name,
 			context.URL,
-			context.account,
-			context.status,
+			status.account,
+			status.user,
+			status.status,
 		)
 		if err != nil {
 			return err
@@ -324,7 +369,20 @@ func (c *Config) Write(ctx context.Context, w io.Writer) error {
 	return tb.Flush()
 }
 
-func (c *Config) validate() {
+func (c *ConfigImpl) GetUser(ctx context.Context) (*codefresh.User, error) {
+	return c.NewClient().Users().GetCurrent(ctx)
+}
+
+func (c *ConfigImpl) GetAccountId(ctx context.Context) (string, error) {
+	user, err := c.GetUser(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed getting account id: %w", err)
+	}
+
+	return user.GetActiveAccount().ID, nil
+}
+
+func (c *ConfigImpl) validate() {
 	if c.contextOverride != "" {
 		if _, ok := c.Contexts[c.contextOverride]; !ok {
 			log.G().Fatalf("%s: selected context \"%s\" does not exist in config file", ErrInvalidConfig, c.contextOverride)
@@ -350,18 +408,6 @@ func init() {
 	if err != nil {
 		log.G().WithError(err).Fatal("failed to get user home directory")
 	}
+
 	defaultPath = homedir
-}
-
-func (a *AuthContext) GetUser(ctx context.Context) (*codefresh.User, error) {
-	return a.config.clientForContext(a).Users().GetCurrent(ctx)
-}
-
-func (a *AuthContext) GetAccountId(ctx context.Context) (string, error) {
-	user, err := a.GetUser(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed getting account id: %w", err)
-	}
-
-	return user.GetActiveAccount().ID, nil
 }

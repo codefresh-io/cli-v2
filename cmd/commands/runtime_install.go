@@ -228,7 +228,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			}
 
 			finalParameters = map[string]string{
-				"Codefresh context":         cfConfig.CurrentContext,
+				"Codefresh context":         cfConfig.GetCurrentContext().Name,
 				"Kube context":              installationOpts.kubeContext,
 				"Runtime name":              installationOpts.RuntimeName,
 				"Runtime namespace":         installationOpts.RuntimeNamespace,
@@ -595,7 +595,7 @@ func getComponents(rt *runtime.Runtime, opts *RuntimeInstallOptions) []string {
 }
 
 func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) (string, string, error) {
-	gitProvider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	gitProvider, err := cliToModelGitProvider(string(opts.gitProvider.Type()))
 	if err != nil {
 		return "", "", err
 	}
@@ -799,6 +799,7 @@ func runRuntimeInstall(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 			apiURL = fmt.Sprintf("--api-url %s", *opts.GitIntegrationCreationOpts.APIURL)
 		}
 
+		gitProviderCliName, _ := modelToCliGitProvider(opts.GitIntegrationCreationOpts.Provider.String())
 		skipIngressInfoMsg := util.Doc(fmt.Sprintf(`
 Git personal access token was not added as you added the --skip-ingress flag. Follow the instructions below to add the token.
 To complete the installation: 
@@ -813,8 +814,9 @@ To complete the installation:
 			util.GenerateIngressPathForDemoGitEventSource(opts.RuntimeName),
 			opts.RuntimeName,
 			apiURL,
-			gitProvidersByValue[opts.GitIntegrationCreationOpts.Provider],
-			opts.RuntimeName))
+			gitProviderCliName,
+			opts.RuntimeName,
+		))
 		summaryArr = append(summaryArr, summaryLog{skipIngressInfoMsg, Info})
 	} else {
 		gitIntegrationErr := intervalCheckIsGitIntegrationCreated(ctx, opts)
@@ -1988,7 +1990,7 @@ func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, t
 }
 
 func ensureGitIntegrationOpts(opts *RuntimeInstallOptions) error {
-	provider, err := parseGitProvider(string(opts.gitProvider.Type()))
+	provider, err := cliToModelGitProvider(string(opts.gitProvider.Type()))
 	if err != nil {
 		return err
 	}

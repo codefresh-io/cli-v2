@@ -35,8 +35,8 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
@@ -57,7 +57,7 @@ var (
 	//go:embed assets/workflows-route-patch.json
 	workflowsRoutePatch []byte
 
-	cfConfig *config.Config
+	cfConfig config.Config
 
 	GREEN           = "\033[32m"
 	RED             = "\033[31m"
@@ -299,11 +299,13 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 		} else {
 			err = gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth)
 		}
+
 		if err != nil {
 			// in case when we get invalid value from env variable TOKEN we clean
 			cloneOpts.Auth.Password = ""
 			return fmt.Errorf(errMessage, err)
 		}
+
 		if cloneOpts.Auth.Username == "" && gitProvider.Type() == cfgit.BITBUCKET {
 			return fmt.Errorf("must provide a git user using --git-user for bitbucket cloud")
 		}
@@ -318,7 +320,7 @@ func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, clone
 func ensureGitUserToken(ctx context.Context, opts *RuntimeInstallOptions) error {
 	if opts.GitIntegrationRegistrationOpts.Token == "" {
 		opts.GitIntegrationRegistrationOpts.Token = opts.InsCloneOpts.Auth.Password
-		currentUser, err := cfConfig.GetCurrentContext().GetUser(ctx)
+		currentUser, err := cfConfig.GetUser(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get current user from platform: %w", err)
 		}
@@ -441,7 +443,7 @@ func ensureAccessMode(ctx context.Context, opts *RuntimeInstallOptions) error {
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressClass, "-skipped (ingressless)-", nil, true, false)
 		handleCliStep(reporter.InstallStepPreCheckEnsureIngressHost, "-skipped (ingressless)-", nil, true, false)
 		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
-		accountId, err := cfConfig.GetCurrentContext().GetAccountId(ctx)
+		accountId, err := cfConfig.GetAccountId(ctx)
 		if err != nil {
 			return fmt.Errorf("failed creating ingressHost for tunnel: %w", err)
 		}

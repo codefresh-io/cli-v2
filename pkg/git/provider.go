@@ -46,15 +46,18 @@ type (
 	}
 )
 
-var providers = map[ProviderType]func(string, *http.Client) (Provider, error){
-	BITBUCKET:        NewBitbucketProvider,
-	BITBUCKET_SERVER: NewBitbucketServerProvider,
-	GITHUB:           NewGithubProvider,
-	GITHUB_ENT:       NewGithubProvider, // for backward compatability
-	GITLAB:           NewGitlabProvider,
-}
+var (
+	providers = map[ProviderType]func(string, *http.Client) (Provider, error){
+		BITBUCKET:        NewBitbucketProvider,
+		BITBUCKET_SERVER: NewBitbucketServerProvider,
+		GITHUB:           NewGithubProvider,
+		GITHUB_ENT:       NewGithubProvider, // for backward compatability
+		GITLAB:           NewGitlabProvider,
+	}
+	GetProvider = getProvider
+)
 
-func GetProvider(providerType ProviderType, baseURL, certFile string) (Provider, error) {
+func getProvider(providerType ProviderType, baseURL, certFile string) (Provider, error) {
 	transport, err := apgit.DefaultTransportWithCa(certFile)
 	if err != nil {
 		return nil, err

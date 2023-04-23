@@ -22,7 +22,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
@@ -100,7 +100,7 @@ func NewPipelineListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			filterArgs := model.PipelinesFilterArgs{
+			filterArgs := platmodel.PipelinesFilterArgs{
 				Name:      &name,
 				Namespace: &namespace,
 				Runtime:   &runtime,
@@ -158,7 +158,7 @@ func RunPipelineGet(ctx context.Context, name, namespace, runtime string) error 
 	return tb.Flush()
 }
 
-func RunPipelineList(ctx context.Context, filterArgs model.PipelinesFilterArgs) error {
+func RunPipelineList(ctx context.Context, filterArgs platmodel.PipelinesFilterArgs) error {
 	pipelines, err := cfConfig.NewClient().V2().Pipeline().List(ctx, filterArgs)
 	if err != nil {
 		return err

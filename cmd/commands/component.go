@@ -23,7 +23,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
@@ -90,7 +90,7 @@ func RunComponentList(ctx context.Context, runtimeName string) error {
 	return tb.Flush()
 }
 
-func printComponents(w io.Writer, components []model.Component) error {
+func printComponents(w io.Writer, components []platmodel.Component) error {
 	_, err := fmt.Fprintln(w, "NAME\tHEALTH STATUS\tSYNC STATUS\tVERSION")
 	if err != nil {
 		return err
@@ -105,7 +105,7 @@ func printComponents(w io.Writer, components []model.Component) error {
 	return nil
 }
 
-func printComponent(w io.Writer, c model.Component) error {
+func printComponent(w io.Writer, c platmodel.Component) error {
 	name := c.Metadata.Name
 	healthStatus := "N/A"
 	syncStatus := "N/A"
