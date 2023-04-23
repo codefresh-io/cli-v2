@@ -72,12 +72,20 @@ func NewBitbucketProvider(baseURL string, client *http.Client) (Provider, error)
 		return nil, err
 	}
 
+	if u.Host != BITBUCKET_CLOUD_DOMAIN {
+		return nil, fmt.Errorf("wrong baseURL for bitbucket provider: \"%s\", expected \"%s\"\n  maybe you meant to use \"bitbucket-server\" for on-prem git provider?", baseURL, BITBUCKET_CLOUD_DOMAIN)
+	}
+
 	u.Path = BITBUCKET_REST_ENDPOINT
 	return &bitbucket{
 		providerType: BITBUCKET,
 		apiURL:       u,
 		c:            client,
 	}, nil
+}
+
+func (bb *bitbucket) ApiURL() string {
+	return bb.apiURL.String()
 }
 
 func (bb *bitbucket) BaseURL() string {

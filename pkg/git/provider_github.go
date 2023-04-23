@@ -69,6 +69,10 @@ func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
 	}, nil
 }
 
+func (g *github) ApiURL() string {
+	return g.apiURL.String()
+}
+
 func (g *github) BaseURL() string {
 	urlClone := *g.apiURL
 	urlClone.Path = ""

@@ -18,25 +18,24 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
+	"net/url"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/manifoldco/promptui"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 //go:generate mockgen -destination=./mocks/roundTripper.go -package=mocks net/http RoundTripper
-
-var (
-	CYAN        = "\033[36m"
-	COLOR_RESET = "\033[0m"
-)
 
 type (
 	ProviderType string
 
 	// Provider represents a git provider
 	Provider interface {
+		ApiURL() string
 		BaseURL() string
 		SupportsMarketplace() bool
 		Type() ProviderType
@@ -47,15 +46,47 @@ type (
 )
 
 var (
-	providers = map[ProviderType]func(string, *http.Client) (Provider, error){
+	CYAN        = "\033[36m"
+	COLOR_RESET = "\033[0m"
+
+	cloudProvidersByDomain = map[string]ProviderType{
+		BITBUCKET_CLOUD_DOMAIN: BITBUCKET,
+		GITHUB_CLOUD_DOMAIN:    GITHUB,
+		GITLAB_CLOUD_DOMAIN:    GITLAB,
+	}
+
+	providersByType = map[ProviderType]func(string, *http.Client) (Provider, error){
 		BITBUCKET:        NewBitbucketProvider,
 		BITBUCKET_SERVER: NewBitbucketServerProvider,
 		GITHUB:           NewGithubProvider,
 		GITHUB_ENT:       NewGithubProvider, // for backward compatability
 		GITLAB:           NewGitlabProvider,
 	}
-	GetProvider = getProvider
+
+	legalProviders = maps.Keys(providersByType)
+	GetProvider    = getProvider
 )
+
+func (pt *ProviderType) String() string {
+	if pt == nil {
+		return ""
+	}
+
+	return string(*pt)
+}
+
+func (pt *ProviderType) Set(s string) error {
+	*pt = ProviderType(s)
+	if !slices.Contains(legalProviders, *pt) {
+		return fmt.Errorf("value \"%s\" does not match ProviderType", s)
+	}
+
+	return nil
+}
+
+func (pt *ProviderType) Type() string {
+	return "ProviderType"
+}
 
 func getProvider(providerType ProviderType, baseURL, certFile string) (Provider, error) {
 	transport, err := apgit.DefaultTransportWithCa(certFile)
@@ -67,35 +98,38 @@ func getProvider(providerType ProviderType, baseURL, certFile string) (Provider,
 		Transport: transport,
 	}
 
+	host, _, _, _, _, _, _ := aputil.ParseGitUrl(baseURL)
+	u, err := url.Parse(host)
+	if err != nil {
+		return nil, err
+	}
+
+	inferredType, ok := cloudProvidersByDomain[u.Hostname()]
+	if ok {
+		if providerType != "" && providerType != inferredType {
+			return nil, fmt.Errorf("supplied provider \"%s\" does not match inferred provider \"%s\" for url \"%s\"", providerType, inferredType, baseURL)
+		}
+
+		providerType = inferredType
+	}
+
 	if providerType != "" {
-		fn := providers[providerType]
-		if fn == nil {
+		fn, ok := providersByType[providerType]
+		if !ok {
 			return nil, fmt.Errorf("invalid git provider %s", providerType)
 		}
 
-		return fn(baseURL, client)
-	}
-
-	if strings.Contains(baseURL, GITHUB_CLOUD_DOMAIN) {
-		return NewGithubProvider(baseURL, client)
-	}
-
-	if strings.Contains(baseURL, GITLAB_CLOUD_DOMAIN) {
-		return NewGitlabProvider(baseURL, client)
-	}
-
-	if strings.Contains(baseURL, BITBUCKET_CLOUD_DOMAIN) {
-		return NewBitbucketProvider(baseURL, client)
+		return fn(host, client)
 	}
 
 	if !store.Get().Silent {
-		provider := getGitProviderFromUserSelect(baseURL, client)
+		provider := getGitProviderFromUserSelect(host, client)
 		if provider != nil {
 			return provider, nil
 		}
 	}
 
-	return nil, fmt.Errorf("failed getting provider for clone url %s", baseURL)
+	return nil, fmt.Errorf("failed getting git provider for url %s", baseURL)
 }
 
 func getGitProviderFromUserSelect(baseURL string, client *http.Client) Provider {
@@ -113,7 +147,7 @@ func getGitProviderFromUserSelect(baseURL string, client *http.Client) Provider 
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     []string{"GitHub", "GitLab", "Bitbucket"},
+		Items:     maps.Keys(providers),
 		Templates: templates,
 	}
 

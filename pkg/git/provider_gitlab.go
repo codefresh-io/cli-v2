@@ -62,6 +62,10 @@ func NewGitlabProvider(baseURL string, client *http.Client) (Provider, error) {
 	}, nil
 }
 
+func (g *gitlab) ApiURL() string {
+	return g.apiURL.String()
+}
+
 func (g *gitlab) BaseURL() string {
 	urlClone := *g.apiURL
 	urlClone.Path = ""

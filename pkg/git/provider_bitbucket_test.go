@@ -29,7 +29,7 @@ func newBitbucket(transport http.RoundTripper) *bitbucket {
 	client := &http.Client{
 		Transport: transport,
 	}
-	g, _ := NewBitbucketProvider("https://some.server", client)
+	g, _ := NewBitbucketProvider("https://bitbucket.org", client)
 	return g.(*bitbucket)
 }
 
@@ -40,7 +40,7 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		beforeFn       func(c *mocks.MockRoundTripper)
 	}{
 		"Should fail if HEAD fails": {
-			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://some.server/api/2.0/user\": some error",
+			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://bitbucket.org/api/2.0/user\": some error",
 			beforeFn: func(c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},

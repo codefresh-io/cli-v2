@@ -57,6 +57,10 @@ func NewBitbucketServerProvider(baseURL string, client *http.Client) (Provider, 
 	}, nil
 }
 
+func (bbs *bitbucketServer) ApiURL() string {
+	return bbs.apiURL.String()
+}
+
 func (bbs *bitbucketServer) BaseURL() string {
 	urlClone := *bbs.apiURL
 	urlClone.Path = ""
