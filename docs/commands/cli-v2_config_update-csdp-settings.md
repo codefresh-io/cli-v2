@@ -1,15 +1,19 @@
-## cli-v2 config reset-shared-config-repo
+## cli-v2 config update-csdp-settings
 
-Reset the URL of the shared configuration repo
+Updates the account's CSDP settings (gitProvider|gitApiUrl|sharedConfigRepo) if possible
 
 ```
-cli-v2 config reset-shared-config-repo [flags]
+cli-v2 config update-csdp-settings [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for reset-shared-config-repo
+      --git-api-url string          Your git server's API URL
+      --git-provider ProviderType   The git provider, one of: bitbucket|bitbucket-server|github|gitlab
+  -h, --help                        help for update-csdp-settings
+      --shared-config-repo string   URL to the shared configurations repo
+      --silent                      Disables the command wizard
 ```
 
 ### Options inherited from parent commands

@@ -204,14 +204,6 @@ func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (s
 	return runtimeName, nil
 }
 
-func isRuntimesExist(ctx context.Context) (bool, error) {
-	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
-	if err != nil {
-		return true, fmt.Errorf("failed to get runtime list: %w", err)
-	}
-	return len(runtimes) > 0, nil
-}
-
 func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (string, error) {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {

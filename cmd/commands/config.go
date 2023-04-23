@@ -292,15 +292,6 @@ func NewResetIscRepoUrlCommand() *cobra.Command {
 	}
 }
 
-func runResetIscRepoUrl(ctx context.Context) error {
-	err := cfConfig.NewClient().V2().Runtime().ResetSharedConfigRepo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to reset shared config repo. Error: %w", err)
-	}
-
-	return nil
-}
-
 func NewUpdateCsdpSettingsCommand() *cobra.Command {
 	opts := &updateCsdpSettingsOpts{}
 	cmd := &cobra.Command{
