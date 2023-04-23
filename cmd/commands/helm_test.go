@@ -373,7 +373,7 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			activeAccount: generateAccount("some-account", platmodel.GitProvidersGithub, "some-api-url"),
-			wantErr:       "git-token invalid: Head \"/api/v3\": some error",
+			wantErr:       "git-token invalid: Head \"some-api-url\": some error",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
 			},
@@ -396,7 +396,7 @@ func Test_checkGitCredentials(t *testing.T) {
 				namespace:   "some-namespace",
 			}
 			rt := gitmocks.NewMockRoundTripper(ctrl)
-			cfgit.GetProvider = func(providerType cfgit.ProviderType, baseURL, certFile string) (cfgit.Provider, error) {
+			cfgit.GetProvider = func(_ cfgit.ProviderType, baseURL, _ string) (cfgit.Provider, error) {
 				client := &http.Client{
 					Transport: rt,
 				}

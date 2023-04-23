@@ -54,12 +54,19 @@ func NewGitlabProvider(baseURL string, client *http.Client) (Provider, error) {
 		return nil, err
 	}
 
-	u.Path = GITLAB_REST_ENDPOINT
+	if u.Host == GITLAB_CLOUD_DOMAIN || u.Path == "" {
+		u.Path = GITLAB_REST_ENDPOINT
+	}
+
 	return &gitlab{
 		providerType: GITLAB,
 		apiURL:       u,
 		c:            client,
 	}, nil
+}
+
+func (g *gitlab) ApiURL() string {
+	return g.apiURL.String()
 }
 
 func (g *gitlab) BaseURL() string {
@@ -71,6 +78,10 @@ func (g *gitlab) BaseURL() string {
 
 func (g *gitlab) SupportsMarketplace() bool {
 	return false
+}
+
+func (g *gitlab) IsCloud() bool {
+	return g.apiURL.Host == GITLAB_CLOUD_DOMAIN
 }
 
 func (g *gitlab) Type() ProviderType {

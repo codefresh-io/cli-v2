@@ -29,8 +29,45 @@ func newBitbucket(transport http.RoundTripper) *bitbucket {
 	client := &http.Client{
 		Transport: transport,
 	}
-	g, _ := NewBitbucketProvider("https://some.server", client)
+	g, _ := NewBitbucketProvider("https://bitbucket.org", client)
 	return g.(*bitbucket)
+}
+
+func TestNewBitbucketProvider(t *testing.T) {
+	tests := map[string]struct {
+		baseURL    string
+		wantApiURL string
+		wantErr    string
+	}{
+		"should use standard api path when base is host only": {
+			baseURL:    "https://bitbucket.org",
+			wantApiURL: "https://bitbucket.org/api/2.0",
+		},
+		"should ignore baseUrl path if it contains it": {
+			baseURL:    "https://bitbucket.org/some/api/v-whatever",
+			wantApiURL: "https://bitbucket.org/api/2.0",
+		},
+		"should fail when base is not a valid url": {
+			baseURL: "https://bitbucket.org/\x7f",
+			wantErr: "parse \"https://bitbucket.org/\\x7f\": net/url: invalid control character in URL",
+		},
+		"should fail if base is not in bitbucket-cloud": {
+			baseURL: "https://some-server",
+			wantErr: "wrong domain for bitbucket provider: \"https://some-server\", expected \"bitbucket.org\"\n  maybe you meant to use \"bitbucket-server\" for on-prem git provider?",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := NewBitbucketProvider(tt.baseURL, &http.Client{})
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
+			}
+
+			assert.Equal(t, tt.wantApiURL, got.ApiURL())
+			assert.True(t, got.IsCloud())
+		})
+	}
 }
 
 func Test_bitbucket_verifyToken(t *testing.T) {
@@ -40,7 +77,7 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		beforeFn       func(c *mocks.MockRoundTripper)
 	}{
 		"Should fail if HEAD fails": {
-			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://some.server/api/2.0/user\": some error",
+			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://bitbucket.org/api/2.0/user\": some error",
 			beforeFn: func(c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},

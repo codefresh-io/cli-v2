@@ -177,7 +177,8 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			gsCloneOpts.Parse()
 
-			gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(gsCloneOpts.Provider), gsCloneOpts.Repo, gsCloneOpts.Auth.CertFile)
+			baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(gsCloneOpts.Repo)
+			gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(gsCloneOpts.Provider), baseURL, gsCloneOpts.Auth.CertFile)
 			if err != nil {
 				log.G(ctx).Fatal("failed to infer git provider for git-source")
 			}

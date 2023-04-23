@@ -33,6 +33,43 @@ func newBitbucketServer(transport http.RoundTripper) *bitbucketServer {
 	return bbs.(*bitbucketServer)
 }
 
+func TestNewBitbucketServerProvider(t *testing.T) {
+	tests := map[string]struct {
+		baseURL    string
+		wantApiURL string
+		wantErr    string
+	}{
+		"should use standard api path when base is host only": {
+			baseURL: "https://some.server",
+			wantApiURL: "https://some.server/rest/api/1.0",
+		},
+		"should use baseUrl as apiUrl if it has path": {
+			baseURL: "https://some.server/some/api/v-whatever",
+			wantApiURL: "https://some.server/some/api/v-whatever",
+		},
+		"should fail when base is not a valid url": {
+			baseURL: "https://contains-bad-\x7f",
+			wantErr: "parse \"https://contains-bad-\\x7f\": net/url: invalid control character in URL",
+		},
+		"should fail if base is in bitbucket-cloud": {
+			baseURL: "https://bitbucket.org",
+			wantErr: "wrong domain for bitbucket-server provider: \"https://bitbucket.org\"\n  maybe you meant to use \"bitbucket\" for the cloud git provider?",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := NewBitbucketServerProvider(tt.baseURL, &http.Client{})
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
+			}
+
+			assert.Equal(t, tt.wantApiURL, got.ApiURL())
+			assert.False(t, got.IsCloud())
+		})
+	}
+}
+
 func Test_bitbucketServer_checkProjectAdminPermission(t *testing.T) {
 	tests := map[string]struct {
 		wantErr  string
