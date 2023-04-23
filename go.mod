@@ -9,7 +9,7 @@ require (
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
 	github.com/argoproj/argo-workflows/v3 v3.3.1
 	github.com/briandowns/spinner v1.18.1
-	github.com/codefresh-io/go-sdk v0.55.0
+	github.com/codefresh-io/go-sdk v0.56.0
 	github.com/fatih/color v1.13.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -28,6 +28,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/exp v0.0.0-20220407100705-7b9b53b0aca4
 	golang.org/x/text v0.7.0
 	gopkg.in/segmentio/analytics-go.v3 v3.1.0
 	helm.sh/helm/v3 v3.11.2
@@ -233,7 +234,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.10.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/exp v0.0.0-20220407100705-7b9b53b0aca4 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c // indirect
 	golang.org/x/sync v0.1.0 // indirect

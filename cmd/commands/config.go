@@ -21,13 +21,14 @@ import (
 	"os"
 	"strings"
 
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
-	"github.com/manifoldco/promptui"
 
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -345,14 +346,19 @@ func updateCsdpSettingsPreRunHandler(opts *updateCsdpSettingsOpts) error {
 	return nil
 }
 
-func runUpdateCsdpSettings(_ context.Context, opts *updateCsdpSettingsOpts) error {
-	fmt.Printf("updating csdp settings, gitProvider: %s, gitApiUrl: %s, sharedConfigRepo: %s", opts.gitProvider, opts.gitApiUrl, opts.sharedConfigRepo)
-	return nil
+func runUpdateCsdpSettings(ctx context.Context, opts *updateCsdpSettingsOpts) error {
+	apGitProvider, err := cliToModelGitProvider(string(opts.gitProvider))
+	if err != nil {
+		return err
+	}
+
+	platGitProvider := platmodel.GitProviders(apGitProvider)
+	return cfConfig.NewClient().V2().AccountV2().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiUrl, opts.sharedConfigRepo)
 }
 
 func getGitApiUrlFromUserInput(def string) (string, error) {
 	repoPrompt := promptui.Prompt{
-		Label: "Git API URL",
+		Label:   "Git API URL",
 		Default: def,
 		Validate: func(value string) error {
 			if !strings.HasPrefix(value, "https://") {

@@ -497,8 +497,8 @@ func verifyOutputFormat(format string, allowedFormats ...string) error {
 	return fmt.Errorf("invalid output format: %s", format)
 }
 
-// cliToModelGitProvider converts cli lower provider string (bitbucket|bitbucket-server|github|gitlab)
-// to model provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
+// cliToModelGitProvider converts cli lowercase provider string (bitbucket|bitbucket-server|github|gitlab)
+// to model uppercase provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
 func cliToModelGitProvider(provider string) (apmodel.GitProviders, error) {
 	p, ok := cliToModelMap[provider]
 	if !ok {
@@ -508,8 +508,8 @@ func cliToModelGitProvider(provider string) (apmodel.GitProviders, error) {
 	return apmodel.GitProviders(p), nil
 }
 
-// cliToModelGitProvider converts model provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
-// to cli lower provider string (bitbucket|bitbucket-server|github|gitlab)
+// modelToCliGitProvider converts model uppercase provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
+// to cli lowercase provider string (bitbucket|bitbucket-server|github|gitlab)
 func modelToCliGitProvider(provider string) (cfgit.ProviderType, error) {
 	p, ok := modelToCliMap[provider]
 	if !ok {

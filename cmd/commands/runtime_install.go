@@ -602,6 +602,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 
 	cliInstallationType := platmodel.InstallationTypeCli
 
+	// convert from apmodel to platmodel - identical values
 	provider := platmodel.GitProviders(gitProvider)
 	repoURL := opts.InsCloneOpts.URL()
 	runtimeArgs := &platmodel.RuntimeInstallationArgs{
