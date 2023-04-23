@@ -1,9 +1,9 @@
-## cli-v2 config update-csdp-settings
+## cli-v2 config update-gitops-settings
 
-Updates the account's CSDP settings (gitProvider|gitApiUrl|sharedConfigRepo) if possible
+Updates the account's GitOps settings (gitProvider|gitApiUrl|sharedConfigRepo) if possible
 
 ```
-cli-v2 config update-csdp-settings [flags]
+cli-v2 config update-gitops-settings [flags]
 ```
 
 ### Options
@@ -11,7 +11,7 @@ cli-v2 config update-csdp-settings [flags]
 ```
       --git-api-url string          Your git server's API URL
       --git-provider ProviderType   The git provider, one of: bitbucket|bitbucket-server|github|gitlab
-  -h, --help                        help for update-csdp-settings
+  -h, --help                        help for update-gitops-settings
       --shared-config-repo string   URL to the shared configurations repo
       --silent                      Disables the command wizard
 ```

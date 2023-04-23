@@ -25,14 +25,14 @@ import (
 func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 	store.Get().Silent = true
 	tests := map[string]struct {
-		opts            *updateCsdpSettingsOpts
+		opts            *updateGitOpsSettingsOpts
 		wantGitProvider cfgit.ProviderType
 		wantGitApiURL   string
 		wantInferred    bool
 		wantErr         string
 	}{
 		"should succeed when all values are available and matching": {
-			opts: &updateCsdpSettingsOpts{
+			opts: &updateGitOpsSettingsOpts{
 				gitProvider:      cfgit.GITHUB,
 				gitApiURL:        "https://api.github.com",
 				sharedConfigRepo: "https://github.com/org/repo.git",
@@ -42,7 +42,7 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 			wantInferred:    false,
 		},
 		"should succeed when shared-config-repo has cloud values": {
-			opts: &updateCsdpSettingsOpts{
+			opts: &updateGitOpsSettingsOpts{
 				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
 			wantGitProvider: cfgit.GITHUB,
@@ -50,7 +50,7 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 			wantInferred:    true,
 		},
 		"should succeed when shared-config-repo is on-prem and all values are supplied": {
-			opts: &updateCsdpSettingsOpts{
+			opts: &updateGitOpsSettingsOpts{
 				gitProvider:      cfgit.GITHUB,
 				gitApiURL:        "https://some.ghe.server/api/v3",
 				sharedConfigRepo: "https://some.ghe.server/org/repo.git",
@@ -60,14 +60,14 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 			wantInferred:    false,
 		},
 		"should fail when user supplies wrong git-provider": {
-			opts: &updateCsdpSettingsOpts{
+			opts: &updateGitOpsSettingsOpts{
 				gitProvider:      cfgit.GITLAB,
 				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
 			wantErr: "supplied provider \"gitlab\" does not match inferred cloud provider \"github\" for url \"https://github.com/org/repo.git\"",
 		},
 		"should fail when user supplies wrong git-api-url on cloud provider": {
-			opts: &updateCsdpSettingsOpts{
+			opts: &updateGitOpsSettingsOpts{
 				gitApiURL:        "https://github.com/wrong/api",
 				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
@@ -76,7 +76,7 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := updateCsdpSettingsPreRunHandler(tt.opts)
+			err := updateGitOpsSettingsPreRunHandler(tt.opts)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return

@@ -30,7 +30,7 @@ import (
 )
 
 type (
-	updateCsdpSettingsOpts struct {
+	updateGitOpsSettingsOpts struct {
 		gitProvider      cfgit.ProviderType
 		gitApiURL        string
 		sharedConfigRepo string
@@ -60,20 +60,20 @@ commands, respectively:
 		},
 	}
 
-	cmd.AddCommand(NewConfigGetContextsCommand())
-	cmd.AddCommand(NewConfigCurrentContextCommand())
-	cmd.AddCommand(NewConfigUseContextCommand())
-	cmd.AddCommand(NewConfigCreateContextCommand())
-	cmd.AddCommand(NewConfigDeleteContextCommand())
-	cmd.AddCommand(NewConfigSetRuntimeCommand())
-	cmd.AddCommand(NewConfigGetRuntimeCommand())
-	cmd.AddCommand(NewResetIscRepoURLCommand())
-	cmd.AddCommand(NewUpdateCsdpSettingsCommand())
+	cmd.AddCommand(newConfigGetContextsCommand())
+	cmd.AddCommand(newConfigCurrentContextCommand())
+	cmd.AddCommand(newConfigUseContextCommand())
+	cmd.AddCommand(newConfigCreateContextCommand())
+	cmd.AddCommand(newConfigDeleteContextCommand())
+	cmd.AddCommand(newConfigSetRuntimeCommand())
+	cmd.AddCommand(newConfigGetRuntimeCommand())
+	cmd.AddCommand(newResetIscRepoURLCommand())
+	cmd.AddCommand(newUpdateGitOpsSettingsCommand())
 
 	return cmd
 }
 
-func NewConfigCreateContextCommand() *cobra.Command {
+func newConfigCreateContextCommand() *cobra.Command {
 	var (
 		apiKey string
 		url    string
@@ -92,7 +92,7 @@ func NewConfigCreateContextCommand() *cobra.Command {
 				return fmt.Errorf("must provide context name to use")
 			}
 
-			return RunConfigCreateContext(cmd.Context(), args[0], apiKey, url)
+			return runConfigCreateContext(cmd.Context(), args[0], apiKey, url)
 		},
 	}
 
@@ -103,7 +103,7 @@ func NewConfigCreateContextCommand() *cobra.Command {
 	return cmd
 }
 
-func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) error {
+func runConfigCreateContext(ctx context.Context, context, apiKey, url string) error {
 	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func RunConfigCreateContext(ctx context.Context, context, apiKey, url string) er
 	return runConfigUseContext(ctx, context)
 }
 
-func NewConfigGetContextsCommand() *cobra.Command {
+func newConfigGetContextsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "get-contexts",
 		Aliases: []string{"view"},
@@ -132,7 +132,7 @@ func runConfigGetContexts(ctx context.Context) error {
 	return cfConfig.Write(ctx, os.Stdout)
 }
 
-func NewConfigCurrentContextCommand() *cobra.Command {
+func newConfigCurrentContextCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "current-context",
 		Short: "Shows the currently selected Codefresh authentication context",
@@ -157,7 +157,7 @@ func runConfigCurrentContext(ctx context.Context) error {
 	return nil
 }
 
-func NewConfigSetRuntimeCommand() *cobra.Command {
+func newConfigSetRuntimeCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "set-runtime RUNTIME",
 		Short: "Sets the default runtime name to use for the current authentication context",
@@ -198,7 +198,7 @@ func runConfigSetRuntime(ctx context.Context, runtime string) error {
 	return nil
 }
 
-func NewConfigGetRuntimeCommand() *cobra.Command {
+func newConfigGetRuntimeCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get-runtime",
 		Short: "Gets the default runtime for the current authentication context",
@@ -224,7 +224,7 @@ func runConfigGetRuntime(ctx context.Context) error {
 	return nil
 }
 
-func NewConfigUseContextCommand() *cobra.Command {
+func newConfigUseContextCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "use-context CONTEXT",
 		Short: "Switch the current authentication context",
@@ -251,7 +251,7 @@ func runConfigUseContext(ctx context.Context, context string) error {
 	return nil
 }
 
-func NewConfigDeleteContextCommand() *cobra.Command {
+func newConfigDeleteContextCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete-context CONTEXT",
 		Short: "Delete the specified authentication context",
@@ -279,10 +279,10 @@ func runConfigDeleteContext(ctx context.Context, context string) error {
 	return nil
 }
 
-func NewResetIscRepoURLCommand() *cobra.Command {
+func newResetIscRepoURLCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:        "reset-shared-config-repo",
-		Deprecated: "use update-csdp-settings command instead",
+		Deprecated: "use update-gitops-settings command instead",
 		Hidden:     true,
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return errors.New("command removed")
@@ -290,16 +290,15 @@ func NewResetIscRepoURLCommand() *cobra.Command {
 	}
 }
 
-func NewUpdateCsdpSettingsCommand() *cobra.Command {
-	opts := &updateCsdpSettingsOpts{}
+func newUpdateGitOpsSettingsCommand() *cobra.Command {
+	opts := &updateGitOpsSettingsOpts{}
 	cmd := &cobra.Command{
-		Use:               "update-csdp-settings",
-		Aliases:           []string{"update-csdp"},
-		Short:             "Updates the account's CSDP settings (gitProvider|gitApiUrl|sharedConfigRepo) if possible",
+		Use:               "update-gitops-settings",
+		Short:             "Updates the account's GitOps settings (gitProvider|gitApiUrl|sharedConfigRepo) if possible",
 		Args:              cobra.NoArgs,
 		PersistentPreRunE: cfConfig.RequireAuthentication,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return updateCsdpSettingsPreRunHandler(opts)
+			return updateGitOpsSettingsPreRunHandler(opts)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
@@ -309,12 +308,12 @@ func NewUpdateCsdpSettingsCommand() *cobra.Command {
 					"git API url":        opts.gitApiURL,
 					"shared config repo": opts.sharedConfigRepo,
 				}
-				if err := getApprovalFromUser(ctx, finalParameters, "Update CSDP Settings"); err != nil {
+				if err := getApprovalFromUser(ctx, finalParameters, "Update GitOps Settings"); err != nil {
 					return err
 				}
 			}
 
-			return runUpdateCsdpSettings(ctx, opts)
+			return runUpdateGitOpsSettings(ctx, opts)
 		},
 	}
 
@@ -327,7 +326,7 @@ func NewUpdateCsdpSettingsCommand() *cobra.Command {
 	return cmd
 }
 
-func updateCsdpSettingsPreRunHandler(opts *updateCsdpSettingsOpts) error {
+func updateGitOpsSettingsPreRunHandler(opts *updateGitOpsSettingsOpts) error {
 	baseURL := opts.sharedConfigRepo
 	if opts.gitApiURL != "" {
 		baseURL = opts.gitApiURL
@@ -353,7 +352,7 @@ func updateCsdpSettingsPreRunHandler(opts *updateCsdpSettingsOpts) error {
 	return nil
 }
 
-func runUpdateCsdpSettings(ctx context.Context, opts *updateCsdpSettingsOpts) error {
+func runUpdateGitOpsSettings(ctx context.Context, opts *updateGitOpsSettingsOpts) error {
 	apGitProvider, err := cliToModelGitProvider(string(opts.gitProvider))
 	if err != nil {
 		return err
