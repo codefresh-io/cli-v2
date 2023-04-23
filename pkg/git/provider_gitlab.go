@@ -54,7 +54,10 @@ func NewGitlabProvider(baseURL string, client *http.Client) (Provider, error) {
 		return nil, err
 	}
 
-	u.Path = GITLAB_REST_ENDPOINT
+	if u.Host == GITLAB_CLOUD_DOMAIN || u.Path == "" {
+		u.Path = GITLAB_REST_ENDPOINT
+	}
+
 	return &gitlab{
 		providerType: GITLAB,
 		apiURL:       u,

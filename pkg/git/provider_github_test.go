@@ -33,6 +33,46 @@ func newGithub(transport http.RoundTripper) *github {
 	return g.(*github)
 }
 
+func TestNewGithubProvider(t *testing.T) {
+	tests := map[string]struct {
+		baseUrl    string
+		wantApiUrl string
+		wantErr    string
+	}{
+		"should use cloud api path when base is cloud host": {
+			baseUrl:    "https://github.com",
+			wantApiUrl: "https://api.github.com",
+		},
+		"should use cloud api path when base is cloud host with path": {
+			baseUrl:    "https://github.com/org/repo",
+			wantApiUrl: "https://api.github.com",
+		},
+		"should use standard api path when base is host only": {
+			baseUrl:    "https://some.server",
+			wantApiUrl: "https://some.server/api/v3",
+		},
+		"should use baseUrl as apiUrl if it on-prem and has path": {
+			baseUrl:    "https://some.server/some/api/v-whatever",
+			wantApiUrl: "https://some.server/some/api/v-whatever",
+		},
+		"should fail when base is not a valid url": {
+			baseUrl: "https://contains-bad-\x7f",
+			wantErr: "parse \"https://contains-bad-\\x7f\": net/url: invalid control character in URL",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := NewGithubProvider(tt.baseUrl, &http.Client{})
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
+			}
+
+			assert.Equal(t, tt.wantApiUrl, got.ApiURL())
+		})
+	}
+}
+
 func Test_github_verifyToken(t *testing.T) {
 	tests := map[string]struct {
 		requiredScopes []string

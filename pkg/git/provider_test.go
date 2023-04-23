@@ -31,12 +31,12 @@ func TestGetProvider(t *testing.T) {
 		"should return github when url is in github.com": {
 			baseUrl:    "https://github.com/org/repo",
 			wantType:   GITHUB,
-			wantApiUrl: GITHUB_CLOUD_API_URL,
+			wantApiUrl: "https://api.github.com",
 		},
 		"should return github when url is in www.github.com": {
 			baseUrl:    "https://www.github.com/org/repo",
 			wantType:   GITHUB,
-			wantApiUrl: GITHUB_CLOUD_API_URL,
+			wantApiUrl: "https://api.github.com",
 		},
 		"should return gitlab when url is in gitlab.com": {
 			baseUrl:    "https://gitlab.com/org/repo",

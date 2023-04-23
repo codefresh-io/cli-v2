@@ -49,7 +49,14 @@ func NewBitbucketServerProvider(baseURL string, client *http.Client) (Provider, 
 		return nil, err
 	}
 
-	u.Path = BITBUCKET_SERVER_REST_ENDPOINT
+	if u.Host == BITBUCKET_CLOUD_DOMAIN {
+		return nil, fmt.Errorf("wrong domain for bitbucket-server provider: \"%s\"\n  maybe you meant to use \"bitbucket\" for the cloud git provider?", baseURL)
+	}
+
+	if u.Path == "" {
+		u.Path = BITBUCKET_SERVER_REST_ENDPOINT
+	}
+
 	return &bitbucketServer{
 		providerType: BITBUCKET_SERVER,
 		apiURL:       u,

@@ -35,12 +35,11 @@ type (
 )
 
 const (
-	GITHUB_CLOUD_DOMAIN                = "github.com"
-	GITHUB_CLOUD_BASE_URL              = "https://github.com/"
-	GITHUB_CLOUD_API_URL               = "https://api.github.com"
-	GITHUB_REST_ENDPOINT               = "/api/v3"
-	GITHUB                ProviderType = "github"
-	GITHUB_ENT            ProviderType = "github-enterpeise" // for backward compatability
+	GITHUB_CLOUD_DOMAIN               = "github.com"
+	GITHUB_CLOUD_API_URL              = "https://api.github.com"
+	GITHUB_REST_ENDPOINT              = "/api/v3"
+	GITHUB               ProviderType = "github"
+	GITHUB_ENT           ProviderType = "github-enterpeise" // for backward compatability
 )
 
 var (
@@ -49,16 +48,14 @@ var (
 )
 
 func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
-	if baseURL == GITHUB_CLOUD_BASE_URL {
-		baseURL = GITHUB_CLOUD_API_URL
-	}
-
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	if baseURL != GITHUB_CLOUD_API_URL {
+	if u.Host == GITHUB_CLOUD_DOMAIN {
+		u, _ = url.Parse(GITHUB_CLOUD_API_URL)
+	} else if u.Path == "" {
 		u.Path = GITHUB_REST_ENDPOINT
 	}
 
