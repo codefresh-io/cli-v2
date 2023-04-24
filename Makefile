@@ -1,4 +1,4 @@
-VERSION=v0.1.44
+VERSION=v0.1.45
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -176,4 +176,4 @@ $(GOBIN)/mockgen:
 $(GOBIN)/golangci-lint:
 	@mkdir dist || true
 	@echo installing: golangci-lint
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.50.1
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.52.2
