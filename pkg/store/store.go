@@ -145,8 +145,7 @@ type Store struct {
 	NetworkTesterImage                string
 	TCPConnectionTesterGenerateName   string
 	TCPConnectionTesterName           string
-	MinKubeVersion                    string
-	MaxKubeVersion                    string
+	KubeVersionConstrint              *semver.Constraints
 	MasterIngressName                 string
 	ClusterResourcesPath              string
 	InClusterPath                     string
@@ -265,8 +264,7 @@ func init() {
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
 	s.TCPConnectionTesterGenerateName = "cf-tcp-connections-tester-"
 	s.TCPConnectionTesterName = "cf-tcp-connections-tester"
-	s.MinKubeVersion = "v1.21.0"
-	s.MaxKubeVersion = "v1.25.999"
+	s.KubeVersionConstrint, _ = semver.NewConstraint("1.21-0 - 1.26-0")
 	s.MasterIngressName = "-master"
 	s.ClusterResourcesPath = "/bootstrap/cluster-resources.yaml"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"

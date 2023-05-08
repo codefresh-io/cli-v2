@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
@@ -36,7 +37,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -91,11 +91,9 @@ func EnsureClusterRequirements(ctx context.Context, opts ClusterRequirementsOpti
 		return fmt.Errorf("failed to check the cluster's version: %w", err)
 	}
 
-	minDelta := version.CompareKubeAwareVersionStrings(store.Get().MinKubeVersion, kubeVersion.String())
-	maxDelta := version.CompareKubeAwareVersionStrings(store.Get().MaxKubeVersion, kubeVersion.String())
-
-	if minDelta < 0 || maxDelta > 0 {
-		return fmt.Errorf("%s: cluster's server version must be between %s and %s", requirementsValidationErrorMessage, store.Get().MinKubeVersion, store.Get().MaxKubeVersion)
+	v := semver.MustParse(kubeVersion.String())
+	if !store.Get().KubeVersionConstrint.Check(v) {
+		return fmt.Errorf("%s: cluster's server version must match %s", requirementsValidationErrorMessage, store.Get().KubeVersionConstrint)
 	}
 
 	req := validationRequest{
