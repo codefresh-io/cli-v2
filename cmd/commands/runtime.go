@@ -147,24 +147,27 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	installationType, err := getRuntimeInstallationType(ctx, opts.RuntimeName)
+	rt, err := getRuntime(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
-	if *installationType == platmodel.InstallationTypeHelm {
+	if rt.InstallationType == platmodel.InstallationTypeHelm {
 		return errors.New("This runtime was installed using Helm, please use Helm to uninstall it as well.")
 	}
 
-	if !opts.SkipChecks {
-		opts.Managed, err = isRuntimeManaged(ctx, opts.RuntimeName)
-		if err != nil {
-			return err
-		}
-	}
-
+	opts.Managed = rt.Managed
 	if !opts.Managed {
 		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+		}
+
+	opts.runtimeNamespace, _ = cmd.Flags().GetString("namespace")
+	if opts.runtimeNamespace == "" {
+		opts.runtimeNamespace = opts.RuntimeName
+	}
+
+	if rt.Metadata.Namespace != nil {
+		opts.runtimeNamespace = *rt.Metadata.Namespace
 	}
 
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
@@ -172,7 +175,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed && !opts.SkipChecks {
+	if !opts.Managed {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
 		err = ensureRuntimeOnKubeContext(ctx, kubeconfig, opts.RuntimeName, opts.kubeContext)
 
@@ -188,7 +191,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed && !opts.SkipChecks {
+	if !opts.Managed {
 		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
@@ -203,11 +206,6 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
-	}
-
-	opts.runtimeNamespace, _ = cmd.Flags().GetString("namespace")
-	if opts.runtimeNamespace == "" {
-		opts.runtimeNamespace = opts.RuntimeName
 	}
 
 	return nil
@@ -475,6 +473,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
+				"Runtime namespace": opts.runtimeNamespace,
 			}
 
 			if !opts.Managed {
@@ -504,6 +503,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
 	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
+	cmd.Flags().MarkDeprecated("skip-checks", "this flag was removed, runtime must exist on platform for uninstall to run")
 
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CloneForWrite: true,
@@ -521,24 +521,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	// check whether the runtime exists
 	var err error
-
-	rt, err := getRuntime(ctx, opts.RuntimeName)
-	if opts.Force || opts.SkipChecks {
-		err = nil
-	}
-
-	if err != nil {
-		return err
-	}
-
-	if rt != nil && rt.Metadata.Namespace != nil {
-		opts.runtimeNamespace = *rt.Metadata.Namespace
-	}
 	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, false, true)
-	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
-		return err
-	}
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
@@ -571,7 +554,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 		if !opts.Managed {
 			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-				Namespace:       opts.RuntimeNamespace,
+				Namespace:       opts.runtimeNamespace,
 				KubeContextName: opts.kubeContext,
 				Timeout:         opts.Timeout,
 				CloneOptions:    opts.CloneOpts,
@@ -607,7 +590,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	if !opts.Managed {
-		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeNamespace)
+		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.runtimeNamespace)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
 			if !opts.Force {

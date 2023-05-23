@@ -742,24 +742,6 @@ func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (stri
 	return setIscRepoResponse, nil
 }
 
-func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
-	rt, err := getRuntime(ctx, runtimeName)
-	if err != nil {
-		return false, err
-	}
-
-	return rt.Managed, nil
-}
-
-func getRuntimeInstallationType(ctx context.Context, runtimeName string) (*platmodel.InstallationType, error) {
-	rt, err := getRuntime(ctx, runtimeName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &rt.InstallationType, nil
-}
-
 func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
 	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {

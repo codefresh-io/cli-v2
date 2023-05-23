@@ -2085,13 +2085,14 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		util.CheckNetworkErr(err)
 		err := runRuntimeUninstall(ctx, &RuntimeUninstallOptions{
 			RuntimeName:      opts.RuntimeName,
-			RuntimeNamespace: opts.RuntimeNamespace,
 			Timeout:          store.Get().WaitTimeout,
 			CloneOpts:        opts.InsCloneOpts,
 			KubeFactory:      opts.KubeFactory,
 			SkipChecks:       true,
 			Force:            true,
 			FastExit:         false,
+
+			runtimeNamespace: opts.RuntimeNamespace,
 		})
 		handleCliStep(reporter.UninstallPhaseFinish, "Uninstall phase finished after rollback", err, false, true)
 		if err != nil {
