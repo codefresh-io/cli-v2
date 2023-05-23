@@ -188,17 +188,22 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			runtimeNamespace := args[0]
-			namespace := cmd.Flag("namespace").Value.String()
-			if namespace != "" {
-				runtimeNamespace = namespace
+			runtimeName := args[0]
+			runtime, err := getRuntime(ctx, runtimeName)
+			if err != nil {
+				return err
+			}
+
+			runtimeNamespace := runtimeName
+			if runtime.Metadata.Namespace != nil {
+				runtimeNamespace = *runtime.Metadata.Namespace
 			}
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 				GsCloneOpts:         gsCloneOpts,
 				GitProvider:         gitProvider,
 				GsName:              args[1],
-				RuntimeName:         args[0],
+				RuntimeName:         runtimeName,
 				RuntimeNamespace:    runtimeNamespace,
 				CreateDemoResources: false,
 				Include:             include,
