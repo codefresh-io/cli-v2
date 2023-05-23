@@ -30,9 +30,9 @@ import (
 	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 	wfutil "github.com/codefresh-io/cli-v2/pkg/util/workflow"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apapp "github.com/argoproj-labs/argocd-autopilot/pkg/application"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	apicommon "github.com/argoproj/argo-events/pkg/apis/common"
 	eventsourcereg "github.com/argoproj/argo-events/pkg/apis/eventsource"
@@ -53,8 +53,8 @@ import (
 
 type (
 	GitSourceCreateOptions struct {
-		InsCloneOpts        *git.CloneOptions
-		GsCloneOpts         *git.CloneOptions
+		InsCloneOpts        *apgit.CloneOptions
+		GsCloneOpts         *apgit.CloneOptions
 		GsName              string
 		RuntimeName         string
 		RuntimeNamespace    string
@@ -82,22 +82,22 @@ type (
 	GitSourceEditOptions struct {
 		RuntimeName string
 		GsName      string
-		GsCloneOpts *git.CloneOptions
+		GsCloneOpts *apgit.CloneOptions
 		Include     *string
 		Exclude     *string
 	}
 
 	gitSourceCalendarDemoPipelineOptions struct {
 		runtimeName string
-		gsCloneOpts *git.CloneOptions
-		gsFs        fs.FS
+		gsCloneOpts *apgit.CloneOptions
+		gsFs        apfs.FS
 	}
 
 	gitSourceGitDemoPipelineOptions struct {
 		runtimeName       string
-		gsCloneOpts       *git.CloneOptions
+		gsCloneOpts       *apgit.CloneOptions
 		gitProvider       cfgit.Provider
-		gsFs              fs.FS
+		gsFs              apfs.FS
 		hostName          string
 		ingressHost       string
 		skipIngress       bool
@@ -132,7 +132,7 @@ func NewGitSourceCommand() *cobra.Command {
 
 func NewGitSourceCreateCommand() *cobra.Command {
 	var (
-		gsCloneOpts *git.CloneOptions
+		gsCloneOpts *apgit.CloneOptions
 		gitProvider cfgit.Provider
 		createRepo  bool
 		include     string
@@ -188,17 +188,22 @@ func NewGitSourceCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			runtimeNamespace := args[0]
-			namespace := cmd.Flag("namespace").Value.String()
-			if namespace != "" {
-				runtimeNamespace = namespace
+			runtimeName := args[0]
+			runtime, err := getRuntime(ctx, runtimeName)
+			if err != nil {
+				return err
+			}
+
+			runtimeNamespace := runtimeName
+			if runtime.Metadata.Namespace != nil {
+				runtimeNamespace = *runtime.Metadata.Namespace
 			}
 
 			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
 				GsCloneOpts:         gsCloneOpts,
 				GitProvider:         gitProvider,
 				GsName:              args[1],
-				RuntimeName:         args[0],
+				RuntimeName:         runtimeName,
 				RuntimeNamespace:    runtimeNamespace,
 				CreateDemoResources: false,
 				Include:             include,
@@ -245,7 +250,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	return nil
 }
 
-func ensureGitSourceDirectory(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
+func ensureGitSourceDirectory(ctx context.Context, opts *GitSourceCreateOptions, gsRepo apgit.Repository, gsFs apfs.FS) error {
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
@@ -411,7 +416,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 func NewGitSourceEditCommand() *cobra.Command {
 	var (
-		gsCloneOpts *git.CloneOptions
+		gsCloneOpts *apgit.CloneOptions
 		include     string
 		exclude     string
 	)
@@ -492,7 +497,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	return nil
 }
 
-func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRepo git.Repository, gsFs fs.FS) error {
+func createDemoResources(ctx context.Context, opts *GitSourceCreateOptions, gsRepo apgit.Repository, gsFs apfs.FS) error {
 	fi, err := gsFs.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("failed to read files in git-source repo. Err: %w", err)
@@ -1391,7 +1396,7 @@ func deleteCommonRedundantFields(crd map[string]interface{}) {
 }
 
 func writeObjectToYaml[Object any](
-	gsFs fs.FS,
+	gsFs apfs.FS,
 	filePath string,
 	object Object,
 	cleanUpFunc func(Object) (map[string]interface{}, error),
@@ -1425,7 +1430,7 @@ func legacyGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) er
 
 	appDef := &runtime.AppDef{
 		Name:    opts.GsName,
-		Type:    application.AppTypeDirectory,
+		Type:    apapp.AppTypeDirectory,
 		URL:     opts.GsCloneOpts.Repo,
 		Include: opts.Include,
 		Exclude: opts.Exclude,

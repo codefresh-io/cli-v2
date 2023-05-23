@@ -27,21 +27,20 @@ import (
 	"sync"
 	"time"
 
-	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
-
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -56,10 +55,9 @@ import (
 type (
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
-		RuntimeNamespace string
 		Timeout          time.Duration
 		CloneOpts        *apgit.CloneOptions
-		KubeFactory      kube.Factory
+		KubeFactory      apkube.Factory
 		SkipChecks       bool
 		Force            bool
 		FastExit         bool
@@ -68,6 +66,7 @@ type (
 
 		kubeContext            string
 		skipAutopilotUninstall bool
+		runtimeNamespace       string
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -148,24 +147,27 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	installationType, err := getRuntimeInstallationType(ctx, opts.RuntimeName)
+	rt, err := getRuntime(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}
 
-	if *installationType == platmodel.InstallationTypeHelm {
+	if rt.InstallationType == platmodel.InstallationTypeHelm {
 		return errors.New("This runtime was installed using Helm, please use Helm to uninstall it as well.")
 	}
 
-	if !opts.SkipChecks {
-		opts.Managed, err = isRuntimeManaged(ctx, opts.RuntimeName)
-		if err != nil {
-			return err
-		}
-	}
-
+	opts.Managed = rt.Managed
 	if !opts.Managed {
 		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+		}
+
+	opts.runtimeNamespace, _ = cmd.Flags().GetString("namespace")
+	if opts.runtimeNamespace == "" {
+		opts.runtimeNamespace = opts.RuntimeName
+	}
+
+	if rt.Metadata.Namespace != nil {
+		opts.runtimeNamespace = *rt.Metadata.Namespace
 	}
 
 	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
@@ -173,7 +175,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed && !opts.SkipChecks {
+	if !opts.Managed {
 		kubeconfig := cmd.Flag("kubeconfig").Value.String()
 		err = ensureRuntimeOnKubeContext(ctx, kubeconfig, opts.RuntimeName, opts.kubeContext)
 
@@ -189,7 +191,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return err
 	}
 
-	if !opts.Managed && !opts.SkipChecks {
+	if !opts.Managed {
 		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
 	}
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
@@ -471,7 +473,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
-				"Runtime namespace": opts.RuntimeNamespace,
+				"Runtime namespace": opts.runtimeNamespace,
 			}
 
 			if !opts.Managed {
@@ -501,12 +503,13 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
 	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
+	_ = cmd.Flags().MarkDeprecated("skip-checks", "this flag was removed, runtime must exist on platform for uninstall to run")
 
 	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
 		CloneForWrite: true,
 		Optional:      true,
 	})
-	opts.KubeFactory = kube.AddFlags(cmd.Flags())
+	opts.KubeFactory = apkube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -518,15 +521,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	// check whether the runtime exists
 	var err error
-
-	if !opts.SkipChecks {
-		_, err = getRuntime(ctx, opts.RuntimeName)
-	}
 	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, false, true)
-	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--skip-checks\" flag", Info})
-		return err
-	}
 
 	log.G(ctx).Infof("Uninstalling runtime \"%s\" - this process may take a few minutes...", opts.RuntimeName)
 
@@ -559,7 +554,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 		if !opts.Managed {
 			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-				Namespace:       opts.RuntimeNamespace,
+				Namespace:       opts.runtimeNamespace,
 				KubeContextName: opts.kubeContext,
 				Timeout:         opts.Timeout,
 				CloneOptions:    opts.CloneOpts,
@@ -595,7 +590,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	}
 
 	if !opts.Managed {
-		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.RuntimeNamespace)
+		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.runtimeNamespace)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
 			if !opts.Force {
@@ -611,7 +606,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	return nil
 }
 
-func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+func runPostUninstallCleanup(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
 	sealedSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
 	if err != nil {
 		return err
@@ -634,7 +629,7 @@ func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, name
 	return nil
 }
 
-func printApplicationsState(ctx context.Context, runtime string, f kube.Factory, managed bool) error {
+func printApplicationsState(ctx context.Context, runtime string, f apkube.Factory, managed bool) error {
 	if managed {
 		return nil
 	}
@@ -1094,7 +1089,7 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	return err
 }
 
-var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
+var getProjectInfoFromFile = func(repofs apfs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
 	proj := &argocdv1alpha1.AppProject{}
 	appSet := &argocdv1alpha1.ApplicationSet{}
 	if err := repofs.ReadYamls(name, proj, appSet); err != nil {
@@ -1173,23 +1168,4 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 	}
 
 	reporter.Init(user, flow)
-}
-
-func getRuntimeNamespace(cmd *cobra.Command, runtimeName string, runtimeVersion *semver.Version) string {
-	namespace := runtimeName
-	differentNamespaceSupportVer := semver.MustParse("0.1.26")
-	hasdifferentNamespaceSupport := runtimeVersion.GreaterThan(differentNamespaceSupportVer)
-
-	if !hasdifferentNamespaceSupport {
-		log.G().Infof("To specify a different namespace please use runtime version > %s", differentNamespaceSupportVer.String())
-		_ = cmd.Flag("namespace").Value.Set("")
-		return namespace
-	}
-
-	namespaceVal := cmd.Flag("namespace").Value.String()
-	if namespaceVal != "" {
-		namespace = namespaceVal
-	}
-
-	return namespace
 }

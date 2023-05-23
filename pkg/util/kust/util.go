@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	"github.com/ghodss/yaml"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
@@ -28,7 +28,7 @@ import (
 
 var KUSTOMOZATION_FILE_NAME = "kustomization.yaml"
 
-func ReadKustomization(fs fs.FS, directory string) (*kusttypes.Kustomization, error) {
+func ReadKustomization(fs apfs.FS, directory string) (*kusttypes.Kustomization, error) {
 	fileName := fs.Join(directory, KUSTOMOZATION_FILE_NAME)
 	kust := &kusttypes.Kustomization{}
 	if err := fs.ReadYamls(fileName, kust); err != nil {
@@ -59,7 +59,7 @@ func ReplaceResource(kust *kusttypes.Kustomization, fromURL, toURL string) error
 	return nil
 }
 
-func WriteKustomization(fs fs.FS, kust *kusttypes.Kustomization, directory string) error {
+func WriteKustomization(fs apfs.FS, kust *kusttypes.Kustomization, directory string) error {
 	fileName := fs.Join(directory, KUSTOMOZATION_FILE_NAME)
 	return fs.WriteYamls(fileName, kust)
 }

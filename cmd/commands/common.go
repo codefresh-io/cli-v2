@@ -38,8 +38,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
 	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
@@ -487,7 +486,6 @@ func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 
 	return contextName, context.Value.Set(contextName)
 }
-
 type SelectItem struct {
 	Value string
 	Label string
@@ -744,24 +742,6 @@ func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (stri
 	return setIscRepoResponse, nil
 }
 
-func isRuntimeManaged(ctx context.Context, runtimeName string) (bool, error) {
-	rt, err := getRuntime(ctx, runtimeName)
-	if err != nil {
-		return false, err
-	}
-
-	return rt.Managed, nil
-}
-
-func getRuntimeInstallationType(ctx context.Context, runtimeName string) (*platmodel.InstallationType, error) {
-	rt, err := getRuntime(ctx, runtimeName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &rt.InstallationType, nil
-}
-
 func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
 	rt, err := getRuntime(ctx, runtimeName)
 	if err != nil {
@@ -797,7 +777,7 @@ func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, er
 	return rt, nil
 }
 
-func patchRuntimeRepo(ctx context.Context, cloneOpts *git.CloneOptions, msg string, f func(fs fs.FS) error) error {
+func patchRuntimeRepo(ctx context.Context, cloneOpts *apgit.CloneOptions, msg string, f func(fs apfs.FS) error) error {
 	r, fs, err := cloneOpts.GetRepo(ctx)
 	if err != nil {
 		return err

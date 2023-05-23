@@ -20,9 +20,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/codefresh-io/cli-v2/pkg/util/routing"
+
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/networking/v1"
 	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 )

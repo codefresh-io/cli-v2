@@ -40,7 +40,6 @@ cli-v2 runtime uninstall [RUNTIME_NAME] [flags]
   -n, --namespace string         If present, the namespace scope for this CLI request
       --repo string              Repository URL [GIT_REPO]
       --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --skip-checks              If true, will not verify that runtime exists before uninstalling
   -b, --upsert-branch            If true will try to checkout the specified branch and create it if it doesn't exist
       --wait-timeout duration    How long to wait for the runtime components to be deleted (default 8m0s)
 ```

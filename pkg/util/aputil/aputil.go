@@ -23,7 +23,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aplog "github.com/argoproj-labs/argocd-autopilot/pkg/log"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -43,8 +43,8 @@ type CloneFlagsOptions struct {
 	Progress         io.Writer
 }
 
-func AddCloneFlags(cmd *cobra.Command, o *CloneFlagsOptions) *git.CloneOptions {
-	opts := git.AddFlags(cmd, &git.AddFlagsOptions{
+func AddCloneFlags(cmd *cobra.Command, o *CloneFlagsOptions) *apgit.CloneOptions {
+	opts := apgit.AddFlags(cmd, &apgit.AddFlagsOptions{
 		FS:               memfs.New(),
 		Prefix:           o.Prefix,
 		CreateIfNotExist: o.CreateIfNotExist,
@@ -60,14 +60,14 @@ func AddCloneFlags(cmd *cobra.Command, o *CloneFlagsOptions) *git.CloneOptions {
 	return opts
 }
 
-func PushWithMessage(ctx context.Context, r git.Repository, msg string) error {
+func PushWithMessage(ctx context.Context, r apgit.Repository, msg string) error {
 	var (
 		err  error
 		prog io.Writer
 	)
 
 	for try := 0; try < pushRetries; try++ {
-		_, err = r.Persist(ctx, &git.PushOptions{
+		_, err = r.Persist(ctx, &apgit.PushOptions{
 			AddGlobPattern: ".",
 			CommitMsg:      msg,
 			Progress:       prog,

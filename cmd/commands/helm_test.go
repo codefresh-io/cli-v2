@@ -20,9 +20,10 @@ import (
 	"net/http"
 	"testing"
 
-	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
+
+	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
