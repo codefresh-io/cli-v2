@@ -486,7 +486,6 @@ func getKubeContextName(context, kubeconfig *pflag.Flag) (string, error) {
 
 	return contextName, context.Value.Set(contextName)
 }
-
 type SelectItem struct {
 	Value string
 	Label string

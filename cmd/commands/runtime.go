@@ -55,7 +55,6 @@ import (
 type (
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
-		RuntimeNamespace string
 		Timeout          time.Duration
 		CloneOpts        *apgit.CloneOptions
 		KubeFactory      apkube.Factory
@@ -67,6 +66,7 @@ type (
 
 		kubeContext            string
 		skipAutopilotUninstall bool
+		runtimeNamespace       string
 	}
 
 	RuntimeUpgradeOptions struct {
@@ -203,6 +203,11 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
 	if err != nil {
 		return err
+	}
+
+	opts.runtimeNamespace, _ = cmd.Flags().GetString("namespace")
+	if opts.runtimeNamespace == "" {
+		opts.runtimeNamespace = opts.RuntimeName
 	}
 
 	return nil
@@ -470,7 +475,6 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
-				"Runtime namespace": opts.RuntimeNamespace,
 			}
 
 			if !opts.Managed {
@@ -518,8 +522,17 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	// check whether the runtime exists
 	var err error
 
-	if !opts.SkipChecks {
-		_, err = getRuntime(ctx, opts.RuntimeName)
+	rt, err := getRuntime(ctx, opts.RuntimeName)
+	if opts.Force || opts.SkipChecks {
+		err = nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if rt != nil && rt.Metadata.Namespace != nil {
+		opts.runtimeNamespace = *rt.Metadata.Namespace
 	}
 	handleCliStep(reporter.UninstallStepCheckRuntimeExists, "Checking if runtime exists", err, false, true)
 	if err != nil {
@@ -1172,23 +1185,4 @@ func createAnalyticsReporter(ctx context.Context, flow reporter.FlowType, disabl
 	}
 
 	reporter.Init(user, flow)
-}
-
-func getRuntimeNamespace(cmd *cobra.Command, runtimeName string, runtimeVersion *semver.Version) string {
-	namespace := runtimeName
-	differentNamespaceSupportVer := semver.MustParse("0.1.26")
-	hasdifferentNamespaceSupport := runtimeVersion.GreaterThan(differentNamespaceSupportVer)
-
-	if !hasdifferentNamespaceSupport {
-		log.G().Infof("To specify a different namespace please use runtime version > %s", differentNamespaceSupportVer.String())
-		_ = cmd.Flag("namespace").Value.Set("")
-		return namespace
-	}
-
-	namespaceVal := cmd.Flag("namespace").Value.String()
-	if namespaceVal != "" {
-		namespace = namespaceVal
-	}
-
-	return namespace
 }

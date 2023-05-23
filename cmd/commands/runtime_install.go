@@ -2191,3 +2191,22 @@ func patchClusterResourcesAppSet(fs apfs.FS) error {
 	appSet.ObjectMeta.Labels[store.Get().LabelKeyCFInternal] = "true"
 	return fs.WriteYamls(name, appSet)
 }
+
+func getRuntimeNamespace(cmd *cobra.Command, runtimeName string, runtimeVersion *semver.Version) string {
+	namespace := runtimeName
+	differentNamespaceSupportVer := semver.MustParse("0.1.26")
+	hasdifferentNamespaceSupport := runtimeVersion.GreaterThan(differentNamespaceSupportVer)
+
+	if !hasdifferentNamespaceSupport {
+		log.G().Infof("To specify a different namespace please use runtime version > %s", differentNamespaceSupportVer.String())
+		_ = cmd.Flag("namespace").Value.Set("")
+		return namespace
+	}
+
+	namespaceVal := cmd.Flag("namespace").Value.String()
+	if namespaceVal != "" {
+		namespace = namespaceVal
+	}
+
+	return namespace
+}
