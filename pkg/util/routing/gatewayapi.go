@@ -18,9 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	httproute "github.com/codefresh-io/cli-v2/pkg/util/routing/types"
+
+	apkkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -112,7 +113,7 @@ var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerConto
 //	return httpRouteRules
 //}
 
-func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
+func ValidateGatewayController(ctx context.Context, kubeFactory apkkube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
 	// Get Gateway
 	cs := getClientsetOrDie(kubeFactory)
 	gatewayResourceId := schema.GroupVersionResource{
@@ -173,7 +174,7 @@ func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, ga
 //	return httpRouteRules
 //}
 
-func getClientsetOrDie(kubeFactory kube.Factory) dynamic.Interface {
+func getClientsetOrDie(kubeFactory apkkube.Factory) dynamic.Interface {
 	restConfig, err := kubeFactory.ToRESTConfig()
 	if err != nil {
 		panic(err)

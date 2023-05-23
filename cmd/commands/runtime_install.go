@@ -46,8 +46,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/application"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	apapp "github.com/argoproj-labs/argocd-autopilot/pkg/application"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
@@ -164,7 +164,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 			GitIntegrationRegistrationOpts: &GitIntegrationRegistrationOpts{},
 			featuresToInstall:              make([]runtime.InstallFeature, 0),
 		}
-		accessMode      string
+		accessMode string
 	)
 
 	cmd := &cobra.Command{
@@ -294,7 +294,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	})
 
 	installationOpts.GsCloneOpts = &apgit.CloneOptions{
-		FS:               fs.Create(memfs.New()),
+		FS:               apfs.Create(memfs.New()),
 		CreateIfNotExist: true,
 	}
 
@@ -934,7 +934,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 
 	mpCloneOpts := &apgit.CloneOptions{
 		Repo:     store.Get().MarketplaceRepo,
-		FS:       fs.Create(memfs.New()),
+		FS:       apfs.Create(memfs.New()),
 		Progress: opts.InsCloneOpts.Progress,
 	}
 	mpCloneOpts.Parse()
@@ -1594,7 +1594,7 @@ func configureAppProxy(ctx context.Context, opts *RuntimeInstallOptions, rt *run
 }
 
 func updateCodefreshCM(ctx context.Context, opts *RuntimeInstallOptions, rt *runtime.Runtime) error {
-	var repofs fs.FS
+	var repofs apfs.FS
 	var marshalRuntime []byte
 	var r apgit.Repository
 	var err error
@@ -1664,7 +1664,7 @@ func createEventsReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, op
 	u = u.JoinPath(resPath)
 	appDef := &runtime.AppDef{
 		Name:       store.Get().EventsReporterName,
-		Type:       application.AppTypeDirectory,
+		Type:       apapp.AppTypeDirectory,
 		URL:        u.String(),
 		IsInternal: true,
 	}
@@ -1706,7 +1706,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 	u = u.JoinPath(resPath)
 	appDef := &runtime.AppDef{
 		Name:       reporterCreateOpts.reporterName,
-		Type:       application.AppTypeDirectory,
+		Type:       apapp.AppTypeDirectory,
 		URL:        u.String(),
 		IsInternal: reporterCreateOpts.IsInternal,
 	}
@@ -1750,7 +1750,7 @@ func createReporter(ctx context.Context, cloneOpts *apgit.CloneOptions, opts *Ru
 	})
 }
 
-func updateProject(repofs fs.FS, rt *runtime.Runtime) error {
+func updateProject(repofs apfs.FS, rt *runtime.Runtime) error {
 	projPath := repofs.Join(apstore.Default.ProjectsDir, rt.Name+".yaml")
 	project, appSet, err := getProjectInfoFromFile(repofs, projPath)
 	if err != nil {
@@ -1837,7 +1837,7 @@ func getArgoCDTokenSecret(ctx context.Context, kubeContext, namespace string, in
 	})
 }
 
-func createReporterRBAC(repofs fs.FS, path, runtimeNamespace, saName string, clusterScope bool) error {
+func createReporterRBAC(repofs apfs.FS, path, runtimeNamespace, saName string, clusterScope bool) error {
 	serviceAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -1912,7 +1912,7 @@ func createReporterRBAC(repofs fs.FS, path, runtimeNamespace, saName string, clu
 	return repofs.WriteYamls(repofs.Join(path, "rbac.yaml"), serviceAccount, role, roleBinding)
 }
 
-func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insecure bool) error {
+func createEventsReporterEventSource(repofs apfs.FS, path, namespace string, insecure bool) error {
 	port := 443
 	if insecure {
 		port = 80
@@ -1934,7 +1934,7 @@ func createEventsReporterEventSource(repofs fs.FS, path, namespace string, insec
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions, clusterScope bool) error {
+func createReporterEventSource(repofs apfs.FS, path, namespace string, reporterCreateOpts reporterCreateOptions, clusterScope bool) error {
 	var eventSource *aev1alpha1.EventSource
 	var options *eventsutil.CreateEventSourceOptions
 
@@ -1971,7 +1971,7 @@ func createReporterEventSource(repofs fs.FS, path, namespace string, reporterCre
 	return repofs.WriteYamls(repofs.Join(path, "event-source.yaml"), eventSource)
 }
 
-func createSensor(repofs fs.FS, name, path, namespace, eventSourceName string, triggers []string, dataKey string) error {
+func createSensor(repofs apfs.FS, name, path, namespace, eventSourceName string, triggers []string, dataKey string) error {
 	triggerUrl, err := url.JoinPath(cfConfig.GetCurrentContext().URL, store.Get().EventReportingEndpoint)
 	if err != nil {
 		return err
@@ -2062,7 +2062,7 @@ func getInstallationFromRepoApproval(ctx context.Context, opts *RuntimeInstallOp
 	return nil
 }
 
-func getRuntimeDataFromCodefreshCM(_ context.Context, repofs fs.FS, runtimeName string, codefreshCM *v1.ConfigMap) (*runtime.Runtime, error) {
+func getRuntimeDataFromCodefreshCM(_ context.Context, repofs apfs.FS, runtimeName string, codefreshCM *v1.ConfigMap) (*runtime.Runtime, error) {
 	err := repofs.ReadYamls(repofs.Join(apstore.Default.BootsrtrapDir, runtimeName+".yaml"), codefreshCM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file '%s': %w", runtimeName+".yaml", err)
@@ -2177,7 +2177,7 @@ func getRuntimeDef(runtimeDef, version string) string {
 	return strings.Replace(runtimeDef, "stable", version, 1)
 }
 
-func patchClusterResourcesAppSet(fs fs.FS) error {
+func patchClusterResourcesAppSet(fs apfs.FS) error {
 	appSet := &argocdv1alpha1.ApplicationSet{}
 	name := store.Get().ClusterResourcesPath
 	if err := fs.ReadYamls(name, appSet); err != nil {

@@ -15,9 +15,9 @@
 package commands
 
 import (
-	"github.com/spf13/cobra"
-
 	cliutil "github.com/codefresh-io/cli-v2/pkg/util/cli"
+
+	"github.com/spf13/cobra"
 )
 
 func NewUpgradeCommand() *cobra.Command {

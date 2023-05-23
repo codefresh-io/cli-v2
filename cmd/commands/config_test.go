@@ -19,6 +19,7 @@ import (
 
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
 	"github.com/stretchr/testify/assert"
 )
 

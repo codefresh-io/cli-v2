@@ -23,18 +23,18 @@ import (
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 
-	"github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	ocsecurityv1 "github.com/openshift/api/security/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type OpenshiftOptions struct {
-	KubeFactory      kube.Factory
+	KubeFactory      apkube.Factory
 	RuntimeName      string
 	RuntimeNamespace string
-	InsCloneOpts     *git.CloneOptions
+	InsCloneOpts     *apgit.CloneOptions
 }
 
 const openshiftNs = "openshift"
@@ -57,7 +57,7 @@ func PrepareOpenshiftCluster(ctx context.Context, opts *OpenshiftOptions) error 
 	return nil
 }
 
-func isOpenshiftCluster(ctx context.Context, kubeFactory kube.Factory) (bool, error) {
+func isOpenshiftCluster(ctx context.Context, kubeFactory apkube.Factory) (bool, error) {
 	exists, err := kubeutil.CheckNamespaceExists(ctx, openshiftNs, kubeFactory)
 	if err != nil {
 		return false, err

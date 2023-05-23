@@ -27,21 +27,20 @@ import (
 	"sync"
 	"time"
 
-	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
-
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
 	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
+	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
 	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/fs"
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	"github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -59,7 +58,7 @@ type (
 		RuntimeNamespace string
 		Timeout          time.Duration
 		CloneOpts        *apgit.CloneOptions
-		KubeFactory      kube.Factory
+		KubeFactory      apkube.Factory
 		SkipChecks       bool
 		Force            bool
 		FastExit         bool
@@ -506,7 +505,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		CloneForWrite: true,
 		Optional:      true,
 	})
-	opts.KubeFactory = kube.AddFlags(cmd.Flags())
+	opts.KubeFactory = apkube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -611,7 +610,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	return nil
 }
 
-func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+func runPostUninstallCleanup(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
 	sealedSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
 	if err != nil {
 		return err
@@ -634,7 +633,7 @@ func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, name
 	return nil
 }
 
-func printApplicationsState(ctx context.Context, runtime string, f kube.Factory, managed bool) error {
+func printApplicationsState(ctx context.Context, runtime string, f apkube.Factory, managed bool) error {
 	if managed {
 		return nil
 	}
@@ -1094,7 +1093,7 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	return err
 }
 
-var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
+var getProjectInfoFromFile = func(repofs apfs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
 	proj := &argocdv1alpha1.AppProject{}
 	appSet := &argocdv1alpha1.ApplicationSet{}
 	if err := repofs.ReadYamls(name, proj, appSet); err != nil {
