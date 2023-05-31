@@ -1,0 +1,318 @@
+global:
+  codefresh:
+    url: https://g.codefresh.io # atgardner
+    # url: https://noam-platform.ngrok.io # ngrok
+    # url: https://mklimko-onprem.devops.cf-cd.com/ # mikhail
+
+    # accountId: 5f6a52f5f0f4b845ef443a58 # atgardner
+    # accountId: 6315a825c6f9807db4132fec # ngrok
+
+    userToken:
+      token: '6384b7ebe6a11d5f7e7791c2.7b404c2053ecb06c7f93a4f9ca83c4de' # atgardner
+      # token: '6315aae7c6f9803691133626.d35cbba0a5c68c34be58ae5c127954d1' # ngrok
+      # token: '64634fbc98997c51bcea69bd.7a4689a0f9ddaf01b1e585687f46f47c' # mikhail
+
+    tls:
+      caCerts:
+        # secretKeyRef:
+        #   name: asdqwe
+        #   key: zzxx
+        secret:
+          create: true
+          # key: 'ca-bundle.crt'
+          content: |
+            -----BEGIN CERTIFICATE-----
+            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
+            Yf44Vfeb4BqAblM=
+            -----END CERTIFICATE-----
+            -----BEGIN CERTIFICATE-----
+            MIIFUzCCAzsCFHELXqGtkmGSv5tXKviBCp8+4p+iMA0GCSqGSIb3DQEBCwUAMGMx
+            CzAJBgNVBAYTAlVTMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRl
+            cm5ldCBXaWRnaXRzIFB0eSBMdGQxHDAaBgNVBAMME2NhLmRldm9wcy5jZi1jZC5j
+            b20wHhcNMjMwNTE3MDgyODA0WhcNMjQwNTE2MDgyODA0WjBpMQswCQYDVQQGEwJV
+            UzETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0
+            cyBQdHkgTHRkMSIwIAYDVQQDDBlpbnRlci1jYS5kZXZvcHMuY2YtY2QuY29tMIIC
+            IjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAxxJ/FNObNmFuR7hRm451DqIZ
+            KjdQGeEJebRRARYluGZiYIiUFdbzNnx3Y+C3eE9Rq6Ydt/XN9qi2Wf9NLeYfFwbJ
+            j6hBRQXhhCmH63akfpgwMG2ImpYmYXcrvAAXt0Ph9iAKjqHQvwGzGMetMWvbE9cL
+            zuTKNyaIIStyp/TdYIF0zQzm1y5oYTR0apReac109+vF9F3pd/VaJXlsUdjk4Wxu
+            s4kJd4igcX7DK/m9ZveNzOrf7l9QCrgFyG2nOirW9v40Ls9RnkVvg3+Tsl9Ibsg0
+            7tLwvC66ly/ZHXYo2v+fjiUUtQRmgKWsgxE0BZFln4+ZfxVtXAjWQ8yPUP0czU29
+            +vNI4RfyenMbhitX1ZzWv32UVV6q1VYcji3xyo1EAi2SYvUEal6enq/vUWpMn4iH
+            nQOqloQLq3YH0YfJ60GvhKIJROtsSVmegn6dGSIRIh+UDLuI6pdAlfWpGP17BVLk
+            HzQONeExhbZ6IN8h9dhi08cuwHOx9lo/Ys4nyelDasRtRdreSuqDJSMT7n1o+Rbe
+            jRWOx7tGDu3XHWqz8ani6skzxMLiwV1inq6IFAPOVze4FkLTt1wpgO618gOv22q/
+            A7DwqyV8XqFmC3IaIXn0xfptHn7qWmo5zyFA/TWYuBcgsyZkXgN2hLDqvzisM7FN
+            cRs1U72yGRCkR7JJTPsCAwEAATANBgkqhkiG9w0BAQsFAAOCAgEAdcjhLwPVWZZQ
+            pczrxxoiA4j8Cj64rvxUuxKMufAPBBPMJIm0hHalW8NsysC/PESp3l02YqU6KQ4R
+            E53B+1WilLlmZWIkHT3imxLNk54EcjzvOop6418bkPKu8j85F/KmbYx27tPeOyVa
+            GPLMrqOUYquQ0Z4RErY35bMfT+l7/gqajRDtWBjKrE2CVtacQSW/CvyYm8UTT23N
+            HY02CBLi68jPvzdmNifumSYGlouwYqcgVGITEJPrM7zI5xALZk1jkrWxQI50aXbx
+            71nJyGN3gFpCwMBrs3+4Wl7YUwMF5lDaEIdIvYtI8JQk00Jst722dOSKe/CMZvcY
+            OJu8F/UvsNuZv2iu5EXJAnPd0K9r68I/NEVDrC7pwHRH7L7oyO+5W+LY2o/PB3s2
+            tHGyA1HdoYdcQ+llHsN+7BVyT9pzyR705krS868zgXlMI2sgQVkVr0qm1WVKMbq0
+            be2bPecJTgUfIX/EL1Q9wek5WxXzr3RkFT+u14BHp0B6vvaOfQRMvljYOwMdwMcw
+            /y1sUgVH/jj+ne7RULSGAJ82mkZji6mA3dHl5mLBRahMT+G4DNu9SePB+/LL97fN
+            uULqtdE0+dJqhyPLJo1ZaZsKytAz9RzWZHW5FqLhFUI1vJSwnVrSoG5ESMEgq2Hm
+            3XR73I+g5fNE4kbcEj3umvpU/+Dic4w=
+            -----END CERTIFICATE-----
+
+    #   workflowPipelinesGitWebhooks:
+    #     certificates:
+    #       gitlab-onprem.devops.cf-cd.com: |
+    #         -----BEGIN CERTIFICATE-----
+    #         MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
+    #         ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
+    #         b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+    #         MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
+    #         b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
+    #         ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
+    #         9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw
+    #         IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6
+    #         VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L
+    #         93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm
+    #         jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+    #         AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA
+    #         A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI
+    #         U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs
+    #         N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
+    #         o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
+    #         5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
+    #         rqXRfboQnoZsG4q5WTP468SQvvG5
+    #         -----END CERTIFICATE-----
+
+  runtime:
+    namea: runtime-name
+
+    ingress:
+      enabled: true
+      protocol: http
+      hosts:
+      - noam.pipeline-team.cf-cd.com
+    # tls:
+    # - asd
+    
+    gitCredentials:
+      password:
+        value: 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
+
+    # ingressUrl: http://192.168.1.1
+
+# argo-cd:
+#   configs:
+#     tls:
+#       certificates:
+#         github.com: |
+#           -----BEGIN CERTIFICATE-----
+#           MIIFajCCBPGgAwIBAgIQDNCovsYyz+ZF7KCpsIT7HDAKBggqhkjOPQQDAzBWMQsw
+#           CQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMTAwLgYDVQQDEydEaWdp
+#           Q2VydCBUTFMgSHlicmlkIEVDQyBTSEEzODQgMjAyMCBDQTEwHhcNMjMwMjE0MDAw
+#           MDAwWhcNMjQwMzE0MjM1OTU5WjBmMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2Fs
+#           aWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEVMBMGA1UEChMMR2l0SHVi
+#           LCBJbmMuMRMwEQYDVQQDEwpnaXRodWIuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0D
+#           AQcDQgAEo6QDRgPfRlFWy8k5qyLN52xZlnqToPu5QByQMog2xgl2nFD1Vfd2Xmgg
+#           nO4i7YMMFTAQQUReMqyQodWq8uVDs6OCA48wggOLMB8GA1UdIwQYMBaAFAq8CCkX
+#           jKU5bXoOzjPHLrPt+8N6MB0GA1UdDgQWBBTHByd4hfKdM8lMXlZ9XNaOcmfr3jAl
+#           BgNVHREEHjAcggpnaXRodWIuY29tgg53d3cuZ2l0aHViLmNvbTAOBgNVHQ8BAf8E
+#           BAMCB4AwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMIGbBgNVHR8EgZMw
+#           gZAwRqBEoEKGQGh0dHA6Ly9jcmwzLmRpZ2ljZXJ0LmNvbS9EaWdpQ2VydFRMU0h5
+#           YnJpZEVDQ1NIQTM4NDIwMjBDQTEtMS5jcmwwRqBEoEKGQGh0dHA6Ly9jcmw0LmRp
+#           Z2ljZXJ0LmNvbS9EaWdpQ2VydFRMU0h5YnJpZEVDQ1NIQTM4NDIwMjBDQTEtMS5j
+#           cmwwPgYDVR0gBDcwNTAzBgZngQwBAgIwKTAnBggrBgEFBQcCARYbaHR0cDovL3d3
+#           dy5kaWdpY2VydC5jb20vQ1BTMIGFBggrBgEFBQcBAQR5MHcwJAYIKwYBBQUHMAGG
+#           GGh0dHA6Ly9vY3NwLmRpZ2ljZXJ0LmNvbTBPBggrBgEFBQcwAoZDaHR0cDovL2Nh
+#           Y2VydHMuZGlnaWNlcnQuY29tL0RpZ2lDZXJ0VExTSHlicmlkRUNDU0hBMzg0MjAy
+#           MENBMS0xLmNydDAJBgNVHRMEAjAAMIIBgAYKKwYBBAHWeQIEAgSCAXAEggFsAWoA
+#           dwDuzdBk1dsazsVct520zROiModGfLzs3sNRSFlGcR+1mwAAAYZQ3Rv6AAAEAwBI
+#           MEYCIQDkFq7T4iy6gp+pefJLxpRS7U3gh8xQymmxtI8FdzqU6wIhALWfw/nLD63Q
+#           YPIwG3EFchINvWUfB6mcU0t2lRIEpr8uAHYASLDja9qmRzQP5WoC+p0w6xxSActW
+#           3SyB2bu/qznYhHMAAAGGUN0cKwAABAMARzBFAiAePGAyfiBR9dbhr31N9ZfESC5G
+#           V2uGBTcyTyUENrH3twIhAPwJfsB8A4MmNr2nW+sdE1n2YiCObW+3DTHr2/UR7lvU
+#           AHcAO1N3dT4tuYBOizBbBv5AO2fYT8P0x70ADS1yb+H61BcAAAGGUN0cOgAABAMA
+#           SDBGAiEAzOBr9OZ0+6OSZyFTiywN64PysN0FLeLRyL5jmEsYrDYCIQDu0jtgWiMI
+#           KU6CM0dKcqUWLkaFE23c2iWAhYAHqrFRRzAKBggqhkjOPQQDAwNnADBkAjAE3A3U
+#           3jSZCpwfqOHBdlxi9ASgKTU+wg0qw3FqtfQ31OwLYFdxh0MlNk/HwkjRSWgCMFbQ
+#           vMkXEPvNvv4t30K6xtpG26qmZ+6OiISBIIXMljWnsiYR1gyZnTzIg3AQSw4Vmw==
+#           -----END CERTIFICATE-----
+
+  # global:
+    # image:
+#       repository: quay.io/noam_codefresh/argocd
+      # tag: v2.6.0-cap-CR-18430-del-app
+
+#   server:
+#     extensions:
+#       image:
+#         repository: quay.io/noam_codefresh/argocd-extensions
+  
+#   applicationSet:
+#     image:
+#       repository: quay.io/noam_codefresh/argocd
+
+#   dex:
+#     image:
+#       repository: quay.io/noam_codefresh/dex:v2.35.3
+
+#   redis:
+#     image:
+#       repository: quay.io/noam_codefresh/redis
+
+#     exporter:
+#       image:
+#         repository: quay.io/noam_codefresh/redis-exporter
+
+#   redis-ha:
+#     image:
+#       repository: quay.io/noam_codefresh/redis
+
+#     exporter:
+#       image: quay.io/noam_codefresh/redis-exporter
+
+# argo-events:
+#   global:
+#     image:
+#       repository: quay.io/noam_codefresh/argo-events
+
+#   configs:
+#     nats:
+#       versions:
+#       - version: 0.22.1
+#         natsStreamingImage: quay.io/noam_codefresh/nats-streaming:0.22.1
+#         metricsExporterImage: quay.io/noam_codefresh/prometheus-nats-exporter:0.8.0
+#     jetstream:
+#       versions:
+#       - version: latest
+#         natsImage: nats:2.8.1
+#         metricsExporterImage: quay.io/noam_codefresh/prometheus-nats-exporter:0.9.1
+#         configReloaderImage: quay.io/noam_codefresh/nats-server-config-reloader:0.7.0
+#         startCommand: /nats-server
+#       - version: 2.8.1
+#         natsImage: quay.io/noam_codefresh/nats:2.8.1
+#         metricsExporterImage: quay.io/noam_codefresh/prometheus-nats-exporter:0.9.1
+#         configReloaderImage: quay.io/noam_codefresh/nats-server-config-reloader:0.7.0
+#         startCommand: /nats-server
+#       - version: 2.8.1-alpine
+#         natsImage: quay.io/noam_codefresh/nats:2.8.1-alpine
+#         metricsExporterImage: quay.io/noam_codefresh/prometheus-nats-exporter:0.9.1
+#         configReloaderImage: quay.io/noam_codefresh/nats-server-config-reloader:0.7.0
+#         startCommand: nats-server
+#       - version: 2.8.2
+#         natsImage: quay.io/noam_codefresh/nats:2.8.2
+#         metricsExporterImage: quay.io/noam_codefresh/prometheus-nats-exporter:0.9.1
+#         configReloaderImage: quay.io/noam_codefresh/nats-server-config-reloader:0.7.0
+#         startCommand: /nats-server
+#       - version: 2.8.2-alpine
+#         natsImage: quay.io/noam_codefresh/nats:2.8.2-alpine
+#         metricsExporterImage: quay.io/noam_codefresh/prometheus-nats-exporter:0.9.1
+#         configReloaderImage: quay.io/noam_codefresh/nats-server-config-reloader:0.7.0
+#         startCommand: nats-server
+
+# argo-rollouts:
+#   controller:
+#     image:
+#       registry: quay.io
+#       repository: noam_codefresh/argo-rollouts
+
+#   dashboard:
+#     image:
+#       registry: quay.io
+#       repository: noam_codefresh/kubectl-argo-rollouts
+
+# argo-workflows:
+#   controller:
+#     image:
+#       registry: quay.io
+#       repository: noam_codefresh/workflow-controller
+
+#   executor:
+#     image:
+#       registry: quay.io
+#       repository: noam_codefresh/workflow-controller
+
+#   server:
+#     image:
+#       registry: quay.io
+#       repository: noam_codefresh/workflow-controller
+
+# sealed-secrets:
+#   image:
+#     registry: quay.io
+#     repository: noam_codefresh/sealed-secrets-controller
+
+# tunnel-client:
+#   image:
+#     repository: quay.io/noam_codefresh/frpc
+
+# internal-router:
+#   image:
+#     repository: quay.io/noam_codefresh/nginx
+
+# installer:
+#   image:
+#     repository: quay.io/noam_codefresh/gitops-runtime-installer
+
+app-proxy:
+  config:
+    graphqlPlayground: 'true'
+    cors: http://local.codefresh.io,https://g.codefresh.io,https://mklimko-onprem.devops.cf-cd.com
+  
+  # image:
+  #   repository: quay.io/noam_codefresh/cap-app-proxy
+  #   tag: cert
+  #   pullPolicy: Always
+
+  # initContainer:
+  #   image:
+  #     repository: quay.io/noam_codefresh/cap-app-proxy-init
+  #     tag: root
+  #     pullPolicy: Always
+
+    # command:
+    #   - "sleep"
+    #   - "600"
+
+# event-reporters:
+#   events:
+#     argoCDServerServiceName: host.k3d.internal
+#     argoCDServerServicePort: "8082"
+
+# tunnel-client:
+#   enabled: false
+#   tunnelServer:
+#     host: "6315a825c6f9807db4132fec-helm-runtime.noam-frps.ngrok.io"
+#     subdomainHost: "noam-frps.ngrok.io"
+
+installer:
+  image:
+    repository: quay.io/noam_codefresh/gitops-runtime-installer
+    tag: CR-18322-validate-values
+    pullPolicy: Always

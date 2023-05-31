@@ -16,6 +16,7 @@ package git
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -23,10 +24,9 @@ import (
 	"path"
 	"strings"
 
-	"encoding/base64"
+	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
 )
 
 type (

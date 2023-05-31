@@ -43,6 +43,7 @@ type (
 		namespace   string
 		kubeFactory apkube.Factory
 		helm        helm.Helm
+		hook        bool
 	}
 )
 
@@ -85,13 +86,21 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
+	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
 	opts.helm = helm.AddFlags(cmd.Flags())
 	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
+
+	util.Die(cmd.Flags().MarkHidden("hook"))
+
 	return cmd
 }
 
 func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error {
 	log.G(ctx).Infof("Validating helm file \"%s\"", opts.valuesFile)
+	if opts.hook {
+		log.G(ctx).Infof("Running in hook-mode")
+	}
+
 	values, err := opts.helm.GetValues(opts.valuesFile)
 	if err != nil {
 		return fmt.Errorf("failed getting values: %w", err)
@@ -109,48 +118,59 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 
 	codefreshValues, err := values.Table("global.codefresh")
 	if err != nil {
-		return errors.New("missing \"global.codefresh\" field")
+		return err
 	}
 
-	cfClient, err := getPlatformClient(ctx, opts, codefreshValues)
+	accountId, err := helm.PathValue[string](values, "global.codefresh.accountId")
 	if err != nil {
-		return fmt.Errorf("failed getting codefresh client: %w", err)
-	}
-
-	log.G(ctx).Debug("Got platform client")
-	user, err := checkUserPermission(ctx, cfClient)
-	if err != nil {
-		return fmt.Errorf("failed checking user permissions: %w", err)
-	}
-
-	accountId, _ := helm.PathValue[string](values, "global.codefresh.accountId")
-	if accountId != "" && user.ActiveAccount.ID != accountId {
-		return fmt.Errorf("account mismatch - userToken is for accountId %s (\"%s\"), while \"global.codefresh.accountId\" is %s", user.ActiveAccount.ID, *user.ActiveAccount.Name, accountId)
-	}
-
-	err = checkRuntimeName(ctx, cfClient, runtimeName)
-	if err != nil {
-		return fmt.Errorf("failed checking runtime name on platform: %w", err)
+		return err
 	}
 
 	ingressValues, err := values.Table("global.runtime.ingress")
 	if err != nil {
-		return errors.New("missing \"global.runtime.ingress\" field")
+		return err
 	}
 
-	enabled, err := helm.PathValue[bool](ingressValues, "enabled")
+	ingressEnabled, err := helm.PathValue[bool](ingressValues, "enabled")
 	if err != nil {
-		return fmt.Errorf("failed reading \"global.runtime.ingress.enabled\" field: %w", err)
+		return err
 	}
 
-	if enabled {
+	if ingressEnabled {
 		err = checkIngress(ctx, opts, ingressValues)
 		if err != nil {
 			return fmt.Errorf("failed checking ingress data: %w", err)
 		}
 	} else {
-		if accountId == "" {
-			return errors.New("\"global.codefresh.accountId\" must be provided when not using an ingress")
+		tunnelEnabled, err := helm.PathValue[bool](values, "tunnel-client.enabled")
+		if err != nil {
+			return err
+		}
+
+		if tunnelEnabled && accountId == "" {
+			return errors.New("\"global.codefresh.accountId\" must be provided when using tunnel-client")
+		}
+	}
+
+	if !opts.hook {
+		cfClient, err := getPlatformClient(ctx, opts, codefreshValues)
+		if err != nil {
+			return fmt.Errorf("failed getting codefresh client: %w", err)
+		}
+
+		log.G(ctx).Debug("Got platform client")
+		user, err := checkUserPermission(ctx, cfClient)
+		if err != nil {
+			return fmt.Errorf("failed checking user permissions: %w", err)
+		}
+
+		if accountId != "" && user.ActiveAccount.ID != accountId {
+			return fmt.Errorf("account mismatch - userToken is for accountId %s (\"%s\"), while \"global.codefresh.accountId\" is %s", user.ActiveAccount.ID, *user.ActiveAccount.Name, accountId)
+		}
+
+		err = checkRuntimeName(ctx, cfClient, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed checking runtime name on platform: %w", err)
 		}
 	}
 
@@ -163,8 +183,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 
 	err = checkGitCredentials(ctx, opts, user, gitValues)
 	if err != nil {
-		log.G(ctx).Errorf("failed validating git credentials data")
-		return fmt.Errorf("failed checking git credentials data: %w", err)
+		return fmt.Errorf("failed validating git credentials data: %w", err)
 	}
 
 	log.G(ctx).Infof("Successfuly validated helm file - will install runtime \"%s\" to account \"%s\"", runtimeName, *user.ActiveAccount.Name)
@@ -178,7 +197,7 @@ func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, cod
 	}
 
 	userToken, err := getUserToken(ctx, opts, userTokenValues)
-	if err != nil {
+	if err != nil || userToken == "" {
 		return nil, fmt.Errorf("failed getting user token from \"global.codefresh.userToken\": %w", err)
 	}
 
@@ -204,15 +223,9 @@ func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, userToke
 
 	token, err = getValueFromSecretKeyRef(ctx, opts, secretKeyRef)
 	if err != nil {
-		log.G(ctx).Debugf("Failed getting user token from secretKeyRef: %s", err.Error())
-		return "", err
+		return "", fmt.Errorf("Failed getting user token from secretKeyRef: %w", err)
 	}
 
-	if token == "" {
-		return "", errors.New("No user token in value or secretKeyRef fields")
-	}
-
-	log.G(ctx).Debug("Got user token from \"secretKeyRef\" field")
 	return token, nil
 }
 
@@ -247,7 +260,7 @@ func checkRuntimeName(ctx context.Context, cfClient codefresh.Codefresh, runtime
 func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, ingress chartutil.Values) error {
 	hosts, err := helm.PathValue[[]interface{}](ingress, "hosts")
 	if err != nil {
-		return errors.New("\"global.runtime.ingress.hosts\" array must contain an array of strings")
+		return err
 	}
 
 	if len(hosts) == 0 {
@@ -260,7 +273,11 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, ingress 
 	}
 
 	protocol, err := helm.PathValue[string](ingress, "protocol")
-	if err != nil || (protocol != "https" && protocol != "http") {
+	if err != nil {
+		return err
+	}
+
+	if protocol != "https" && protocol != "http" {
 		return errors.New("\"global.runtime.ingress.protocol\" value must be https|http")
 	}
 
@@ -283,7 +300,7 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, ingress 
 	cs := kube.GetClientSetOrDie(opts.kubeFactory)
 	_, err = cs.NetworkingV1().IngressClasses().Get(ctx, className, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("\"global.codefresh.ingress.className: %s\" was not found on cluster", className)
+		return fmt.Errorf("failed getting IngressClass $s: $w", className, err)
 	}
 
 	return nil
@@ -360,7 +377,7 @@ func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git ch
 
 func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptions, secretKeyRef chartutil.Values) (string, error) {
 	name, err := helm.PathValue[string](secretKeyRef, "name")
-	if err != nil || name == ""{
+	if err != nil || name == "" {
 		return "", errors.New("\"secretKeyRef.name\" must be a non-empty string")
 	}
 
