@@ -82,6 +82,7 @@ func Test_getUserToken(t *testing.T) {
 			wantErr:         "userToken must contain either a \"token\" field, or a \"secretKeyRef\"",
 		},
 		"should fail if no explicit token and getValueFromSecretKeyRef fails": {
+			run: true,
 			userTokenValues: chartutil.Values{
 				"secretKeyRef": chartutil.Values{
 					"name": "some-secret",
@@ -89,7 +90,7 @@ func Test_getUserToken(t *testing.T) {
 				},
 			},
 			clientSet: v1fake.NewSimpleClientset(),
-			wantErr:   "failed reading secret \"some-secret\": secrets \"some-secret\" not found",
+			wantErr:   "Failed getting user token from secretKeyRef: failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
 		"should fail if no explicit token and secret does not contain key": {
 			namespace: "some-namespace",
@@ -105,10 +106,9 @@ func Test_getUserToken(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 			}),
-			wantErr: "secret \"some-secret\" does not contain key \"some-key\"",
+			wantErr: "Failed getting user token from secretKeyRef: secret \"some-secret\" does not contain key \"some-key\"",
 		},
 		"should fail if no explicit token and key contains empty string": {
-			run:       true,
 			namespace: "some-namespace",
 			userTokenValues: chartutil.Values{
 				"secretKeyRef": chartutil.Values{
@@ -125,7 +125,7 @@ func Test_getUserToken(t *testing.T) {
 					"some-key": []byte(""),
 				},
 			}),
-			wantErr: "No user token in value or secretKeyRef fields",
+			wantErr: "Failed getting user token from secretKeyRef: secret \"some-secret\" key \"some-key\" is an empty string",
 		},
 	}
 	for name, tt := range tests {
@@ -144,7 +144,10 @@ func Test_getUserToken(t *testing.T) {
 				kubeFactory: mockKube,
 				namespace:   tt.namespace,
 			}
-			got, err := getUserToken(context.Background(), opts, tt.userTokenValues)
+			codefreshValues := chartutil.Values{
+				"userToken": tt.userTokenValues,
+			}
+			got, err := getUserToken(context.Background(), opts, codefreshValues)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return

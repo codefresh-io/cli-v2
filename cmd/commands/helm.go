@@ -236,17 +236,6 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 	return gitProvider, gitApiUrl, nil
 }
 
-func getRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptions) string {
-	token, err := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, CODEFRESH_TOKEN, "token")
-	if err != nil {
-		log.G(ctx).Infof("Runtime token not found in cluster \"%s\" secret", CODEFRESH_TOKEN)
-		return ""
-	}
-
-	log.G(ctx).Infof("Runtime token not found in cluster \"%s\" secret", CODEFRESH_TOKEN)
-	return token
-}
-
 func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
 	userTokenValues, err := codefreshValues.Table("userToken")
 	if err != nil {
@@ -265,7 +254,7 @@ func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefres
 	}
 
 	token, err = getValueFromSecretKeyRef(ctx, opts, secretKeyRef)
-	if err != nil || token == "" {
+	if err != nil {
 		return "", fmt.Errorf("Failed getting user token from secretKeyRef: %w", err)
 	}
 
