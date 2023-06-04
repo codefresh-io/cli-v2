@@ -16,7 +16,6 @@ package config
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +29,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/fatih/color"
 	"github.com/ghodss/yaml"
@@ -49,13 +49,13 @@ const (
 
 type (
 	Config interface {
-		CreateContext(ctx context.Context, name, token, url string) error
+		CreateContext(ctx context.Context, name, token, url, caCert string) error
 		DeleteContext(name string) error
 		GetAccountId(ctx context.Context) (string, error)
 		GetCurrentContext() *AuthContext
 		GetUser(ctx context.Context) (*codefresh.User, error)
 		Load(cmd *cobra.Command, args []string) error
-		NewAdHocClient(ctx context.Context, url, token string) (codefresh.Codefresh, error)
+		NewAdHocClient(ctx context.Context, url, token, caCert string) (codefresh.Codefresh, error)
 		NewClient() codefresh.Codefresh
 		RequireAuthentication(cmd *cobra.Command, args []string) error
 		Save() error
@@ -77,9 +77,8 @@ type (
 		Name           string `mapstructure:"name" json:"name"`
 		URL            string `mapstructure:"url" json:"url"`
 		Token          string `mapstructure:"token" json:"token"`
-		Beta           bool   `mapstructure:"beta" json:"beta"`
-		OnPrem         bool   `mapstructure:"onPrem" json:"onPrem"`
 		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
+		CACert         string `mapstructure:"caCert" json:"caCert"`
 	}
 
 	authContextStatus struct {
@@ -187,36 +186,28 @@ func (c *ConfigImpl) GetCurrentContext() *AuthContext {
 // NewClient creates a new codefresh client for the current context or for
 // override context (if specified with --auth-context).
 func (c *ConfigImpl) NewClient() codefresh.Codefresh {
-	return c.clientForContext(c.GetCurrentContext())
+	client, err := c.clientForContext(c.GetCurrentContext())
+	if err != nil {
+		panic(err)
+	}
+
+	return client
 }
 
-func (c *ConfigImpl) NewAdHocClient(ctx context.Context, url, token string) (codefresh.Codefresh, error) {
+func (c *ConfigImpl) NewAdHocClient(ctx context.Context, url, token, caCert string) (codefresh.Codefresh, error) {
 	if url == "" {
 		url = store.Get().DefaultAPI
 	}
 
 	authCtx := &AuthContext{
-		Name:  "ad-hoc",
-		URL:   url,
-		Token: token,
-		Type:  "APIKey",
-		Beta:  false,
+		Type:   "APIKey",
+		Name:   "ad-hoc",
+		URL:    url,
+		Token:  token,
+		CACert: caCert,
 	}
 
-	// validate new context
-	client := c.clientForContext(authCtx)
-	_, err := client.Users().GetCurrent(ctx)
-	if err != nil {
-		if url == store.Get().DefaultAPI {
-			err = fmt.Errorf("failed to create codefresh client with token \"%s\": %w", token, err)
-		} else {
-			err = fmt.Errorf("failed to create codefresh client with url \"%s\" and token \"%s\": %w", url, token, err)
-		}
-
-		return nil, err
-	}
-
-	return client, nil
+	return c.clientForContext(authCtx)
 }
 
 // Delete
@@ -248,26 +239,30 @@ func (c *ConfigImpl) UseContext(ctx context.Context, name string) error {
 	return c.Save()
 }
 
-func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url string) error {
+func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url, caCert string) error {
 	if _, exists := c.Contexts[name]; exists {
 		return fmt.Errorf("authentication context with the name \"%s\" already exists", name)
 	}
 
 	authCtx := &AuthContext{
-		Name:  name,
-		URL:   url,
-		Token: token,
-		Type:  "APIKey",
-		Beta:  false,
+		Type:   "APIKey",
+		Name:   name,
+		URL:    url,
+		Token:  token,
+		CACert: caCert,
 	}
 
 	// validate new context
-	usr, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
+	client, err := c.clientForContext(authCtx)
 	if err != nil {
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
 
-	authCtx.OnPrem = isAdminUser(usr)
+	_, err = client.Users().GetCurrent(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
+	}
+
 	if c.Contexts == nil {
 		c.Contexts = map[string]*AuthContext{}
 	}
@@ -276,13 +271,18 @@ func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url string)
 	return nil
 }
 
-func (c *ConfigImpl) clientForContext(ctx *AuthContext) codefresh.Codefresh {
-	httpClient := &http.Client{}
-	httpClient.Timeout = c.requestTimeout
+func (c *ConfigImpl) clientForContext(ctx *AuthContext) (codefresh.Codefresh, error) {
+	transport, err := apgit.DefaultTransportWithCa(ctx.CACert)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   c.requestTimeout,
+	}
 	if c.insecure {
-		customTransport := http.DefaultTransport.(*http.Transport).Clone()
-		customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		httpClient.Transport = customTransport
+		transport.TLSClientConfig.InsecureSkipVerify = true
 	}
 
 	return NewCodefresh(&codefresh.ClientOptions{
@@ -291,7 +291,7 @@ func (c *ConfigImpl) clientForContext(ctx *AuthContext) codefresh.Codefresh {
 			Token: ctx.Token,
 		},
 		Client: httpClient,
-	})
+	}), nil
 }
 
 func (c *ConfigImpl) Write(ctx context.Context, w io.Writer) error {
@@ -321,8 +321,21 @@ func (c *ConfigImpl) Write(ctx context.Context, w io.Writer) error {
 
 		ar.Run(func() error {
 			status.status = "VALID"
+			if authCtx.Name == c.CurrentContext {
+				status.current = true
+			}
 
-			usr, err := c.clientForContext(authCtx).Users().GetCurrent(ctx)
+			client, err := c.clientForContext(authCtx)
+			if err != nil {
+				if ctx.Err() != nil { // context canceled
+					return ctx.Err()
+				}
+
+				status.status = err.Error()
+				return nil
+			}
+
+			usr, err := client.Users().GetCurrent(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
@@ -332,10 +345,6 @@ func (c *ConfigImpl) Write(ctx context.Context, w io.Writer) error {
 			} else {
 				status.account = usr.GetActiveAccount().Name
 				status.user = usr.Name
-			}
-
-			if authCtx.Name == c.CurrentContext {
-				status.current = true
 			}
 
 			return nil

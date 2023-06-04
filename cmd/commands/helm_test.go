@@ -275,7 +275,7 @@ func Test_checkIngress(t *testing.T) {
 			http.DefaultClient = &http.Client{
 				Transport: mockTransport,
 			}
-			err := checkIngress(context.Background(), opts, tt.ingress)
+			err := checkIngressDef(context.Background(), opts, tt.ingress)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
@@ -410,7 +410,7 @@ func Test_checkGitCredentials(t *testing.T) {
 				tt.beforeFn(rt)
 			}
 
-			err := checkGitCredentials(context.Background(), opts, user, tt.git)
+			err := checkGit(context.Background(), opts, user, tt.git)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}

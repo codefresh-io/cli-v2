@@ -673,12 +673,12 @@ func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespa
 		return "", fmt.Errorf("failed reading secret \"%s\": %w", name, err)
 	}
 
-	token, ok := secret.Data[key]
+	value, ok := secret.Data[key]
 	if !ok {
 		return "", fmt.Errorf("secret \"%s\" does not contain key \"%s\"", name, key)
 	}
 
-	return string(token), nil
+	return string(value), nil
 }
 
 func GetIngressClass(ctx context.Context, kubeFactory apkube.Factory, name string) (*netv1.IngressClass, error) {
