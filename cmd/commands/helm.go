@@ -278,7 +278,7 @@ func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, cod
 		return nil, errors.New("\"global.codefresh.url\" must be a non-empty string")
 	}
 
-	caCert, err := getCaCertFile(ctx, opts, codefreshValues)
+	caCert, err := getPlatformCertFile(ctx, opts, codefreshValues)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting CACert data from \"global.codefresh.tls\": %w", err)
 	}
@@ -290,7 +290,7 @@ func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, cod
 	return cfConfig.NewAdHocClient(ctx, url, cfToken, caCert)
 }
 
-func getCaCertFile(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
+func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
 	tlsValues, err := codefreshValues.Table("tls.caCerts")
 	if err != nil {
 		return "", errors.New("missing \"global.codefresh.tls.caCerts\" field")
@@ -308,7 +308,7 @@ func getCaCertFile(ctx context.Context, opts *HelmValidateValuesOptions, codefre
 			return "", fmt.Errorf("failed getting \"global.codefresh.tls.caCert.secret.content\": %w", err)
 		}
 
-		log.G(ctx).Debug("Got caCert string from values file")
+		log.G(ctx).Debug("Got platform certificate from values file")
 	} else {
 		secretKeyRef, err := tlsValues.Table("secretKeyRef")
 		if err != nil {
@@ -319,13 +319,14 @@ func getCaCertFile(ctx context.Context, opts *HelmValidateValuesOptions, codefre
 		if err != nil {
 			return "", fmt.Errorf("Failed getting caCert from secretKeyRef: %w", err)
 		}
+
+		log.G(ctx).Debug("Got platform certificate from secretKeyRef")
 	}
 
 	if caCertStr == "" {
 		return "", nil
 	}
 
-	log.G(ctx).Debug("Got platform certificate from values file")
 	tmpCaCertFile := path.Join(os.TempDir(), "codefresh-tls-ca.cer")
 	err = os.WriteFile(tmpCaCertFile, []byte(caCertStr), 0422)
 	if err != nil {
@@ -478,7 +479,16 @@ func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chart
 		return fmt.Errorf("invalid gitProvider on account: %w", err)
 	}
 
-	provider, err := cfgit.GetProvider(cliGitProvider, gitApiUrl, "")
+	caCert, err := getGitCertFile(ctx, values, gitApiUrl)
+	if err != nil {
+		return err
+	}
+
+	if caCert != "" {
+		defer os.Remove(caCert)
+	}
+
+	provider, err := cfgit.GetProvider(cliGitProvider, gitApiUrl, caCert)
 	if err != nil {
 		return err
 	}
@@ -487,6 +497,28 @@ func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chart
 		Username: username,
 		Password: password,
 	})
+}
+
+func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl string) (string, error) {
+	certValues, err := values.Table("argo-cd.configs.tls.certificates")
+	if err != nil {
+		return "", err
+	}
+
+	u, err := url.Parse(gitApiUrl)
+	caCertStr, err := helm.PathValue[string](certValues, u.Hostname())
+	if err != nil {
+		return "", err
+	}
+
+	log.G(ctx).Debug("Got platform certificate from values file")
+	tmpCaCertFile := path.Join(os.TempDir(), u.Hostname() + ".cer")
+	err = os.WriteFile(tmpCaCertFile, []byte(caCertStr), 0422)
+	if err != nil {
+		return "", fmt.Errorf("Failed writing platform certificate to temporary path \"%s\": %w", tmpCaCertFile, err)
+	}
+
+	return tmpCaCertFile, nil
 }
 
 func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git chartutil.Values) (string, error) {
