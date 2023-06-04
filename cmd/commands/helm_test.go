@@ -129,9 +129,9 @@ func Test_getUserToken(t *testing.T) {
 		},
 	}
 	for name, tt := range tests {
-		if !tt.run {
-			continue
-		}
+		// if !tt.run {
+		// 	continue
+		// }
 		t.Run(name, func(t *testing.T) {
 			var mockKube *kubemocks.MockFactory
 			if tt.clientSet != nil {
@@ -287,7 +287,8 @@ func Test_checkIngress(t *testing.T) {
 func Test_checkGitCredentials(t *testing.T) {
 	tests := map[string]struct {
 		git           chartutil.Values
-		activeAccount *platmodel.Account
+		gitProvider platmodel.GitProviders
+		gitApiUrl string
 		clientSet     kubernetes.Interface
 		wantErr       string
 		beforeFn      func(rt *gitmocks.MockRoundTripper)
@@ -299,7 +300,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				},
 				"username": "some-username",
 			},
-			activeAccount: generateAccount("some-account", platmodel.GitProvidersGithub, "some-api-url"),
+			gitProvider: platmodel.GitProvidersGithub,
+			gitApiUrl: "some-api-url",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
@@ -343,7 +345,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				},
 				"username": "some-username",
 			},
-			activeAccount: generateAccount("some-account", "", "some-api-url"),
+			gitProvider: "",
+			gitApiUrl: "some-api-url",
 			wantErr:       "account \"some-account\" is missing gitProvider data",
 		},
 		"should fail if account doesn't have gitApiUrl data": {
@@ -353,7 +356,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				},
 				"username": "some-username",
 			},
-			activeAccount: generateAccount("some-account", platmodel.GitProvidersGithub, ""),
+			gitProvider: platmodel.GitProvidersGithub,
+			gitApiUrl: "",
 			wantErr:       "account \"some-account\" is missing gitApiUrl data",
 		},
 		"should fail if account contains invalid gitProvider data": {
@@ -363,7 +367,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				},
 				"username": "some-username",
 			},
-			activeAccount: generateAccount("some-account", "invalid-provider", "some-api-url"),
+			gitProvider: "invalid-provider",
+			gitApiUrl: "some-api-url",
 			wantErr:       "invalid gitProvider on account: provider \"invalid-provider\" is not a valid provider name",
 		},
 		"should fail if token is not valid": {
@@ -373,7 +378,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				},
 				"username": "some-username",
 			},
-			activeAccount: generateAccount("some-account", platmodel.GitProvidersGithub, "some-api-url"),
+			gitProvider: platmodel.GitProvidersGithub,
+			gitApiUrl: "some-api-url",
 			wantErr:       "git-token invalid: Head \"some-api-url\": some error",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
@@ -403,14 +409,11 @@ func Test_checkGitCredentials(t *testing.T) {
 				}
 				return cfgit.NewGithubProvider(baseURL, client)
 			}
-			user := &platmodel.User{
-				ActiveAccount: tt.activeAccount,
-			}
 			if tt.beforeFn != nil {
 				tt.beforeFn(rt)
 			}
 
-			err := checkGit(context.Background(), opts, user, tt.git)
+			err := checkGit(context.Background(), opts, tt.git, tt.gitProvider, tt.gitApiUrl)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}
