@@ -178,12 +178,12 @@ func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptio
 	log.G(ctx).Info("Used runtime token to validate platform reachability")
 	cfClient, err := getPlatformClient(ctx, opts, codefreshValues, runtimeToken)
 	if err != nil {
-		return fmt.Errorf("Failed creating codefresh client using runtime token: %v", err)
+		return fmt.Errorf("failed creating codefresh client using runtime token: %v", err)
 	}
 
 	_, err = cfClient.V2().Runtime().Get(ctx, runtimeName)
 	if err != nil {
-		return fmt.Errorf("Failed getting runtime from platform: %w", err)
+		return fmt.Errorf("failed getting runtime from platform: %w", err)
 	}
 
 	return nil
@@ -192,13 +192,13 @@ func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptio
 func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, accountId, runtimeName string) (platmodel.GitProviders, string, error) {
 	userToken, err := getUserToken(ctx, opts, codefreshValues)
 	if err != nil {
-		return "", "", fmt.Errorf("Failed getting user token: %w", err)
+		return "", "", fmt.Errorf("failed getting user token: %w", err)
 	}
 
 	log.G(ctx).Info("Using user token to validate platform reachability")
 	cfClient, err := getPlatformClient(ctx, opts, codefreshValues, userToken)
 	if err != nil {
-		return "", "", fmt.Errorf("Failed creating codefresh client using user token: %w", err)
+		return "", "", fmt.Errorf("failed creating codefresh client using user token: %w", err)
 	}
 
 	user, err := cfClient.V2().UsersV2().GetCurrent(ctx)
@@ -255,7 +255,7 @@ func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefres
 
 	token, err = getValueFromSecretKeyRef(ctx, opts, secretKeyRef)
 	if err != nil {
-		return "", fmt.Errorf("Failed getting user token from secretKeyRef: %w", err)
+		return "", fmt.Errorf("failed getting user token from secretKeyRef: %w", err)
 	}
 
 	return token, nil
@@ -301,12 +301,12 @@ func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, c
 	} else {
 		secretKeyRef, err := tlsValues.Table("secretKeyRef")
 		if err != nil {
-			return "", fmt.Errorf("Failed getting \"global.codefresh.tls.caCert.secretKeyRef\": %w", err)
+			return "", fmt.Errorf("failed getting \"global.codefresh.tls.caCert.secretKeyRef\": %w", err)
 		}
 
 		caCertStr, err = getValueFromSecretKeyRef(ctx, opts, secretKeyRef)
 		if err != nil {
-			return "", fmt.Errorf("Failed getting caCert from secretKeyRef: %w", err)
+			return "", fmt.Errorf("failed getting caCert from secretKeyRef: %w", err)
 		}
 
 		log.G(ctx).Debug("Got platform certificate from secretKeyRef")
@@ -319,7 +319,7 @@ func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, c
 	tmpCaCertFile := path.Join(os.TempDir(), "codefresh-tls-ca.cer")
 	err = os.WriteFile(tmpCaCertFile, []byte(caCertStr), 0422)
 	if err != nil {
-		return "", fmt.Errorf("Failed writing platform certificate to temporary path \"%s\": %w", tmpCaCertFile, err)
+		return "", fmt.Errorf("failed writing platform certificate to temporary path \"%s\": %w", tmpCaCertFile, err)
 	}
 
 	return tmpCaCertFile, nil
@@ -489,7 +489,7 @@ func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl stri
 
 	u, err := url.Parse(gitApiUrl)
 	if err != nil {
-		return "", fmt.Errorf("Failed parsing gitApiUrl \"%s\": %w", gitApiUrl, err)
+		return "", fmt.Errorf("failed parsing gitApiUrl \"%s\": %w", gitApiUrl, err)
 	}
 
 	hostname := u.Hostname()
@@ -503,7 +503,7 @@ func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl stri
 	tmpCaCertFile := path.Join(os.TempDir(), hostname + ".cer")
 	err = os.WriteFile(tmpCaCertFile, []byte(caCertStr), 0422)
 	if err != nil {
-		return "", fmt.Errorf("Failed writing git server certificate to temporary path \"%s\": %w", tmpCaCertFile, err)
+		return "", fmt.Errorf("failed writing git server certificate to temporary path \"%s\": %w", tmpCaCertFile, err)
 	}
 
 	return tmpCaCertFile, nil
@@ -536,26 +536,16 @@ func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git ch
 }
 
 func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptions, secretKeyRef chartutil.Values) (string, error) {
-	if len(secretKeyRef.AsMap()) == 0 {
+	name, err := helm.PathValue[string](secretKeyRef, "name")
+	if name == "" || err != nil {
+		log.G(ctx).Debug("\"secretKeyRef.name\" does not contain a valid string value")
 		return "", nil
 	}
 
-	name, err := helm.PathValue[string](secretKeyRef, "name")
-	if err != nil {
-		return "", err
-	}
-
-	if name == "" {
-		return "", errors.New("\"secretKeyRef.name\" must be a non-empty string")
-	}
-
 	key, err := helm.PathValue[string](secretKeyRef, "key")
-	if err != nil {
-		return "", err
-	}
-
-	if key == "" {
-		return "", errors.New("\"secretKeyRef.key\" must be a non-empty string")
+	if key == "" || err != nil {
+		log.G(ctx).Debug("\"secretKeyRef.key\" does not contain a valid string value")
+		return "", nil
 	}
 
 	return kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, name, key)

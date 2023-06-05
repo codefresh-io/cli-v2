@@ -45,7 +45,6 @@ func generateAccount(name string, gitProvider platmodel.GitProviders, gitApiUrl 
 
 func Test_getUserToken(t *testing.T) {
 	tests := map[string]struct {
-		run             bool
 		namespace       string
 		userTokenValues chartutil.Values
 		clientSet       kubernetes.Interface
@@ -82,7 +81,6 @@ func Test_getUserToken(t *testing.T) {
 			wantErr:         "userToken must contain either a \"token\" field, or a \"secretKeyRef\"",
 		},
 		"should fail if no explicit token and getValueFromSecretKeyRef fails": {
-			run: true,
 			userTokenValues: chartutil.Values{
 				"secretKeyRef": chartutil.Values{
 					"name": "some-secret",
@@ -90,7 +88,7 @@ func Test_getUserToken(t *testing.T) {
 				},
 			},
 			clientSet: v1fake.NewSimpleClientset(),
-			wantErr:   "Failed getting user token from secretKeyRef: failed reading secret \"some-secret\": secrets \"some-secret\" not found",
+			wantErr:   "failed getting user token from secretKeyRef: failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
 		"should fail if no explicit token and secret does not contain key": {
 			namespace: "some-namespace",
@@ -106,7 +104,7 @@ func Test_getUserToken(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 			}),
-			wantErr: "Failed getting user token from secretKeyRef: secret \"some-secret\" does not contain key \"some-key\"",
+			wantErr: "failed getting user token from secretKeyRef: secret \"some-secret\" does not contain key \"some-key\"",
 		},
 		"should fail if no explicit token and key contains empty string": {
 			namespace: "some-namespace",
@@ -125,13 +123,10 @@ func Test_getUserToken(t *testing.T) {
 					"some-key": []byte(""),
 				},
 			}),
-			wantErr: "Failed getting user token from secretKeyRef: secret \"some-secret\" key \"some-key\" is an empty string",
+			wantErr: "failed getting user token from secretKeyRef: secret \"some-secret\" key \"some-key\" is an empty string",
 		},
 	}
 	for name, tt := range tests {
-		// if !tt.run {
-		// 	continue
-		// }
 		t.Run(name, func(t *testing.T) {
 			var mockKube *kubemocks.MockFactory
 			if tt.clientSet != nil {
@@ -378,7 +373,7 @@ func Test_checkGit(t *testing.T) {
 			},
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "some-api-url",
-			wantErr:     "git-token invalid: Head \"some-api-url\": some error",
+			wantErr:     "invalid git-token: Head \"some-api-url\": some error",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
 			},
@@ -528,15 +523,15 @@ func Test_getValueFromSecretKeyRef(t *testing.T) {
 			}),
 			want: "some-token",
 		},
-		"should fail if name field is missing": {
+		"should return an empty string if name field is missing": {
 			secretKeyRef: chartutil.Values{},
-			wantErr:      "\"secretKeyRef.name\" must be a non-empty string",
+			want:      "",
 		},
-		"should fail if key field is missing": {
+		"should return an empty string if key field is missing": {
 			secretKeyRef: chartutil.Values{
 				"name": "some-secret",
 			},
-			wantErr: "\"secretKeyRef.key\" must be a non-empty string",
+			want: "",
 		},
 		"should fail if secret not found": {
 			secretKeyRef: chartutil.Values{
