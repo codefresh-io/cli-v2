@@ -389,12 +389,8 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 
 func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingress chartutil.Values) error {
 	hosts, err := helm.PathValue[[]interface{}](ingress, "hosts")
-	if err != nil {
+	if err != nil || len(hosts) == 0 {
 		return errors.New("\"global.runtime.ingress.hosts\" array must contain an array of strings")
-	}
-
-	if len(hosts) == 0 {
-		return errors.New("\"global.runtime.ingress.hosts\" array must contain values")
 	}
 
 	host, ok := hosts[0].(string)
@@ -482,7 +478,7 @@ func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chart
 
 func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl string) (string, error) {
 	certValues, err := values.Table("argo-cd.configs.tls.certificates")
-	if err != nil {
+	if certValues == nil || err != nil {
 		log.G(ctx).Debug("No certificates in \"argo-cd-configs.tls\" values")
 		return "", nil
 	}
@@ -493,9 +489,20 @@ func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl stri
 	}
 
 	hostname := u.Hostname()
-	caCertStr, err := helm.PathValue[string](certValues, hostname)
-	if err != nil {
+	certificates := certValues.AsMap()
+	caCertI, ok := certificates[hostname]
+	if !ok {
 		log.G(ctx).Debugf("No certificate for \"%s\" in \"argo-cd-configs.tls.certificates\"", hostname)
+		return "", nil
+	}
+
+	caCertStr, ok := caCertI.(string)
+	if !ok {
+		return "", fmt.Errorf("certificate for git server host \"%s\" must be a string value", hostname)
+	}
+
+	if caCertStr == "" {
+		log.G(ctx).Debugf("empty certificate for \"%s\" in \"argo-cd-configs.tls.certificates\"", hostname)
 		return "", nil
 	}
 

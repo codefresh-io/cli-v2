@@ -18,12 +18,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"strings"
 	"testing"
 
+	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
-
-	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -80,7 +81,7 @@ func Test_getUserToken(t *testing.T) {
 			userTokenValues: chartutil.Values{},
 			wantErr:         "userToken must contain either a \"token\" field, or a \"secretKeyRef\"",
 		},
-		"should fail if no explicit token and getValueFromSecretKeyRef fails": {
+		"should fail if no explicit token and secret does not exist": {
 			userTokenValues: chartutil.Values{
 				"secretKeyRef": chartutil.Values{
 					"name": "some-secret",
@@ -155,7 +156,7 @@ func Test_getUserToken(t *testing.T) {
 	}
 }
 
-func Test_checkIngress(t *testing.T) {
+func Test_checkIngressDef(t *testing.T) {
 	tests := map[string]struct {
 		ingress   chartutil.Values
 		clientSet kubernetes.Interface
@@ -195,7 +196,7 @@ func Test_checkIngress(t *testing.T) {
 			ingress: chartutil.Values{
 				"hosts": []interface{}{},
 			},
-			wantErr: "\"global.runtime.ingress.hosts\" array must contain values",
+			wantErr: "\"global.runtime.ingress.hosts\" array must contain an array of strings",
 		},
 		"should fail if 1st host is not a string": {
 			ingress: chartutil.Values{
@@ -216,7 +217,7 @@ func Test_checkIngress(t *testing.T) {
 			},
 			wantErr: "\"global.runtime.ingress.protocol\" value must be https|http",
 		},
-		"should fail if HEAD to host[0] fails": {
+		"should fail if HEAD request fails": {
 			ingress: chartutil.Values{
 				"hosts":    []interface{}{"some-host"},
 				"protocol": "https",
@@ -312,7 +313,6 @@ func Test_checkGit(t *testing.T) {
 				})
 			},
 		},
-		"should succeed if there is no git password at all (skip check)": {},
 		"should succeed if there is no gitProvider data (skip token validation)": {
 			git: chartutil.Values{
 				"password": chartutil.Values{
@@ -331,6 +331,10 @@ func Test_checkGit(t *testing.T) {
 			},
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "",
+		},
+		"should skip validation if there are no gitCredentials values": {},
+		"should skip validation if gitCredentials does not contain a password": {
+			git: chartutil.Values{},
 		},
 		"should fail if failed to get git password": {
 			git: chartutil.Values{
@@ -416,6 +420,80 @@ func Test_checkGit(t *testing.T) {
 			err := checkGit(context.Background(), opts, values, tt.gitProvider, tt.gitApiUrl)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_getGitCertFile(t *testing.T) {
+	tests := map[string]struct {
+		certValues chartutil.Values
+		gitApiUrl  string
+		want       string
+		wantErr    string
+	}{
+		"should succeed if all values are correct": {
+			certValues: chartutil.Values{
+				"some.host": "some-cert",
+			},
+			gitApiUrl: "https://some.host/org/repo.git",
+			want:      "some.host.cer",
+		},
+		"shoudl return empty string if no certificates in argo-cd values": {
+			want: "",
+		},
+		"should return empty string if certificates do not contain gitApiUrl hostname": {
+			certValues: chartutil.Values{
+				"another.host": "some-cert",
+			},
+			gitApiUrl: "https://some.host/org/repo.git",
+			want:      "",
+		},
+		"should return empty string if certificates is empty in values": {
+			certValues: chartutil.Values{
+				"some.host": "",
+			},
+			gitApiUrl: "https://some.host/org/repo.git",
+			want:      "",
+		},
+		"should fail if gitApiUrl is invalid": {
+			certValues: chartutil.Values{
+				"some.host": "some-cert",
+			},
+			gitApiUrl: "https://so:me.host/org/repo.git",
+			wantErr:   "failed parsing gitApiUrl \"https://so:me.host/org/repo.git\": parse \"https://so:me.host/org/repo.git\": invalid port \":me.host\" after host",
+		},
+		"should fail if certificate is not a string": {
+			certValues: chartutil.Values{
+				"some.host": 123,
+			},
+			gitApiUrl: "https://some.host/org/repo.git",
+			wantErr:   "certificate for git server host \"some.host\" must be a string value",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			values := chartutil.Values{
+				"argo-cd": chartutil.Values{
+					"configs": chartutil.Values{
+						"tls": chartutil.Values{
+							"certificates": tt.certValues,
+						},
+					},
+				},
+			}
+			got, err := getGitCertFile(context.Background(), values, tt.gitApiUrl)
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
+			}
+
+			if got != "" {
+				defer os.Remove(got)
+			}
+
+			if !strings.HasSuffix(got, tt.want) {
+				t.Errorf("getGitCertFile() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -525,7 +603,7 @@ func Test_getValueFromSecretKeyRef(t *testing.T) {
 		},
 		"should return an empty string if name field is missing": {
 			secretKeyRef: chartutil.Values{},
-			want:      "",
+			want:         "",
 		},
 		"should return an empty string if key field is missing": {
 			secretKeyRef: chartutil.Values{
