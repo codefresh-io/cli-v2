@@ -390,7 +390,7 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingress chartutil.Values) error {
 	hosts, err := helm.PathValue[[]interface{}](ingress, "hosts")
 	if err != nil {
-		return err
+		return errors.New("\"global.runtime.ingress.hosts\" array must contain an array of strings")
 	}
 
 	if len(hosts) == 0 {
@@ -402,11 +402,7 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 		return errors.New("\"global.runtime.ingress.hosts\" values must be non-empty strings")
 	}
 
-	protocol, err := helm.PathValue[string](ingress, "protocol")
-	if err != nil {
-		return err
-	}
-
+	protocol, _ := helm.PathValue[string](ingress, "protocol")
 	if protocol != "https" && protocol != "http" {
 		return errors.New("\"global.runtime.ingress.protocol\" value must be https|http")
 	}
@@ -429,11 +425,7 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 
 	cs := kube.GetClientSetOrDie(opts.kubeFactory)
 	_, err = cs.NetworkingV1().IngressClasses().Get(ctx, className, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("Failed getting IngressClass %s: %w", className, err)
-	}
-
-	return nil
+	return err
 }
 
 func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, platGitProvider platmodel.GitProviders, gitApiUrl string) error {

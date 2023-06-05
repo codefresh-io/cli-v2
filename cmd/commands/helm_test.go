@@ -221,7 +221,7 @@ func Test_checkIngress(t *testing.T) {
 			},
 			wantErr: "\"global.runtime.ingress.protocol\" value must be https|http",
 		},
-		"should fail if GET to protocol://host[0] fails": {
+		"should fail if HEAD to host[0] fails": {
 			ingress: chartutil.Values{
 				"hosts":    []interface{}{"some-host"},
 				"protocol": "https",
@@ -250,7 +250,7 @@ func Test_checkIngress(t *testing.T) {
 				"className": "some-ingressclass",
 			},
 			clientSet: v1fake.NewSimpleClientset(),
-			wantErr:   "\"global.codefresh.ingress.className: some-ingressclass\" was not found on cluster",
+			wantErr:   "ingressclasses.networking.k8s.io \"some-ingressclass\" not found",
 			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
 					StatusCode: 200,
@@ -289,12 +289,12 @@ func Test_checkIngress(t *testing.T) {
 
 func Test_checkGitCredentials(t *testing.T) {
 	tests := map[string]struct {
-		git           chartutil.Values
+		git         chartutil.Values
 		gitProvider platmodel.GitProviders
-		gitApiUrl string
-		clientSet     kubernetes.Interface
-		wantErr       string
-		beforeFn      func(rt *gitmocks.MockRoundTripper)
+		gitApiUrl   string
+		clientSet   kubernetes.Interface
+		wantErr     string
+		beforeFn    func(rt *gitmocks.MockRoundTripper)
 	}{
 		"should succeed if all values are correct": {
 			git: chartutil.Values{
@@ -304,7 +304,7 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			gitProvider: platmodel.GitProvidersGithub,
-			gitApiUrl: "some-api-url",
+			gitApiUrl:   "some-api-url",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
 					header := http.Header{}
@@ -349,8 +349,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			gitProvider: "",
-			gitApiUrl: "some-api-url",
-			wantErr:       "account \"some-account\" is missing gitProvider data",
+			gitApiUrl:   "some-api-url",
+			wantErr:     "account \"some-account\" is missing gitProvider data",
 		},
 		"should fail if account doesn't have gitApiUrl data": {
 			git: chartutil.Values{
@@ -360,8 +360,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			gitProvider: platmodel.GitProvidersGithub,
-			gitApiUrl: "",
-			wantErr:       "account \"some-account\" is missing gitApiUrl data",
+			gitApiUrl:   "",
+			wantErr:     "account \"some-account\" is missing gitApiUrl data",
 		},
 		"should fail if account contains invalid gitProvider data": {
 			git: chartutil.Values{
@@ -371,8 +371,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			gitProvider: "invalid-provider",
-			gitApiUrl: "some-api-url",
-			wantErr:       "invalid gitProvider on account: provider \"invalid-provider\" is not a valid provider name",
+			gitApiUrl:   "some-api-url",
+			wantErr:     "invalid gitProvider on account: provider \"invalid-provider\" is not a valid provider name",
 		},
 		"should fail if token is not valid": {
 			git: chartutil.Values{
@@ -382,8 +382,8 @@ func Test_checkGitCredentials(t *testing.T) {
 				"username": "some-username",
 			},
 			gitProvider: platmodel.GitProvidersGithub,
-			gitApiUrl: "some-api-url",
-			wantErr:       "git-token invalid: Head \"some-api-url\": some error",
+			gitApiUrl:   "some-api-url",
+			wantErr:     "git-token invalid: Head \"some-api-url\": some error",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
 			},
