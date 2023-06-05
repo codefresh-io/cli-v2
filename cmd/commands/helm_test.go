@@ -287,7 +287,7 @@ func Test_checkIngress(t *testing.T) {
 	}
 }
 
-func Test_checkGitCredentials(t *testing.T) {
+func Test_checkGit(t *testing.T) {
 	tests := map[string]struct {
 		git         chartutil.Values
 		gitProvider platmodel.GitProviders
@@ -317,10 +317,27 @@ func Test_checkGitCredentials(t *testing.T) {
 				})
 			},
 		},
-		"should succeed if there is no git password at all (skip-check)": {
-			git: chartutil.Values{},
+		"should succeed if there is no git password at all (skip check)": {},
+		"should succeed if there is no gitProvider data (skip token validation)": {
+			git: chartutil.Values{
+				"password": chartutil.Values{
+					"value": "some-password",
+				},
+				"username": "some-username",
+			},
+			gitProvider: "",
 		},
-		"should fail if faied to get git password": {
+		"should succeed if there is no gitApiUrl data (skip token validation)": {
+			git: chartutil.Values{
+				"password": chartutil.Values{
+					"value": "some-password",
+				},
+				"username": "some-username",
+			},
+			gitProvider: platmodel.GitProvidersGithub,
+			gitApiUrl:   "",
+		},
+		"should fail if failed to get git password": {
 			git: chartutil.Values{
 				"password": chartutil.Values{
 					"secretKeyRef": chartutil.Values{
@@ -340,28 +357,6 @@ func Test_checkGitCredentials(t *testing.T) {
 				},
 			},
 			wantErr: "\"global.runtime.gitCredentials.username\" must be a non-empty string",
-		},
-		"should fail if account doesn't have gitProvider data": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
-			gitProvider: "",
-			gitApiUrl:   "some-api-url",
-			wantErr:     "account \"some-account\" is missing gitProvider data",
-		},
-		"should fail if account doesn't have gitApiUrl data": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
-			gitProvider: platmodel.GitProvidersGithub,
-			gitApiUrl:   "",
-			wantErr:     "account \"some-account\" is missing gitApiUrl data",
 		},
 		"should fail if account contains invalid gitProvider data": {
 			git: chartutil.Values{
@@ -415,8 +410,15 @@ func Test_checkGitCredentials(t *testing.T) {
 			if tt.beforeFn != nil {
 				tt.beforeFn(rt)
 			}
+			values := chartutil.Values{
+				"global": chartutil.Values{
+					"runtime": chartutil.Values{
+						"gitCredentials": tt.git,
+					},
+				},
+			}
 
-			err := checkGit(context.Background(), opts, tt.git, tt.gitProvider, tt.gitApiUrl)
+			err := checkGit(context.Background(), opts, values, tt.gitProvider, tt.gitApiUrl)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}
