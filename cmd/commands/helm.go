@@ -289,8 +289,8 @@ func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, c
 	caCertStr := ""
 	if create {
 		caCertStr, err = helm.PathValue[string](tlsValues, "secret.content")
-		if err != nil {
-			return "", fmt.Errorf("failed getting \"global.codefresh.tls.caCert.secret.content\": %w", err)
+		if caCertStr == "" || err != nil {
+			return "", errors.New("\"global.codefresh.tls.caCert.secret.content\" must be provided when \"create\" is set")
 		}
 
 		log.G(ctx).Debug("Got platform certificate from values file")
@@ -305,7 +305,9 @@ func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, c
 			return "", fmt.Errorf("failed getting caCert from secretKeyRef: %w", err)
 		}
 
-		log.G(ctx).Debug("Got platform certificate from secretKeyRef")
+		if caCertStr != "" {
+			log.G(ctx).Debug("Got platform certificate from secretKeyRef")
+		}
 	}
 
 	if caCertStr == "" {
@@ -472,10 +474,16 @@ func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chart
 		return err
 	}
 
-	return provider.VerifyRuntimeToken(ctx, apgit.Auth{
+	err = provider.VerifyRuntimeToken(ctx, apgit.Auth{
 		Username: username,
 		Password: password,
 	})
+	if err != nil {
+		return fmt.Errorf("failed verifying runtime git token with git server \"%s\": %w", gitApiUrl, err)
+	}
+
+	log.G(ctx).Infof("Verified git credentials data with git server \"%s\"", gitApiUrl)
+	return nil
 }
 
 func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl string) (string, error) {
@@ -494,21 +502,21 @@ func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl stri
 	certificates := certValues.AsMap()
 	caCertI, ok := certificates[hostname]
 	if !ok {
-		log.G(ctx).Debugf("No certificate for \"%s\" in \"argo-cd-configs.tls.certificates\"", hostname)
+		log.G(ctx).Debugf("No certificate for git server \"%s\" in \"argo-cd-configs.tls.certificates\"", hostname)
 		return "", nil
 	}
 
 	caCertStr, ok := caCertI.(string)
 	if !ok {
-		return "", fmt.Errorf("certificate for git server host \"%s\" must be a string value", hostname)
+		return "", fmt.Errorf("certificate for git server \"%s\" must be a string value", hostname)
 	}
 
 	if caCertStr == "" {
-		log.G(ctx).Debugf("empty certificate for \"%s\" in \"argo-cd-configs.tls.certificates\"", hostname)
+		log.G(ctx).Debugf("empty certificate for git server \"%s\" in \"argo-cd-configs.tls.certificates\"", hostname)
 		return "", nil
 	}
 
-	log.G(ctx).Debug("Got git server certificate from values file")
+	log.G(ctx).Debugf("Got certificate for git server \"%s\"", hostname)
 	tmpCaCertFile := path.Join(os.TempDir(), hostname+".cer")
 	err = os.WriteFile(tmpCaCertFile, []byte(caCertStr), 0422)
 	if err != nil {

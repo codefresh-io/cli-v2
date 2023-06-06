@@ -539,7 +539,7 @@ global:
       username: some-username`,
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "some-api-url",
-			wantErr:     "invalid git-token: Head \"some-api-url\": some error",
+			wantErr:     "failed verifying runtime git token with git server \"some-api-url\": invalid git-token: Head \"some-api-url\": some error",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
 			},
@@ -644,7 +644,7 @@ argo-cd:
       certificates:
         some.host: 123`,
 			gitApiUrl: "https://some.host/org/repo.git",
-			wantErr:   "certificate for git server host \"some.host\" must be a string value",
+			wantErr:   "certificate for git server \"some.host\" must be a string value",
 		},
 	}
 	for name, tt := range tests {
