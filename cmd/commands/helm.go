@@ -396,6 +396,22 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 		return errors.New("\"global.runtime.ingress.protocol\" value must be https|http")
 	}
 
+	className, err := helm.PathValue[string](ingress, "className")
+	if err != nil || className == "" {
+		return errors.New("\"global.runtime.ingress.className\" values must be a non-empty string")
+	}
+
+	skipValidation, _ := helm.PathValue[bool](ingress, "skipValidation")
+	if skipValidation {
+		return nil
+	}
+
+	cs := kube.GetClientSetOrDie(opts.kubeFactory)
+	_, err = cs.NetworkingV1().IngressClasses().Get(ctx, className, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
 	url := url.URL{
 		Scheme: protocol,
 		Host:   host,
@@ -407,14 +423,7 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 	}
 
 	res.Body.Close()
-	className, err := helm.PathValue[string](ingress, "className")
-	if err != nil || className == "" {
-		return errors.New("\"global.runtime.ingress.className\" values must be a non-empty string")
-	}
-
-	cs := kube.GetClientSetOrDie(opts.kubeFactory)
-	_, err = cs.NetworkingV1().IngressClasses().Get(ctx, className, metav1.GetOptions{})
-	return err
+	return nil
 }
 
 func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, platGitProvider platmodel.GitProviders, gitApiUrl string) error {
@@ -500,7 +509,7 @@ func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl stri
 	}
 
 	log.G(ctx).Debug("Got git server certificate from values file")
-	tmpCaCertFile := path.Join(os.TempDir(), hostname + ".cer")
+	tmpCaCertFile := path.Join(os.TempDir(), hostname+".cer")
 	err = os.WriteFile(tmpCaCertFile, []byte(caCertStr), 0422)
 	if err != nil {
 		return "", fmt.Errorf("failed writing git server certificate to temporary path \"%s\": %w", tmpCaCertFile, err)

@@ -326,6 +326,14 @@ className: some-ingressclass`,
 				})
 			},
 		},
+		"should succeed and skip http and k8s checks if skipValidation is set": {
+			values: `
+hosts:
+- some-host
+protocol: https
+className: some-ingressclass
+skipValidation: true`,
+		},
 		"should fail if there is no hosts array": {
 			values: `
 protocol: https
@@ -371,10 +379,15 @@ hosts:
 - some-host
 protocol: https
 className: some-ingressclass`,
-			wantErr: "Head \"https://some-host\": some error",
+			clientSet: v1fake.NewSimpleClientset(&networkingv1.IngressClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-ingressclass",
+				},
+			}),
 			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},
+			wantErr: "Head \"https://some-host\": some error",
 		},
 		"should fail if className is missing": {
 			values: `
@@ -382,11 +395,6 @@ hosts:
 - some-host
 protocol: https`,
 			wantErr: "\"global.runtime.ingress.className\" values must be a non-empty string",
-			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
-					StatusCode: 200,
-				}, nil)
-			},
 		},
 		"should fail if className is not found on cluster": {
 			values: `
@@ -396,11 +404,6 @@ protocol: https
 className: some-ingressclass`,
 			clientSet: v1fake.NewSimpleClientset(),
 			wantErr:   "ingressclasses.networking.k8s.io \"some-ingressclass\" not found",
-			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
-					StatusCode: 200,
-				}, nil)
-			},
 		},
 	}
 	for name, tt := range tests {
