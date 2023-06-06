@@ -37,14 +37,6 @@ import (
 	v1fake "k8s.io/client-go/kubernetes/fake"
 )
 
-func generateAccount(name string, gitProvider platmodel.GitProviders, gitApiUrl string) *platmodel.Account {
-	return &platmodel.Account{
-		Name:        &name,
-		GitProvider: &gitProvider,
-		GitAPIURL:   &gitApiUrl,
-	}
-}
-
 func Test_getUserToken(t *testing.T) {
 	tests := map[string]struct {
 		namespace string

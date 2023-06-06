@@ -403,15 +403,6 @@ func (c *ConfigImpl) validate() {
 	}
 }
 
-func isAdminUser(usr *codefresh.User) bool {
-	for _, role := range usr.Roles {
-		if role == "Admin" {
-			return true
-		}
-	}
-	return false
-}
-
 func init() {
 	homedir, err := os.UserHomeDir()
 	if err != nil {

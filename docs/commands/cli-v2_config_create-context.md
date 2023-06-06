@@ -19,6 +19,7 @@ cli-v2 config create-context NAME [flags]
 
 ```
       --api-key string   API key
+      --ca-cert string   Codefresh Platform certificate file (for on-prem)
   -h, --help             help for create-context
       --url string       Codefresh system custom url  (default "https://g.codefresh.io")
 ```
