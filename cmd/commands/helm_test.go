@@ -22,9 +22,10 @@ import (
 	"strings"
 	"testing"
 
-	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
+
+	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -46,26 +47,25 @@ func generateAccount(name string, gitProvider platmodel.GitProviders, gitApiUrl 
 
 func Test_getUserToken(t *testing.T) {
 	tests := map[string]struct {
-		namespace       string
-		userTokenValues chartutil.Values
-		clientSet       kubernetes.Interface
-		want            string
-		wantErr         string
+		namespace string
+		values    string
+		clientSet kubernetes.Interface
+		want      string
+		wantErr   string
 	}{
 		"should return value from userToken.token field": {
-			userTokenValues: chartutil.Values{
-				"token": "some-token",
-			},
+			values: `
+userToken:
+  token: some-token`,
 			want: "some-token",
 		},
 		"should return value from secretKeyRef data": {
 			namespace: "some-namespace",
-			userTokenValues: chartutil.Values{
-				"secretKeyRef": chartutil.Values{
-					"name": "some-secret",
-					"key":  "some-key",
-				},
-			},
+			values: `
+userToken:
+  secretKeyRef:
+    name: some-secret
+    key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "some-secret",
@@ -78,27 +78,26 @@ func Test_getUserToken(t *testing.T) {
 			want: "some-token",
 		},
 		"should fail if no explicit token and secretKeyRef is nil": {
-			userTokenValues: chartutil.Values{},
-			wantErr:         "userToken must contain either a \"token\" field, or a \"secretKeyRef\"",
+			values: `
+userToken: {}`,
+			wantErr: "userToken must contain either a \"token\" field, or a \"secretKeyRef\"",
 		},
 		"should fail if no explicit token and secret does not exist": {
-			userTokenValues: chartutil.Values{
-				"secretKeyRef": chartutil.Values{
-					"name": "some-secret",
-					"key":  "some-key",
-				},
-			},
+			values: `
+userToken:
+  secretKeyRef:
+    name: some-secret
+    key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(),
 			wantErr:   "failed getting user token from secretKeyRef: failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
 		"should fail if no explicit token and secret does not contain key": {
 			namespace: "some-namespace",
-			userTokenValues: chartutil.Values{
-				"secretKeyRef": chartutil.Values{
-					"name": "some-secret",
-					"key":  "some-key",
-				},
-			},
+			values: `
+userToken:
+  secretKeyRef:
+    name: some-secret
+    key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "some-secret",
@@ -109,12 +108,11 @@ func Test_getUserToken(t *testing.T) {
 		},
 		"should fail if no explicit token and key contains empty string": {
 			namespace: "some-namespace",
-			userTokenValues: chartutil.Values{
-				"secretKeyRef": chartutil.Values{
-					"name": "some-secret",
-					"key":  "some-key",
-				},
-			},
+			values: `
+userToken:
+  secretKeyRef:
+    name: some-secret
+    key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "some-secret",
@@ -140,9 +138,12 @@ func Test_getUserToken(t *testing.T) {
 				kubeFactory: mockKube,
 				namespace:   tt.namespace,
 			}
-			codefreshValues := chartutil.Values{
-				"userToken": tt.userTokenValues,
+			codefreshValues, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
 			}
+
 			got, err := getUserToken(context.Background(), opts, codefreshValues)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
@@ -156,29 +157,116 @@ func Test_getUserToken(t *testing.T) {
 	}
 }
 
-func Test_checkIngressDef(t *testing.T) {
+func Test_checkIngress(t *testing.T) {
 	tests := map[string]struct {
-		ingress   chartutil.Values
-		clientSet kubernetes.Interface
-		wantErr   string
-		beforeFn  func(t *testing.T, c *gitmocks.MockRoundTripper)
+		values     string
+		clientSet  kubernetes.Interface
+		accountId  string
+		ingressUrl string
+		wantErr    string
+		beforeFn   func(t *testing.T, rt *gitmocks.MockRoundTripper)
 	}{
-		"should succeed if values are valid": {
-			ingress: chartutil.Values{
-				"hosts": []interface{}{
-					"some-host",
-					"second-host",
-				},
-				"protocol":  "https",
-				"className": "some-ingressclass",
-			},
+		"should succeed if ingress values are valid": {
+			values: `
+global:
+  runtime:
+    ingress:
+      enabled: true
+      hosts:
+      - some.host
+      protocol: https
+      className: some-ingressclass`,
 			clientSet: v1fake.NewSimpleClientset(&networkingv1.IngressClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "some-ingressclass",
 				},
 			}),
-			beforeFn: func(t *testing.T, c *gitmocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+			beforeFn: func(t *testing.T, rt *gitmocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+					assert.Equal(t, "HEAD", req.Method)
+					assert.Equal(t, "https://some.host", req.URL.String())
+					res := &http.Response{
+						StatusCode: 200,
+					}
+					return res, nil
+				})
+			},
+		},
+		"should succeed if tunnel values are valid": {
+			values: `
+global:
+  codefresh:
+    accountId: some-account
+  runtime:
+    ingress:
+      enabled: false
+tunnel-client:
+  enabled: true`,
+		},
+		"should succeed if using a manual ingress set-up": {
+			values: `
+global:
+  runtime:
+    ingress:
+      enabled: false
+    ingressUrl: https://some.host/path
+tunnel-client:
+  enabled: false`,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var mockKube *kubemocks.MockFactory
+			ctrl := gomock.NewController(t)
+			mockRT := gitmocks.NewMockRoundTripper(ctrl)
+			if tt.clientSet != nil {
+				mockKube = kubemocks.NewMockFactory(ctrl)
+				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
+			}
+
+			if tt.beforeFn != nil {
+				tt.beforeFn(t, mockRT)
+			}
+			http.DefaultClient = &http.Client{
+				Transport: mockRT,
+			}
+			opts := &HelmValidateValuesOptions{
+				kubeFactory: mockKube,
+			}
+			values, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
+
+			err = checkIngress(context.Background(), opts, values)
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_checkIngressDef(t *testing.T) {
+	tests := map[string]struct {
+		values    string
+		clientSet kubernetes.Interface
+		wantErr   string
+		beforeFn  func(t *testing.T, rt *gitmocks.MockRoundTripper)
+	}{
+		"should succeed if values are valid": {
+			values: `
+hosts:
+- some-host
+protocol: https
+className: some-ingressclass`,
+			clientSet: v1fake.NewSimpleClientset(&networkingv1.IngressClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-ingressclass",
+				},
+			}),
+			beforeFn: func(t *testing.T, rt *gitmocks.MockRoundTripper) {
+				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).DoAndReturn(func(req *http.Request) (*http.Response, error) {
 					assert.Equal(t, "HEAD", req.Method)
 					assert.Equal(t, "https://some-host", req.URL.String())
 					res := &http.Response{
@@ -189,49 +277,60 @@ func Test_checkIngressDef(t *testing.T) {
 			},
 		},
 		"should fail if there is no hosts array": {
-			ingress: chartutil.Values{},
+			values: `
+protocol: https
+className: some-ingressclass
+`,
 			wantErr: "\"global.runtime.ingress.hosts\" array must contain an array of strings",
 		},
 		"should fail if hosts array is empty": {
-			ingress: chartutil.Values{
-				"hosts": []interface{}{},
-			},
+			values: `
+hosts: []
+protocol: https
+className: some-ingressclass`,
 			wantErr: "\"global.runtime.ingress.hosts\" array must contain an array of strings",
 		},
 		"should fail if 1st host is not a string": {
-			ingress: chartutil.Values{
-				"hosts": []interface{}{123},
-			},
+			values: `
+hosts:
+- 123
+protocol: https
+className: some-ingressclass`,
 			wantErr: "\"global.runtime.ingress.hosts\" values must be non-empty strings",
 		},
 		"shoulf fail if protocol is missing": {
-			ingress: chartutil.Values{
-				"hosts": []interface{}{"some-host"},
-			},
+			values: `
+hosts:
+- some-host
+- second-host
+className: some-ingressclass`,
 			wantErr: "\"global.runtime.ingress.protocol\" value must be https|http",
 		},
 		"shoulf fail if protocol is not https|http": {
-			ingress: chartutil.Values{
-				"hosts":    []interface{}{"some-host"},
-				"protocol": "another-protocol",
-			},
+			values: `
+hosts:
+- some-host
+- second-host
+protocol: another-protocol
+className: some-ingressclass`,
 			wantErr: "\"global.runtime.ingress.protocol\" value must be https|http",
 		},
 		"should fail if HEAD request fails": {
-			ingress: chartutil.Values{
-				"hosts":    []interface{}{"some-host"},
-				"protocol": "https",
-			},
+			values: `
+hosts:
+- some-host
+protocol: https
+className: some-ingressclass`,
 			wantErr: "Head \"https://some-host\": some error",
 			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},
 		},
 		"should fail if className is missing": {
-			ingress: chartutil.Values{
-				"hosts":    []interface{}{"some-host"},
-				"protocol": "https",
-			},
+			values: `
+hosts:
+- some-host
+protocol: https`,
 			wantErr: "\"global.runtime.ingress.className\" values must be a non-empty string",
 			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
@@ -240,11 +339,11 @@ func Test_checkIngressDef(t *testing.T) {
 			},
 		},
 		"should fail if className is not found on cluster": {
-			ingress: chartutil.Values{
-				"hosts":     []interface{}{"some-host"},
-				"protocol":  "https",
-				"className": "some-ingressclass",
-			},
+			values: `
+hosts:
+- some-host
+protocol: https
+className: some-ingressclass`,
 			clientSet: v1fake.NewSimpleClientset(),
 			wantErr:   "ingressclasses.networking.k8s.io \"some-ingressclass\" not found",
 			beforeFn: func(_ *testing.T, c *gitmocks.MockRoundTripper) {
@@ -258,26 +357,31 @@ func Test_checkIngressDef(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var mockKube *kubemocks.MockFactory
 			ctrl := gomock.NewController(t)
-			mockTransport := gitmocks.NewMockRoundTripper(ctrl)
+			mockRT := gitmocks.NewMockRoundTripper(ctrl)
 			if tt.clientSet != nil {
 				mockKube = kubemocks.NewMockFactory(ctrl)
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
 			if tt.beforeFn != nil {
-				tt.beforeFn(t, mockTransport)
+				tt.beforeFn(t, mockRT)
 			}
 
 			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 			}
 			http.DefaultClient = &http.Client{
-				Transport: mockTransport,
+				Transport: mockRT,
 			}
-			err := checkIngressDef(context.Background(), opts, tt.ingress)
+			ingressValues, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
+
+			err = checkIngressDef(context.Background(), opts, ingressValues)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
-				return
 			}
 		})
 	}
@@ -285,7 +389,7 @@ func Test_checkIngressDef(t *testing.T) {
 
 func Test_checkGit(t *testing.T) {
 	tests := map[string]struct {
-		git         chartutil.Values
+		values      string
 		gitProvider platmodel.GitProviders
 		gitApiUrl   string
 		clientSet   kubernetes.Interface
@@ -293,12 +397,13 @@ func Test_checkGit(t *testing.T) {
 		beforeFn    func(rt *gitmocks.MockRoundTripper)
 	}{
 		"should succeed if all values are correct": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        value: some-password
+      username: some-username`,
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "some-api-url",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
@@ -314,67 +419,79 @@ func Test_checkGit(t *testing.T) {
 			},
 		},
 		"should succeed if there is no gitProvider data (skip token validation)": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        value: some-password
+      username: some-username`,
 			gitProvider: "",
 		},
 		"should succeed if there is no gitApiUrl data (skip token validation)": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        value: some-password
+      username: some-username`,
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "",
 		},
-		"should skip validation if there are no gitCredentials values": {},
+		"should skip validation if there are no gitCredentials values": {
+			values: `
+global:
+  runtime: {}`,
+		},
 		"should skip validation if gitCredentials does not contain a password": {
-			git: chartutil.Values{},
+			values: `
+global:
+  runtime:
+    gitCredentials: {}`,
 		},
 		"should fail if failed to get git password": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"secretKeyRef": chartutil.Values{
-						"name": "some-secret",
-						"key":  "some-key",
-					},
-				},
-				"username": "some-username",
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        secretKeyRef:
+          name: some-secret
+          key: some-key
+      username: some-username`,
 			clientSet: v1fake.NewSimpleClientset(),
 			wantErr:   "failed getting \"global.runtime.gitCredentials.password\": failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
 		"should fail if there is no git username": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        value: some-password`,
 			wantErr: "\"global.runtime.gitCredentials.username\" must be a non-empty string",
 		},
 		"should fail if account contains invalid gitProvider data": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        value: some-password
+      username: some-username`,
 			gitProvider: "invalid-provider",
 			gitApiUrl:   "some-api-url",
 			wantErr:     "invalid gitProvider on account: provider \"invalid-provider\" is not a valid provider name",
 		},
 		"should fail if token is not valid": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-				"username": "some-username",
-			},
+			values: `
+global:
+  runtime:
+    gitCredentials:
+      password:
+        value: some-password
+      username: some-username`,
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "some-api-url",
 			wantErr:     "invalid git-token: Head \"some-api-url\": some error",
@@ -399,25 +516,24 @@ func Test_checkGit(t *testing.T) {
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
-			rt := gitmocks.NewMockRoundTripper(ctrl)
+			mockRT := gitmocks.NewMockRoundTripper(ctrl)
 			cfgit.GetProvider = func(_ cfgit.ProviderType, baseURL, _ string) (cfgit.Provider, error) {
 				client := &http.Client{
-					Transport: rt,
+					Transport: mockRT,
 				}
 				return cfgit.NewGithubProvider(baseURL, client)
 			}
 			if tt.beforeFn != nil {
-				tt.beforeFn(rt)
-			}
-			values := chartutil.Values{
-				"global": chartutil.Values{
-					"runtime": chartutil.Values{
-						"gitCredentials": tt.git,
-					},
-				},
+				tt.beforeFn(mockRT)
 			}
 
-			err := checkGit(context.Background(), opts, values, tt.gitProvider, tt.gitApiUrl)
+			gitValues, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
+
+			err = checkGit(context.Background(), opts, gitValues, tt.gitProvider, tt.gitApiUrl)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}
@@ -427,61 +543,73 @@ func Test_checkGit(t *testing.T) {
 
 func Test_getGitCertFile(t *testing.T) {
 	tests := map[string]struct {
-		certValues chartutil.Values
-		gitApiUrl  string
-		want       string
-		wantErr    string
+		values    string
+		gitApiUrl string
+		want      string
+		wantErr   string
 	}{
 		"should succeed if all values are correct": {
-			certValues: chartutil.Values{
-				"some.host": "some-cert",
-			},
+			values: `
+argo-cd:
+  configs:
+    tls:
+      certificates:
+        some.host: some-cert`,
 			gitApiUrl: "https://some.host/org/repo.git",
 			want:      "some.host.cer",
 		},
-		"shoudl return empty string if no certificates in argo-cd values": {
+		"should return empty string if no certificates in argo-cd values": {
 			want: "",
 		},
 		"should return empty string if certificates do not contain gitApiUrl hostname": {
-			certValues: chartutil.Values{
-				"another.host": "some-cert",
-			},
+			values: `
+argo-cd:
+  configs:
+    tls:
+      certificates:
+        another.host: some-cert`,
 			gitApiUrl: "https://some.host/org/repo.git",
 			want:      "",
 		},
 		"should return empty string if certificates is empty in values": {
-			certValues: chartutil.Values{
-				"some.host": "",
-			},
+			values: `
+argo-cd:
+  configs:
+    tls:
+      certificates:
+        some.host: ""`,
 			gitApiUrl: "https://some.host/org/repo.git",
 			want:      "",
 		},
 		"should fail if gitApiUrl is invalid": {
-			certValues: chartutil.Values{
-				"some.host": "some-cert",
-			},
+			values: `
+argo-cd:
+  configs:
+    tls:
+      certificates:
+        another.host: some-cert`,
 			gitApiUrl: "https://so:me.host/org/repo.git",
 			wantErr:   "failed parsing gitApiUrl \"https://so:me.host/org/repo.git\": parse \"https://so:me.host/org/repo.git\": invalid port \":me.host\" after host",
 		},
 		"should fail if certificate is not a string": {
-			certValues: chartutil.Values{
-				"some.host": 123,
-			},
+			values: `
+argo-cd:
+  configs:
+    tls:
+      certificates:
+        some.host: 123`,
 			gitApiUrl: "https://some.host/org/repo.git",
 			wantErr:   "certificate for git server host \"some.host\" must be a string value",
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			values := chartutil.Values{
-				"argo-cd": chartutil.Values{
-					"configs": chartutil.Values{
-						"tls": chartutil.Values{
-							"certificates": tt.certValues,
-						},
-					},
-				},
+			values, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
 			}
+
 			got, err := getGitCertFile(context.Background(), values, tt.gitApiUrl)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
@@ -501,32 +629,28 @@ func Test_getGitCertFile(t *testing.T) {
 
 func Test_getGitPassword(t *testing.T) {
 	tests := map[string]struct {
-		git       chartutil.Values
+		values    string
 		clientSet kubernetes.Interface
 		want      string
 		wantErr   string
 	}{
 		"should return password from the value field": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"value": "some-password",
-				},
-			},
+			values: `
+password:
+  value: some-password`,
 			want: "some-password",
 		},
 		"should return nothing if there is no value or secretKeyRef": {
-			git:  chartutil.Values{},
+			values: `
+password: {}`,
 			want: "",
 		},
 		"should return value from secretKeyRef, if there is no explicit value": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"secretKeyRef": chartutil.Values{
-						"name": "some-secret",
-						"key":  "some-key",
-					},
-				},
-			},
+			values: `
+password:
+  secretKeyRef:
+    name: some-secret
+    key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "some-secret",
@@ -539,14 +663,11 @@ func Test_getGitPassword(t *testing.T) {
 			want: "some-token",
 		},
 		"should fail if no explicit value, and secretKeyRef fails": {
-			git: chartutil.Values{
-				"password": chartutil.Values{
-					"secretKeyRef": chartutil.Values{
-						"name": "some-secret",
-						"key":  "some-key",
-					},
-				},
-			},
+			values: `
+password:
+  secretKeyRef:
+    name: some-secret
+    key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(),
 			wantErr:   "failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
@@ -564,8 +685,13 @@ func Test_getGitPassword(t *testing.T) {
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
+			gitValues, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
 
-			got, err := getGitPassword(context.Background(), opts, tt.git)
+			got, err := getGitPassword(context.Background(), opts, gitValues)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
@@ -580,16 +706,15 @@ func Test_getGitPassword(t *testing.T) {
 
 func Test_getValueFromSecretKeyRef(t *testing.T) {
 	tests := map[string]struct {
-		secretKeyRef chartutil.Values
+		values       string
 		clientSet    kubernetes.Interface
 		want         string
 		wantErr      string
 	}{
 		"should succeed if all values exist": {
-			secretKeyRef: chartutil.Values{
-				"name": "some-secret",
-				"key":  "some-key",
-			},
+			values: `
+name: some-secret
+key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "some-secret",
@@ -602,20 +727,19 @@ func Test_getValueFromSecretKeyRef(t *testing.T) {
 			want: "some-token",
 		},
 		"should return an empty string if name field is missing": {
-			secretKeyRef: chartutil.Values{},
+			values: `
+key: some-key`,
 			want:         "",
 		},
 		"should return an empty string if key field is missing": {
-			secretKeyRef: chartutil.Values{
-				"name": "some-secret",
-			},
+			values: `
+name: some-secret`,
 			want: "",
 		},
 		"should fail if secret not found": {
-			secretKeyRef: chartutil.Values{
-				"name": "some-secret",
-				"key":  "some-key",
-			},
+			values: `
+name: some-secret
+key: some-key`,
 			clientSet: v1fake.NewSimpleClientset(),
 			wantErr:   "failed reading secret \"some-secret\": secrets \"some-secret\" not found",
 		},
@@ -633,8 +757,13 @@ func Test_getValueFromSecretKeyRef(t *testing.T) {
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
+			secretKeyRef, err := chartutil.ReadValues([]byte(tt.values))
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
 
-			got, err := getValueFromSecretKeyRef(context.Background(), opts, tt.secretKeyRef)
+			got, err := getValueFromSecretKeyRef(context.Background(), opts, secretKeyRef)
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return

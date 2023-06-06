@@ -126,17 +126,12 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 		opts.namespace = runtimeName
 	}
 
-	accountId, err := helm.PathValue[string](values, "global.codefresh.accountId")
+	err = checkIngress(ctx, opts, values)
 	if err != nil {
 		return err
 	}
 
-	err = checkIngress(ctx, opts, values, accountId)
-	if err != nil {
-		return err
-	}
-
-	gitProvider, gitApiUrl, err := checkPlatform(ctx, opts, values, accountId, runtimeName)
+	gitProvider, gitApiUrl, err := checkPlatform(ctx, opts, values, runtimeName)
 	if err != nil {
 		return err
 	}
@@ -150,7 +145,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 	return nil
 }
 
-func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, accountId, runtimeName string) (platmodel.GitProviders, string, error) {
+func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, runtimeName string) (platmodel.GitProviders, string, error) {
 	codefreshValues, err := values.Table("global.codefresh")
 	if err != nil {
 		return "", "", err
@@ -163,7 +158,7 @@ func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values 
 		}
 
 		log.G(ctx).Debug("Runtime token not found, looking for user token")
-		return validateWithUserToken(ctx, opts, codefreshValues, accountId, runtimeName)
+		return validateWithUserToken(ctx, opts, codefreshValues, runtimeName)
 	}
 
 	return "", "", nil
@@ -189,7 +184,7 @@ func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptio
 	return nil
 }
 
-func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, accountId, runtimeName string) (platmodel.GitProviders, string, error) {
+func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) (platmodel.GitProviders, string, error) {
 	userToken, err := getUserToken(ctx, opts, codefreshValues)
 	if err != nil {
 		return "", "", fmt.Errorf("failed getting user token: %w", err)
@@ -210,6 +205,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 		return "", "", fmt.Errorf("user \"%s\" does not have Admin role in account \"%s\"", user.Name, *user.ActiveAccount.Name)
 	}
 
+	accountId, _ := helm.PathValue[string](codefreshValues, "accountId")
 	if accountId != "" && user.ActiveAccount.ID != accountId {
 		return "", "", fmt.Errorf("account mismatch - userToken is for accountId %s (\"%s\"), while \"global.codefresh.accountId\" is %s", user.ActiveAccount.ID, *user.ActiveAccount.Name, accountId)
 	}
@@ -339,7 +335,7 @@ func checkRuntimeName(ctx context.Context, cfClient codefresh.Codefresh, runtime
 	return fmt.Errorf("runtime \"%s\" already exists", runtimeName)
 }
 
-func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, accountId string) error {
+func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values) error {
 	ingressValues, err := values.Table("global.runtime.ingress")
 	if err != nil {
 		return err
@@ -366,7 +362,8 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 	}
 
 	if tunnelEnabled {
-		if accountId == "" {
+		accountId, err := helm.PathValue[string](values, "global.codefresh.accountId")
+		if accountId == "" || err != nil {
 			return errors.New("\"global.codefresh.accountId\" must be provided when using tunnel-client")
 		}
 
@@ -379,7 +376,7 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 		return err
 	}
 
-	if ingressUrl != "" {
+	if ingressUrl == "" {
 		return errors.New("must supply \"global.runtime.ingressUrl\" if both \"global.runtime.ingress.enabled\" and \"tunnel-client.enabled\" are false")
 	}
 
