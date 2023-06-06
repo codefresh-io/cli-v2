@@ -111,7 +111,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 		log.G(ctx).Infof("Running in hook-mode")
 	}
 
-	values, err := opts.helm.GetValues(opts.valuesFile)
+	values, err := opts.helm.GetValues(opts.valuesFile, !opts.hook)
 	if err != nil {
 		return fmt.Errorf("failed getting values: %w", err)
 	}
