@@ -338,12 +338,12 @@ func checkRuntimeName(ctx context.Context, cfClient codefresh.Codefresh, runtime
 func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values) error {
 	ingressValues, err := values.Table("global.runtime.ingress")
 	if err != nil {
-		return err
+		return errors.New("missing \"global.runtime.ingress\" values")
 	}
 
 	ingressEnabled, err := helm.PathValue[bool](ingressValues, "enabled")
 	if err != nil {
-		return err
+		return errors.New("missing \"global.runtime.ingress.enabled\" value")
 	}
 
 	if ingressEnabled {
@@ -358,7 +358,7 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 
 	tunnelEnabled, err := helm.PathValue[bool](values, "tunnel-client.enabled")
 	if err != nil {
-		return err
+		return errors.New("missing \"tunnel-client.enabled\" value")
 	}
 
 	if tunnelEnabled {
@@ -372,11 +372,7 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 	}
 
 	ingressUrl, err := helm.PathValue[string](values, "global.runtime.ingressUrl")
-	if err != nil {
-		return err
-	}
-
-	if ingressUrl == "" {
+	if ingressUrl == "" || err != nil {
 		return errors.New("must supply \"global.runtime.ingressUrl\" if both \"global.runtime.ingress.enabled\" and \"tunnel-client.enabled\" are false")
 	}
 

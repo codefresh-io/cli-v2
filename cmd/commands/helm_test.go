@@ -213,6 +213,56 @@ global:
 tunnel-client:
   enabled: false`,
 		},
+		"should fail if no ingress values": {
+			values: `
+global:
+  runtime: {}`,
+			wantErr: "missing \"global.runtime.ingress\" values",
+		},
+		"should fail if no ingress.enabled value": {
+			values: `
+global:
+  runtime:
+    ingress: {}`,
+			wantErr: "missing \"global.runtime.ingress.enabled\" value",
+		},
+		"should fail if ingress values are invalid": {
+			values: `
+global:
+  runtime:
+    ingress:
+      enabled: true`,
+			wantErr: "failed checking ingress data: \"global.runtime.ingress.hosts\" array must contain an array of strings",
+		},
+		"should fail if no tunnel-client.enabled value": {
+			values: `
+global:
+  runtime:
+    ingress:
+      enabled: false
+tunnel-client: {}`,
+			wantErr: "missing \"tunnel-client.enabled\" value",
+		},
+		"should fail if no accountd for tunnel mode": {
+			values: `
+global:
+  runtime:
+    ingress:
+      enabled: false
+tunnel-client:
+  enabled: true`,
+			wantErr: "\"global.codefresh.accountId\" must be provided when using tunnel-client",
+		},
+		"should fail if no ingressUrl for manual mode": {
+			values: `
+global:
+  runtime:
+    ingress:
+      enabled: false
+tunnel-client:
+  enabled: false`,
+			wantErr: "must supply \"global.runtime.ingressUrl\" if both \"global.runtime.ingress.enabled\" and \"tunnel-client.enabled\" are false",
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -706,10 +756,10 @@ password:
 
 func Test_getValueFromSecretKeyRef(t *testing.T) {
 	tests := map[string]struct {
-		values       string
-		clientSet    kubernetes.Interface
-		want         string
-		wantErr      string
+		values    string
+		clientSet kubernetes.Interface
+		want      string
+		wantErr   string
 	}{
 		"should succeed if all values exist": {
 			values: `
@@ -729,7 +779,7 @@ key: some-key`,
 		"should return an empty string if name field is missing": {
 			values: `
 key: some-key`,
-			want:         "",
+			want: "",
 		},
 		"should return an empty string if key field is missing": {
 			values: `
