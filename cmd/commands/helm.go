@@ -545,10 +545,7 @@ func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git ch
 		return "", err
 	}
 
-	if password != "" {
-		log.G(ctx).Debug("Got git password from \"secretKeyRef\" field")
-	}
-
+	log.G(ctx).Debug("Got git password from \"secretKeyRef\" field")
 	return password, nil
 }
 
