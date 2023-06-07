@@ -106,7 +106,7 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 }
 
 func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error {
-	log.G(ctx).Infof("Validating helm file \"%s\"", opts.valuesFile)
+	log.G(ctx).Infof("Validating helm values file \"%s\"", opts.valuesFile)
 	if opts.hook {
 		log.G(ctx).Infof("Running in hook-mode")
 	}
@@ -141,7 +141,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 		return fmt.Errorf("failed validating git credentials data: %w", err)
 	}
 
-	log.G(ctx).Infof("Successfuly validated helm file")
+	log.G(ctx).Infof("Successfuly validated helm values file")
 	return nil
 }
 
