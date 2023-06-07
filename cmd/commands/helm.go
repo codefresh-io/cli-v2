@@ -545,20 +545,21 @@ func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git ch
 		return "", err
 	}
 
-	log.G(ctx).Debug("Got git password from \"secretKeyRef\" field")
+	if password != "" {
+		log.G(ctx).Debug("Got git password from \"secretKeyRef\" field")
+	}
+
 	return password, nil
 }
 
 func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptions, secretKeyRef chartutil.Values) (string, error) {
 	name, err := helm.PathValue[string](secretKeyRef, "name")
 	if name == "" || err != nil {
-		log.G(ctx).Debug("\"secretKeyRef.name\" does not contain a valid string value")
 		return "", nil
 	}
 
 	key, err := helm.PathValue[string](secretKeyRef, "key")
 	if key == "" || err != nil {
-		log.G(ctx).Debug("\"secretKeyRef.key\" does not contain a valid string value")
 		return "", nil
 	}
 
