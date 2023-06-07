@@ -77,8 +77,8 @@ type (
 		Name           string `mapstructure:"name" json:"name"`
 		URL            string `mapstructure:"url" json:"url"`
 		Token          string `mapstructure:"token" json:"token"`
-		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime"`
-		CACert         string `mapstructure:"caCert" json:"caCert"`
+		DefaultRuntime string `mapstructure:"defaultRuntime" json:"defaultRuntime,omitempty"`
+		CACert         string `mapstructure:"caCert" json:"caCert,omitempty"`
 	}
 
 	authContextStatus struct {
