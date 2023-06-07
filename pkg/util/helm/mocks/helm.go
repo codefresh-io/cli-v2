@@ -49,16 +49,16 @@ func (m *MockHelm) EXPECT() *MockHelmMockRecorder {
 }
 
 // GetValues mocks base method.
-func (m *MockHelm) GetValues(valuesFile string) (chartutil.Values, error) {
+func (m *MockHelm) GetValues(valuesFile string, loadFromChart bool) (chartutil.Values, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetValues", valuesFile)
+	ret := m.ctrl.Call(m, "GetValues", valuesFile, loadFromChart)
 	ret0, _ := ret[0].(chartutil.Values)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetValues indicates an expected call of GetValues.
-func (mr *MockHelmMockRecorder) GetValues(valuesFile interface{}) *gomock.Call {
+func (mr *MockHelmMockRecorder) GetValues(valuesFile, loadFromChart interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValues", reflect.TypeOf((*MockHelm)(nil).GetValues), valuesFile)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValues", reflect.TypeOf((*MockHelm)(nil).GetValues), valuesFile, loadFromChart)
 }

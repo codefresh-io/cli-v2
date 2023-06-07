@@ -22,8 +22,9 @@ import (
 	"net/url"
 	"path"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	httputil "github.com/codefresh-io/cli-v2/pkg/util/http"
+
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
 type (

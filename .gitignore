@@ -95,3 +95,5 @@ site
 
 # codecov 
 codecov*
+
+values.yaml

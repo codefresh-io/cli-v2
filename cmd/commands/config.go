@@ -30,6 +30,13 @@ import (
 )
 
 type (
+	createContextOpts struct {
+		apiKey string
+		caCert string
+		name   string
+		url    string
+	}
+
 	updateGitOpsSettingsOpts struct {
 		gitProvider      cfgit.ProviderType
 		gitApiURL        string
@@ -74,10 +81,7 @@ commands, respectively:
 }
 
 func newConfigCreateContextCommand() *cobra.Command {
-	var (
-		apiKey string
-		url    string
-	)
+	opts := &createContextOpts{}
 
 	cmd := &cobra.Command{
 		Use:   "create-context NAME",
@@ -92,24 +96,26 @@ func newConfigCreateContextCommand() *cobra.Command {
 				return fmt.Errorf("must provide context name to use")
 			}
 
-			return runConfigCreateContext(cmd.Context(), args[0], apiKey, url)
+			opts.name = args[0]
+			return runConfigCreateContext(cmd.Context(), opts)
 		},
 	}
 
-	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key")
-	cmd.Flags().StringVar(&url, "url", store.Get().DefaultAPI, "Codefresh system custom url ")
+	cmd.Flags().StringVar(&opts.apiKey, "api-key", "", "API key")
+	cmd.Flags().StringVar(&opts.caCert, "ca-cert", "", "Codefresh Platform certificate file (for on-prem)")
+	cmd.Flags().StringVar(&opts.url, "url", store.Get().DefaultAPI, "Codefresh system custom url ")
 	die(cmd.MarkFlagRequired("api-key"))
 
 	return cmd
 }
 
-func runConfigCreateContext(ctx context.Context, context, apiKey, url string) error {
-	if err := cfConfig.CreateContext(ctx, context, apiKey, url); err != nil {
+func runConfigCreateContext(ctx context.Context, opts *createContextOpts) error {
+	if err := cfConfig.CreateContext(ctx, opts.name, opts.apiKey, opts.url, opts.caCert); err != nil {
 		return err
 	}
 
-	log.G().Infof("New context created: \"%s\"", context)
-	return runConfigUseContext(ctx, context)
+	log.G().Infof("New context created: \"%s\"", opts.name)
+	return runConfigUseContext(ctx, opts.name)
 }
 
 func newConfigGetContextsCommand() *cobra.Command {

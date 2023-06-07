@@ -23,10 +23,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
+	"github.com/Masterminds/semver/v3"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
@@ -660,6 +660,12 @@ func GetClientSet(kubeFactory apkube.Factory) (kubernetes.Interface, error) {
 	return cs, nil
 }
 
+func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
+	cs, err := GetClientSet(kubeFactory)
+	aputil.Die(err)
+	return cs
+}
+
 func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespace, name, key string) (string, error) {
 	cs := GetClientSetOrDie(kubeFactory)
 	secret, err := cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -667,21 +673,20 @@ func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespa
 		return "", fmt.Errorf("failed reading secret \"%s\": %w", name, err)
 	}
 
-	token, ok := secret.Data[key]
+	data, ok := secret.Data[key]
 	if !ok {
 		return "", fmt.Errorf("secret \"%s\" does not contain key \"%s\"", name, key)
 	}
 
-	return string(token), nil
+	value := string(data)
+	if value == "" {
+		return "", fmt.Errorf("secret \"%s\" key \"%s\" is an empty string", name, key)
+	}
+
+	return value, nil
 }
 
 func GetIngressClass(ctx context.Context, kubeFactory apkube.Factory, name string) (*netv1.IngressClass, error) {
 	cs := GetClientSetOrDie(kubeFactory)
 	return cs.NetworkingV1().IngressClasses().Get(ctx, name, metav1.GetOptions{})
-}
-
-func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
-	cs, err := GetClientSet(kubeFactory)
-	aputil.Die(err)
-	return cs
 }

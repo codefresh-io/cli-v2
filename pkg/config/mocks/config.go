@@ -53,17 +53,17 @@ func (m *MockConfig) EXPECT() *MockConfigMockRecorder {
 }
 
 // CreateContext mocks base method.
-func (m *MockConfig) CreateContext(ctx context.Context, name, token, url string) error {
+func (m *MockConfig) CreateContext(ctx context.Context, name, token, url, caCert string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateContext", ctx, name, token, url)
+	ret := m.ctrl.Call(m, "CreateContext", ctx, name, token, url, caCert)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateContext indicates an expected call of CreateContext.
-func (mr *MockConfigMockRecorder) CreateContext(ctx, name, token, url interface{}) *gomock.Call {
+func (mr *MockConfigMockRecorder) CreateContext(ctx, name, token, url, caCert interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateContext", reflect.TypeOf((*MockConfig)(nil).CreateContext), ctx, name, token, url)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateContext", reflect.TypeOf((*MockConfig)(nil).CreateContext), ctx, name, token, url, caCert)
 }
 
 // DeleteContext mocks base method.
@@ -139,18 +139,18 @@ func (mr *MockConfigMockRecorder) Load(cmd, args interface{}) *gomock.Call {
 }
 
 // NewAdHocClient mocks base method.
-func (m *MockConfig) NewAdHocClient(ctx context.Context, url, token string) (codefresh.Codefresh, error) {
+func (m *MockConfig) NewAdHocClient(ctx context.Context, url, token, caCert string) (codefresh.Codefresh, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewAdHocClient", ctx, url, token)
+	ret := m.ctrl.Call(m, "NewAdHocClient", ctx, url, token, caCert)
 	ret0, _ := ret[0].(codefresh.Codefresh)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NewAdHocClient indicates an expected call of NewAdHocClient.
-func (mr *MockConfigMockRecorder) NewAdHocClient(ctx, url, token interface{}) *gomock.Call {
+func (mr *MockConfigMockRecorder) NewAdHocClient(ctx, url, token, caCert interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAdHocClient", reflect.TypeOf((*MockConfig)(nil).NewAdHocClient), ctx, url, token)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAdHocClient", reflect.TypeOf((*MockConfig)(nil).NewAdHocClient), ctx, url, token, caCert)
 }
 
 // NewClient mocks base method.

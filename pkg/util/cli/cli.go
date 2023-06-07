@@ -29,9 +29,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 )
 

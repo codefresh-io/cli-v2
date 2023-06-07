@@ -31,7 +31,7 @@ import (
 
 type (
 	Helm interface {
-		GetValues(valuesFile string) (chartutil.Values, error)
+		GetValues(valuesFile string, loadFromChart bool) (chartutil.Values, error)
 	}
 
 	helmImpl struct {
@@ -54,17 +54,21 @@ func AddFlags(flags *pflag.FlagSet) Helm {
 	return helm
 }
 
-func (h *helmImpl) GetValues(valuesFile string) (chartutil.Values, error) {
+func (h *helmImpl) GetValues(valuesFile string, loadFromChart bool) (chartutil.Values, error) {
+	values, err := chartutil.ReadValuesFile(valuesFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if !loadFromChart {
+		return values, nil
+	}
+
 	if h.chartPathOpts.Version == "" && h.devel {
 		h.chartPathOpts.Version = ">0.0.0-0"
 	}
 
 	chart, err := h.loadHelmChart()
-	if err != nil {
-		return nil, err
-	}
-
-	values, err := chartutil.ReadValuesFile(valuesFile)
 	if err != nil {
 		return nil, err
 	}

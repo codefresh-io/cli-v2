@@ -20,8 +20,9 @@ import (
 	"net/http"
 	"net/url"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/store"
+
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/manifoldco/promptui"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"

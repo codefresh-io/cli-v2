@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/codefresh-io/cli-v2/pkg/git/mocks"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
