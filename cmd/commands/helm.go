@@ -201,7 +201,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 		return "", "", err
 	}
 
-	if user.IsAdmin == nil || !*user.IsAdmin {
+	if !user.IsActiveAccountAdmin()  {
 		return "", "", fmt.Errorf("user \"%s\" does not have Admin role in account \"%s\"", user.Name, *user.ActiveAccount.Name)
 	}
 

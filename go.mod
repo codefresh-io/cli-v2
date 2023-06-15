@@ -9,7 +9,7 @@ require (
 	github.com/argoproj/argo-events v0.17.1-0.20220327045437-70eaafe9afec
 	github.com/argoproj/argo-workflows/v3 v3.3.1
 	github.com/briandowns/spinner v1.18.1
-	github.com/codefresh-io/go-sdk v0.56.0
+	github.com/codefresh-io/go-sdk v0.57.0
 	github.com/fatih/color v1.13.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -183,6 +183,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.0.5 // indirect
