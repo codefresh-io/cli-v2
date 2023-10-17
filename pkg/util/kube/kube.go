@@ -566,7 +566,7 @@ func deleteJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Jo
 
 func getPodByJob(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) (*v1.Pod, error) {
 	pods, err := client.CoreV1().Pods(job.GetNamespace()).List(ctx, metav1.ListOptions{
-		LabelSelector: "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"],
+		LabelSelector: "controller-uid=" + job.Labels["controller-uid"],
 	})
 	if err != nil {
 		return nil, err
