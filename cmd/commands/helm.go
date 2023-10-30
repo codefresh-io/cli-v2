@@ -27,9 +27,12 @@ import (
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
+	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	"github.com/go-git/go-billy/v5/memfs"
 
+	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
@@ -46,6 +49,11 @@ type (
 		kubeFactory apkube.Factory
 		helm        helm.Helm
 		hook        bool
+	}
+
+	HelmUpgradeOptions struct {
+		runtimeName string
+		cloneOpts   *apgit.CloneOptions
 	}
 )
 
@@ -69,6 +77,7 @@ func NewHelmCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewHelmValidateValuesCommand())
+	cmd.AddCommand(NewHelmUpgradeCommand())
 
 	return cmd
 }
@@ -101,6 +110,49 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("hook"))
+
+	return cmd
+}
+
+func NewHelmUpgradeCommand() *cobra.Command {
+	opts := &HelmUpgradeOptions{}
+
+	cmd := &cobra.Command{
+		Use:     "upgrade",
+		Short:   "upgrade a cli-runtime to the new helm-runtime",
+		Example: util.Doc("<BIN> helm upgrade [RUNTIME_NAME]"),
+		Args:    cobra.MaximumNArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			ctx := cmd.Context()
+			err = cfConfig.RequireAuthentication(cmd, args)
+			if err != nil {
+				return err
+			}
+
+			opts.runtimeName, err = ensureRuntimeName(ctx, args, filterOnlyClidRuntime)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := runHelmUpgrade(cmd.Context(), opts)
+			if err != nil {
+				return fmt.Errorf("failed upgraring runtime %q: %w", opts.runtimeName, err)
+			}
+
+			return nil
+		},
+	}
+
+	opts.cloneOpts = apu.AddRepoFlags(cmd, &apu.CloneFlagsOptions{
+		CreateIfNotExist: false,
+		CloneForWrite:    true,
+		Optional:         false,
+	})
 
 	return cmd
 }
@@ -201,7 +253,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 		return "", "", err
 	}
 
-	if !user.IsActiveAccountAdmin()  {
+	if !user.IsActiveAccountAdmin() {
 		return "", "", fmt.Errorf("user \"%s\" does not have Admin role in account \"%s\"", user.Name, *user.ActiveAccount.Name)
 	}
 
@@ -564,4 +616,63 @@ func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptio
 	}
 
 	return kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, name, key)
+}
+
+func filterOnlyClidRuntime(rt *platmodel.Runtime) bool {
+	return rt.InstallationType == platmodel.InstallationTypeCli
+}
+
+func runHelmUpgrade(ctx context.Context, opts *HelmUpgradeOptions) error {
+	runtime, err := getCliRuntime(ctx, opts.runtimeName)
+	if err != nil {
+		return err
+	}
+
+	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting current user: %w", err)
+	}
+
+	insCloneOpts := &apgit.CloneOptions{
+		Provider: user.ActiveAccount.GitProvider.String(),
+		Repo:     *runtime.Repo,
+		Auth:     opts.cloneOpts.Auth,
+		FS:       opts.cloneOpts.FS,
+	}
+	insCloneOpts.Parse()
+	_, _, err = insCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting installation repo: %w", err)
+	}
+
+	iscCloneOpts := &apgit.CloneOptions{
+		Provider: user.ActiveAccount.GitProvider.String(),
+		Repo:     *user.ActiveAccount.SharedConfigRepo,
+		Auth:     opts.cloneOpts.Auth,
+		FS:       apfs.Create(memfs.New()),
+	}
+	iscCloneOpts.Parse()
+	_, _, err = iscCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting shared config repo: %w", err)
+	}
+
+	return nil
+}
+
+func getCliRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, error) {
+	runtime, err := getRuntime(ctx, runtimeName)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting runtime: %w", err)
+	}
+
+	if runtime.InstallationType != platmodel.InstallationTypeCli {
+		return nil, fmt.Errorf("runtime %q is not a cli-runtime", runtimeName)
+	}
+
+	if runtime.Repo == nil {
+		return nil, fmt.Errorf("runtime %q does not have an installation repo", runtimeName)
+	}
+
+	return runtime, nil
 }

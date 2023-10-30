@@ -128,12 +128,10 @@ func (c *ConfigImpl) RequireAuthentication(cmd *cobra.Command, args []string) er
 		return fmt.Errorf(util.Doc("%s: command requires authentication, run '<BIN> config create-context'"), cmd.CommandPath())
 	}
 
-	c.validate()
-
 	return nil
 }
 
-func (c *ConfigImpl) Load(cmd *cobra.Command, args []string) error {
+func (c *ConfigImpl) Load(_ *cobra.Command, _ []string) error {
 	viper.SetConfigType(configFileFormat)
 	viper.SetConfigName(configFileName)
 	viper.AddConfigPath(c.path)
@@ -145,6 +143,7 @@ func (c *ConfigImpl) Load(cmd *cobra.Command, args []string) error {
 				return nil
 			}
 		}
+
 		return err
 	}
 
