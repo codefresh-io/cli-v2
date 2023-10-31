@@ -24,8 +24,11 @@ import (
 	"path"
 	"strings"
 
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/pkg/templates"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
@@ -37,6 +40,7 @@ import (
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,11 +58,8 @@ type (
 	HelmUpgradeOptions struct {
 		runtimeName string
 		cloneOpts   *apgit.CloneOptions
+		kubeFactory apkube.Factory
 	}
-)
-
-const (
-	CODEFRESH_TOKEN = "codefresh-token"
 )
 
 var (
@@ -153,6 +154,7 @@ func NewHelmUpgradeCommand() *cobra.Command {
 		CloneForWrite:    true,
 		Optional:         false,
 	})
+	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -217,7 +219,7 @@ func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values 
 }
 
 func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) error {
-	runtimeToken, _ := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, CODEFRESH_TOKEN, "token")
+	runtimeToken, _ := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
 	if runtimeToken == "" {
 		return ErrRuntimeTokenNotFound
 	}
@@ -628,35 +630,61 @@ func runHelmUpgrade(ctx context.Context, opts *HelmUpgradeOptions) error {
 		return err
 	}
 
+	log.G(ctx).Infof("Got runtime data %q", opts.runtimeName)
 	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting current user: %w", err)
 	}
 
-	insCloneOpts := &apgit.CloneOptions{
+	log.G(ctx).Infof("Got user data for %q", user.Name)
+	srcCloneOpts := &apgit.CloneOptions{
 		Provider: user.ActiveAccount.GitProvider.String(),
 		Repo:     *runtime.Repo,
 		Auth:     opts.cloneOpts.Auth,
 		FS:       opts.cloneOpts.FS,
 	}
-	insCloneOpts.Parse()
-	_, _, err = insCloneOpts.GetRepo(ctx)
+	srcCloneOpts.Parse()
+	srcRepo, srcFs, err := srcCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting installation repo: %w", err)
 	}
 
-	iscCloneOpts := &apgit.CloneOptions{
+	log.G(ctx).Infof("Cloned installation repo %q", *runtime.Repo)
+	destCloneOpts := &apgit.CloneOptions{
 		Provider: user.ActiveAccount.GitProvider.String(),
 		Repo:     *user.ActiveAccount.SharedConfigRepo,
 		Auth:     opts.cloneOpts.Auth,
 		FS:       apfs.Create(memfs.New()),
 	}
-	iscCloneOpts.Parse()
-	_, _, err = iscCloneOpts.GetRepo(ctx)
+	destCloneOpts.Parse()
+	destRepo, destFs, err := destCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting shared config repo: %w", err)
 	}
 
+	log.G(ctx).Infof("Cloned internal-shared-config repo %q", *user.ActiveAccount.SharedConfigRepo)
+	err = moveGitSources(srcFs, destFs, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed moving git sources: %w", err)
+	}
+
+	log.G(ctx).Infof("moved all git-sources from installation repo to shared-config-repo")
+	sha, err := srcRepo.Persist(ctx, &apgit.PushOptions{
+		CommitMsg: "moved git sources to internal-shared-config",
+	})
+	if err != nil {
+		return fmt.Errorf("failed pushing changes to installation repo: %w", err)
+	}
+
+	log.G(ctx).Infof("Pushed changes to installation repo %q, sha: %s", *runtime.Repo, sha)
+	sha, err = destRepo.Persist(ctx, &apgit.PushOptions{
+		CommitMsg: "moved git sources from installation repo",
+	})
+	if err != nil {
+		return fmt.Errorf("failed pushing changes to internal-shared-config repo: %w", err)
+	}
+
+	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *runtime.Repo, sha)
 	return nil
 }
 
@@ -675,4 +703,134 @@ func getCliRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime,
 	}
 
 	return runtime, nil
+}
+
+func getAppsetGlobs(srcFs apfs.FS) (map[string]string, error) {
+	res := make(map[string]string)
+	projects, err := billyUtils.Glob(srcFs, "/projects/*.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("failed getting projects: %w", err)
+	}
+
+	for _, projectFile := range projects {
+		_, appSet, err := getProjectInfoFromFile(srcFs, projectFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed getting project info from file %q: %w", projectFile, err)
+		}
+
+		generators := appSet.Spec.Generators
+		for _, generator := range generators {
+			if generator.Git == nil {
+				continue
+			}
+
+			for _, file := range generator.Git.Files {
+				if strings.HasSuffix(file.Path, "config_dir.json") {
+					res[appSet.Name] = file.Path
+				}
+			}
+		}
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed getting globs from projects directory: %w", err)
+	}
+
+	return res, nil
+}
+
+func moveGitSources(srcFs, destFs apfs.FS, runtimeName string) error {
+	globs, err := getAppsetGlobs(srcFs)
+	if err != nil {
+		return err
+	}
+
+	for cluster, glob := range globs {
+		err = moveClusterGitSources(srcFs, destFs, glob, cluster, runtimeName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func moveClusterGitSources(srcFs, destFs apfs.FS, glob, cluster, runtimeName string) error {
+	if cluster == runtimeName {
+		cluster = "in-cluster"
+	}
+
+	internalConfigApp := &argocdv1alpha1.Application{}
+	internalConfigFilename := destFs.Join("runtimes", runtimeName, cluster+".yaml")
+	err := destFs.ReadYamls(internalConfigFilename, internalConfigApp)
+	if err != nil {
+		return fmt.Errorf("failed reading internal config file: %w", err)
+	}
+
+	includeStr := internalConfigApp.Spec.Source.Directory.Include
+	includeArr := strings.Split(includeStr[1:len(includeStr)-1], ",")
+
+	configs, err := billyUtils.Glob(srcFs, glob)
+	if err != nil {
+		return fmt.Errorf("failed getting git sources from %q: %w", glob, err)
+	}
+
+	for _, configPath := range configs {
+		relPath, err := moveSingleGitSource(srcFs, destFs, configPath, runtimeName)
+		if err != nil {
+			return fmt.Errorf("failed moving git-source %q: %w", configPath, err)
+		}
+
+		if relPath != "" {
+			includeArr = append(includeArr, relPath)
+		}
+	}
+
+	internalConfigApp.Spec.Source.Directory.Include = fmt.Sprintf("{%s}", strings.Join(includeArr, ","))
+	err = destFs.WriteYamls(internalConfigFilename, internalConfigApp)
+	if err != nil {
+		return fmt.Errorf("failed writing internal config file: %w", err)
+	}
+
+	return nil
+}
+
+func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName string) (string, error) {
+	config := &templates.GitSourceConfig{}
+	err := srcFs.ReadJson(configPath, config)
+	if err != nil {
+		return "", fmt.Errorf("failed reading config_dir.json: %w", err)
+	}
+
+	if config.Labels[store.Get().LabelFieldCFType] != store.Get().CFGitSourceType {
+		return "", nil
+	}
+
+	config.RuntimeName = runtimeName
+	for key, value := range config.Annotations {
+		if strings.Contains(key, "-") {
+			newKey := strings.ReplaceAll(key, "-", "_")
+			config.Annotations[newKey] = value
+			delete(config.Annotations, key)
+		}
+	}
+
+	destYaml, err := templates.RenderGitSource(config)
+	if err != nil {
+		return "", fmt.Errorf("failed rendering git source: %w", err)
+	}
+
+	relPath := destFs.Join(runtimeName, config.AppName+".yaml")
+	fullPAth := destFs.Join("resources", relPath)
+	err = billyUtils.WriteFile(destFs, fullPAth, destYaml, 0666)
+	if err != nil {
+		return "", fmt.Errorf("failed writing git source: %w", err)
+	}
+
+	err = srcFs.Remove(configPath)
+	if err != nil {
+		return "", fmt.Errorf("failed removing config_dir.json: %w", err)
+	}
+
+	return relPath, nil
 }

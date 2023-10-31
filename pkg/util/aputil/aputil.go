@@ -109,6 +109,7 @@ func ConfigureLoggerOrDie(cmd *cobra.Command) {
 func AddRepoFlags(cmd *cobra.Command, opts *CloneFlagsOptions) *apgit.CloneOptions {
 	co := AddCloneFlags(cmd, opts)
 	util.Die(cmd.PersistentFlags().MarkHidden(opts.Prefix + "repo"))
+	util.Die(cmd.PersistentFlags().MarkHidden(opts.Prefix + "upsert-branch"))
 	util.Die(cmd.PersistentFlags().SetAnnotation(opts.Prefix+"repo", cobra.BashCompOneRequiredFlag, []string{"false"}))
 	return co
 }
