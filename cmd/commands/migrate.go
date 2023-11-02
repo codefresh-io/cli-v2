@@ -427,15 +427,6 @@ func writeYamlInIsc(destFs apfs.FS, fileName, runtimeName string, data []byte) (
 	return relPath, nil
 }
 
-func getClusterServerUrl(destFs apfs.FS, runtimeName, clusterName string) (string, error) {
-	clusterApp, err := isc.ReadClusterConfigApp(destFs, runtimeName, clusterName)
-	if err != nil {
-		return "", fmt.Errorf("failed reading cluster config app: %w", err)
-	}
-
-	return clusterApp.Server(), nil
-}
-
 func addPathToInclude(destFs apfs.FS, runtimeName, clusterName, path string) error {
 	clusterApp, err := isc.ReadClusterConfigApp(destFs, runtimeName, clusterName)
 	if err != nil {
