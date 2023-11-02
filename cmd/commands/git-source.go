@@ -236,7 +236,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	err = appProxy.AppProxyGitSources().Create(ctx, &apmodel.CreateGitSourceInput{
 		AppName:       opts.GsName,
 		AppSpecifier:  appSpecifier,
-		DestServer:    store.Get().InCluster,
+		DestServer:    store.Get().InClusterServerURL,
 		DestNamespace: &opts.RuntimeNamespace,
 		IsInternal:    &isInternal,
 		Include:       &opts.Include,

@@ -111,7 +111,8 @@ type Store struct {
 	GitTokenSecretObjectName          string
 	GitTokensLink                     string
 	GsCreateFlow                      string
-	InCluster                         string
+	InClusterName                     string
+	InClusterServerURL                string
 	InClusterPath                     string
 	IngressHost                       string
 	InsecureIngressHost               bool
@@ -234,7 +235,8 @@ func init() {
 	s.GitTokenSecretKey = "git_token"
 	s.GitTokenSecretObjectName = "autopilot-secret"
 	s.GitTokensLink = "https://codefresh.io/csdp-docs/docs/reference/git-tokens/"
-	s.InCluster = "https://kubernetes.default.svc"
+	s.InClusterName = "in-cluster"
+	s.InClusterServerURL = "https://kubernetes.default.svc"
 	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
 	s.InternalRouterIngressFilePath = "internal-router"
 	s.InternalRouterIngressName = "-internal-router-ingress"

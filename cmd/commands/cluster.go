@@ -523,12 +523,12 @@ func runClusterList(ctx context.Context, runtimeName string) error {
 
 	sort.SliceStable(clusters, func(i, j int) bool {
 		c1 := clusters[i]
-		if c1.Metadata.Name == "in-cluster" {
+		if c1.Metadata.Name == store.Get().InClusterName {
 			return true
 		}
 
 		c2 := clusters[j]
-		if c2.Metadata.Name == "in-cluster" {
+		if c2.Metadata.Name == store.Get().InClusterName {
 			return false
 		}
 

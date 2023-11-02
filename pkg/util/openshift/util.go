@@ -99,7 +99,7 @@ func createScc(ctx context.Context, opts *OpenshiftOptions) error {
 		Priority: &sccPriority,
 	}
 
-	clusterResourcesDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ClusterResourcesDir, "in-cluster")
+	clusterResourcesDir := fs.Join(apstore.Default.BootsrtrapDir, apstore.Default.ClusterResourcesDir, store.Get().InClusterName)
 
 	if err = fs.WriteYamls(fs.Join(clusterResourcesDir, "scc.yaml"), scc); err != nil {
 		return err
