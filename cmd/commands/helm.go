@@ -94,7 +94,7 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
 	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
-	opts.helm = helm.AddFlags(cmd.Flags())
+	opts.helm, _ = helm.AddFlags(cmd.Flags())
 	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("hook"))

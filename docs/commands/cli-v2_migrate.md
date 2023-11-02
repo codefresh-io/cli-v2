@@ -15,10 +15,12 @@ cli-v2 helm migrate [RUNTIME_NAME]
 ### Options
 
 ```
+      --devel                   use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored
       --git-server-crt string   Git Server certificate file
   -t, --git-token string        Your git provider api token [GIT_TOKEN]
   -u, --git-user string         Your git provider user name [GIT_USER] (not required in GitHub)
   -h, --help                    help for migrate
+      --version string          specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used
 ```
 
 ### Options inherited from parent commands

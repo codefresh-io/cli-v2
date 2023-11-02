@@ -26,6 +26,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/templates"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
+	"github.com/codefresh-io/cli-v2/pkg/util/helm"
 	"github.com/go-git/go-billy/v5/memfs"
 
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
@@ -39,6 +40,7 @@ type (
 	MigrateOptions struct {
 		runtimeName string
 		cloneOpts   *apgit.CloneOptions
+		helm        helm.Helm
 	}
 )
 
@@ -81,6 +83,7 @@ func NewMigrateCommand() *cobra.Command {
 		CloneForWrite:    true,
 		Optional:         false,
 	})
+	opts.helm, _ = helm.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -131,7 +134,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 
 	log.G(ctx).Infof("moved all git-sources from installation repo to shared-config-repo")
 
-	err = moveArgoRollouts(srcFs, destFs, opts.runtimeName, *runtime.Metadata.Namespace)
+	err = moveArgoRollouts(srcFs, destFs, opts, *runtime.Metadata.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed moving argo-rollouts: %w", err)
 	}
@@ -295,7 +298,7 @@ func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName string) 
 	return path, nil
 }
 
-func moveArgoRollouts(srcFs, destFs apfs.FS, runtimeName, runtimeNamespace string) error {
+func moveArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, runtimeNamespace string) error {
 	rolloutsOverlaysPath := srcFs.Join("apps", "rollouts", "overlays")
 	rolloutsOverlays, err := srcFs.ReadDir(rolloutsOverlaysPath)
 	if err != nil {
@@ -304,18 +307,18 @@ func moveArgoRollouts(srcFs, destFs apfs.FS, runtimeName, runtimeNamespace strin
 
 	var clusterNames []string
 	for _, overlay := range rolloutsOverlays {
-		if overlay.IsDir() && overlay.Name() != runtimeName {
+		if overlay.IsDir() && overlay.Name() != opts.runtimeName {
 			clusterNames = append(clusterNames, overlay.Name())
 		}
 	}
 
 	for _, clusterName := range clusterNames {
-		err = moveClusterArgoRollouts(srcFs, destFs, runtimeName, clusterName)
+		err = moveClusterArgoRollouts(srcFs, destFs, opts, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed moving argo-rollouts: %w", err)
 		}
 
-		err = moveClusterRolloutReporter(srcFs, destFs, runtimeName, runtimeNamespace, clusterName)
+		err = moveClusterRolloutReporter(srcFs, destFs, opts.runtimeName, runtimeNamespace, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed moving rollout-reporter: %w", err)
 		}
@@ -324,13 +327,13 @@ func moveArgoRollouts(srcFs, destFs apfs.FS, runtimeName, runtimeNamespace strin
 	return nil
 }
 
-func moveClusterArgoRollouts(srcFs, destFs apfs.FS, runtimeName, clusterName string) error {
-	rolloutsPath, err := createClusterArgoRollouts(destFs, runtimeName, clusterName)
+func moveClusterArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
+	rolloutsPath, err := createClusterArgoRollouts(destFs, opts, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed creating argo-rollouts: %w", err)
 	}
 
-	err = addPathToInclude(destFs, runtimeName, clusterName, rolloutsPath)
+	err = addPathToInclude(destFs, opts.runtimeName, clusterName, rolloutsPath)
 	if err != nil {
 		return fmt.Errorf("failed adding path to include: %w", err)
 	}
@@ -344,19 +347,24 @@ func moveClusterArgoRollouts(srcFs, destFs apfs.FS, runtimeName, clusterName str
 	return nil
 }
 
-func createClusterArgoRollouts(destFs apfs.FS, runtimeName, clusterName string) (string, error) {
+func createClusterArgoRollouts(destFs apfs.FS, opts *MigrateOptions, clusterName string) (string, error) {
 	appName := addSuffix(clusterName, "-"+store.Get().RolloutResourceName, 63)
+	repoURL, targetRevision, err := opts.helm.GetDependency("argo-rollouts")
+	if err != nil {
+		return "", fmt.Errorf("failed getting argo-rollouts dependency: %w", err)
+	}
+
 	destYaml, err := templates.RenderArgoRollouts(&templates.ArgoRolloutsConfig{
 		AppName:       appName,
 		ClusterName:   clusterName,
-		RepoURL:       "https://codefresh-io.github.io/argo-helm",
-		TargetVersion: "2.31.6-1-cf-init",
+		RepoURL:       repoURL,
+		TargetVersion: targetRevision,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed rendering argo-rollouts: %w", err)
 	}
 
-	path, err := writeYamlInIsc(destFs, appName, runtimeName, destYaml)
+	path, err := writeYamlInIsc(destFs, appName, opts.runtimeName, destYaml)
 	if err != nil {
 		return "", fmt.Errorf("failed writing argo-rollouts: %w", err)
 	}
@@ -448,5 +456,4 @@ func addSuffix(str, suffix string, length int) string {
 	}
 
 	return str[:length-len(suffix)] + suffix
-
 }
