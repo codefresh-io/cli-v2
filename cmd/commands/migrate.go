@@ -482,9 +482,14 @@ func addSuffix(str, suffix string, length int) string {
 }
 
 func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
-	err := preserveCodefreshToken(ctx, kubeFactory, runtimeNamespace)
+	err := switchSecretsLabel(ctx, kubeFactory, runtimeNamespace, apstore.Default.LabelKeyAppManagedBy, apstore.Default.LabelValueManagedBy, "codefresh")
 	if err != nil {
-		return fmt.Errorf("failed preserving codefresh token: %w", err)
+		return fmt.Errorf("failed preserving codefresh token secret: %w", err)
+	}
+
+	err = switchSecretsLabel(ctx, kubeFactory, runtimeNamespace, store.Get().LabelGitIntegrationTypeKey, store.Get().LabelGitIntegrationTypeValue, "helm-migration")
+	if err != nil {
+		return fmt.Errorf("failed preserving git-integration secrets: %w", err)
 	}
 
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
@@ -505,25 +510,42 @@ func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string
 		return fmt.Errorf("failed cleaning up after uninstall: %w", err)
 	}
 
+	err = switchSecretsLabel(ctx, kubeFactory, runtimeNamespace, store.Get().LabelGitIntegrationTypeKey, "helm-migration", store.Get().LabelGitIntegrationTypeValue)
+	if err != nil {
+		return fmt.Errorf("failed restoring git-integration secrets: %w", err)
+	}
+
 	err = patchCrds(ctx, kubeFactory)
 	if err != nil {
-		return fmt.Errorf("failed preserving codefresh token: %w", err)
+		return fmt.Errorf("failed updating argoproj CRDs: %w", err)
 	}
 
 	log.G(ctx).Infof("Uninstalled runtime from cluster")
+	
+	
 	return nil
 }
 
-func preserveCodefreshToken(ctx context.Context, kubeFactory apkube.Factory, runtimeNamespace string) error {
-	_, err := kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(runtimeNamespace).Patch(
-		ctx,
-		store.Get().CFTokenSecret,
-		types.StrategicMergePatchType,
-		getManagedByLabelPatch("codefresh"),
-		metav1.PatchOptions{},
-	)
+func switchSecretsLabel(ctx context.Context, kubeFactory apkube.Factory, namespace, labelKey, oldValue, newValue string) error {
+	secretsInterface := kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace)
+	secrets, err := secretsInterface.List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", labelKey, oldValue),
+	})
 	if err != nil {
-		return fmt.Errorf("failed preserving codefresh token: %w", err)
+		return fmt.Errorf("failed getting secrets: %w", err)
+	}
+
+	for _, secret := range secrets.Items {
+		_, err := secretsInterface.Patch(
+			ctx,
+			secret.Name,
+			types.StrategicMergePatchType,
+			[]byte(getLabelPatch(labelKey, newValue)),
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			return fmt.Errorf("failed patching secret %q: %w", secret.Name, err)
+		}
 	}
 
 	return nil
@@ -531,25 +553,24 @@ func preserveCodefreshToken(ctx context.Context, kubeFactory apkube.Factory, run
 
 func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 	gvr := schema.GroupVersionResource(apiextv1.SchemeGroupVersion.WithResource("customresourcedefinitions"))
-	dynamic := kube.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
-	crds, err := dynamic.List(ctx, metav1.ListOptions{
+	crdInterface := kube.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
+	crds, err := crdInterface.List(ctx, metav1.ListOptions{
 
 	})
 	if err != nil {
 		return fmt.Errorf("failed listing crds: %w", err)
 	}
 
-	patch := getManagedByLabelPatch("Helm")
 	for _, crd := range crds.Items {
 		if !strings.HasSuffix(crd.GetName(), "argoproj.io") { 
 			continue
 		}
 
-		_, err := dynamic.Patch(
+		_, err := crdInterface.Patch(
 			ctx,
 			crd.GetName(),
 			types.StrategicMergePatchType,
-			patch,
+			[]byte(getLabelPatch(apstore.Default.LabelKeyAppManagedBy, "Helm")),
 			metav1.PatchOptions{},
 		)
 		if err != nil {
@@ -562,6 +583,6 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 	return nil
 }
 
-func getManagedByLabelPatch(by string) []byte {
-	return []byte(fmt.Sprintf(`{"metadata":{"labels": { "%s": "%s" }}}`, apstore.Default.LabelKeyAppManagedBy, by))
+func getLabelPatch(key, value string) string {
+	return fmt.Sprintf(`{ "metadata": { "labels": { "%s": "%s" } } }`, key, value)
 }

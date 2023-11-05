@@ -127,6 +127,8 @@ type Store struct {
 	LabelFieldCFType                  string
 	LabelKeyCFInternal                string
 	LabelKeyCFType                    string
+	LabelGitIntegrationTypeKey        string
+	LabelGitIntegrationTypeValue      string
 	LabelSelectorGitIntegrationSecret string
 	LabelSelectorSealedSecret         string
 	LastRuntimeVersionInCLI           *semver.Version
@@ -248,7 +250,9 @@ func init() {
 	s.LabelFieldCFType = "codefresh_io_entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.LabelKeyCFType = "codefresh.io/entity"
-	s.LabelSelectorGitIntegrationSecret = "io.codefresh.integration-type=git"
+	s.LabelGitIntegrationTypeKey = "io.codefresh.integration-type"
+	s.LabelGitIntegrationTypeValue = "git"
+	s.LabelSelectorGitIntegrationSecret = fmt.Sprintf("%s=%s", s.LabelGitIntegrationTypeKey, s.LabelGitIntegrationTypeValue)
 	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
 	s.LastRuntimeVersionInCLI = semver.MustParse(lastRuntimeVersionInCLI)
 	s.MarketplaceGitSourceName = "marketplace-git-source"
