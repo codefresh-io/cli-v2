@@ -244,7 +244,7 @@ func init() {
 	s.InternalRouterServiceName = "internal-router"
 	s.InternalRouterServicePort = 80
 	s.IscRuntimesDir = "runtimes"
-	s.KubeVersionConstrint, _ = semver.NewConstraint("1.21-0 - 1.26-0")
+	s.KubeVersionConstrint, _ = semver.NewConstraint("1.21-0 - 1.28-0")
 	s.LabelFieldCFType = "codefresh_io_entity"
 	s.LabelKeyCFInternal = "codefresh.io/internal"
 	s.LabelKeyCFType = "codefresh.io/entity"

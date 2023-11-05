@@ -29,8 +29,10 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
 	"github.com/go-git/go-billy/v5/memfs"
 
+	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/spf13/cobra"
@@ -41,6 +43,8 @@ type (
 		runtimeName string
 		cloneOpts   *apgit.CloneOptions
 		helm        helm.Helm
+		kubeContext string
+		kubeFactory apkube.Factory
 	}
 )
 
@@ -66,6 +70,11 @@ func NewMigrateCommand() *cobra.Command {
 				return err
 			}
 
+			opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
+			if err != nil {
+				return err
+			}
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -84,6 +93,7 @@ func NewMigrateCommand() *cobra.Command {
 		Optional:         false,
 	})
 	opts.helm, _ = helm.AddFlags(cmd.Flags())
+	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -156,6 +166,13 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 
 	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *runtime.Repo, sha)
 	log.G(ctx).Infof("Done migrating resources from %q to %q", *runtime.Repo, *user.ActiveAccount.SharedConfigRepo)
+	
+	err = removeFromCluster(ctx, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
+	if err != nil {
+		return fmt.Errorf("failed removing runtime from cluster: %w", err)
+	}
+
+	log.G(ctx).Infof("Uninstalled runtime %q", opts.runtimeName)
 	return nil
 }
 
@@ -456,4 +473,27 @@ func addSuffix(str, suffix string, length int) string {
 	}
 
 	return str[:length-len(suffix)] + suffix
+}
+
+func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
+	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+		Namespace:       runtimeNamespace,
+		KubeContextName: kubeContext,
+		Timeout:         store.Get().WaitTimeout,
+		CloneOptions:    cloneOptions,
+		KubeFactory:     kubeFactory,
+		Force:           true,
+		FastExit:        false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed uninstalling runtime: %w", err)
+	}
+
+	err = runPostUninstallCleanup(ctx, kubeFactory, runtimeNamespace)
+	if err != nil {
+		return fmt.Errorf("failed cleaning up after uninstall: %w", err)
+	}
+
+	log.G(ctx).Infof("Uninstalled runtime from cluster")
+	return nil
 }
