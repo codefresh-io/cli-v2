@@ -18,6 +18,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/juju/ansiterm v0.0.0-20210929141451-8b71cc96ebdc
+	github.com/kubewarden/k8s-objects v1.26.0-kw4
 	github.com/manifoldco/promptui v0.8.0
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8

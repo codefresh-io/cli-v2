@@ -27,15 +27,21 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
+	"github.com/codefresh-io/cli-v2/pkg/util/kube"
 	"github.com/go-git/go-billy/v5/memfs"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
+	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	apiextv1 "github.com/kubewarden/k8s-objects/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 type (
@@ -166,7 +172,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 
 	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *runtime.Repo, sha)
 	log.G(ctx).Infof("Done migrating resources from %q to %q", *runtime.Repo, *user.ActiveAccount.SharedConfigRepo)
-	
+
 	err = removeFromCluster(ctx, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
 	if err != nil {
 		return fmt.Errorf("failed removing runtime from cluster: %w", err)
@@ -476,7 +482,12 @@ func addSuffix(str, suffix string, length int) string {
 }
 
 func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
-	err := apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
+	err := preserveCodefreshToken(ctx, kubeFactory, runtimeNamespace)
+	if err != nil {
+		return fmt.Errorf("failed preserving codefresh token: %w", err)
+	}
+
+	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:       runtimeNamespace,
 		KubeContextName: kubeContext,
 		Timeout:         store.Get().WaitTimeout,
@@ -494,6 +505,63 @@ func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string
 		return fmt.Errorf("failed cleaning up after uninstall: %w", err)
 	}
 
+	err = patchCrds(ctx, kubeFactory)
+	if err != nil {
+		return fmt.Errorf("failed preserving codefresh token: %w", err)
+	}
+
 	log.G(ctx).Infof("Uninstalled runtime from cluster")
 	return nil
+}
+
+func preserveCodefreshToken(ctx context.Context, kubeFactory apkube.Factory, runtimeNamespace string) error {
+	_, err := kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(runtimeNamespace).Patch(
+		ctx,
+		store.Get().CFTokenSecret,
+		types.StrategicMergePatchType,
+		getManagedByLabelPatch("codefresh"),
+		metav1.PatchOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("failed preserving codefresh token: %w", err)
+	}
+
+	return nil
+}
+
+func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
+	gvr := schema.GroupVersionResource(apiextv1.SchemeGroupVersion.WithResource("customresourcedefinitions"))
+	dynamic := kube.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
+	crds, err := dynamic.List(ctx, metav1.ListOptions{
+
+	})
+	if err != nil {
+		return fmt.Errorf("failed listing crds: %w", err)
+	}
+
+	patch := getManagedByLabelPatch("Helm")
+	for _, crd := range crds.Items {
+		if !strings.HasSuffix(crd.GetName(), "argoproj.io") { 
+			continue
+		}
+
+		_, err := dynamic.Patch(
+			ctx,
+			crd.GetName(),
+			types.StrategicMergePatchType,
+			patch,
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			return fmt.Errorf("failed patching crd %q: %w", crd.GetName(), err)
+		}
+
+		log.G(ctx).Infof("Patched crd %q", crd.GetName())
+	}
+
+	return nil
+}
+
+func getManagedByLabelPatch(by string) []byte {
+	return []byte(fmt.Sprintf(`{"metadata":{"labels": { "%s": "%s" }}}`, apstore.Default.LabelKeyAppManagedBy, by))
 }

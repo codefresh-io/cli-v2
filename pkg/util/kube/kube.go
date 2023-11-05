@@ -37,6 +37,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -689,4 +690,13 @@ func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespa
 func GetIngressClass(ctx context.Context, kubeFactory apkube.Factory, name string) (*netv1.IngressClass, error) {
 	cs := GetClientSetOrDie(kubeFactory)
 	return cs.NetworkingV1().IngressClasses().Get(ctx, name, metav1.GetOptions{})
+}
+
+func GetDynamicClientOrDie(kubeFactory apkube.Factory) dynamic.Interface {
+	restConfig, err := kubeFactory.ToRESTConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	return dynamic.NewForConfigOrDie(restConfig)
 }
