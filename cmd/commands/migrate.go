@@ -577,7 +577,7 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 			return fmt.Errorf("failed patching crd %q: %w", crd.GetName(), err)
 		}
 
-		log.G(ctx).Infof("Patched crd %q", crd.GetName())
+		log.G(ctx).Debugf("Patched crd %q", crd.GetName())
 	}
 
 	return nil
