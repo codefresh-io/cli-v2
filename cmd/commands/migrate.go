@@ -20,7 +20,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/codefresh-io/cli-v2/pkg/isc"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/templates"
@@ -36,12 +36,13 @@ import (
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
+	apiextv1 "github.com/kubewarden/k8s-objects/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	apiextv1 "github.com/kubewarden/k8s-objects/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 type (
@@ -149,12 +150,17 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	}
 
 	log.G(ctx).Infof("moved all git-sources from installation repo to shared-config-repo")
-
-	err = moveArgoRollouts(srcFs, destFs, opts, *runtime.Metadata.Namespace)
+	err = moveArgoRollouts(ctx, srcFs, destFs, opts, *runtime.Metadata.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed moving argo-rollouts: %w", err)
 	}
 
+	err = createRbacInIsc(destFs, opts.runtimeName, *runtime.Metadata.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed creating rbac: %w", err)
+	}
+
+	log.G(ctx).Warnf("Created \"codefresh-config-reader\" Role and RoleBinding for default SA in namespace %q", *runtime.Metadata.Namespace)
 	sha, err := srcRepo.Persist(ctx, &apgit.PushOptions{
 		CommitMsg: "moved resources to internal-shared-config repo",
 	})
@@ -178,7 +184,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed removing runtime from cluster: %w", err)
 	}
 
-	log.G(ctx).Infof("Uninstalled runtime %q", opts.runtimeName)
+	log.G(ctx).Infof("Finished migrating runtime %q", opts.runtimeName)
 	return nil
 }
 
@@ -254,44 +260,30 @@ func moveClusterGitSources(srcFs, destFs apfs.FS, glob, runtimeName, clusterName
 		clusterName = store.Get().InClusterName
 	}
 
-	clusterApp, err := isc.ReadClusterConfigApp(destFs, runtimeName, clusterName)
-	if err != nil {
-		return fmt.Errorf("failed reading cluster config app: %w", err)
-	}
-
 	configs, err := billyUtils.Glob(srcFs, glob)
 	if err != nil {
 		return fmt.Errorf("failed getting git sources from %q: %w", glob, err)
 	}
 
 	for _, configPath := range configs {
-		relPath, err := moveSingleGitSource(srcFs, destFs, configPath, runtimeName)
+		err = moveSingleGitSource(srcFs, destFs, configPath, runtimeName, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed moving git-source %q: %w", configPath, err)
 		}
-
-		if relPath != "" {
-			clusterApp.AddInclude(relPath)
-		}
-	}
-
-	err = clusterApp.Write()
-	if err != nil {
-		return fmt.Errorf("failed writing internal config file: %w", err)
 	}
 
 	return nil
 }
 
-func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName string) (string, error) {
+func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName, clusterName string) error {
 	config := &templates.GitSourceConfig{}
 	err := srcFs.ReadJson(configPath, config)
 	if err != nil {
-		return "", fmt.Errorf("failed reading config_dir.json: %w", err)
+		return fmt.Errorf("failed reading config_dir.json: %w", err)
 	}
 
 	if config.Labels[store.Get().LabelFieldCFType] != store.Get().CFGitSourceType {
-		return "", nil
+		return nil
 	}
 
 	config.RuntimeName = runtimeName
@@ -303,25 +295,25 @@ func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName string) 
 		}
 	}
 
-	destYaml, err := templates.RenderGitSource(config)
+	yaml, err := templates.RenderGitSource(config)
 	if err != nil {
-		return "", fmt.Errorf("failed rendering git source: %w", err)
+		return fmt.Errorf("failed rendering git source: %w", err)
 	}
 
-	path, err := writeYamlInIsc(destFs, config.AppName, runtimeName, destYaml)
+	err = writeYamlInIsc(destFs, config.AppName, runtimeName, clusterName, yaml)
 	if err != nil {
-		return "", fmt.Errorf("failed writing git source: %w", err)
+		return fmt.Errorf("failed writing git source: %w", err)
 	}
 
 	err = srcFs.Remove(configPath)
 	if err != nil {
-		return "", fmt.Errorf("failed removing config_dir.json: %w", err)
+		return fmt.Errorf("failed removing config_dir.json: %w", err)
 	}
 
-	return path, nil
+	return nil
 }
 
-func moveArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, runtimeNamespace string) error {
+func moveArgoRollouts(ctx context.Context, srcFs, destFs apfs.FS, opts *MigrateOptions, runtimeNamespace string) error {
 	rolloutsOverlaysPath := srcFs.Join("apps", "rollouts", "overlays")
 	rolloutsOverlays, err := srcFs.ReadDir(rolloutsOverlaysPath)
 	if err != nil {
@@ -345,20 +337,17 @@ func moveArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, runtimeNamesp
 		if err != nil {
 			return fmt.Errorf("failed moving rollout-reporter: %w", err)
 		}
+
+		log.G(ctx).Infof("Moved argo-rollouts and rollout-reporter for %q", clusterName)
 	}
 
 	return nil
 }
 
 func moveClusterArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
-	rolloutsPath, err := createClusterArgoRollouts(destFs, opts, clusterName)
+	err := createClusterArgoRollouts(destFs, opts, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed creating argo-rollouts: %w", err)
-	}
-
-	err = addPathToInclude(destFs, opts.runtimeName, clusterName, rolloutsPath)
-	if err != nil {
-		return fmt.Errorf("failed adding path to include: %w", err)
 	}
 
 	overlayPath := srcFs.Join("apps", "rollouts", "overlays", clusterName)
@@ -370,40 +359,35 @@ func moveClusterArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, cluste
 	return nil
 }
 
-func createClusterArgoRollouts(destFs apfs.FS, opts *MigrateOptions, clusterName string) (string, error) {
+func createClusterArgoRollouts(destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
 	appName := addSuffix(clusterName, "-"+store.Get().RolloutResourceName, 63)
 	repoURL, targetRevision, err := opts.helm.GetDependency("argo-rollouts")
 	if err != nil {
-		return "", fmt.Errorf("failed getting argo-rollouts dependency: %w", err)
+		return fmt.Errorf("failed getting argo-rollouts dependency: %w", err)
 	}
 
-	destYaml, err := templates.RenderArgoRollouts(&templates.ArgoRolloutsConfig{
+	yaml, err := templates.RenderArgoRollouts(&templates.ArgoRolloutsConfig{
 		AppName:       appName,
 		ClusterName:   clusterName,
 		RepoURL:       repoURL,
 		TargetVersion: targetRevision,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed rendering argo-rollouts: %w", err)
+		return fmt.Errorf("failed rendering argo-rollouts: %w", err)
 	}
 
-	path, err := writeYamlInIsc(destFs, appName, opts.runtimeName, destYaml)
+	err = writeYamlInIsc(destFs, appName, opts.runtimeName, clusterName, yaml)
 	if err != nil {
-		return "", fmt.Errorf("failed writing argo-rollouts: %w", err)
+		return err
 	}
 
-	return path, nil
+	return nil
 }
 
 func moveClusterRolloutReporter(srcFs, destFs apfs.FS, runtimeName, runtimeNamespace, clusterName string) error {
-	reporterPath, err := createClusterRolloutReporter(destFs, runtimeName, runtimeNamespace, clusterName)
+	err := createClusterRolloutReporter(destFs, runtimeName, runtimeNamespace, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed creating rollout-reporter: %w", err)
-	}
-
-	err = addPathToInclude(destFs, runtimeName, store.Get().InClusterName, reporterPath)
-	if err != nil {
-		return fmt.Errorf("failed adding path to include: %w", err)
 	}
 
 	rolloutReporterPath := srcFs.Join("apps", "rollout-reporter", runtimeName, "resources")
@@ -422,55 +406,78 @@ func moveClusterRolloutReporter(srcFs, destFs apfs.FS, runtimeName, runtimeNames
 	return nil
 }
 
-func createClusterRolloutReporter(destFs apfs.FS, runtimeName, runtimeNamesapce, clusterName string) (string, error) {
+func createClusterRolloutReporter(destFs apfs.FS, runtimeName, runtimeNamespace, clusterName string) error {
 	name := addSuffix(clusterName, "-"+store.Get().RolloutReporterName, 63)
 	triggerUrl, err := url.JoinPath(cfConfig.GetCurrentContext().URL, store.Get().EventReportingEndpoint)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	destYaml, err := templates.RenderRolloutReporter(&templates.RolloutReporterConfig{
+	yaml, err := templates.RenderRolloutReporter(&templates.RolloutReporterConfig{
 		Name:          name,
-		Namespace:     runtimeNamesapce,
+		Namespace:     runtimeNamespace,
 		ClusterName:   clusterName,
 		EventEndpoint: triggerUrl,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed rendering argo-rollouts: %w", err)
+		return fmt.Errorf("failed rendering argo-rollouts: %w", err)
 	}
 
-	path, err := writeYamlInIsc(destFs, name, runtimeName, destYaml)
+	err = writeYamlInIsc(destFs, name, runtimeName, clusterName, yaml)
 	if err != nil {
-		return "", fmt.Errorf("failed writing argo-rollouts: %w", err)
+		return fmt.Errorf("failed writing argo-rollouts: %w", err)
 	}
 
-	return path, nil
+	return nil
 }
 
-func writeYamlInIsc(destFs apfs.FS, fileName, runtimeName string, data []byte) (string, error) {
+func createRbacInIsc(destFs apfs.FS, runtimeName, runtimeNamespace string) error {
+	yaml, err := templates.RenderRBAC(&templates.RbacConfig{
+		Namespace: runtimeNamespace,
+	})
+	if err != nil {
+		return fmt.Errorf("failed rendering rbac: %w", err)
+	}
+
+	err = writeYamlInIsc(destFs, "codefresh-config-reader", runtimeName, store.Get().InClusterName, yaml)
+	if err != nil {
+		return fmt.Errorf("failed writing argo-rollouts: %w", err)
+	}
+
+	return nil
+}
+
+func writeYamlInIsc(destFs apfs.FS, fileName, runtimeName, clusterName string, data []byte) error {
 	relPath := destFs.Join(runtimeName, fileName+".yaml")
 	fullPAth := destFs.Join("resources", relPath)
 	err := billyUtils.WriteFile(destFs, fullPAth, data, 0666)
 	if err != nil {
-		return "", fmt.Errorf("failed writing %q resource: %w", fileName, err)
+		return fmt.Errorf("failed writing %q resource: %w", fileName, err)
 	}
 
-	return relPath, nil
+	return addPathToInclude(destFs, runtimeName, clusterName, relPath)
 }
 
 func addPathToInclude(destFs apfs.FS, runtimeName, clusterName, path string) error {
-	clusterApp, err := isc.ReadClusterConfigApp(destFs, runtimeName, clusterName)
+	filename := destFs.Join("runtimes", runtimeName, clusterName+".yaml")
+	app := &argocdv1alpha1.Application{}
+	err := destFs.ReadYamls(filename, app)
 	if err != nil {
-		return fmt.Errorf("failed reading cluster config app: %w", err)
+		return err
 	}
 
-	clusterApp.AddInclude(path)
-	err = clusterApp.Write()
+	includeStr := app.Spec.Source.Directory.Include
+	includeArr := strings.Split(includeStr[1:len(includeStr)-1], ",")
+	includeArr = append(includeArr, path)
+	app.Spec.Source.Directory.Include = fmt.Sprintf("{%s}", strings.Join(includeArr, ","))
+	bytes, err := yaml.Marshal(app)
+	bytes = filterStatus(bytes)
+	fmt.Println(string(bytes))
 	if err != nil {
-		return fmt.Errorf("failed writing internal config file: %w", err)
+		return err
 	}
 
-	return nil
+	return billyUtils.WriteFile(destFs, filename, bytes, 0666)
 }
 
 func addSuffix(str, suffix string, length int) string {
@@ -482,14 +489,9 @@ func addSuffix(str, suffix string, length int) string {
 }
 
 func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
-	err := switchSecretsLabel(ctx, kubeFactory, runtimeNamespace, apstore.Default.LabelKeyAppManagedBy, apstore.Default.LabelValueManagedBy, "codefresh")
+	err := switchManagedByLabel(ctx, kubeFactory, runtimeNamespace)
 	if err != nil {
 		return fmt.Errorf("failed preserving codefresh token secret: %w", err)
-	}
-
-	err = switchSecretsLabel(ctx, kubeFactory, runtimeNamespace, store.Get().LabelGitIntegrationTypeKey, store.Get().LabelGitIntegrationTypeValue, "helm-migration")
-	if err != nil {
-		return fmt.Errorf("failed preserving git-integration secrets: %w", err)
 	}
 
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
@@ -505,31 +507,18 @@ func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string
 		return fmt.Errorf("failed uninstalling runtime: %w", err)
 	}
 
-	err = runPostUninstallCleanup(ctx, kubeFactory, runtimeNamespace)
-	if err != nil {
-		return fmt.Errorf("failed cleaning up after uninstall: %w", err)
-	}
-
-	err = switchSecretsLabel(ctx, kubeFactory, runtimeNamespace, store.Get().LabelGitIntegrationTypeKey, "helm-migration", store.Get().LabelGitIntegrationTypeValue)
-	if err != nil {
-		return fmt.Errorf("failed restoring git-integration secrets: %w", err)
-	}
-
 	err = patchCrds(ctx, kubeFactory)
 	if err != nil {
 		return fmt.Errorf("failed updating argoproj CRDs: %w", err)
 	}
 
-	log.G(ctx).Infof("Uninstalled runtime from cluster")
-	
-	
 	return nil
 }
 
-func switchSecretsLabel(ctx context.Context, kubeFactory apkube.Factory, namespace, labelKey, oldValue, newValue string) error {
+func switchManagedByLabel(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
 	secretsInterface := kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace)
 	secrets, err := secretsInterface.List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", labelKey, oldValue),
+		LabelSelector: fmt.Sprintf("%s=%s", apstore.Default.LabelKeyAppManagedBy, apstore.Default.LabelValueManagedBy),
 	})
 	if err != nil {
 		return fmt.Errorf("failed getting secrets: %w", err)
@@ -540,7 +529,7 @@ func switchSecretsLabel(ctx context.Context, kubeFactory apkube.Factory, namespa
 			ctx,
 			secret.Name,
 			types.StrategicMergePatchType,
-			[]byte(getLabelPatch(labelKey, newValue)),
+			[]byte(getLabelPatch("codefresh")),
 			metav1.PatchOptions{},
 		)
 		if err != nil {
@@ -554,15 +543,13 @@ func switchSecretsLabel(ctx context.Context, kubeFactory apkube.Factory, namespa
 func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 	gvr := schema.GroupVersionResource(apiextv1.SchemeGroupVersion.WithResource("customresourcedefinitions"))
 	crdInterface := kube.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
-	crds, err := crdInterface.List(ctx, metav1.ListOptions{
-
-	})
+	crds, err := crdInterface.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed listing crds: %w", err)
 	}
 
 	for _, crd := range crds.Items {
-		if !strings.HasSuffix(crd.GetName(), "argoproj.io") { 
+		if !strings.HasSuffix(crd.GetName(), "argoproj.io") {
 			continue
 		}
 
@@ -570,7 +557,7 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 			ctx,
 			crd.GetName(),
 			types.StrategicMergePatchType,
-			[]byte(getLabelPatch(apstore.Default.LabelKeyAppManagedBy, "Helm")),
+			[]byte(getLabelPatch("Helm")),
 			metav1.PatchOptions{},
 		)
 		if err != nil {
@@ -583,6 +570,20 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 	return nil
 }
 
-func getLabelPatch(key, value string) string {
-	return fmt.Sprintf(`{ "metadata": { "labels": { "%s": "%s" } } }`, key, value)
+func getLabelPatch(value string) string {
+	return fmt.Sprintf(`{ "metadata": { "labels": { "%s": "%s" } } }`, apstore.Default.LabelKeyAppManagedBy, value)
+}
+
+func filterStatus(manifest []byte) []byte {
+	lines := strings.Split(string(manifest), "\n")
+	var res []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "status:") {
+			break
+		}
+
+		res = append(res, line)
+	}
+
+	return []byte(strings.Join(res, "\n"))
 }

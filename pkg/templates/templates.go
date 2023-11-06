@@ -38,6 +38,10 @@ type (
 		RuntimeName string // not coming from json
 	}
 
+	RbacConfig struct {
+		Namespace string
+	}
+
 	RolloutReporterConfig struct {
 		Name          string
 		Namespace     string
@@ -55,6 +59,10 @@ var (
 	gitSourceTmplStr  string
 	gitSourceTemplate = template.Must(template.New("git-source").Parse(gitSourceTmplStr))
 
+	//go:embed rbac.tmpl
+	rbacTmplStr  string
+	rbabTemplate = template.Must(template.New("git-source").Parse(rbacTmplStr))
+
 	//go:embed rollout-reporter.tmpl
 	rolloutReporterTmplStr  string
 	rolloutReporterTemplate = template.Must(template.New("rollout-reporter").Parse(rolloutReporterTmplStr))
@@ -66,6 +74,10 @@ func RenderArgoRollouts(config *ArgoRolloutsConfig) ([]byte, error) {
 
 func RenderGitSource(config *GitSourceConfig) ([]byte, error) {
 	return renderTemplate(gitSourceTemplate, config)
+}
+
+func RenderRBAC(config *RbacConfig) ([]byte, error) {
+	return renderTemplate(rbabTemplate, config)
 }
 
 func RenderRolloutReporter(config *RolloutReporterConfig) ([]byte, error) {
