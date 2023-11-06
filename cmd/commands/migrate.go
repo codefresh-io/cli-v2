@@ -184,6 +184,11 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed removing runtime from cluster: %w", err)
 	}
 
+	err = cfConfig.NewClient().V2().Runtime().MigrateRuntime(ctx, opts.runtimeName)
+	if err != nil {
+		return fmt.Errorf("failed migrating runtime type in platform: %w", err)
+	}
+
 	log.G(ctx).Infof("Finished migrating runtime %q", opts.runtimeName)
 	return nil
 }
