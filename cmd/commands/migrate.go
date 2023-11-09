@@ -460,10 +460,10 @@ func writeYamlInIsc(destFs apfs.FS, fileName, runtimeName, clusterName string, d
 		return fmt.Errorf("failed writing %q resource: %w", fileName, err)
 	}
 
-	return addPathToInclude(destFs, runtimeName, clusterName, relPath)
+	return addPathToClusterApp(destFs, runtimeName, clusterName, relPath)
 }
 
-func addPathToInclude(destFs apfs.FS, runtimeName, clusterName, path string) error {
+func addPathToClusterApp(destFs apfs.FS, runtimeName, clusterName, path string) error {
 	filename := destFs.Join("runtimes", runtimeName, clusterName+".yaml")
 	app := &argocdv1alpha1.Application{}
 	err := destFs.ReadYamls(filename, app)
@@ -471,10 +471,7 @@ func addPathToInclude(destFs apfs.FS, runtimeName, clusterName, path string) err
 		return err
 	}
 
-	includeStr := app.Spec.Source.Directory.Include
-	includeArr := strings.Split(includeStr[1:len(includeStr)-1], ",")
-	includeArr = append(includeArr, path)
-	app.Spec.Source.Directory.Include = fmt.Sprintf("{%s}", strings.Join(includeArr, ","))
+	addPathToInclude(app, path)
 	bytes, err := yaml.Marshal(app)
 	bytes = filterStatus(bytes)
 	fmt.Println(string(bytes))
@@ -483,6 +480,23 @@ func addPathToInclude(destFs apfs.FS, runtimeName, clusterName, path string) err
 	}
 
 	return billyUtils.WriteFile(destFs, filename, bytes, 0666)
+}
+
+func addPathToInclude(app *argocdv1alpha1.Application, path string) {
+	includeStr := app.Spec.Source.Directory.Include
+	includeArr := strings.Split(includeStr[1:len(includeStr)-1], ",")
+	includeSet := make(map[string]interface{})
+	for _, include := range includeArr {
+		includeSet[include] = nil
+	}
+
+	includeSet[path] = nil
+	includeArr = make([]string, 0, len(includeSet))
+	for include := range includeSet {
+		includeArr = append(includeArr, include)
+	}
+
+	app.Spec.Source.Directory.Include = fmt.Sprintf("{%s}", strings.Join(includeArr, ","))
 }
 
 func addSuffix(str, suffix string, length int) string {
