@@ -179,7 +179,7 @@ func getRepoFromUserInput(cmd *cobra.Command) error {
 	return cmd.Flags().Set("repo", repoInput)
 }
 
-func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (string, error) {
+func ensureRuntimeName(ctx context.Context, args []string, filter func(runtime *platmodel.Runtime) bool) (string, error) {
 	var (
 		runtimeName string
 		err         error
@@ -190,7 +190,7 @@ func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (s
 	}
 
 	if !store.Get().Silent {
-		runtimeName, err = getRuntimeNameFromUserSelect(ctx, allowManaged)
+		runtimeName, err = getRuntimeNameFromUserSelect(ctx, filter)
 		if err != nil {
 			return "", err
 		}
@@ -203,7 +203,7 @@ func ensureRuntimeName(ctx context.Context, args []string, allowManaged bool) (s
 	return runtimeName, nil
 }
 
-func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (string, error) {
+func getRuntimeNameFromUserSelect(ctx context.Context, filter func(runtime *platmodel.Runtime) bool) (string, error) {
 	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
 	if err != nil {
 		return "", err
@@ -213,35 +213,34 @@ func getRuntimeNameFromUserSelect(ctx context.Context, allowManaged bool) (strin
 		return "", fmt.Errorf("no runtimes were found")
 	}
 
-	var runtimeNames []string
-
-	for _, rt := range runtimes {
-		rtDisplay := rt.Metadata.Name
-		if rt.Managed {
-			if !allowManaged {
-				// preventing hosted runtimes to prompt
-				continue
+	var filteredRuntimes []platmodel.Runtime
+	if filter != nil {
+		filteredRuntimes = make([]platmodel.Runtime, 0)
+		for _, rt := range runtimes {
+			if filter(&rt) {
+				filteredRuntimes = append(filteredRuntimes, rt)
 			}
-			rtDisplay = fmt.Sprintf("%s (hosted)", rtDisplay)
 		}
-		runtimeNames = append(runtimeNames, rtDisplay)
+	} else {
+		filteredRuntimes = runtimes
 	}
 
 	templates := &promptui.SelectTemplates{
-		Selected: "{{ . | yellow }} ",
+		Active: fmt.Sprintf("%s {{ .Metadata.Name | underline }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%%s)\" .InstallationType | underline }}{{ end }}", promptui.IconSelect),
+		Inactive: "  {{ .Metadata.Name }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%s)\" .InstallationType }}{{ end }}",
+		Selected: "{{ .Metadata.Name | yellow }}",
 	}
 
 	labelStr := fmt.Sprintf("%vSelect runtime%v", CYAN, COLOR_RESET)
 
 	prompt := promptui.Select{
 		Label:     labelStr,
-		Items:     runtimeNames,
+		Items:     filteredRuntimes,
 		Templates: templates,
 	}
 
-	_, result, err := prompt.Run()
-	resultSplit := strings.Split(result, " ")
-	return resultSplit[0], err
+	i, _, err := prompt.Run()
+	return filteredRuntimes[i].Metadata.Name, err
 }
 
 func getRuntimeNameFromUserInput() (string, error) {

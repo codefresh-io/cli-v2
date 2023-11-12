@@ -49,115 +49,119 @@ type Version struct {
 }
 type Store struct {
 	AddClusterJobName                 string
+	AnalysisRunResourceName           string
+	AnnotationKeySyncWave             string
+	AppProxyIngressName               string
+	AppProxyIngressPath               string
+	AppProxyServiceName               string
+	ArgoCD                            string
 	ArgoCDServerName                  string
 	ArgoCDTokenKey                    string
 	ArgoCDTokenSecret                 string
 	ArgoWfIngressPath                 string
 	ArgoWfServiceName                 string
 	BinaryName                        string
-	Codefresh                         string
 	CFComponentType                   string
 	CFGitSourceType                   string
+	CFInternalGitSources              []string
+	CFInternalReporters               []string
 	CFRuntimeDefType                  string
 	CFRuntimeType                     string
+	CFStoreIVSecretKey                string
 	CFTokenSecret                     string
 	CFTokenSecretKey                  string
-	CFStoreIVSecretKey                string
+	CLIDownloadTemplate               string
+	CLILatestVersionFileLink          string
+	ClusterResourcesPath              string
+	Codefresh                         string
 	CodefreshCM                       string
 	CodefreshSA                       string
 	ComponentsReporterName            string
 	ComponentsReporterSA              string
 	ComponentsReporterURL             string
 	DefaultAPI                        string
+	DefaultNamespace                  string
+	DefVersionToLastCLIVersion        map[string]string
+	DemoCalendarDependencyName        string
+	DemoCalendarEventName             string
+	DemoCalendarEventSourceFileName   string
+	DemoCalendarEventSourceObjectName string
+	DemoCalendarSensorFileName        string
+	DemoCalendarSensorObjectName      string
+	DemoGitDependencyName             string
+	DemoGitEventName                  string
+	DemoGitEventSourceFileName        string
+	DemoGitEventSourceObjectName      string
+	DemoGitEventSourceServicePort     int32
+	DemoGitEventSourceTargetPort      string
+	DemoGitSensorFileName             string
+	DemoGitSensorObjectName           string
+	DemoGitTriggerTemplateName        string
+	DemoWorkflowTemplateFileName      string
+	DemoWorkflowTemplateName          string
+	DocsLink                          string
+	DownloadCliLink                   string
 	EventBusName                      string
 	EventReportingEndpoint            string
 	EventsReporterName                string
-	GitSourceName                     string
-	InternalRouterServiceName         string
-	InternalRouterServicePort         int32
-	InternalRouterIngressName         string
-	InternalRouterInternalIngressName string
-	InternalRouterIngressFilePath     string
-	WebhooksIngressPath               string
-	AppProxyIngressName               string
-	AppProxyIngressPath               string
-	AppProxyServiceName               string
-	DocsLink                          string
-	LabelKeyCFType                    string
-	LabelKeyCFInternal                string
-	LabelSelectorSealedSecret         string
-	LabelSelectorGitIntegrationSecret string
-	AnnotationKeySyncWave             string
-	MarketplaceGitSourceName          string
-	MarketplaceRepo                   string
-	MaxDefVersion                     *semver.Version
-	LastRuntimeVersionInCLI           *semver.Version
-	RuntimeDefURL                     string
-	OldRuntimeDefURL                  string
-	Version                           Version
-	WaitTimeout                       time.Duration
-	WorkflowName                      string
-	WorkflowReporterName              string
-	WorkflowTriggerServiceAccount     string
-	DemoCalendarSensorObjectName      string
-	DemoCalendarSensorFileName        string
-	DemoCalendarEventSourceFileName   string
-	DemoCalendarEventSourceObjectName string
-	DemoCalendarEventName             string
-	DemoCalendarDependencyName        string
-	DemoWorkflowTemplateFileName      string
-	DemoWorkflowTemplateName          string
-	DemoGitEventSourceFileName        string
-	DemoGitEventSourceObjectName      string
-	WebhooksRootPath                  string
-	DemoGitEventSourceTargetPort      string
-	DemoGitEventSourceServicePort     int32
-	DemoGitSensorFileName             string
-	DemoGitSensorObjectName           string
-	DemoGitEventName                  string
-	DemoGitTriggerTemplateName        string
-	DemoGitDependencyName             string
-	GitTokenSecretObjectName          string
-	GitTokenSecretKey                 string
 	GithubEventTypeHeader             string
 	GitlabEventTypeHeader             string
-	ArgoCD                            string
-	Silent                            bool
+	GitSourceName                     string
+	GitTokenSecretKey                 string
+	GitTokenSecretObjectName          string
+	GitTokensLink                     string
+	GsCreateFlow                      string
+	InClusterName                     string
+	InClusterServerURL                string
+	InClusterPath                     string
+	IngressHost                       string
 	InsecureIngressHost               bool
-	SetDefaultResources               bool
-	MinimumMemorySizeRequired         string
+	InternalRouterIngressFilePath     string
+	InternalRouterIngressName         string
+	InternalRouterInternalIngressName string
+	InternalRouterServiceName         string
+	InternalRouterServicePort         int32
+	IscRuntimesDir                    string
+	IsDownloadRuntimeLogs             bool
+	KubeVersionConstrint              *semver.Constraints
+	LabelFieldCFType                  string
+	LabelKeyCFInternal                string
+	LabelKeyCFType                    string
+	LabelGitIntegrationTypeKey        string
+	LabelGitIntegrationTypeValue      string
+	LabelSelectorGitIntegrationSecret string
+	LabelSelectorSealedSecret         string
+	LastRuntimeVersionInCLI           *semver.Version
+	MarketplaceGitSourceName          string
+	MarketplaceRepo                   string
+	MasterIngressName                 string
+	MaxDefVersion                     *semver.Version
 	MinimumCpuRequired                string
 	MinimumLocalDiskSizeRequired      string
-	ReplicaSetResourceName            string
-	AnalysisRunResourceName           string
-	WorkflowResourceName              string
-	RequirementsLink                  string
-	GitTokensLink                     string
-	DownloadCliLink                   string
-	CLIDownloadTemplate               string
-	CLILatestVersionFileLink          string
-	RolloutReporterName               string
-	RolloutResourceName               string
-	RolloutReporterServiceAccount     string
-	DefaultNamespace                  string
-	NetworkTesterName                 string
+	MinimumMemorySizeRequired         string
 	NetworkTesterGenerateName         string
 	NetworkTesterImage                string
+	NetworkTesterName                 string
+	OldRuntimeDefURL                  string
+	ReplicaSetResourceName            string
+	RequirementsLink                  string
+	RolloutReporterName               string
+	RolloutReporterServiceAccount     string
+	RolloutResourceName               string
+	RuntimeDefURL                     string
+	SccName                           string
+	SetDefaultResources               bool
+	Silent                            bool
 	TCPConnectionTesterGenerateName   string
 	TCPConnectionTesterName           string
-	KubeVersionConstrint              *semver.Constraints
-	MasterIngressName                 string
-	ClusterResourcesPath              string
-	InClusterPath                     string
-	SccName                           string
-	CFInternalGitSources              []string
-	CFInternalReporters               []string
-	GsCreateFlow                      string
-	InCluster                         string
-	IsDownloadRuntimeLogs             bool
-	IngressHost                       string
-	IscRuntimesDir                    string
-	DefVersionToLastCLIVersion        map[string]string
+	Version                           Version
+	WaitTimeout                       time.Duration
+	WebhooksIngressPath               string
+	WebhooksRootPath                  string
+	WorkflowName                      string
+	WorkflowReporterName              string
+	WorkflowResourceName              string
+	WorkflowTriggerServiceAccount     string
 }
 
 // Get returns the global store
@@ -174,105 +178,109 @@ func (s *Store) IsCustomDefURL(orgRepo string) bool {
 
 func init() {
 	s.AddClusterJobName = "csdp-add-cluster-job-"
+	s.AnalysisRunResourceName = "analysisruns"
+	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
+	s.AppProxyIngressName = "-cap-app-proxy"
+	s.AppProxyIngressPath = "/app-proxy"
+	s.AppProxyServiceName = "cap-app-proxy"
+	s.ArgoCD = "argo-cd"
 	s.ArgoCDServerName = "argocd-server"
 	s.ArgoCDTokenKey = "token"
 	s.ArgoCDTokenSecret = "argocd-token"
 	s.ArgoWfIngressPath = "/workflows"
 	s.ArgoWfServiceName = "argo-server"
 	s.BinaryName = binaryName
-	s.Codefresh = "codefresh"
-	s.GitSourceName = "default-git-source"
 	s.CFComponentType = "component"
 	s.CFGitSourceType = "git-source"
+	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
+	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
 	s.CFRuntimeDefType = "runtimeDef"
 	s.CFRuntimeType = "runtime"
+	s.CFStoreIVSecretKey = "encryptionIV"
 	s.CFTokenSecret = "codefresh-token"
 	s.CFTokenSecretKey = "token"
-	s.CFStoreIVSecretKey = "encryptionIV"
+	s.CLIDownloadTemplate = "https://github.com/codefresh-io/cli-v2/releases/download/%s/cf-%s-%s.tar.gz"
+	s.CLILatestVersionFileLink = "https://github.com/codefresh-io/cli-v2/releases/latest/download/version.txt"
+	s.ClusterResourcesPath = "/bootstrap/cluster-resources.yaml"
+	s.Codefresh = "codefresh"
 	s.CodefreshCM = "codefresh-cm"
 	s.CodefreshSA = "codefresh-sa"
 	s.ComponentsReporterName = "components-reporter"
 	s.ComponentsReporterSA = "components-reporter-sa"
 	s.DefaultAPI = "https://g.codefresh.io"
+	s.DefaultNamespace = "default"
+	s.DemoCalendarDependencyName = "calendar-dep"
+	s.DemoCalendarEventName = "example-with-interval"
+	s.DemoCalendarEventSourceFileName = "calendar.event-source.yaml"
+	s.DemoCalendarEventSourceObjectName = "calendar"
+	s.DemoCalendarSensorFileName = "calendar.sensor.yaml"
+	s.DemoCalendarSensorObjectName = "calendar"
+	s.DemoGitDependencyName = "push-commit"
+	s.DemoGitEventName = "push-commit"
+	s.DemoGitEventSourceFileName = "push-commit.event-source.yaml"
+	s.DemoGitEventSourceObjectName = "push-commit"
+	s.DemoGitEventSourceServicePort = 80
+	s.DemoGitEventSourceTargetPort = "80"
+	s.DemoGitSensorFileName = "push-commit.sensor.yaml"
+	s.DemoGitSensorObjectName = "push-commit"
+	s.DemoGitTriggerTemplateName = "push-commit"
+	s.DemoWorkflowTemplateFileName = "echo-message.workflow-template.yaml"
+	s.DemoWorkflowTemplateName = "echo-message"
+	s.DocsLink = "https://codefresh.io/csdp-docs/"
+	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
 	s.EventBusName = "codefresh-eventbus"
 	s.EventReportingEndpoint = "/2.0/api/events"
 	s.EventsReporterName = "events-reporter"
-	s.WebhooksIngressPath = "/webhooks"
-	s.InternalRouterIngressName = "-internal-router-ingress"
-	s.InternalRouterInternalIngressName = "-internal-router-internal-ingress"
-	s.InternalRouterIngressFilePath = "internal-router"
-	s.InternalRouterServiceName = "internal-router"
-	s.InternalRouterServicePort = 80
-	s.AppProxyIngressName = "-cap-app-proxy"
-	s.AppProxyIngressPath = "/app-proxy"
-	s.AppProxyServiceName = "cap-app-proxy"
-	s.DocsLink = "https://codefresh.io/csdp-docs/"
-	s.LabelKeyCFType = "codefresh.io/entity"
-	s.LabelKeyCFInternal = "codefresh.io/internal"
-	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
-	s.LabelSelectorGitIntegrationSecret = "io.codefresh.integration-type=git"
-	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
-	s.MaxDefVersion = semver.MustParse(maxDefVersion)
-	s.LastRuntimeVersionInCLI = semver.MustParse(lastRuntimeVersionInCLI)
-	s.RuntimeDefURL = RuntimeDefURL
-	s.OldRuntimeDefURL = OldRuntimeDefURL
-	s.MarketplaceGitSourceName = "marketplace-git-source"
-	s.MarketplaceRepo = "https://github.com/codefresh-io/argo-hub.git"
-	s.WaitTimeout = 8 * time.Minute
-	s.WorkflowName = "workflow"
-	s.WorkflowReporterName = "workflow-reporter"
-	s.WorkflowTriggerServiceAccount = "argo"
-	s.DemoCalendarEventSourceFileName = "calendar.event-source.yaml"
-	s.DemoCalendarSensorObjectName = "calendar"
-	s.DemoCalendarSensorFileName = "calendar.sensor.yaml"
-	s.DemoCalendarEventSourceObjectName = "calendar"
-	s.DemoCalendarEventName = "example-with-interval"
-	s.DemoCalendarDependencyName = "calendar-dep"
-	s.DemoWorkflowTemplateFileName = "echo-message.workflow-template.yaml"
-	s.DemoWorkflowTemplateName = "echo-message"
-	s.DemoGitEventSourceFileName = "push-commit.event-source.yaml"
-	s.DemoGitEventSourceObjectName = "push-commit"
-	s.WebhooksRootPath = "/webhooks"
-	s.DemoGitEventSourceTargetPort = "80"
-	s.DemoGitEventSourceServicePort = 80
-	s.DemoGitSensorFileName = "push-commit.sensor.yaml"
-	s.DemoGitSensorObjectName = "push-commit"
-	s.DemoGitEventName = "push-commit"
-	s.DemoGitTriggerTemplateName = "push-commit"
-	s.DemoGitDependencyName = "push-commit"
-	s.GitTokenSecretObjectName = "autopilot-secret"
-	s.GitTokenSecretKey = "git_token"
 	s.GithubEventTypeHeader = "X-GitHub-Event"
 	s.GitlabEventTypeHeader = "X-Gitlab-Event"
-	s.ArgoCD = "argo-cd"
-	s.RolloutResourceName = "rollouts"
-	s.ReplicaSetResourceName = "replicasets"
-	s.AnalysisRunResourceName = "analysisruns"
-	s.MinimumMemorySizeRequired = "5000"
-	s.MinimumCpuRequired = "2"
-	s.WorkflowResourceName = "workflows"
-	s.RolloutReporterName = "rollout-reporter"
-	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
-	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
+	s.GitSourceName = "default-git-source"
+	s.GitTokenSecretKey = "git_token"
+	s.GitTokenSecretObjectName = "autopilot-secret"
 	s.GitTokensLink = "https://codefresh.io/csdp-docs/docs/reference/git-tokens/"
-	s.DownloadCliLink = "https://codefresh.io/csdp-docs/docs/clients/csdp-cli/"
-	s.CLIDownloadTemplate = "https://github.com/codefresh-io/cli-v2/releases/download/%s/cf-%s-%s.tar.gz"
-	s.CLILatestVersionFileLink = "https://github.com/codefresh-io/cli-v2/releases/latest/download/version.txt"
-	s.DefaultNamespace = "default"
-	s.NetworkTesterName = "cf-network-tester"
+	s.InClusterName = "in-cluster"
+	s.InClusterServerURL = "https://kubernetes.default.svc"
+	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
+	s.InternalRouterIngressFilePath = "internal-router"
+	s.InternalRouterIngressName = "-internal-router-ingress"
+	s.InternalRouterInternalIngressName = "-internal-router-internal-ingress"
+	s.InternalRouterServiceName = "internal-router"
+	s.InternalRouterServicePort = 80
+	s.IscRuntimesDir = "runtimes"
+	s.KubeVersionConstrint, _ = semver.NewConstraint("1.21-0 - 1.28-0")
+	s.LabelFieldCFType = "codefresh_io_entity"
+	s.LabelKeyCFInternal = "codefresh.io/internal"
+	s.LabelKeyCFType = "codefresh.io/entity"
+	s.LabelGitIntegrationTypeKey = "io.codefresh.integration-type"
+	s.LabelGitIntegrationTypeValue = "git"
+	s.LabelSelectorGitIntegrationSecret = fmt.Sprintf("%s=%s", s.LabelGitIntegrationTypeKey, s.LabelGitIntegrationTypeValue)
+	s.LabelSelectorSealedSecret = "codefresh.io/sealing-key=true"
+	s.LastRuntimeVersionInCLI = semver.MustParse(lastRuntimeVersionInCLI)
+	s.MarketplaceGitSourceName = "marketplace-git-source"
+	s.MarketplaceRepo = "https://github.com/codefresh-io/argo-hub.git"
+	s.MasterIngressName = "-master"
+	s.MaxDefVersion = semver.MustParse(maxDefVersion)
+	s.MinimumCpuRequired = "2"
+	s.MinimumMemorySizeRequired = "5000"
 	s.NetworkTesterGenerateName = "cf-network-tester-"
 	s.NetworkTesterImage = "quay.io/codefresh/cf-venona-network-tester:latest"
+	s.NetworkTesterName = "cf-network-tester"
+	s.OldRuntimeDefURL = OldRuntimeDefURL
+	s.ReplicaSetResourceName = "replicasets"
+	s.RequirementsLink = "https://codefresh.io/csdp-docs/docs/runtime/requirements/"
+	s.RolloutReporterName = "rollout-reporter"
+	s.RolloutReporterServiceAccount = "rollout-reporter-sa"
+	s.RolloutResourceName = "rollouts"
+	s.RuntimeDefURL = RuntimeDefURL
+	s.SccName = "cf-scc"
 	s.TCPConnectionTesterGenerateName = "cf-tcp-connections-tester-"
 	s.TCPConnectionTesterName = "cf-tcp-connections-tester"
-	s.KubeVersionConstrint, _ = semver.NewConstraint("1.21-0 - 1.26-0")
-	s.MasterIngressName = "-master"
-	s.ClusterResourcesPath = "/bootstrap/cluster-resources.yaml"
-	s.InClusterPath = "/bootstrap/cluster-resources/in-cluster"
-	s.SccName = "cf-scc"
-	s.CFInternalGitSources = []string{s.MarketplaceGitSourceName}
-	s.CFInternalReporters = []string{s.EventsReporterName, s.WorkflowReporterName, s.RolloutReporterName}
-	s.InCluster = "https://kubernetes.default.svc"
-	s.IscRuntimesDir = "runtimes"
+	s.WaitTimeout = 8 * time.Minute
+	s.WebhooksIngressPath = "/webhooks"
+	s.WebhooksRootPath = "/webhooks"
+	s.WorkflowName = "workflow"
+	s.WorkflowReporterName = "workflow-reporter"
+	s.WorkflowResourceName = "workflows"
+	s.WorkflowTriggerServiceAccount = "argo"
 	s.DefVersionToLastCLIVersion = map[string]string{
 		"1.0.0": "0.0.237",
 		"1.0.1": "0.0.510",

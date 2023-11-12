@@ -19,12 +19,12 @@ import (
 	"fmt"
 
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/util/kube"
 	httproute "github.com/codefresh-io/cli-v2/pkg/util/routing/types"
 
 	apkkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 )
 
 type (
@@ -115,7 +115,7 @@ var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerConto
 
 func ValidateGatewayController(ctx context.Context, kubeFactory apkkube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
 	// Get Gateway
-	cs := getClientsetOrDie(kubeFactory)
+	cs := kube.GetDynamicClientOrDie(kubeFactory)
 	gatewayResourceId := schema.GroupVersionResource{
 		Group:    "gateway.networking.k8s.io",
 		Version:  "v1beta1",
@@ -148,37 +148,4 @@ func ValidateGatewayController(ctx context.Context, kubeFactory apkkube.Factory,
 	}
 
 	return nil, fmt.Errorf("Gateway controller %s is not supported", gatewayController)
-}
-
-//func routePathsToHTTPRouteRules(routePaths []RoutePath) []HTTPRouteRule {
-//	var httpRouteRules []HTTPRouteRule
-//	for _, path := range routePaths {
-//		var ingressPathType httproute.PathMatchType
-//		switch pathType := path.pathType; pathType {
-//		case ExactPath:
-//			ingressPathType = httproute.PathMatchExact
-//		case PrefixPath:
-//			ingressPathType = httproute.PathMatchPathPrefix
-//		case RegexPath:
-//			ingressPathType = httproute.PathMatchRegularExpression
-//		}
-//
-//		httpRouteRules = append(httpRouteRules, HTTPRouteRule{
-//			ServiceName: path.serviceName,
-//			ServicePort: int32(path.servicePort),
-//			Path:        path.path,
-//			PathType:    ingressPathType,
-//		})
-//	}
-//
-//	return httpRouteRules
-//}
-
-func getClientsetOrDie(kubeFactory apkkube.Factory) dynamic.Interface {
-	restConfig, err := kubeFactory.ToRESTConfig()
-	if err != nil {
-		panic(err)
-	}
-
-	return dynamic.NewForConfigOrDie(restConfig)
 }

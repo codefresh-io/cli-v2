@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations: 
+    argocd.argoproj.io/sync-wave: '{{ index .Annotations "argocd_argoproj_io_sync_wave" }}'
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/managed-by: argocd-autopilot
+    app.kubernetes.io/name: '{{ .AppName }}'
+    codefresh.io/entity: '{{ index .Labels "codefresh_io_entity" }}'
+    codefresh.io/internal: '{{ index .Labels "codefresh_io_internal" }}'
+  name: '{{ .RuntimeName }}-{{ .UserGivenName }}'
+  namespace: runtime
+spec:
+  destination:
+    namespace: '{{ .DestNamespace }}'
+    server: '{{ .DestServer }}'
+  ignoreDifferences:
+  - group: argoproj.io
+    jsonPointers:
+    - /status
+    kind: Application
+  project: default
+  source:
+    path: '{{ .SrcPath }}'
+    repoURL: '{{ .SrcRepoURL }}'
+    targetRevision: '{{ .SrcTargetRevision }}'
+    directory:
+      exclude: '{{ .Exclude }}'
+      include: '{{ .Include }}'
+      recurse: true
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: true

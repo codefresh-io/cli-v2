@@ -141,7 +141,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 
 	handleCliStep(reporter.UninstallPhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(ctx, args, true)
+	opts.RuntimeName, err = ensureRuntimeName(ctx, args, nil)
 	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err
@@ -211,13 +211,17 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	return nil
 }
 
+func filterNonHostedRuntime(rt *platmodel.Runtime) bool {
+	return rt.InstallationType != platmodel.InstallationTypeHosted
+}
+
 func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUpgradeOptions) error {
 	var err error
 	ctx := cmd.Context()
 
 	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
 
-	opts.RuntimeName, err = ensureRuntimeName(ctx, args, false)
+	opts.RuntimeName, err = ensureRuntimeName(ctx, args, filterNonHostedRuntime)
 	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
 	if err != nil {
 		return err

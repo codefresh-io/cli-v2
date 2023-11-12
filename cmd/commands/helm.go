@@ -26,6 +26,7 @@ import (
 
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
 	"github.com/codefresh-io/cli-v2/pkg/log"
+	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
@@ -47,10 +48,6 @@ type (
 		helm        helm.Helm
 		hook        bool
 	}
-)
-
-const (
-	CODEFRESH_TOKEN = "codefresh-token"
 )
 
 var (
@@ -97,7 +94,7 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
 	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
-	opts.helm = helm.AddFlags(cmd.Flags())
+	opts.helm, _ = helm.AddFlags(cmd.Flags())
 	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("hook"))
@@ -165,7 +162,7 @@ func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values 
 }
 
 func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) error {
-	runtimeToken, _ := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, CODEFRESH_TOKEN, "token")
+	runtimeToken, _ := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
 	if runtimeToken == "" {
 		return ErrRuntimeTokenNotFound
 	}
@@ -201,7 +198,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 		return "", "", err
 	}
 
-	if !user.IsActiveAccountAdmin()  {
+	if !user.IsActiveAccountAdmin() {
 		return "", "", fmt.Errorf("user \"%s\" does not have Admin role in account \"%s\"", user.Name, *user.ActiveAccount.Name)
 	}
 
@@ -564,4 +561,8 @@ func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptio
 	}
 
 	return kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, name, key)
+}
+
+func filterOnlyClidRuntime(rt *platmodel.Runtime) bool {
+	return rt.InstallationType == platmodel.InstallationTypeCli
 }

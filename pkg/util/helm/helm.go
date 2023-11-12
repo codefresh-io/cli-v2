@@ -18,13 +18,13 @@ import (
 	"fmt"
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
-
 	"github.com/spf13/pflag"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/registry"
 )
 
 //go:generate mockgen -destination=./mocks/helm.go -package=helm -source=./helm.go Helm
@@ -32,26 +32,35 @@ import (
 type (
 	Helm interface {
 		GetValues(valuesFile string, loadFromChart bool) (chartutil.Values, error)
+		GetDependency(name string) (string, string, error)
 	}
 
 	helmImpl struct {
-		devel         bool
-		chartPathOpts *action.ChartPathOptions
+		chart   string
+		devel   bool
+		install *action.Install
 	}
 )
 
-func AddFlags(flags *pflag.FlagSet) Helm {
+func AddFlags(flags *pflag.FlagSet) (Helm, error) {
+	client, err := registry.NewClient()
+	if err != nil {
+		return nil, err
+	}
+
 	helm := &helmImpl{
-		chartPathOpts: &action.ChartPathOptions{},
+		install: action.NewInstall(&action.Configuration{
+			RegistryClient: client,
+		}),
 	}
 
 	flags.BoolVar(&helm.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored")
-	flags.StringVar(&helm.chartPathOpts.Version, "version", "", "specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used")
-	flags.StringVar(&helm.chartPathOpts.RepoURL, "repo", "https://chartmuseum.codefresh.io/gitops-runtime", "chart repository url where to locate the requested chart")
+	flags.StringVar(&helm.install.ChartPathOptions.Version, "version", "", "specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used")
+	flags.StringVar(&helm.chart, "chart", "oci://quay.io/codefresh/gitops-runtime", "chart oci url [oci://quay.io/codefresh/gitops-runtime]")
 
-	util.Die(flags.MarkHidden("repo"))
+	util.Die(flags.MarkHidden("chart"))
 
-	return helm
+	return helm, nil
 }
 
 func (h *helmImpl) GetValues(valuesFile string, loadFromChart bool) (chartutil.Values, error) {
@@ -64,10 +73,6 @@ func (h *helmImpl) GetValues(valuesFile string, loadFromChart bool) (chartutil.V
 		return values, nil
 	}
 
-	if h.chartPathOpts.Version == "" && h.devel {
-		h.chartPathOpts.Version = ">0.0.0-0"
-	}
-
 	chart, err := h.loadHelmChart()
 	if err != nil {
 		return nil, err
@@ -76,8 +81,28 @@ func (h *helmImpl) GetValues(valuesFile string, loadFromChart bool) (chartutil.V
 	return chartutil.CoalesceValues(chart, values)
 }
 
+func (h *helmImpl) GetDependency(name string) (string, string, error) {
+	chart, err := h.loadHelmChart()
+	if err != nil {
+		return "", "", err
+	}
+
+	for _, dep := range chart.Metadata.Dependencies {
+		if dep.Name == name {
+			return dep.Repository, dep.Version, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("dependency %q not found", name)
+}
+
 func (h *helmImpl) loadHelmChart() (*chart.Chart, error) {
-	cp, err := h.chartPathOpts.LocateChart("gitops-runtime", cli.New())
+	if h.install.ChartPathOptions.Version == "" && h.devel {
+		h.install.ChartPathOptions.Version = ">0.0.0-0"
+	}
+
+	settings := cli.New()
+	cp, err := h.install.LocateChart(h.chart, settings)
 	if err != nil {
 		return nil, err
 	}

@@ -43,21 +43,21 @@ type CloneFlagsOptions struct {
 	Progress         io.Writer
 }
 
-func AddCloneFlags(cmd *cobra.Command, o *CloneFlagsOptions) *apgit.CloneOptions {
-	opts := apgit.AddFlags(cmd, &apgit.AddFlagsOptions{
+func AddCloneFlags(cmd *cobra.Command, opts *CloneFlagsOptions) *apgit.CloneOptions {
+	co := apgit.AddFlags(cmd, &apgit.AddFlagsOptions{
 		FS:               memfs.New(),
-		Prefix:           o.Prefix,
-		CreateIfNotExist: o.CreateIfNotExist,
-		CloneForWrite:    o.CloneForWrite,
-		Optional:         o.Optional,
+		Prefix:           opts.Prefix,
+		CreateIfNotExist: opts.CreateIfNotExist,
+		CloneForWrite:    opts.CloneForWrite,
+		Optional:         opts.Optional,
 	})
 
-	opts.Progress = o.Progress
-	if opts.Progress == nil {
-		opts.Progress = io.Discard
+	co.Progress = opts.Progress
+	if co.Progress == nil {
+		co.Progress = io.Discard
 	}
 
-	return opts
+	return co
 }
 
 func PushWithMessage(ctx context.Context, r apgit.Repository, msg string) error {
@@ -104,4 +104,12 @@ func ConfigureLoggerOrDie(cmd *cobra.Command) {
 	logger := aplog.FromLogrus(logrus.NewEntry(logrus.New()), &aplog.LogrusConfig{Level: lvl})
 	util.Die(logger.Configure())
 	aplog.L = logger
+}
+
+func AddRepoFlags(cmd *cobra.Command, opts *CloneFlagsOptions) *apgit.CloneOptions {
+	co := AddCloneFlags(cmd, opts)
+	util.Die(cmd.PersistentFlags().MarkHidden(opts.Prefix + "repo"))
+	util.Die(cmd.PersistentFlags().MarkHidden(opts.Prefix + "upsert-branch"))
+	util.Die(cmd.PersistentFlags().SetAnnotation(opts.Prefix+"repo", cobra.BashCompOneRequiredFlag, []string{"false"}))
+	return co
 }
