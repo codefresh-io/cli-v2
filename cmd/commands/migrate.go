@@ -474,7 +474,6 @@ func addPathToClusterApp(destFs apfs.FS, runtimeName, clusterName, path string) 
 	addPathToInclude(app, path)
 	bytes, err := yaml.Marshal(app)
 	bytes = filterStatus(bytes)
-	fmt.Println(string(bytes))
 	if err != nil {
 		return err
 	}
