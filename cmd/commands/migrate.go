@@ -530,6 +530,11 @@ func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string
 		return fmt.Errorf("failed updating argoproj CRDs: %w", err)
 	}
 
+	err = deleteInitialAdminSecret(ctx, kubeFactory, runtimeNamespace)
+	if err != nil {
+		return fmt.Errorf("failed deleting initial-admin-secret: %w", err)
+	}
+
 	return nil
 }
 
@@ -586,6 +591,10 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 	}
 
 	return nil
+}
+
+func deleteInitialAdminSecret(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
+	return kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace).Delete(ctx, "argocd-initial-admin-secret", metav1.DeleteOptions{})
 }
 
 func getLabelPatch(value string) string {
