@@ -47,11 +47,12 @@ import (
 
 type (
 	MigrateOptions struct {
-		runtimeName string
-		cloneOpts   *apgit.CloneOptions
-		helm        helm.Helm
-		kubeContext string
-		kubeFactory apkube.Factory
+		runtimeName     string
+		helmReleaseName string
+		cloneOpts       *apgit.CloneOptions
+		helm            helm.Helm
+		kubeContext     string
+		kubeFactory     apkube.Factory
 	}
 )
 
@@ -61,7 +62,7 @@ func NewMigrateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "migrate",
 		Short:   "migrate a cli-runtime to the new helm-runtime",
-		Example: util.Doc("<BIN> helm migrate [RUNTIME_NAME]"),
+		Example: util.Doc("<BIN> helm migrate [RUNTIME_NAME] --helm-release-name [HELM_RELEASE_NAME]"),
 		Args:    cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
@@ -94,6 +95,7 @@ func NewMigrateCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVarP(&opts.helmReleaseName, "helm-release-name", "r", "", "The expected helm release name, after the migration")
 	opts.cloneOpts = apu.AddRepoFlags(cmd, &apu.CloneFlagsOptions{
 		CreateIfNotExist: false,
 		CloneForWrite:    true,
@@ -101,6 +103,7 @@ func NewMigrateCommand() *cobra.Command {
 	})
 	opts.helm, _ = helm.AddFlags(cmd.Flags())
 	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
+	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "helm-release-name"))
 
 	return cmd
 }
@@ -179,7 +182,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *runtime.Repo, sha)
 	log.G(ctx).Infof("Done migrating resources from %q to %q", *runtime.Repo, *user.ActiveAccount.SharedConfigRepo)
 
-	err = removeFromCluster(ctx, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
+	err = removeFromCluster(ctx, opts.helmReleaseName, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
 	if err != nil {
 		return fmt.Errorf("failed removing runtime from cluster: %w", err)
 	}
@@ -506,7 +509,7 @@ func addSuffix(str, suffix string, length int) string {
 	return str[:length-len(suffix)] + suffix
 }
 
-func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
+func removeFromCluster(ctx context.Context, releaseName, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
 	err := switchManagedByLabel(ctx, kubeFactory, runtimeNamespace)
 	if err != nil {
 		return fmt.Errorf("failed preserving codefresh token secret: %w", err)
@@ -525,7 +528,7 @@ func removeFromCluster(ctx context.Context, runtimeNamespace, kubeContext string
 		return fmt.Errorf("failed uninstalling runtime: %w", err)
 	}
 
-	err = patchCrds(ctx, kubeFactory)
+	err = patchCrds(ctx, kubeFactory, releaseName, runtimeNamespace)
 	if err != nil {
 		return fmt.Errorf("failed updating argoproj CRDs: %w", err)
 	}
@@ -563,7 +566,7 @@ func switchManagedByLabel(ctx context.Context, kubeFactory apkube.Factory, names
 	return nil
 }
 
-func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
+func patchCrds(ctx context.Context, kubeFactory apkube.Factory, releaseName, releaseNamespace string) error {
 	gvr := schema.GroupVersionResource(apiextv1.SchemeGroupVersion.WithResource("customresourcedefinitions"))
 	crdInterface := kube.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
 	crds, err := crdInterface.List(ctx, metav1.ListOptions{})
@@ -580,7 +583,7 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory) error {
 			ctx,
 			crd.GetName(),
 			types.StrategicMergePatchType,
-			[]byte(getLabelPatch("Helm")),
+			[]byte(getCrdPatch(releaseName, releaseNamespace)),
 			metav1.PatchOptions{},
 		)
 		if err != nil {
@@ -599,6 +602,20 @@ func deleteInitialAdminSecret(ctx context.Context, kubeFactory apkube.Factory, n
 
 func getLabelPatch(value string) string {
 	return fmt.Sprintf(`{ "metadata": { "labels": { "%s": "%s" } } }`, apstore.Default.LabelKeyAppManagedBy, value)
+}
+
+func getCrdPatch(releaseName, releaseNamespace string) string {
+	return fmt.Sprintf(`{
+  "metadata": {
+    "annotations": {
+      "%s": "%s",
+      "%s": "%s"
+    },
+    "labels": {
+      "%s": "Helm"
+    }
+  }
+}`, store.Get().AnnotationKeyReleaseName, releaseName, store.Get().AnnotationKeyReleaseNamespace, releaseNamespace, apstore.Default.LabelKeyAppManagedBy)
 }
 
 func filterStatus(manifest []byte) []byte {

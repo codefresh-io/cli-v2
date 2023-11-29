@@ -50,6 +50,8 @@ type Version struct {
 type Store struct {
 	AddClusterJobName                 string
 	AnalysisRunResourceName           string
+	AnnotationKeyReleaseName          string
+	AnnotationKeyReleaseNamespace     string
 	AnnotationKeySyncWave             string
 	AppProxyIngressName               string
 	AppProxyIngressPath               string
@@ -112,8 +114,8 @@ type Store struct {
 	GitTokensLink                     string
 	GsCreateFlow                      string
 	InClusterName                     string
-	InClusterServerURL                string
 	InClusterPath                     string
+	InClusterServerURL                string
 	IngressHost                       string
 	InsecureIngressHost               bool
 	InternalRouterIngressFilePath     string
@@ -125,10 +127,10 @@ type Store struct {
 	IsDownloadRuntimeLogs             bool
 	KubeVersionConstrint              *semver.Constraints
 	LabelFieldCFType                  string
-	LabelKeyCFInternal                string
-	LabelKeyCFType                    string
 	LabelGitIntegrationTypeKey        string
 	LabelGitIntegrationTypeValue      string
+	LabelKeyCFInternal                string
+	LabelKeyCFType                    string
 	LabelSelectorGitIntegrationSecret string
 	LabelSelectorSealedSecret         string
 	LastRuntimeVersionInCLI           *semver.Version
@@ -179,6 +181,8 @@ func (s *Store) IsCustomDefURL(orgRepo string) bool {
 func init() {
 	s.AddClusterJobName = "csdp-add-cluster-job-"
 	s.AnalysisRunResourceName = "analysisruns"
+	s.AnnotationKeyReleaseName = "meta.helm.sh/release-name"
+	s.AnnotationKeyReleaseNamespace = "meta.helm.sh/release-namespace"
 	s.AnnotationKeySyncWave = "argocd.argoproj.io/sync-wave"
 	s.AppProxyIngressName = "-cap-app-proxy"
 	s.AppProxyIngressPath = "/app-proxy"

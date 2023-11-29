@@ -9,22 +9,23 @@ cli-v2 migrate [flags]
 ### Examples
 
 ```
-cli-v2 helm migrate [RUNTIME_NAME]
+cli-v2 helm migrate [RUNTIME_NAME] --helm-release-name [HELM_RELEASE_NAME]
 ```
 
 ### Options
 
 ```
-      --context string           The name of the kubeconfig context to use
-      --devel                    use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored
-      --git-server-crt string    Git Server certificate file
-  -t, --git-token string         Your git provider api token [GIT_TOKEN]
-  -u, --git-user string          Your git provider user name [GIT_USER] (not required in GitHub)
-  -h, --help                     help for migrate
-      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string         If present, the namespace scope for this CLI request
-      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --version string           specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used
+      --context string             The name of the kubeconfig context to use
+      --devel                      use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored
+      --git-server-crt string      Git Server certificate file
+  -t, --git-token string           Your git provider api token [GIT_TOKEN]
+  -u, --git-user string            Your git provider user name [GIT_USER] (not required in GitHub)
+  -r, --helm-release-name string   The expected helm release name, after the migration
+  -h, --help                       help for migrate
+      --kubeconfig string          Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string           If present, the namespace scope for this CLI request
+      --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --version string             specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used
 ```
 
 ### Options inherited from parent commands
