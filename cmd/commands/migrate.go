@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"strings"
 
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
@@ -134,14 +135,18 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	}
 
 	log.G(ctx).Infof("Cloned installation repo %q", *runtime.Repo)
+	destFs := apfs.Create(memfs.New())
+	if isSharedConfigInInstallationRepo(user.ActiveAccount.SharedConfigRepo, runtime.Repo) {
+		destFs = opts.cloneOpts.FS
+	}
 	destCloneOpts := &apgit.CloneOptions{
 		Provider: user.ActiveAccount.GitProvider.String(),
 		Repo:     *user.ActiveAccount.SharedConfigRepo,
 		Auth:     opts.cloneOpts.Auth,
-		FS:       apfs.Create(memfs.New()),
+		FS:       destFs,
 	}
 	destCloneOpts.Parse()
-	_, destFs, err := destCloneOpts.GetRepo(ctx)
+	_, destFs, err = destCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting shared config repo: %w", err)
 	}
@@ -171,7 +176,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed pushing changes to installation repo: %w", err)
 	}
 
-	log.G(ctx).Infof("Pushed changes to installation repo %q, sha: %s", *user.ActiveAccount.SharedConfigRepo, sha)
+	log.G(ctx).Infof("Pushed changes to installation repo %q, sha: %s", *runtime.Repo, sha)
 
 	destRepo, _, err := destCloneOpts.GetRepo(ctx)
 	if err != nil {
@@ -184,7 +189,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed pushing changes to internal-shared-config repo: %w", err)
 	}
 
-	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *runtime.Repo, sha)
+	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *user.ActiveAccount.SharedConfigRepo, sha)
 	log.G(ctx).Infof("Done migrating resources from %q to %q", *runtime.Repo, *user.ActiveAccount.SharedConfigRepo)
 
 	err = removeFromCluster(ctx, opts.helmReleaseName, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
@@ -635,4 +640,11 @@ func filterStatus(manifest []byte) []byte {
 	}
 
 	return []byte(strings.Join(res, "\n"))
+}
+
+func isSharedConfigInInstallationRepo(iscRepo, installationRepo *string) bool {
+	iscRepoHost, _, _, _, _, _, _ := aputil.ParseGitUrl(*iscRepo)
+	installationRepoHost, _, _, _, _, _, _ := aputil.ParseGitUrl(*installationRepo)
+
+	return iscRepoHost == installationRepoHost
 }
