@@ -141,7 +141,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		FS:       apfs.Create(memfs.New()),
 	}
 	destCloneOpts.Parse()
-	destRepo, destFs, err := destCloneOpts.GetRepo(ctx)
+	_, destFs, err := destCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting shared config repo: %w", err)
 	}
@@ -172,6 +172,11 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	}
 
 	log.G(ctx).Infof("Pushed changes to installation repo %q, sha: %s", *user.ActiveAccount.SharedConfigRepo, sha)
+
+	destRepo, _, err := destCloneOpts.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed getting shared config repo: %w", err)
+	}
 	sha, err = destRepo.Persist(ctx, &apgit.PushOptions{
 		CommitMsg: "moved resources from installation repo",
 	})
