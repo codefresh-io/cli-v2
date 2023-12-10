@@ -139,6 +139,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	if isSharedConfigInInstallationRepo(user.ActiveAccount.SharedConfigRepo, runtime.Repo) {
 		destFs = opts.cloneOpts.FS
 	}
+
 	destCloneOpts := &apgit.CloneOptions{
 		Provider: user.ActiveAccount.GitProvider.String(),
 		Repo:     *user.ActiveAccount.SharedConfigRepo,
@@ -643,8 +644,8 @@ func filterStatus(manifest []byte) []byte {
 }
 
 func isSharedConfigInInstallationRepo(iscRepo, installationRepo *string) bool {
-	iscRepoHost, _, _, _, _, _, _ := aputil.ParseGitUrl(*iscRepo)
-	installationRepoHost, _, _, _, _, _, _ := aputil.ParseGitUrl(*installationRepo)
+	iscRepoHost, iscOrgRepo, _, iscBranch, _, _, _ := aputil.ParseGitUrl(*iscRepo)
+	installationRepoHost, installationOrgRepo, _, installationBranch, _, _, _ := aputil.ParseGitUrl(*installationRepo)
 
-	return iscRepoHost == installationRepoHost
+	return iscRepoHost == installationRepoHost && iscOrgRepo == installationOrgRepo && iscBranch == installationBranch
 }
