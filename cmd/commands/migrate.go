@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -32,13 +31,13 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/util/kube"
 	"github.com/go-git/go-billy/v5/memfs"
 
-	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	apargocd "github.com/argoproj-labs/argocd-autopilot/pkg/argocd"
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -77,7 +76,7 @@ type (
 
 var (
 	EventSourceGVR = aev1alpha1.SchemaGroupVersionKind.GroupVersion().WithResource("eventsources")
-	SensorGVR = aev1alpha1.SchemaGroupVersionKind.GroupVersion().WithResource("sensors")
+	SensorGVR      = aev1alpha1.SchemaGroupVersionKind.GroupVersion().WithResource("sensors")
 )
 
 func NewMigrateCommand() *cobra.Command {
@@ -394,7 +393,7 @@ func persistAndWaitForSync(ctx context.Context, srcRepo apgit.Repository, opts *
 		return fmt.Errorf("failed pushing changes to installation repo: %w", err)
 	}
 
-	err = waitForSync(ctx, opts.kubeFactory, store.Get().WaitTimeout, opts.runtimeNamespace, sha)
+	err = waitForSync(ctx, opts.kubeFactory, opts.runtimeNamespace, sha)
 	if err != nil {
 		return fmt.Errorf("failed waiting for sync after %q: %w", commitMsg, err)
 	}
@@ -402,11 +401,11 @@ func persistAndWaitForSync(ctx context.Context, srcRepo apgit.Repository, opts *
 	return nil
 }
 
-func waitForSync(ctx context.Context, f apkube.Factory, timeout time.Duration, namespace, revision string) error {
+func waitForSync(ctx context.Context, f apkube.Factory, namespace, revision string) error {
 	log.G(ctx).Infof("Waiting for Argo-CD App sync to revision %s", revision)
 	return f.Wait(ctx, &apkube.WaitOptions{
 		Interval: apstore.Default.WaitInterval,
-		Timeout:  timeout,
+		Timeout:  store.Get().WaitTimeout,
 		Resources: []apkube.Resource{
 			{
 				Name:      apstore.Default.BootsrtrapAppName,
