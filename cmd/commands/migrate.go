@@ -32,10 +32,12 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
+	apargocd "github.com/argoproj-labs/argocd-autopilot/pkg/argocd"
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
+	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -54,7 +56,27 @@ type (
 		helm            helm.Helm
 		kubeContext     string
 		kubeFactory     apkube.Factory
+
+		runtimeNamespace string
+		runtimeRepo      string
+		sharedConfigRepo string
 	}
+
+	projectData struct {
+		filePath string
+		appSet   *argocdv1alpha1.ApplicationSet
+		project  *argocdv1alpha1.AppProject
+	}
+
+	globData struct {
+		clusterName string
+		glob        string
+	}
+)
+
+var (
+	EventSourceGVR = aev1alpha1.SchemaGroupVersionKind.GroupVersion().WithResource("eventsources")
+	SensorGVR      = aev1alpha1.SchemaGroupVersionKind.GroupVersion().WithResource("sensors")
 )
 
 func NewMigrateCommand() *cobra.Command {
@@ -89,7 +111,7 @@ func NewMigrateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			err := runHelmMigrate(cmd.Context(), opts)
 			if err != nil {
-				return fmt.Errorf("failed upgraring runtime %q: %w", opts.runtimeName, err)
+				return fmt.Errorf("failed upgrading runtime %q: %w", opts.runtimeName, err)
 			}
 
 			return nil
@@ -115,16 +137,19 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return err
 	}
 
+	opts.runtimeNamespace = *runtime.Metadata.Namespace
+	opts.runtimeRepo = *runtime.Repo
 	log.G(ctx).Infof("Got runtime data %q", opts.runtimeName)
 	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting current user: %w", err)
 	}
 
+	opts.sharedConfigRepo = *user.ActiveAccount.SharedConfigRepo
 	log.G(ctx).Infof("Got user data for %q", user.Name)
 	srcCloneOpts := &apgit.CloneOptions{
 		Provider: user.ActiveAccount.GitProvider.String(),
-		Repo:     *runtime.Repo,
+		Repo:     opts.runtimeRepo,
 		Auth:     opts.cloneOpts.Auth,
 		FS:       opts.cloneOpts.FS,
 	}
@@ -134,42 +159,42 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed getting installation repo: %w", err)
 	}
 
-	log.G(ctx).Infof("Cloned installation repo %q", *runtime.Repo)
+	log.G(ctx).Infof("Cloned installation repo %q", opts.runtimeRepo)
 	destFs := apfs.Create(memfs.New())
-	if isSharedConfigInInstallationRepo(user.ActiveAccount.SharedConfigRepo, runtime.Repo) {
+	if isSharedConfigInInstallationRepo(opts.sharedConfigRepo, opts.runtimeRepo) {
 		destFs = opts.cloneOpts.FS
 	}
 
 	destCloneOpts := &apgit.CloneOptions{
 		Provider: user.ActiveAccount.GitProvider.String(),
-		Repo:     *user.ActiveAccount.SharedConfigRepo,
+		Repo:     opts.sharedConfigRepo,
 		Auth:     opts.cloneOpts.Auth,
 		FS:       destFs,
 	}
 	destCloneOpts.Parse()
-	_, destFs, err = destCloneOpts.GetRepo(ctx)
+	destRepo, destFs, err := destCloneOpts.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting shared config repo: %w", err)
 	}
 
-	log.G(ctx).Infof("Cloned internal-shared-config repo %q", *user.ActiveAccount.SharedConfigRepo)
-	err = moveGitSources(srcFs, destFs, opts.runtimeName)
+	log.G(ctx).Infof("Cloned internal-shared-config repo %q", opts.sharedConfigRepo)
+	err = moveGitSources(ctx, srcRepo, srcFs, destFs, opts)
 	if err != nil {
 		return fmt.Errorf("failed moving git sources: %w", err)
 	}
 
-	log.G(ctx).Infof("moved all git-sources from installation repo to shared-config-repo")
-	err = moveArgoRollouts(ctx, srcFs, destFs, opts, *runtime.Metadata.Namespace)
+	log.G(ctx).Info("Moved all git-sources from installation repo to shared-config-repo")
+	err = moveArgoRollouts(ctx, srcFs, destFs, opts)
 	if err != nil {
 		return fmt.Errorf("failed moving argo-rollouts: %w", err)
 	}
 
-	err = createRbacInIsc(destFs, opts.runtimeName, *runtime.Metadata.Namespace)
+	err = createRbacInIsc(destFs, opts)
 	if err != nil {
 		return fmt.Errorf("failed creating rbac: %w", err)
 	}
 
-	log.G(ctx).Warnf("Created \"codefresh-config-reader\" Role and RoleBinding for default SA in namespace %q", *runtime.Metadata.Namespace)
+	log.G(ctx).Warnf("Created \"codefresh-config-reader\" Role and RoleBinding for default SA in namespace %q", opts.runtimeNamespace)
 	sha, err := srcRepo.Persist(ctx, &apgit.PushOptions{
 		CommitMsg: "moved resources to internal-shared-config repo",
 	})
@@ -177,12 +202,12 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed pushing changes to installation repo: %w", err)
 	}
 
-	log.G(ctx).Infof("Pushed changes to installation repo %q, sha: %s", *runtime.Repo, sha)
-
-	destRepo, _, err := destCloneOpts.GetRepo(ctx)
+	log.G(ctx).Infof("Pushed changes to installation repo %q, sha: %s", opts.runtimeRepo, sha)
+	err = removeFromCluster(ctx, opts.helmReleaseName, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
 	if err != nil {
-		return fmt.Errorf("failed getting shared config repo: %w", err)
+		return fmt.Errorf("failed removing runtime from cluster: %w", err)
 	}
+
 	sha, err = destRepo.Persist(ctx, &apgit.PushOptions{
 		CommitMsg: "moved resources from installation repo",
 	})
@@ -190,13 +215,8 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 		return fmt.Errorf("failed pushing changes to internal-shared-config repo: %w", err)
 	}
 
-	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", *user.ActiveAccount.SharedConfigRepo, sha)
-	log.G(ctx).Infof("Done migrating resources from %q to %q", *runtime.Repo, *user.ActiveAccount.SharedConfigRepo)
-
-	err = removeFromCluster(ctx, opts.helmReleaseName, *runtime.Metadata.Namespace, opts.kubeContext, srcCloneOpts, opts.kubeFactory)
-	if err != nil {
-		return fmt.Errorf("failed removing runtime from cluster: %w", err)
-	}
+	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", opts.sharedConfigRepo, sha)
+	log.G(ctx).Infof("Done migrating resources from %q to %q", opts.runtimeRepo, opts.sharedConfigRepo)
 
 	err = cfConfig.NewClient().V2().Runtime().MigrateRuntime(ctx, opts.runtimeName)
 	if err != nil {
@@ -224,20 +244,57 @@ func getCliRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime,
 	return runtime, nil
 }
 
-func getAppsetGlobs(srcFs apfs.FS) (map[string]string, error) {
-	res := make(map[string]string)
+func moveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs, destFs apfs.FS, opts *MigrateOptions) error {
+	projects, err := getProjects(srcFs)
+	if err != nil {
+		return err
+	}
+
+	// must get globs BEFORE we preserve git sources, which will alter the generator globs
+	globs := getClusterGlobs(projects)
+	err = preserveGitSources(ctx, srcRepo, srcFs, opts, projects)
+	if err != nil {
+		return err
+	}
+
+	for _, globData := range globs {
+		err = moveClusterGitSources(srcFs, destFs, globData.glob, opts.runtimeName, globData.clusterName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getProjects(srcFs apfs.FS) ([]projectData, error) {
+	res := []projectData{}
 	projects, err := billyUtils.Glob(srcFs, "/projects/*.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed getting projects: %w", err)
 	}
 
 	for _, projectFile := range projects {
-		_, appSet, err := getProjectInfoFromFile(srcFs, projectFile)
+		project, appSet, err := getProjectInfoFromFile(srcFs, projectFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed getting project info from file %q: %w", projectFile, err)
 		}
 
-		generators := appSet.Spec.Generators
+		res = append(res, projectData{
+			appSet:   appSet,
+			filePath: projectFile,
+			project:  project,
+		})
+	}
+
+	return res, nil
+}
+
+func getClusterGlobs(projects []projectData) []globData {
+	res := []globData{}
+
+	for _, projectData := range projects {
+		generators := projectData.appSet.Spec.Generators
 		for _, generator := range generators {
 			if generator.Git == nil {
 				continue
@@ -245,33 +302,118 @@ func getAppsetGlobs(srcFs apfs.FS) (map[string]string, error) {
 
 			for _, file := range generator.Git.Files {
 				if strings.HasSuffix(file.Path, "config_dir.json") {
-					res[appSet.Name] = file.Path
+					res = append(res, globData{
+						clusterName: projectData.appSet.Name,
+						glob:        file.Path,
+					})
 				}
 			}
 		}
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed getting globs from projects directory: %w", err)
-	}
-
-	return res, nil
+	return res
 }
 
-func moveGitSources(srcFs, destFs apfs.FS, runtimeName string) error {
-	globs, err := getAppsetGlobs(srcFs)
+func preserveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs apfs.FS, opts *MigrateOptions, projects []projectData) error {
+	var err error
+	log.G(ctx).Info("Preserving Application resources on deletion")
+	err = setPreserveResourcesOnDeletion(ctx, srcRepo, srcFs, opts, projects, true)
 	if err != nil {
 		return err
 	}
 
-	for clusterName, glob := range globs {
-		err = moveClusterGitSources(srcFs, destFs, glob, runtimeName, clusterName)
-		if err != nil {
-			return err
-		}
+	log.G(ctx).Info("Removing git-source Application Generator")
+	err = removeGitSourceGenerator(ctx, srcRepo, srcFs, opts, projects)
+	if err != nil {
+		return err
+	}
+
+	log.G(ctx).Info("Resetting to not preserve Application resources on deletion")
+	err = setPreserveResourcesOnDeletion(ctx, srcRepo, srcFs, opts, projects, false)
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func setPreserveResourcesOnDeletion(ctx context.Context, srcRepo apgit.Repository, srcFs apfs.FS, opts *MigrateOptions, projects []projectData, preserve bool) error {
+	for _, project := range projects {
+		project.appSet.Spec.SyncPolicy.PreserveResourcesOnDeletion = preserve
+		err := srcFs.WriteYamls(project.filePath, project.project, project.appSet)
+		if err != nil {
+			return fmt.Errorf("failed writing project data to %q: %w", project.filePath, err)
+		}
+	}
+
+	commitMsg := fmt.Sprintf("preserved resources on deletion set to %t", preserve)
+	err := persistAndWaitForSync(ctx, srcRepo, opts, commitMsg)
+	if err != nil {
+		return fmt.Errorf("failed setting PreserveResourcesOnDeletion to %t: %w", preserve, err)
+	}
+
+	return nil
+}
+
+func removeGitSourceGenerator(ctx context.Context, srcRepo apgit.Repository, srcFs apfs.FS, opts *MigrateOptions, projects []projectData) error {
+	for _, project := range projects {
+		for _, generator := range project.appSet.Spec.Generators {
+			if generator.Git == nil {
+				continue
+			}
+
+			for i, file := range generator.Git.Files {
+				if strings.HasSuffix(file.Path, "config_dir.json") {
+					generator.Git.Files[i] = argocdv1alpha1.GitFileGeneratorItem{
+						Path: srcFs.Join("apps", "*-reporter", project.appSet.Name, "config_dir.json"),
+					}
+				}
+			}
+		}
+
+		err := srcFs.WriteYamls(project.filePath, project.project, project.appSet)
+		if err != nil {
+			return fmt.Errorf("failed writing project data to %q: %w", project.filePath, err)
+		}
+	}
+
+	err := persistAndWaitForSync(ctx, srcRepo, opts, "removed git source generator")
+	if err != nil {
+		return fmt.Errorf("failed removing git source generator: %w", err)
+	}
+
+	return nil
+}
+
+func persistAndWaitForSync(ctx context.Context, srcRepo apgit.Repository, opts *MigrateOptions, commitMsg string) error {
+	sha, err := srcRepo.Persist(ctx, &apgit.PushOptions{
+		CommitMsg: commitMsg,
+	})
+	if err != nil {
+		return fmt.Errorf("failed pushing changes to installation repo: %w", err)
+	}
+
+	err = waitForSync(ctx, opts.kubeFactory, opts.runtimeNamespace, sha)
+	if err != nil {
+		return fmt.Errorf("failed waiting for sync after %q: %w", commitMsg, err)
+	}
+
+	return nil
+}
+
+func waitForSync(ctx context.Context, f apkube.Factory, namespace, revision string) error {
+	log.G(ctx).Infof("Waiting for Argo-CD App sync to revision %s", revision)
+	return f.Wait(ctx, &apkube.WaitOptions{
+		Interval: apstore.Default.WaitInterval,
+		Timeout:  store.Get().WaitTimeout,
+		Resources: []apkube.Resource{
+			{
+				Name:      apstore.Default.BootsrtrapAppName,
+				Namespace: namespace,
+				WaitFunc:  apargocd.GetAppSyncWaitFunc(revision, false),
+			},
+		},
+	})
 }
 
 func moveClusterGitSources(srcFs, destFs apfs.FS, glob, runtimeName, clusterName string) error {
@@ -332,7 +474,7 @@ func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName, cluster
 	return nil
 }
 
-func moveArgoRollouts(ctx context.Context, srcFs, destFs apfs.FS, opts *MigrateOptions, runtimeNamespace string) error {
+func moveArgoRollouts(ctx context.Context, srcFs, destFs apfs.FS, opts *MigrateOptions) error {
 	rolloutsOverlaysPath := srcFs.Join("apps", "rollouts", "overlays")
 	rolloutsOverlays, err := srcFs.ReadDir(rolloutsOverlaysPath)
 	if err != nil {
@@ -352,7 +494,7 @@ func moveArgoRollouts(ctx context.Context, srcFs, destFs apfs.FS, opts *MigrateO
 			return fmt.Errorf("failed moving argo-rollouts: %w", err)
 		}
 
-		err = moveClusterRolloutReporter(srcFs, destFs, opts.runtimeName, runtimeNamespace, clusterName)
+		err = moveClusterRolloutReporter(srcFs, destFs, opts, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed moving rollout-reporter: %w", err)
 		}
@@ -403,13 +545,13 @@ func createClusterArgoRollouts(destFs apfs.FS, opts *MigrateOptions, clusterName
 	return nil
 }
 
-func moveClusterRolloutReporter(srcFs, destFs apfs.FS, runtimeName, runtimeNamespace, clusterName string) error {
-	err := createClusterRolloutReporter(destFs, runtimeName, runtimeNamespace, clusterName)
+func moveClusterRolloutReporter(srcFs, destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
+	err := createClusterRolloutReporter(destFs, opts, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed creating rollout-reporter: %w", err)
 	}
 
-	rolloutReporterPath := srcFs.Join("apps", "rollout-reporter", runtimeName, "resources")
+	rolloutReporterPath := srcFs.Join("apps", "rollout-reporter", opts.runtimeName, "resources")
 	esPath := srcFs.Join(rolloutReporterPath, fmt.Sprintf("%s-event-source.yaml", clusterName))
 	err = srcFs.Remove(esPath)
 	if err != nil {
@@ -425,7 +567,7 @@ func moveClusterRolloutReporter(srcFs, destFs apfs.FS, runtimeName, runtimeNames
 	return nil
 }
 
-func createClusterRolloutReporter(destFs apfs.FS, runtimeName, runtimeNamespace, clusterName string) error {
+func createClusterRolloutReporter(destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
 	name := addSuffix(clusterName, "-"+store.Get().RolloutReporterName, 63)
 	triggerUrl, err := url.JoinPath(cfConfig.GetCurrentContext().URL, store.Get().EventReportingEndpoint)
 	if err != nil {
@@ -434,7 +576,7 @@ func createClusterRolloutReporter(destFs apfs.FS, runtimeName, runtimeNamespace,
 
 	yaml, err := templates.RenderRolloutReporter(&templates.RolloutReporterConfig{
 		Name:          name,
-		Namespace:     runtimeNamespace,
+		Namespace:     opts.runtimeNamespace,
 		ClusterName:   clusterName,
 		EventEndpoint: triggerUrl,
 	})
@@ -442,7 +584,7 @@ func createClusterRolloutReporter(destFs apfs.FS, runtimeName, runtimeNamespace,
 		return fmt.Errorf("failed rendering argo-rollouts: %w", err)
 	}
 
-	err = writeYamlInIsc(destFs, name, runtimeName, clusterName, yaml)
+	err = writeYamlInIsc(destFs, name, opts.runtimeName, clusterName, yaml)
 	if err != nil {
 		return fmt.Errorf("failed writing argo-rollouts: %w", err)
 	}
@@ -450,15 +592,15 @@ func createClusterRolloutReporter(destFs apfs.FS, runtimeName, runtimeNamespace,
 	return nil
 }
 
-func createRbacInIsc(destFs apfs.FS, runtimeName, runtimeNamespace string) error {
+func createRbacInIsc(destFs apfs.FS, opts *MigrateOptions) error {
 	yaml, err := templates.RenderRBAC(&templates.RbacConfig{
-		Namespace: runtimeNamespace,
+		Namespace: opts.runtimeNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("failed rendering rbac: %w", err)
 	}
 
-	err = writeYamlInIsc(destFs, "codefresh-config-reader", runtimeName, store.Get().InClusterName, yaml)
+	err = writeYamlInIsc(destFs, "codefresh-config-reader", opts.runtimeName, store.Get().InClusterName, yaml)
 	if err != nil {
 		return fmt.Errorf("failed writing argo-rollouts: %w", err)
 	}
@@ -526,6 +668,11 @@ func removeFromCluster(ctx context.Context, releaseName, runtimeNamespace, kubeC
 		return fmt.Errorf("failed preserving codefresh token secret: %w", err)
 	}
 
+	err = removeArgoEventsResources(ctx, kubeFactory, runtimeNamespace)
+	if err != nil {
+		return fmt.Errorf("failed removing argo-events resources: %w", err)
+	}
+
 	err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
 		Namespace:       runtimeNamespace,
 		KubeContextName: kubeContext,
@@ -572,6 +719,20 @@ func switchManagedByLabel(ctx context.Context, kubeFactory apkube.Factory, names
 		if err != nil {
 			return fmt.Errorf("failed patching secret %q: %w", secret.Name, err)
 		}
+	}
+
+	return nil
+}
+
+func removeArgoEventsResources(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
+	err := kube.GetDynamicClientOrDie(kubeFactory).Resource(EventSourceGVR).Namespace(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed deleting event sources: %w", err)
+	}
+
+	err = kube.GetDynamicClientOrDie(kubeFactory).Resource(SensorGVR).Namespace(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed deleting sensors: %w", err)
 	}
 
 	return nil
@@ -643,9 +804,9 @@ func filterStatus(manifest []byte) []byte {
 	return []byte(strings.Join(res, "\n"))
 }
 
-func isSharedConfigInInstallationRepo(iscRepo, installationRepo *string) bool {
-	iscRepoHost, iscOrgRepo, _, iscBranch, _, _, _ := aputil.ParseGitUrl(*iscRepo)
-	installationRepoHost, installationOrgRepo, _, installationBranch, _, _, _ := aputil.ParseGitUrl(*installationRepo)
+func isSharedConfigInInstallationRepo(iscRepo, installationRepo string) bool {
+	iscRepoHost, iscOrgRepo, _, iscBranch, _, _, _ := aputil.ParseGitUrl(iscRepo)
+	installationRepoHost, installationOrgRepo, _, installationBranch, _, _, _ := aputil.ParseGitUrl(installationRepo)
 
 	return iscRepoHost == installationRepoHost && iscOrgRepo == installationOrgRepo && iscBranch == installationBranch
 }
