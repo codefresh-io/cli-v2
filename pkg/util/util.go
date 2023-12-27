@@ -34,7 +34,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/briandowns/spinner"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	v1 "github.com/codefresh-io/go-sdk/pkg/codefresh/v1"
 	"github.com/pkg/browser"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -238,7 +238,7 @@ func KubeCurrentContextName(kubeconfig string) string {
 	return conf.CurrentContext
 }
 
-func CurrentAccount(user *codefresh.User) (string, error) {
+func CurrentAccount(user *v1.User) (string, error) {
 	for i := range user.Accounts {
 		if user.Accounts[i].Name == user.ActiveAccountName {
 			return user.Accounts[i].ID, nil

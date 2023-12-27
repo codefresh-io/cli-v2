@@ -17,7 +17,7 @@ package commands
 import (
 	"testing"
 
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 )
 
 func Test_getSuffixToClusterName(t *testing.T) {

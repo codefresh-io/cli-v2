@@ -54,9 +54,9 @@ import (
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh/ap"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -963,18 +963,18 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	apClient, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while creating git integration: %w", err)
 	}
 
-	err = addDefaultGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
+	err = addDefaultGitIntegration(ctx, apClient, opts.RuntimeName, opts.GitIntegrationCreationOpts)
 	handleCliStep(reporter.InstallStepCreateDefaultGitIntegration, "Creating a default git integration", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to create default git integration: %w", err))
 	}
 
-	err = registerUserToGitIntegration(ctx, appProxyClient, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
+	err = registerUserToGitIntegration(ctx, apClient, opts.RuntimeName, opts.GitIntegrationRegistrationOpts)
 	handleCliStep(reporter.InstallStepRegisterToDefaultGitIntegration, "Registering user to the default git integration", err, false, true)
 	if err != nil {
 		return util.DecorateErrorWithDocsLink(fmt.Errorf("failed to register user to the default git integration: %w", err))
@@ -1013,8 +1013,8 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 	return err
 }
 
-func addDefaultGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
-	if err := RunGitIntegrationAddCommand(ctx, appProxyClient, opts); err != nil {
+func addDefaultGitIntegration(ctx context.Context, apClient ap.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
+	if err := RunGitIntegrationAddCommand(ctx, apClient, opts); err != nil {
 		var apiURL string
 		if opts.APIURL != nil {
 			apiURL = fmt.Sprintf("--api-url %s", *opts.APIURL)
@@ -1049,8 +1049,8 @@ you can try to create it manually by running:
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, appProxyClient codefresh.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
-	if err := RunGitIntegrationRegisterCommand(ctx, appProxyClient, opts); err != nil {
+func registerUserToGitIntegration(ctx context.Context, apClient ap.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
+	if err := RunGitIntegrationRegisterCommand(ctx, apClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git register default --runtime %s --token %s --username %s",
 			runtime,
@@ -2084,13 +2084,13 @@ func postInstallationHandler(ctx context.Context, opts *RuntimeInstallOptions, e
 		log.G(ctx).Errorf("installation failed due to error: %s, performing installation rollback", err.Error())
 		util.CheckNetworkErr(err)
 		err := runRuntimeUninstall(ctx, &RuntimeUninstallOptions{
-			RuntimeName:      opts.RuntimeName,
-			Timeout:          store.Get().WaitTimeout,
-			CloneOpts:        opts.InsCloneOpts,
-			KubeFactory:      opts.KubeFactory,
-			SkipChecks:       true,
-			Force:            true,
-			FastExit:         false,
+			RuntimeName: opts.RuntimeName,
+			Timeout:     store.Get().WaitTimeout,
+			CloneOpts:   opts.InsCloneOpts,
+			KubeFactory: opts.KubeFactory,
+			SkipChecks:  true,
+			Force:       true,
+			FastExit:    false,
 
 			runtimeNamespace: opts.RuntimeNamespace,
 		})

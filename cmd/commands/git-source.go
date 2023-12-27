@@ -41,8 +41,8 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -225,7 +225,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
@@ -233,7 +233,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	appSpecifier := opts.GsCloneOpts.Repo
 	isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
 
-	err = appProxy.AppProxyGitSources().Create(ctx, &apmodel.CreateGitSourceInput{
+	err = appProxy.GitSource().Create(ctx, &apmodel.CreateGitSourceInput{
 		AppName:       opts.GsName,
 		AppSpecifier:  appSpecifier,
 		DestServer:    store.Get().InClusterServerURL,
@@ -400,12 +400,12 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 }
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
 
-	err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
+	err = appProxy.GitSource().Delete(ctx, opts.GsName)
 	if err != nil {
 		return fmt.Errorf("failed to delete git-source: %w", err)
 	}
@@ -478,12 +478,12 @@ func NewGitSourceEditCommand() *cobra.Command {
 }
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
-	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
 
-	err = appProxy.AppProxyGitSources().Edit(ctx, &apmodel.EditGitSourceInput{
+	err = appProxy.GitSource().Edit(ctx, &apmodel.EditGitSourceInput{
 		AppName:      opts.GsName,
 		AppSpecifier: opts.GsCloneOpts.Repo,
 		Include:      opts.Include,

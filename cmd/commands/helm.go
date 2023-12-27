@@ -34,7 +34,7 @@ import (
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,7 +193,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 		return "", "", fmt.Errorf("failed creating codefresh client using user token: %w", err)
 	}
 
-	user, err := cfClient.V2().UsersV2().GetCurrent(ctx)
+	user, err := cfClient.V2().User().GetCurrent(ctx)
 	if err != nil {
 		return "", "", err
 	}

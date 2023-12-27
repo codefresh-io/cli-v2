@@ -22,7 +22,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
@@ -87,7 +87,7 @@ func NewWorkflowListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			filterArgs := model.WorkflowsFilterArgs{
+			filterArgs := platmodel.WorkflowsFilterArgs{
 				Namespace: &namespace,
 				Runtime:   &runtime,
 				Project:   &project,
@@ -134,7 +134,7 @@ func RunWorkflowGet(ctx context.Context, uid string) error {
 	return tb.Flush()
 }
 
-func RunWorkflowList(ctx context.Context, filterArgs model.WorkflowsFilterArgs) error {
+func RunWorkflowList(ctx context.Context, filterArgs platmodel.WorkflowsFilterArgs) error {
 	workflows, err := cfConfig.NewClient().V2().Workflow().List(ctx, filterArgs)
 	if err != nil {
 		return err

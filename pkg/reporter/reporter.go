@@ -18,7 +18,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	v1 "github.com/codefresh-io/go-sdk/pkg/codefresh/v1"
 	"github.com/google/uuid"
 	"gopkg.in/segmentio/analytics-go.v3"
 )
@@ -151,7 +151,7 @@ func G() AnalyticsReporter {
 	return ar
 }
 
-func Init(user *codefresh.User, flow FlowType) {
+func Init(user *v1.User, flow FlowType) {
 	writeKey := store.SegmentWriteKey
 	if writeKey == "" {
 		log.G().Debug("No segment write key was provided. Using the noop reporter.")

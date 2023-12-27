@@ -39,7 +39,7 @@ import (
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -221,7 +221,7 @@ func (r *Runtime) Upgrade(fs apfs.FS, newRt *Runtime, config *CommonConfig) ([]A
 	return newComponents, nil
 }
 
-func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName , runtimeNamespace string, valuesProvider HelmValuesProvider) error {
+func (r *RuntimeSpec) install(ctx context.Context, f apkube.Factory, cloneOpts *apgit.CloneOptions, runtimeName, runtimeNamespace string, valuesProvider HelmValuesProvider) error {
 	for _, component := range r.Components {
 		log.G(ctx).Infof("Creating component \"%s\"", component.Name)
 		component.IsInternal = true

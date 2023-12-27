@@ -41,7 +41,7 @@ import (
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -226,7 +226,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, filter func(runtime *plat
 	}
 
 	templates := &promptui.SelectTemplates{
-		Active: fmt.Sprintf("%s {{ .Metadata.Name | underline }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%%s)\" .InstallationType | underline }}{{ end }}", promptui.IconSelect),
+		Active:   fmt.Sprintf("%s {{ .Metadata.Name | underline }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%%s)\" .InstallationType | underline }}{{ end }}", promptui.IconSelect),
 		Inactive: "  {{ .Metadata.Name }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%s)\" .InstallationType }}{{ end }}",
 		Selected: "{{ .Metadata.Name | yellow }}",
 	}
@@ -721,7 +721,7 @@ func isValidationError(err error) bool {
 }
 
 func getIscRepo(ctx context.Context) (string, error) {
-	currentUser, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	currentUser, err := cfConfig.NewClient().V2().User().GetCurrent(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user from platform: %w", err)
 	}
