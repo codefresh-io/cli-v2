@@ -39,7 +39,7 @@ import (
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	apaputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"

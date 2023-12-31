@@ -25,7 +25,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
 )
 
@@ -365,5 +365,5 @@ func runUpdateGitOpsSettings(ctx context.Context, opts *updateGitOpsSettingsOpts
 	}
 
 	platGitProvider := platmodel.GitProviders(apGitProvider)
-	return cfConfig.NewClient().V2().Account().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiURL, opts.sharedConfigRepo)
+	return cfConfig.NewClient().GraphQL().Account().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiURL, opts.sharedConfigRepo)
 }

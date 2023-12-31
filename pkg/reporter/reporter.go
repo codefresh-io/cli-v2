@@ -18,7 +18,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
-	v1 "github.com/codefresh-io/go-sdk/pkg/codefresh/v1"
+	v1 "github.com/codefresh-io/go-sdk/pkg/rest"
 	"github.com/google/uuid"
 	"gopkg.in/segmentio/analytics-go.v3"
 )

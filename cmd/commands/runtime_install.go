@@ -54,9 +54,9 @@ import (
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh/ap"
-	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	"github.com/codefresh-io/go-sdk/pkg/appproxy"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -628,7 +628,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 		runtimeArgs.IngressController = &ingressControllerName
 	}
 
-	runtimeCreationResponse, err := cfConfig.NewClient().V2().Runtime().Create(ctx, runtimeArgs)
+	runtimeCreationResponse, err := cfConfig.NewClient().GraphQL().Runtime().Create(ctx, runtimeArgs)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create a new runtime: %s. Error: %w", opts.RuntimeName, err)
 	}
@@ -963,7 +963,7 @@ func createGitSources(ctx context.Context, opts *RuntimeInstallOptions) error {
 }
 
 func createGitIntegration(ctx context.Context, opts *RuntimeInstallOptions) error {
-	apClient, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	apClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while creating git integration: %w", err)
 	}
@@ -1013,7 +1013,7 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 	return err
 }
 
-func addDefaultGitIntegration(ctx context.Context, apClient ap.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
+func addDefaultGitIntegration(ctx context.Context, apClient appproxy.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, apClient, opts); err != nil {
 		var apiURL string
 		if opts.APIURL != nil {
@@ -1049,7 +1049,7 @@ you can try to create it manually by running:
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, apClient ap.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
+func registerUserToGitIntegration(ctx context.Context, apClient appproxy.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, apClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git register default --runtime %s --token %s --username %s",
@@ -1323,7 +1323,7 @@ func printComponentsState(ctx context.Context, runtime string) error {
 	components := map[string]platmodel.Component{}
 	lock := sync.Mutex{}
 
-	curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
+	curComponents, err := cfConfig.NewClient().GraphQL().Component().List(ctx, runtime)
 	if err != nil {
 		return err
 	}
@@ -1342,7 +1342,7 @@ func printComponentsState(ctx context.Context, runtime string) error {
 			case <-t.C:
 			}
 
-			curComponents, err := cfConfig.NewClient().V2().Component().List(ctx, runtime)
+			curComponents, err := cfConfig.NewClient().GraphQL().Component().List(ctx, runtime)
 			if err != nil && ctx.Err() == nil {
 				log.G(ctx).WithError(err).Error("failed to refresh components state")
 				continue

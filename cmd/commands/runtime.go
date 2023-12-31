@@ -44,7 +44,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
@@ -271,7 +271,7 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 }
 
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	apClient, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	apClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while removing git integration: %w", err)
 	}
@@ -353,7 +353,7 @@ func NewRuntimeListCommand() *cobra.Command {
 }
 
 func runRuntimeList(ctx context.Context) error {
-	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	runtimes, err := cfConfig.NewClient().GraphQL().Runtime().List(ctx)
 	if err != nil {
 		return err
 	}
@@ -580,7 +580,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Deleting runtime \"%s\" from platform", opts.RuntimeName)
 	if opts.Managed {
-		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
+		_, err = cfConfig.NewClient().GraphQL().Runtime().DeleteManaged(ctx, opts.RuntimeName)
 	} else {
 		err = deleteRuntimeFromPlatform(ctx, opts)
 	}
@@ -757,7 +757,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 		return nil
 	}
 
-	apClient, err := cfConfig.NewClient().V2().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
+	apClient, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
 	}
@@ -782,7 +782,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	log.G(ctx).Infof("Deleting runtime \"%s\" from the platform", opts.RuntimeName)
-	_, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName)
+	_, err := cfConfig.NewClient().GraphQL().Runtime().Delete(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}

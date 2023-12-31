@@ -29,7 +29,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	authv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"

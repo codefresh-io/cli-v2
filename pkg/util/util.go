@@ -34,7 +34,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/briandowns/spinner"
-	v1 "github.com/codefresh-io/go-sdk/pkg/codefresh/v1"
+	v1 "github.com/codefresh-io/go-sdk/pkg/rest"
 	"github.com/pkg/browser"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"

@@ -31,7 +31,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -275,7 +275,7 @@ func sanitizeClusterName(name string) (string, error) {
 }
 
 func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName string) (string, error) {
-	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
+	clusters, err := cfConfig.NewClient().GraphQL().Cluster().List(ctx, runtimeName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clusters list: %w", err)
 	}
@@ -474,7 +474,7 @@ func newClusterRemoveCommand() *cobra.Command {
 }
 
 func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
-	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func newClusterListCommand() *cobra.Command {
 }
 
 func runClusterList(ctx context.Context, runtimeName string) error {
-	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
+	clusters, err := cfConfig.NewClient().GraphQL().Cluster().List(ctx, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to list clusters: %w", err)
 	}
@@ -614,7 +614,7 @@ func newClusterCreateArgoRolloutsCommand() *cobra.Command {
 }
 
 func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsOptions) error {
-	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}

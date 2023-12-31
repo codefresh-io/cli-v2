@@ -25,6 +25,7 @@ import (
 
 	config "github.com/codefresh-io/cli-v2/pkg/config"
 	codefresh "github.com/codefresh-io/go-sdk/pkg/codefresh"
+	rest "github.com/codefresh-io/go-sdk/pkg/rest"
 	gomock "github.com/golang/mock/gomock"
 	cobra "github.com/spf13/cobra"
 )
@@ -110,10 +111,10 @@ func (mr *MockConfigMockRecorder) GetCurrentContext() *gomock.Call {
 }
 
 // GetUser mocks base method.
-func (m *MockConfig) GetUser(ctx context.Context) (*codefresh.User, error) {
+func (m *MockConfig) GetUser(ctx context.Context) (*rest.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUser", ctx)
-	ret0, _ := ret[0].(*codefresh.User)
+	ret0, _ := ret[0].(*rest.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

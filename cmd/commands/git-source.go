@@ -41,8 +41,8 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/platform"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -225,7 +225,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 }
 
 func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
-	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
 	}
 
-	gitSources, err := cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
+	gitSources, err := cfConfig.NewClient().GraphQL().GitSource().List(ctx, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
 	}
@@ -400,7 +400,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 }
 
 func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
-	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
@@ -478,7 +478,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 }
 
 func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
-	appProxy, err := cfConfig.NewClient().V2().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
