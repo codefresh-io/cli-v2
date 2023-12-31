@@ -20,7 +20,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
-	"github.com/codefresh-io/go-sdk/pkg/appproxy"
+	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,7 @@ func NewVersionCommand() *cobra.Command {
 				}
 
 				runtime := ""
-				var apClient appproxy.AppProxyAPI
+				var apClient ap.AppProxyAPI
 
 				if err := getAppProxyClient(&runtime, &apClient)(cmd, args); err != nil {
 					// can't create client, print error only if in debug level

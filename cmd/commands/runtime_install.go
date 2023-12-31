@@ -54,7 +54,7 @@ import (
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	"github.com/codefresh-io/go-sdk/pkg/appproxy"
+	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
@@ -1013,7 +1013,7 @@ func intervalCheckIsGitIntegrationCreated(ctx context.Context, opts *RuntimeInst
 	return err
 }
 
-func addDefaultGitIntegration(ctx context.Context, apClient appproxy.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
+func addDefaultGitIntegration(ctx context.Context, apClient ap.AppProxyAPI, runtime string, opts *apmodel.AddGitIntegrationArgs) error {
 	if err := RunGitIntegrationAddCommand(ctx, apClient, opts); err != nil {
 		var apiURL string
 		if opts.APIURL != nil {
@@ -1049,7 +1049,7 @@ you can try to create it manually by running:
 	return nil
 }
 
-func registerUserToGitIntegration(ctx context.Context, apClient appproxy.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
+func registerUserToGitIntegration(ctx context.Context, apClient ap.AppProxyAPI, runtime string, opts *GitIntegrationRegistrationOpts) error {
 	if err := RunGitIntegrationRegisterCommand(ctx, apClient, opts); err != nil {
 		command := util.Doc(fmt.Sprintf(
 			"\t<BIN> integration git register default --runtime %s --token %s --username %s",
