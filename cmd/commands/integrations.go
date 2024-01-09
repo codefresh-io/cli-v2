@@ -77,12 +77,12 @@ func NewIntegrationCommand() *cobra.Command {
 
 	cmd.PersistentFlags().StringVar(&runtime, "runtime", "", "Name of runtime to use")
 
-	cmd.AddCommand(NewGitIntegrationCommand(apClient))
+	cmd.AddCommand(NewGitIntegrationCommand(&apClient))
 
 	return cmd
 }
 
-func NewGitIntegrationCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git",
 		Short: "Manage your git integrations",
@@ -105,7 +105,7 @@ func NewGitIntegrationCommand(apClient ap.AppProxyAPI) *cobra.Command {
 	return cmd
 }
 
-func NewGitIntegrationListCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationListCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	var format string
 
 	allowedFormats := []string{"list", "yaml", "yml", "json"}
@@ -119,7 +119,7 @@ func NewGitIntegrationListCommand(apClient ap.AppProxyAPI) *cobra.Command {
 				return err
 			}
 
-			return RunGitIntegrationListCommand(cmd.Context(), apClient, format)
+			return RunGitIntegrationListCommand(cmd.Context(), *apClient, format)
 		},
 	}
 
@@ -160,7 +160,7 @@ func RunGitIntegrationListCommand(ctx context.Context, apClient ap.AppProxyAPI, 
 	return printIntegration(integrations, format)
 }
 
-func NewGitIntegrationGetCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationGetCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	var (
 		format      string
 		integration *string
@@ -181,7 +181,7 @@ func NewGitIntegrationGetCommand(apClient ap.AppProxyAPI) *cobra.Command {
 				return err
 			}
 
-			return RunGitIntegrationGetCommand(cmd.Context(), apClient, integration, format)
+			return RunGitIntegrationGetCommand(cmd.Context(), *apClient, integration, format)
 		},
 	}
 
@@ -199,7 +199,7 @@ func RunGitIntegrationGetCommand(ctx context.Context, apClient ap.AppProxyAPI, n
 	return printIntegration(gi, format)
 }
 
-func NewGitIntegrationAddCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationAddCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	var (
 		opts              apmodel.AddGitIntegrationArgs
 		provider          string
@@ -229,7 +229,7 @@ func NewGitIntegrationAddCommand(apClient ap.AppProxyAPI) *cobra.Command {
 				opts.SharingPolicy = apmodel.SharingPolicyAccountAdmins
 			}
 
-			return RunGitIntegrationAddCommand(cmd.Context(), apClient, &opts)
+			return RunGitIntegrationAddCommand(cmd.Context(), *apClient, &opts)
 		},
 	}
 
@@ -254,7 +254,7 @@ func RunGitIntegrationAddCommand(ctx context.Context, apClient ap.AppProxyAPI, o
 	return nil
 }
 
-func NewGitIntegrationEditCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationEditCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	var (
 		opts              apmodel.EditGitIntegrationArgs
 		apiURL            string
@@ -277,7 +277,7 @@ func NewGitIntegrationEditCommand(apClient ap.AppProxyAPI) *cobra.Command {
 				opts.SharingPolicy = apmodel.SharingPolicyAccountAdmins
 			}
 
-			return RunGitIntegrationEditCommand(cmd.Context(), apClient, &opts)
+			return RunGitIntegrationEditCommand(cmd.Context(), *apClient, &opts)
 		},
 	}
 
@@ -299,7 +299,7 @@ func RunGitIntegrationEditCommand(ctx context.Context, apClient ap.AppProxyAPI, 
 	return nil
 }
 
-func NewGitIntegrationRemoveCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationRemoveCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove NAME",
 		Short: "Remove a git integration",
@@ -309,7 +309,7 @@ func NewGitIntegrationRemoveCommand(apClient ap.AppProxyAPI) *cobra.Command {
 				return fmt.Errorf("missing integration name")
 			}
 
-			return RunGitIntegrationRemoveCommand(cmd.Context(), apClient, args[0])
+			return RunGitIntegrationRemoveCommand(cmd.Context(), *apClient, args[0])
 		},
 	}
 
@@ -326,7 +326,7 @@ func RunGitIntegrationRemoveCommand(ctx context.Context, apClient ap.AppProxyAPI
 	return nil
 }
 
-func NewGitIntegrationRegisterCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationRegisterCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	opts := &GitIntegrationRegistrationOpts{}
 	cmd := &cobra.Command{
 		Use:   "register [NAME]",
@@ -337,7 +337,7 @@ func NewGitIntegrationRegisterCommand(apClient ap.AppProxyAPI) *cobra.Command {
 				opts.Name = args[0]
 			}
 
-			return RunGitIntegrationRegisterCommand(cmd.Context(), apClient, opts)
+			return RunGitIntegrationRegisterCommand(cmd.Context(), *apClient, opts)
 		},
 	}
 
@@ -375,7 +375,7 @@ func RunGitIntegrationRegisterCommand(ctx context.Context, apClient ap.AppProxyA
 	return nil
 }
 
-func NewGitIntegrationDeregisterCommand(apClient ap.AppProxyAPI) *cobra.Command {
+func NewGitIntegrationDeregisterCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	var integration *string
 
 	cmd := &cobra.Command{
@@ -387,7 +387,7 @@ func NewGitIntegrationDeregisterCommand(apClient ap.AppProxyAPI) *cobra.Command 
 				integration = &args[0]
 			}
 
-			return RunGitIntegrationDeregisterCommand(cmd.Context(), apClient, integration)
+			return RunGitIntegrationDeregisterCommand(cmd.Context(), *apClient, integration)
 		},
 	}
 
