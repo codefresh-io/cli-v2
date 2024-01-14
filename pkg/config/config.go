@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import (
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
+	cfrest "github.com/codefresh-io/go-sdk/pkg/rest"
 	"github.com/fatih/color"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
@@ -53,7 +54,7 @@ type (
 		DeleteContext(name string) error
 		GetAccountId(ctx context.Context) (string, error)
 		GetCurrentContext() *AuthContext
-		GetUser(ctx context.Context) (*codefresh.User, error)
+		GetUser(ctx context.Context) (*cfrest.User, error)
 		Load(cmd *cobra.Command, args []string) error
 		NewAdHocClient(ctx context.Context, url, token, caCert string) (codefresh.Codefresh, error)
 		NewClient() codefresh.Codefresh
@@ -257,7 +258,7 @@ func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url, caCert
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
 
-	_, err = client.Users().GetCurrent(ctx)
+	_, err = client.Rest().User().GetCurrent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create \"%s\" with the provided options: %w", name, err)
 	}
@@ -285,10 +286,8 @@ func (c *ConfigImpl) clientForContext(ctx *AuthContext) (codefresh.Codefresh, er
 	}
 
 	return NewCodefresh(&codefresh.ClientOptions{
-		Host: ctx.URL,
-		Auth: codefresh.AuthOptions{
-			Token: ctx.Token,
-		},
+		Host:   ctx.URL,
+		Token:  ctx.Token,
 		Client: httpClient,
 	}), nil
 }
@@ -334,7 +333,7 @@ func (c *ConfigImpl) Write(ctx context.Context, w io.Writer) error {
 				return nil
 			}
 
-			usr, err := client.Users().GetCurrent(ctx)
+			usr, err := client.Rest().User().GetCurrent(ctx)
 			if err != nil {
 				if ctx.Err() != nil { // context canceled
 					return ctx.Err()
@@ -377,8 +376,8 @@ func (c *ConfigImpl) Write(ctx context.Context, w io.Writer) error {
 	return tb.Flush()
 }
 
-func (c *ConfigImpl) GetUser(ctx context.Context) (*codefresh.User, error) {
-	return c.NewClient().Users().GetCurrent(ctx)
+func (c *ConfigImpl) GetUser(ctx context.Context) (*cfrest.User, error) {
+	return c.NewClient().Rest().User().GetCurrent(ctx)
 }
 
 func (c *ConfigImpl) GetAccountId(ctx context.Context) (string, error) {

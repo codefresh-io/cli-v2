@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import (
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,7 +173,7 @@ func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptio
 		return fmt.Errorf("failed creating codefresh client using runtime token: %v", err)
 	}
 
-	_, err = cfClient.V2().Runtime().Get(ctx, runtimeName)
+	_, err = cfClient.GraphQL().Runtime().Get(ctx, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed getting runtime from platform: %w", err)
 	}
@@ -193,7 +193,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 		return "", "", fmt.Errorf("failed creating codefresh client using user token: %w", err)
 	}
 
-	user, err := cfClient.V2().UsersV2().GetCurrent(ctx)
+	user, err := cfClient.GraphQL().User().GetCurrent(ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -321,7 +321,7 @@ func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, c
 }
 
 func checkRuntimeName(ctx context.Context, cfClient codefresh.Codefresh, runtimeName string) error {
-	_, err := cfClient.V2().Runtime().Get(ctx, runtimeName)
+	_, err := cfClient.GraphQL().Runtime().Get(ctx, runtimeName)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			log.G(ctx).Debugf("Runtime name \"%s\" is available for a new install", runtimeName)

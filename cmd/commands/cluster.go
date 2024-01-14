@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -275,7 +275,7 @@ func sanitizeClusterName(name string) (string, error) {
 }
 
 func ensureNoClusterNameDuplicates(ctx context.Context, name string, runtimeName string) (string, error) {
-	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
+	clusters, err := cfConfig.NewClient().GraphQL().Cluster().List(ctx, runtimeName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get clusters list: %w", err)
 	}
@@ -479,7 +479,7 @@ func runClusterRemove(ctx context.Context, opts *ClusterRemoveOptions) error {
 		return err
 	}
 
-	err = appProxy.AppProxyClusters().Delete(ctx, opts.server, opts.runtimeName)
+	err = appProxy.Cluster().Delete(ctx, opts.server, opts.runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to remove cluster: %w", err)
 	}
@@ -511,7 +511,7 @@ func newClusterListCommand() *cobra.Command {
 }
 
 func runClusterList(ctx context.Context, runtimeName string) error {
-	clusters, err := cfConfig.NewClient().V2().Cluster().List(ctx, runtimeName)
+	clusters, err := cfConfig.NewClient().GraphQL().Cluster().List(ctx, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to list clusters: %w", err)
 	}
@@ -619,7 +619,7 @@ func runCreateArgoRollouts(ctx context.Context, opts *ClusterCreateArgoRolloutsO
 		return err
 	}
 
-	err = appProxy.AppProxyClusters().CreateArgoRollouts(ctx, opts.server, opts.namespace)
+	err = appProxy.Cluster().CreateArgoRollouts(ctx, opts.server, opts.namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create argo-rollouts on \"%s'\": %w", opts.server, err)
 	}

@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,11 +41,11 @@ func TestNewBitbucketServerProvider(t *testing.T) {
 		wantErr    string
 	}{
 		"should use standard api path when base is host only": {
-			baseURL: "https://some.server",
+			baseURL:    "https://some.server",
 			wantApiURL: "https://some.server/rest/api/1.0",
 		},
 		"should use baseUrl as apiUrl if it has path": {
-			baseURL: "https://some.server/some/api/v-whatever",
+			baseURL:    "https://some.server/some/api/v-whatever",
 			wantApiURL: "https://some.server/some/api/v-whatever",
 		},
 		"should fail when base is not a valid url": {

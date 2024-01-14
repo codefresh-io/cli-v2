@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ import (
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/manifoldco/promptui"
 	"github.com/rkrmr33/checklist"
@@ -159,7 +159,7 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	opts.Managed = rt.Managed
 	if !opts.Managed {
 		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
-		}
+	}
 
 	opts.runtimeNamespace, _ = cmd.Flags().GetString("namespace")
 	if opts.runtimeNamespace == "" {
@@ -271,18 +271,18 @@ func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts 
 }
 
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
+	apClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while removing git integration: %w", err)
 	}
 
-	integrations, err := appProxyClient.GitIntegrations().List(ctx)
+	integrations, err := apClient.GitIntegration().List(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get list of git integrations: %w", err)
 	}
 
 	for _, intg := range integrations {
-		if err = RunGitIntegrationRemoveCommand(ctx, appProxyClient, intg.Name); err != nil {
+		if err = RunGitIntegrationRemoveCommand(ctx, apClient, intg.Name); err != nil {
 			command := util.Doc(fmt.Sprintf("\t<BIN> integration git remove %s", intg.Name))
 
 			return fmt.Errorf(`%w. You can try to remove it manually by running: %s`, err, command)
@@ -353,7 +353,7 @@ func NewRuntimeListCommand() *cobra.Command {
 }
 
 func runRuntimeList(ctx context.Context) error {
-	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	runtimes, err := cfConfig.NewClient().GraphQL().Runtime().List(ctx)
 	if err != nil {
 		return err
 	}
@@ -580,7 +580,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 
 	log.G(ctx).Infof("Deleting runtime \"%s\" from platform", opts.RuntimeName)
 	if opts.Managed {
-		_, err = cfConfig.NewClient().V2().Runtime().DeleteManaged(ctx, opts.RuntimeName)
+		_, err = cfConfig.NewClient().GraphQL().Runtime().DeleteManaged(ctx, opts.RuntimeName)
 	} else {
 		err = deleteRuntimeFromPlatform(ctx, opts)
 	}
@@ -757,12 +757,12 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 		return nil
 	}
 
-	appProxyClient, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
+	apClient, err := cfConfig.NewClient().AppProxy(ctx, runtimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return fmt.Errorf("failed to build app-proxy client while removing runtime isc: %w", err)
 	}
 
-	intg, err := appProxyClient.GitIntegrations().List(ctx)
+	intg, err := apClient.GitIntegration().List(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list git integrations: %w", err)
 	}
@@ -772,7 +772,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 		return nil
 	}
 
-	_, err = appProxyClient.AppProxyIsc().RemoveRuntimeFromIscRepo(ctx)
+	_, err = apClient.ISC().RemoveRuntimeFromIscRepo(ctx)
 	if err == nil {
 		log.G(ctx).Info("Removed runtime from ISC repo")
 	}
@@ -782,7 +782,7 @@ func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
 
 func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	log.G(ctx).Infof("Deleting runtime \"%s\" from the platform", opts.RuntimeName)
-	_, err := cfConfig.NewClient().V2().Runtime().Delete(ctx, opts.RuntimeName)
+	_, err := cfConfig.NewClient().GraphQL().Runtime().Delete(ctx, opts.RuntimeName)
 	if err != nil {
 		return err
 	}

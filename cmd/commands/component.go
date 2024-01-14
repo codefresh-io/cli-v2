@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
@@ -71,7 +71,7 @@ func NewComponentListCommand() *cobra.Command {
 }
 
 func RunComponentList(ctx context.Context, runtimeName string) error {
-	components, err := cfConfig.NewClient().V2().Component().List(ctx, runtimeName)
+	components, err := cfConfig.NewClient().GraphQL().Component().List(ctx, runtimeName)
 	if err != nil {
 		return err
 	}

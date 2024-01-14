@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
 
 	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"helm.sh/helm/v3/pkg/chartutil"

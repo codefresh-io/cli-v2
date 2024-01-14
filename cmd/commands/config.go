@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
 )
 
@@ -365,5 +365,5 @@ func runUpdateGitOpsSettings(ctx context.Context, opts *updateGitOpsSettingsOpts
 	}
 
 	platGitProvider := platmodel.GitProviders(apGitProvider)
-	return cfConfig.NewClient().V2().AccountV2().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiURL, opts.sharedConfigRepo)
+	return cfConfig.NewClient().GraphQL().Account().UpdateCsdpSettings(ctx, platGitProvider, opts.gitApiURL, opts.sharedConfigRepo)
 }

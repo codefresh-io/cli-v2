@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,8 +41,8 @@ import (
 	sensorsv1alpha1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	wf "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	wfv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
-	apmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model/app-proxy"
+	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
@@ -233,7 +233,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	appSpecifier := opts.GsCloneOpts.Repo
 	isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
 
-	err = appProxy.AppProxyGitSources().Create(ctx, &apmodel.CreateGitSourceInput{
+	err = appProxy.GitSource().Create(ctx, &apmodel.CreateGitSourceInput{
 		AppName:       opts.GsName,
 		AppSpecifier:  appSpecifier,
 		DestServer:    store.Get().InClusterServerURL,
@@ -302,7 +302,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
 	}
 
-	gitSources, err := cfConfig.NewClient().V2().GitSource().List(ctx, runtimeName)
+	gitSources, err := cfConfig.NewClient().GraphQL().GitSource().List(ctx, runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed to get git-sources list. Err: %w", err)
 	}
@@ -405,7 +405,7 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 		return err
 	}
 
-	err = appProxy.AppProxyGitSources().Delete(ctx, opts.GsName)
+	err = appProxy.GitSource().Delete(ctx, opts.GsName)
 	if err != nil {
 		return fmt.Errorf("failed to delete git-source: %w", err)
 	}
@@ -483,7 +483,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 		return err
 	}
 
-	err = appProxy.AppProxyGitSources().Edit(ctx, &apmodel.EditGitSourceInput{
+	err = appProxy.GitSource().Edit(ctx, &apmodel.EditGitSourceInput{
 		AppName:      opts.GsName,
 		AppSpecifier: opts.GsCloneOpts.Repo,
 		Include:      opts.Include,

@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import (
 	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	apiextv1 "github.com/kubewarden/k8s-objects/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -140,7 +140,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	opts.runtimeNamespace = *runtime.Metadata.Namespace
 	opts.runtimeRepo = *runtime.Repo
 	log.G(ctx).Infof("Got runtime data %q", opts.runtimeName)
-	user, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	user, err := cfConfig.NewClient().GraphQL().User().GetCurrent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting current user: %w", err)
 	}
@@ -218,7 +218,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	log.G(ctx).Infof("Pushed changes to shared-config-repo %q, sha: %s", opts.sharedConfigRepo, sha)
 	log.G(ctx).Infof("Done migrating resources from %q to %q", opts.runtimeRepo, opts.sharedConfigRepo)
 
-	err = cfConfig.NewClient().V2().Runtime().MigrateRuntime(ctx, opts.runtimeName)
+	err = cfConfig.NewClient().GraphQL().Runtime().MigrateRuntime(ctx, opts.runtimeName)
 	if err != nil {
 		return fmt.Errorf("failed migrating runtime type in platform: %w", err)
 	}

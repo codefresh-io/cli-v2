@@ -1,4 +1,4 @@
-// Copyright 2023 The Codefresh Authors.
+// Copyright 2024 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import (
 	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/codefresh/model"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -204,7 +204,7 @@ func ensureRuntimeName(ctx context.Context, args []string, filter func(runtime *
 }
 
 func getRuntimeNameFromUserSelect(ctx context.Context, filter func(runtime *platmodel.Runtime) bool) (string, error) {
-	runtimes, err := cfConfig.NewClient().V2().Runtime().List(ctx)
+	runtimes, err := cfConfig.NewClient().GraphQL().Runtime().List(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +226,7 @@ func getRuntimeNameFromUserSelect(ctx context.Context, filter func(runtime *plat
 	}
 
 	templates := &promptui.SelectTemplates{
-		Active: fmt.Sprintf("%s {{ .Metadata.Name | underline }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%%s)\" .InstallationType | underline }}{{ end }}", promptui.IconSelect),
+		Active:   fmt.Sprintf("%s {{ .Metadata.Name | underline }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%%s)\" .InstallationType | underline }}{{ end }}", promptui.IconSelect),
 		Inactive: "  {{ .Metadata.Name }}{{ if  ne .InstallationType \"HELM\" }}{{ printf \" (%s)\" .InstallationType }}{{ end }}",
 		Selected: "{{ .Metadata.Name | yellow }}",
 	}
@@ -721,7 +721,7 @@ func isValidationError(err error) bool {
 }
 
 func getIscRepo(ctx context.Context) (string, error) {
-	currentUser, err := cfConfig.NewClient().V2().UsersV2().GetCurrent(ctx)
+	currentUser, err := cfConfig.NewClient().GraphQL().User().GetCurrent(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user from platform: %w", err)
 	}
@@ -734,7 +734,7 @@ func getIscRepo(ctx context.Context) (string, error) {
 }
 
 func suggestIscRepo(ctx context.Context, suggestedSharedConfigRepo string) (string, error) {
-	setIscRepoResponse, err := cfConfig.NewClient().V2().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
+	setIscRepoResponse, err := cfConfig.NewClient().GraphQL().Runtime().SetSharedConfigRepo(ctx, suggestedSharedConfigRepo)
 	if err != nil {
 		return "", fmt.Errorf("failed to set shared config repo. Error: %w", err)
 	}
@@ -769,7 +769,7 @@ func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeN
 }
 
 func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, error) {
-	rt, err := cfConfig.NewClient().V2().Runtime().Get(ctx, runtimeName)
+	rt, err := cfConfig.NewClient().GraphQL().Runtime().Get(ctx, runtimeName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runtime from platform. error: %w", err)
 	}
