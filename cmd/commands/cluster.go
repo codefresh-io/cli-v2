@@ -185,7 +185,7 @@ func runClusterAdd(ctx context.Context, opts *ClusterAddOptions) error {
 
 	csdpToken := cfConfig.GetCurrentContext().Token
 	addClusterRef := version.String()
-	if runtime.InstallationType == platmodel.InstallationTypeHelm {
+	if runtime.InstallationType != platmodel.InstallationTypeCli && runtime.InstallationType != platmodel.InstallationTypeHosted {
 		addClusterRef = "stable"
 	}
 
