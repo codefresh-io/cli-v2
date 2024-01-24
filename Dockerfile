@@ -1,4 +1,4 @@
-FROM golang:1.21.5-alpine3.19 as base
+FROM golang:1.21.4-alpine3.18 as base
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
@@ -44,7 +44,7 @@ ARG SEGMENT_WRITE_KEY
 RUN make local DEV_MODE=false SEGMENT_WRITE_KEY=${SEGMENT_WRITE_KEY}
 
 ### Run
-FROM alpine:3.18 as codefresh
+FROM alpine:3.19 as codefresh
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
