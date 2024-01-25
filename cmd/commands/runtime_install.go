@@ -1778,7 +1778,7 @@ func updateProject(repofs apfs.FS, rt *runtime.Runtime) error {
 			Revision:            kustGenerator.Revision,
 			Template: argocdv1alpha1.ApplicationSetTemplate{
 				Spec: argocdv1alpha1.ApplicationSpec{
-					Source: argocdv1alpha1.ApplicationSource{
+					Source: &argocdv1alpha1.ApplicationSource{
 						Chart: "{{ srcChart }}",
 						Helm: &argocdv1alpha1.ApplicationSourceHelm{
 							ReleaseName: fmt.Sprintf("%s-{{ appName }}", rt.Name),
