@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/argoproj-labs/argocd-autopilot v0.4.17
-	github.com/argoproj/argo-cd/v2 v2.9.4
+	github.com/argoproj/argo-cd/v2 v2.8.4
 	github.com/argoproj/argo-events v1.7.1
 	github.com/argoproj/argo-workflows/v3 v3.3.5
 	github.com/briandowns/spinner v1.23.0
@@ -132,7 +132,6 @@ require (
 	github.com/go-openapi/strfmt v0.21.7 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.22.1 // indirect
-	github.com/go-playground/webhooks/v6 v6.3.0 // indirect
 	github.com/go-redis/cache/v9 v9.0.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/gobuffalo/envy v1.7.1 // indirect
@@ -284,6 +283,7 @@ require (
 	google.golang.org/grpc v1.59.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
+	gopkg.in/go-playground/webhooks.v5 v5.17.0 // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
