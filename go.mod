@@ -32,7 +32,7 @@ require (
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/text v0.14.0
 	gopkg.in/segmentio/analytics-go.v3 v3.1.0
-	helm.sh/helm/v3 v3.8.0-rc.1.0.20220506100945-5c256a5e7d55
+	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
