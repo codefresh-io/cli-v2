@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -229,6 +230,75 @@ For Helm installation, review our documentation on installing Hybrid GitOps Runt
 	cmd.MarkFlagsMutuallyExclusive("runtime-def", "set-default-resources")
 
 	return cmd
+}
+
+func PreRunE(cmd *cobra.Command, args []string, installationOpts *RuntimeInstallOptions, accessMode string) error {
+	ctx := cmd.Context()
+
+	if len(args) > 0 {
+		installationOpts.RuntimeName = args[0]
+	}
+
+	if installationOpts.GatewayName != "" {
+		installationOpts.useGatewayAPI = true
+	}
+
+	installationOpts.RuntimeNamespace = installationOpts.RuntimeName
+	namespace := cmd.Flag("namespace").Value.String()
+	if namespace != "" {
+		installationOpts.RuntimeNamespace = namespace
+	}
+
+	createAnalyticsReporter(ctx, reporter.InstallFlow, installationOpts.DisableTelemetry)
+
+	if accessMode != "" {
+		installationOpts.AccessMode = platmodel.AccessMode(strings.ToUpper(accessMode))
+		if !installationOpts.AccessMode.IsValid() {
+			return fmt.Errorf("invalid access-mode %s, must be one of: ingress|tunnel", accessMode)
+		}
+
+		if installationOpts.AccessMode == platmodel.AccessModeTunnel && installationOpts.IngressHost != "" {
+			return fmt.Errorf("ingress host can't be set when access mode is Tunnel")
+		}
+	}
+
+	err := runtimeInstallCommandPreRunHandler(cmd, installationOpts)
+	handleCliStep(reporter.InstallPhasePreCheckFinish, "Finished pre installation checks", err, true, false)
+	if err != nil {
+		if errors.Is(err, promptui.ErrInterrupt) {
+			return fmt.Errorf("installation canceled by user")
+		}
+
+		util.CheckNetworkErr(err)
+
+		return util.DecorateErrorWithDocsLink(fmt.Errorf("pre installation error: %w", err), store.Get().RequirementsLink)
+	}
+
+	finalParameters := map[string]string{
+		"Codefresh context":         cfConfig.GetCurrentContext().Name,
+		"Kube context":              installationOpts.kubeContext,
+		"Runtime name":              installationOpts.RuntimeName,
+		"Runtime namespace":         installationOpts.RuntimeNamespace,
+		"Repository URL":            installationOpts.InsCloneOpts.Repo,
+		"Ingress class":             installationOpts.IngressClass,
+		"Installing demo resources": strconv.FormatBool(installationOpts.InstallDemoResources),
+		"Git provider":              string(installationOpts.gitProvider.Type()),
+	}
+
+	if installationOpts.AccessMode == platmodel.AccessModeTunnel {
+		finalParameters["Tunnel URL"] = installationOpts.IngressHost
+		finalParameters["Access mode"] = "Codefresh tunnel-based"
+	} else {
+		finalParameters["Ingress host"] = installationOpts.IngressHost
+		finalParameters["Internal ingress host"] = installationOpts.InternalIngressHost
+		finalParameters["Access mode"] = "Ingress-based"
+	}
+
+	if err := getApprovalFromUser(ctx, finalParameters, "runtime install"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func runtimeInstallCommandPreRunHandler(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
@@ -561,7 +631,7 @@ func createRuntimeOnPlatform(ctx context.Context, opts *RuntimeInstallOptions, r
 	return runtimeCreationResponse.NewAccessToken, hex.EncodeToString(iv), nil
 }
 
-func runRuntimeInstall(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
+func RunRuntimeInstall(cmd *cobra.Command, opts *RuntimeInstallOptions) error {
 	ctx := cmd.Context()
 	rt, err := preInstallationChecks(cmd, opts)
 	handleCliStep(reporter.InstallPhaseRunPreCheckFinish, "Pre run installation checks", err, true, true)
