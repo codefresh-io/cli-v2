@@ -168,6 +168,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use: "install [runtime_name]",
+		Deprecated: "We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return errors.New(`We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.
 As of January 30, 2024, CLI-based Runtimes are no longer supported.
