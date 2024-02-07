@@ -1,4 +1,4 @@
-FROM golang:1.21.5-alpine3.19
+FROM golang:1.21.6-alpine3.19
 
 RUN apk -U add --no-cache \
   bash \
@@ -12,7 +12,7 @@ RUN apk -U add --no-cache \
   openssl \
   && update-ca-certificates
 
-ARG GH_VERSION=2.40.1
+ARG GH_VERSION=2.42.1
 RUN curl -L https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz --output gh.tar.gz \
   && tar -xzf gh.tar.gz \
   && mv gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin \
