@@ -578,11 +578,9 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	log.G(ctx).Infof("Deleting runtime \"%s\" from platform", opts.RuntimeName)
+	err = deleteRuntimeFromPlatform(ctx, opts)
 	if opts.Managed {
-		_, err = cfConfig.NewClient().GraphQL().Runtime().DeleteManaged(ctx, opts.RuntimeName)
-	} else {
-		err = deleteRuntimeFromPlatform(ctx, opts)
+		log.G(ctx).Infof("It may take up to 5 minutes until your hosted runtime will be fully deleted")
 	}
 	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, !opts.Managed)
 	if err != nil {
