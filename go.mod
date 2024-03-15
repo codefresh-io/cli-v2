@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/argoproj-labs/argocd-autopilot v0.4.17
-	github.com/argoproj/argo-cd/v2 v2.8.8
+	github.com/argoproj/argo-cd/v2 v2.8.12
 	github.com/argoproj/argo-events v1.7.1
 	github.com/argoproj/argo-workflows/v3 v3.3.5
 	github.com/briandowns/spinner v1.23.0
