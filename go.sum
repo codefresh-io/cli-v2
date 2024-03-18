@@ -672,8 +672,8 @@ github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
 github.com/argoproj-labs/argocd-autopilot v0.4.17 h1:Kez1Lp24RyX3h1mboFTu6MpwzHCSutdxyaER59CbaBo=
 github.com/argoproj-labs/argocd-autopilot v0.4.17/go.mod h1:jnP6yQEZ/CWBOtMcM5LqXsNcQQZiyF7tIzz7511RWsI=
-github.com/argoproj/argo-cd/v2 v2.8.8 h1:nqHLdAkx55W3W9JyugGvcQuTU/P47hXzogIZoS77AUI=
-github.com/argoproj/argo-cd/v2 v2.8.8/go.mod h1:3CwkG1Grwn5WPNnkPFmHhwpH1j3LIK64j4TUqFxzq+4=
+github.com/argoproj/argo-cd/v2 v2.8.13 h1:DrKWdEGVOwiyC4zgS7vB9ngP16xumA6x5/AgN/stJw0=
+github.com/argoproj/argo-cd/v2 v2.8.13/go.mod h1:3GmH9xEJtiWZNfZ5hx1qdzbF2t9gIS/3vNV5vJBmI/g=
 github.com/argoproj/argo-events v1.7.1 h1:QrzHCppTvX4uFdUP5ymu49L5plnqR95zbQjMtdcaQdk=
 github.com/argoproj/argo-events v1.7.1/go.mod h1:ohkGmlqz0VE2NeUwTvqlglJYWuSvIJMxuCPOnYqz9Yw=
 github.com/argoproj/argo-workflows/v3 v3.3.5 h1:VcS9lIIYWjdaF8J2eEEbot9flK1BIU/ByXlg6MDNNLk=
