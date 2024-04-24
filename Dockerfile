@@ -13,8 +13,9 @@ RUN adduser \
     --uid 10001 \
     codefresh
 
-ARG GITHUB_TOKEN
-RUN git config \
+RUN --mount=type=secret,id=GITHUB_TOKEN \
+    GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) \
+    git config \
     --global \
     url."https://github:${GITHUB_TOKEN}@github.com".insteadOf \
     "https://github.com"

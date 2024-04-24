@@ -36,6 +36,15 @@ steps:
           on:
             - success
 
+  prepare_build_secrets:
+    stage: Prepare
+    title: 'Prepare build secrets'
+    image: alpine
+    commands:
+      - export GITHUB_TOKEN_PATH=${{CF_VOLUME_PATH}}/GITHUB_TOKEN
+      - cf_export GITHUB_TOKEN_PATH
+      - echo $GITHUB_TOKEN > $GITHUB_TOKEN_PATH
+
   compare_versions:
     stage: Prepare
     title: compare versions
@@ -121,14 +130,18 @@ steps:
     buildkit: true
     disable_push: true
     build_arguments:
-      - GITHUB_TOKEN=${{GITHUB_TOKEN}}
       - SEGMENT_WRITE_KEY=${{SEGMENT_WRITE_KEY}}
+    secrets:
+      - id=GITHUB_TOKEN,src=${{GITHUB_TOKEN_PATH}}
     when:
       condition:
         all:
           isBinary: '"${{REPO_TYPE}}" != "lib"'
       steps:
         - name: compare_versions
+          on:
+            - success
+        - name: prepare_build_secrets
           on:
             - success
 
