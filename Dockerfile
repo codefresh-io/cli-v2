@@ -1,4 +1,4 @@
-FROM golang:1.21.6-alpine3.19 as base
+FROM golang:1.22.5-alpine3.20 as base
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
@@ -27,7 +27,7 @@ RUN go mod verify
 
 ############################### CLI ###############################
 ### Compile
-FROM golang:1.21.6-alpine3.19 as codefresh-build
+FROM golang:1.22.5-alpine3.20 as codefresh-build
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
@@ -45,7 +45,7 @@ ARG SEGMENT_WRITE_KEY
 RUN make local DEV_MODE=false SEGMENT_WRITE_KEY=${SEGMENT_WRITE_KEY}
 
 ### Run
-FROM alpine:3.19 as codefresh
+FROM alpine:3.20 as codefresh
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
