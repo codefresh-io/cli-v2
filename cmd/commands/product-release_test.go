@@ -26,9 +26,18 @@ import (
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/promotion-orchestrator"
 )
 
+type ProductReleaseJson struct {
+	ReleaseId string `json:"releaseId"`
+	Status    string `json:"status"`
+	Steps     []struct {
+		EnvironmentName string `json:"environmentName"`
+		Status          string `json:"status"`
+	} `json:"steps"`
+}
+
 func Test_ToProductReleaseStatus(t *testing.T) {
 	type args struct {
-		stringStatusList string
+		statuses []string
 	}
 	tests := []struct {
 		name    string
@@ -37,25 +46,61 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "should fail",
+			name: "should fail caused by invalid status input pattern",
 			args: args{
-				stringStatusList: "pending,running",
+				statuses: []string{
+					"running; failed",
+				},
 			},
 			want:    nil,
-			wantErr: fmt.Errorf("invalid status: %s", "pending"),
+			wantErr: fmt.Errorf("invalid product release status: %s", "running; failed"),
 		},
 		{
-			name: "should fail",
+			name: "should fail caused by invalid status",
 			args: args{
-				stringStatusList: "running ,failed",
+				statuses: []string{
+					"running",
+					"pending",
+				},
 			},
 			want:    nil,
-			wantErr: fmt.Errorf("invalid argument status"),
+			wantErr: fmt.Errorf("invalid product release status: %s", "pending"),
 		},
 		{
 			name: "should convert to release status",
 			args: args{
-				stringStatusList: "running,failed",
+				statuses: []string{
+					"running",
+					"failed",
+				},
+			},
+			want: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+				platmodel.ProductReleaseStatusFailed,
+			},
+			wantErr: nil,
+		},
+		{
+			name: "should convert to release status",
+			args: args{
+				statuses: []string{
+					"RUNNING ",
+					"SUCCEEDED",
+				},
+			},
+			want: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+				platmodel.ProductReleaseStatusSucceeded,
+			},
+			wantErr: nil,
+		},
+		{
+			name: "should convert to release status",
+			args: args{
+				statuses: []string{
+					"RUNNING",
+					"FAILED",
+				},
 			},
 			want: []platmodel.ProductReleaseStatus{
 				platmodel.ProductReleaseStatusRunning,
@@ -66,7 +111,7 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			statues, err := toProductReleaseStatus(tt.args.stringStatusList)
+			statues, err := toProductReleaseStatus(tt.args.statuses)
 			if err == nil && tt.wantErr != nil {
 				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
 			} else if err != nil && tt.wantErr == nil {
@@ -80,22 +125,22 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 	}
 }
 
-func Test_TransformSlice(t *testing.T) {
-	productReleasesMock, _ := getProductReleaseMock()
-	expected, _ := getProductReleaseJsonStringMock()
+func Test_ExtractNodesFromEdges(t *testing.T) {
 	type args struct {
-		slice map[string]any
+		edges []productReleaseEdge
 	}
+	expected, err := getProductReleaseJsonStringMock()
+
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    []map[string]any
 		wantErr error
 	}{
 		{
-			name: "should get product releases",
+			name: "should convert to release status",
 			args: args{
-				slice: productReleasesMock,
+				edges: getProductReleaseMock().Edges,
 			},
 			want:    expected,
 			wantErr: nil,
@@ -103,84 +148,21 @@ func Test_TransformSlice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			slice, err := TransformSlice(tt.args.slice)
-			resJSON, err := json.MarshalIndent(slice.Edges, "", "\t")
+			nodes := extractNodesFromEdges(tt.args.edges)
 			if err == nil && tt.wantErr != nil {
 				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
 			} else if err != nil && tt.wantErr == nil {
 				t.Errorf("test shouldnt fail with error message: %v", err)
 			} else if err != nil && tt.wantErr != nil && !strings.Contains(err.Error(), tt.wantErr.Error()) {
 				t.Errorf("test should've fail with error message: %v got %v", tt.wantErr, err)
-			} else if !compareJSON(string(resJSON), tt.want) {
-				t.Errorf("TransformSlice() = %v, want %v", string(resJSON), tt.want)
+			} else if fmt.Sprintf("%v", tt.want) != fmt.Sprintf("%v", nodes) {
+				t.Errorf("ToProductReleaseStatus() = %v, want %v", nodes, tt.want)
 			}
 		})
 	}
 }
 
-func Test_ToPromotionFlows(t *testing.T) {
-	type args struct {
-		promotionFlowsList string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []string
-		wantErr error
-	}{
-		{
-			name: "should fail",
-			args: args{
-				promotionFlowsList: "running ,failed",
-			},
-			want:    nil,
-			wantErr: fmt.Errorf("invalid argument "),
-		},
-		{
-			name: "should convert to prmotion flows",
-			args: args{
-				promotionFlowsList: "flow1,flow2",
-			},
-			want: []string{
-				"flow1",
-				"flow2",
-			},
-			wantErr: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			statues, err := ToPromotionFlows(tt.args.promotionFlowsList)
-			if err == nil && tt.wantErr != nil {
-				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
-			} else if err != nil && tt.wantErr == nil {
-				t.Errorf("test shouldnt fail with error message: %v", err)
-			} else if err != nil && tt.wantErr != nil && !strings.Contains(err.Error(), tt.wantErr.Error()) {
-				t.Errorf("test should've fail with error message: %v got %v", tt.wantErr, err)
-			} else if !reflect.DeepEqual(tt.want, statues) {
-				t.Errorf("ToProductReleaseStatus() = %v, want %v", statues, tt.want)
-			}
-		})
-	}
-}
-func UnmarshelSlice(releaseSlice productReleaseSlice) (map[string]any, error) {
-	data, err := json.MarshalIndent(releaseSlice, "", "\t")
-	if err != nil {
-		return nil, err
-	}
-
-	var releaseMap map[string]any
-	err = json.Unmarshal(data, &releaseMap)
-	if err != nil {
-		return nil, err
-	}
-	return releaseMap, nil
-}
-func getProductReleaseMock() (map[string]any, error) {
-	pageInfo := platmodel.SliceInfo{
-		HasNextPage: true,
-		HasPrevPage: false,
-	}
+func getProductReleaseMock() productReleaseSlice {
 	node1 := map[string]any{
 		"releaseId": "669fac7668fc487b38c2ad19",
 		"steps": []map[string]interface{}{
@@ -225,39 +207,30 @@ func getProductReleaseMock() (map[string]any, error) {
 		Node: node2,
 	}
 	slice := productReleaseSlice{
-		Edges: []*productReleaseEdge{
-			&edge1,
-			&edge2,
+		Edges: []productReleaseEdge{
+			edge1,
+			edge2,
 		},
-		PageInfo: &pageInfo,
 	}
-	return UnmarshelSlice(slice)
+	return slice
 }
 
-func getProductReleaseJsonStringMock() (string, error) {
+func getProductReleaseJsonStringMock() ([]map[string]any, error) {
 	file, err := os.Open("./product-release_mock.json")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(data), nil
-}
-
-func compareJSON(expected, actual string) bool {
-	var expectedData, actualData interface{}
-	err := json.Unmarshal([]byte(expected), &expectedData)
+	var result []map[string]interface{}
+	err = json.Unmarshal(data, &result)
 	if err != nil {
-		return false
+		return nil, err
 	}
-	err = json.Unmarshal([]byte(actual), &actualData)
-	if err != nil {
-		return false
-	}
-	return reflect.DeepEqual(expectedData, actualData)
+	return result, nil
 }

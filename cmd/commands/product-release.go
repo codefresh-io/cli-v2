@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
@@ -55,7 +56,6 @@ func NewProductReleaseCommand() *cobra.Command {
 
 func newProductReleaseListCommand() *cobra.Command {
 	var (
-		page           int
 		pageLimit      int
 		productName    string
 		statuses       []string
@@ -64,7 +64,7 @@ func newProductReleaseListCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all the pipelines",
+		Short: "List all product releases",
 		Args:  cobra.NoArgs,
 		Example: util.Doc(`
 			<BIN> product-release list --product <product>
@@ -80,20 +80,20 @@ func newProductReleaseListCommand() *cobra.Command {
 				Statuses:       releaseStatus,
 				PromotionFlows: promotionFlows,
 			}
-			return runProductReleaseList(ctx, filterArgs, productName, page, pageLimit)
+			return runProductReleaseList(ctx, filterArgs, productName, pageLimit)
 		},
 	}
 
 	cmd.Flags().StringSliceVarP(&statuses, "status", "s", []string{}, "Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED")
 	cmd.Flags().StringSliceVar(&promotionFlows, "promotion-flows", []string{}, "Filter by promotion flows, comma seperated array")
-	cmd.Flags().IntVar(&page, "page", 1, "page number")
-	cmd.Flags().IntVar(&pageLimit, "page-limit", 20, "page limit number")
+	cmd.Flags().IntVar(&pageLimit, "page-limit", 20, "page limit number, limited to 50")
 	cmd.Flags().StringVarP(&productName, "product", "p", "", "product")
 
 	return cmd
 }
 
-func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, page int, pageLimit int) error {
+// client here is for mock testings usage
+func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, pageLimit int) error {
 	query := `
 query getProductReleasesList(
 	$productName: String!
@@ -127,7 +127,6 @@ query getProductReleasesList(
 		return fmt.Errorf("failed to get product releases: %w", err)
 	}
 
-	// productReleaseSlice, err := TransformSlice(productReleasesPage)
 	if len(productReleasesPage.Edges) == 0 {
 		fmt.Println("No product releases found")
 		return nil
@@ -145,13 +144,15 @@ query getProductReleasesList(
 
 func toProductReleaseStatus(statuses []string) ([]platmodel.ProductReleaseStatus, error) {
 	var result []platmodel.ProductReleaseStatus
+
 	for _, statusString := range statuses {
-		status := platmodel.ProductReleaseStatus(statusString)
+		productReleaseStatus := strings.ToUpper(strings.TrimSpace(statusString))
+		status := platmodel.ProductReleaseStatus(productReleaseStatus)
 		if !status.IsValid() {
 			return nil, fmt.Errorf("invalid product release status: %s", statusString)
 		}
 
-		result = append(result, platmodel.ProductReleaseStatus(statusString))
+		result = append(result, platmodel.ProductReleaseStatus(productReleaseStatus))
 	}
 
 	return result, nil
