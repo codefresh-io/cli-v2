@@ -17,12 +17,12 @@ cli-v2 product-release list [flags]
 ### Options
 
 ```
-  -e, --end-date string               Filter by end date
-  -h, --help                          help for list
-  -p, --product string                product
-      --promotion-flows stringArray   Filter by promotion flows
-  -s, --start-date string             Filter by start date
-      --statuses stringArray          Filter by statuses
+  -h, --help                      help for list
+      --page int                  page number (default 1)
+      --page-limit int            page limit number (default 20)
+  -p, --product string            product
+      --promotion-flows strings   Filter by promotion flows, comma seperated array
+  -s, --status strings            Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED
 ```
 
 ### Options inherited from parent commands

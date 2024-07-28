@@ -66,7 +66,7 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			statues, err := ToProductReleaseStatus(tt.args.stringStatusList)
+			statues, err := toProductReleaseStatus(tt.args.stringStatusList)
 			if err == nil && tt.wantErr != nil {
 				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
 			} else if err != nil && tt.wantErr == nil {
@@ -163,7 +163,7 @@ func Test_ToPromotionFlows(t *testing.T) {
 		})
 	}
 }
-func UnmarshelSlice(releaseSlice Slice) (map[string]any, error) {
+func UnmarshelSlice(releaseSlice productReleaseSlice) (map[string]any, error) {
 	data, err := json.MarshalIndent(releaseSlice, "", "\t")
 	if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func getProductReleaseMock() (map[string]any, error) {
 		},
 		"status": platmodel.ProductReleaseStatusFailed,
 	}
-	edge1 := Edge{
+	edge1 := productReleaseEdge{
 		Node: node1,
 	}
 
@@ -221,11 +221,11 @@ func getProductReleaseMock() (map[string]any, error) {
 		},
 		"status": platmodel.ProductReleaseStatusFailed,
 	}
-	edge2 := Edge{
+	edge2 := productReleaseEdge{
 		Node: node2,
 	}
-	slice := Slice{
-		Edges: []*Edge{
+	slice := productReleaseSlice{
+		Edges: []*productReleaseEdge{
 			&edge1,
 			&edge2,
 		},

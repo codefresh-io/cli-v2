@@ -18,24 +18,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
 	"github.com/codefresh-io/go-sdk/pkg/client"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/promotion-orchestrator"
-
 	"github.com/spf13/cobra"
 )
 
 type (
-	Slice struct {
-		Edges    []*Edge              `json:"edges"`
-		PageInfo *platmodel.SliceInfo `json:"pageInfo"`
+	productReleaseSlice struct {
+		Edges []productReleaseEdge `json:"edges"`
 	}
 
-	Edge struct {
+	productReleaseEdge struct {
 		Node map[string]any `json:"node"`
 	}
 )
@@ -52,19 +48,18 @@ func NewProductReleaseCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewProductReleaseListCommand())
+	cmd.AddCommand(newProductReleaseListCommand())
 
 	return cmd
 }
 
-func NewProductReleaseListCommand() *cobra.Command {
-
+func newProductReleaseListCommand() *cobra.Command {
 	var (
-		productName       string
-		page              int
-		pageLimit         int
-		statusList        string
-		promotionFlowList string
+		page           int
+		pageLimit      int
+		productName    string
+		statuses       []string
+		promotionFlows []string
 	)
 
 	cmd := &cobra.Command{
@@ -76,22 +71,21 @@ func NewProductReleaseListCommand() *cobra.Command {
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-
-			releaseStatus, err := ToProductReleaseStatus(statusList)
-			promotionFlows, err := ToPromotionFlows(promotionFlowList)
+			releaseStatus, err := toProductReleaseStatus(statuses)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to convert status: %w", err)
 			}
+
 			filterArgs := platmodel.ProductReleaseFiltersArgs{
 				Statuses:       releaseStatus,
 				PromotionFlows: promotionFlows,
 			}
-			return RunProductReleaseList(ctx, filterArgs, productName, page, pageLimit)
+			return runProductReleaseList(ctx, filterArgs, productName, page, pageLimit)
 		},
 	}
 
-	cmd.Flags().StringVarP(&statusList, "status", "s", "", "Filter by statuses")
-	cmd.Flags().StringVar(&promotionFlowList, "promotion-flows", "", "Filter by promotion flows")
+	cmd.Flags().StringSliceVarP(&statuses, "status", "s", []string{}, "Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED")
+	cmd.Flags().StringSliceVar(&promotionFlows, "promotion-flows", []string{}, "Filter by promotion flows, comma seperated array")
 	cmd.Flags().IntVar(&page, "page", 1, "page number")
 	cmd.Flags().IntVar(&pageLimit, "page-limit", 20, "page limit number")
 	cmd.Flags().StringVarP(&productName, "product", "p", "", "product")
@@ -99,147 +93,75 @@ func NewProductReleaseListCommand() *cobra.Command {
 	return cmd
 }
 
-func RunProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, page int, pageLimit int) error {
-	pagination := platmodel.SlicePaginationArgs{
-		First: &pageLimit,
-	}
-
+func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, page int, pageLimit int) error {
 	query := `
-	query getProductReleasesList(
-	  $productName: String!
-	  $filters: ProductReleaseFiltersArgs!
-	  $pagination: SlicePaginationArgs
-	) {
-	  productReleases(productName: $productName, filters: $filters, pagination: $pagination) {
-		pageInfo {
-			hasNextPage
-			hasPrevPage
-			startCursor
-			endCursor
-		}
+query getProductReleasesList(
+	$productName: String!
+	$filters: ProductReleaseFiltersArgs!
+	$pagination: SlicePaginationArgs
+) {
+	productReleases(productName: $productName, filters: $filters, pagination: $pagination) {
 		edges {
-		  node {
+			node {
 			releaseId
 			steps {
-			  environmentName
-			  status
+				environmentName
+				status
 			}
 			status
-		  }
+			}
 		}
-	  }
 	}
-  `
+}`
 	// add pagination - default for now is last 20
 	variables := map[string]any{
 		"filters":     filterArgs,
 		"productName": productName,
-		"pagination":  pagination,
+		"pagination": platmodel.SlicePaginationArgs{
+			First: &pageLimit,
+		},
 	}
 
-	var productReleasesPage map[string]any
-	productReleasesPage, err := client.GraphqlAPI[map[string]any](ctx, cfConfig.NewClient().InternalClient(), query, variables)
+	productReleasesPage, err := client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), query, variables)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get product releases: %w", err)
 	}
-	productReleaseSlice, err := TransformSlice(productReleasesPage)
-	if len(productReleaseSlice.Edges) == 0 {
-		return fmt.Errorf("no product releases found")
+
+	// productReleaseSlice, err := TransformSlice(productReleasesPage)
+	if len(productReleasesPage.Edges) == 0 {
+		fmt.Println("No product releases found")
+		return nil
 	}
-	resJSON, err := json.MarshalIndent(productReleaseSlice.Edges, "", "\t")
+
+	nodes := extractNodesFromEdges(productReleasesPage.Edges)
+	resJSON, err := json.MarshalIndent(nodes, "", "\t")
+	if err != nil {
+		return fmt.Errorf("failed to marshal product releases: %w", err)
+	}
 
 	fmt.Println(string(resJSON))
 	return nil
 }
 
-func mapToSliceInfo(data map[string]interface{}) (*platmodel.SliceInfo, error) {
-	startCursor, _ := data["startCursor"].(string)
-	endCursor, _ := data["endCursor"].(string)
-	hasNextPage, _ := data["hasNextPage"].(bool)
-	hasPrevPage, _ := data["hasPrevPage"].(bool)
-	return &platmodel.SliceInfo{
-		StartCursor: &startCursor,
-		EndCursor:   &endCursor,
-		HasNextPage: hasNextPage,
-		HasPrevPage: hasPrevPage,
-	}, nil
-}
-
-func TransformSlice(slice map[string]any) (*Slice, error) {
-	edgesInterface, ok := slice["edges"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid JSON structure: missing or invalid 'edges' field")
-	}
-
-	var edges []*Edge
-	for _, edgeInterface := range edgesInterface {
-		edgeMap, _ := edgeInterface.(map[string]interface{})
-		node, _ := edgeMap["node"].(map[string]interface{})
-		edges = append(edges, &Edge{
-			Node: node,
-		})
-	}
-
-	pageInfoData, ok := slice["pageInfo"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid JSON structure: missing or invalid 'pageInfo' field")
-	}
-
-	pageInfo, err := mapToSliceInfo(pageInfoData)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Slice{
-		Edges:    edges,
-		PageInfo: pageInfo,
-	}, nil
-}
-func ToProductReleaseStatus(stringStatusList string) ([]platmodel.ProductReleaseStatus, error) {
-	if err := assertArrayPattern(stringStatusList, "status"); err != nil {
-		return nil, err
-	}
-
-	if stringStatusList == "" {
-		return nil, nil
-	}
-
-	stringStatus := strings.Split(stringStatusList, ",")
-
-	statusMap := map[string]platmodel.ProductReleaseStatus{
-		"running":    platmodel.ProductReleaseStatusRunning,
-		"failed":     platmodel.ProductReleaseStatusFailed,
-		"succeeded":  platmodel.ProductReleaseStatusSucceeded,
-		"suspeneded": platmodel.ProductReleaseStatusSuspended,
-	}
+func toProductReleaseStatus(statuses []string) ([]platmodel.ProductReleaseStatus, error) {
 	var result []platmodel.ProductReleaseStatus
-	for _, status := range stringStatus {
-		if convertedStatus, ok := statusMap[status]; ok {
-			result = append(result, convertedStatus)
-		} else {
-			return nil, fmt.Errorf("invalid status: %s", status)
+	for _, statusString := range statuses {
+		status := platmodel.ProductReleaseStatus(statusString)
+		if !status.IsValid() {
+			return nil, fmt.Errorf("invalid product release status: %s", statusString)
 		}
+
+		result = append(result, platmodel.ProductReleaseStatus(statusString))
 	}
+
 	return result, nil
 }
-func ToPromotionFlows(promotionFlowList string) ([]string, error) {
-	if err := assertArrayPattern(promotionFlowList, "promotion-flows"); err != nil {
-		return nil, err
-	}
-	if promotionFlowList == "" {
-		return nil, nil
-	}
-	return strings.Split(promotionFlowList, ","), nil
-}
 
-func assertArrayPattern(list string, argName string) error {
-	pattern := `^(\w+,)*\w+$`
-	match, err := regexp.MatchString(pattern, list)
-	if err != nil {
-		return err
+func extractNodesFromEdges(edges []productReleaseEdge) []map[string]any {
+	res := []map[string]any{}
+	for _, edge := range edges {
+		res = append(res, edge.Node)
 	}
-	if !match {
-		return fmt.Errorf("invalid argument %s", argName)
-	}
-	return nil
+
+	return res
 }
