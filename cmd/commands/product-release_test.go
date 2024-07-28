@@ -15,7 +15,10 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -77,6 +80,44 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 	}
 }
 
+func Test_TransformSlice(t *testing.T) {
+	productReleasesMock, _ := getProductReleaseMock()
+	expected, _ := getProductReleaseJsonStringMock()
+	type args struct {
+		slice map[string]any
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr error
+	}{
+		{
+			name: "should get product releases",
+			args: args{
+				slice: productReleasesMock,
+			},
+			want:    expected,
+			wantErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			slice, err := TransformSlice(tt.args.slice)
+			resJSON, err := json.MarshalIndent(slice.Edges, "", "\t")
+			if err == nil && tt.wantErr != nil {
+				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
+			} else if err != nil && tt.wantErr == nil {
+				t.Errorf("test shouldnt fail with error message: %v", err)
+			} else if err != nil && tt.wantErr != nil && !strings.Contains(err.Error(), tt.wantErr.Error()) {
+				t.Errorf("test should've fail with error message: %v got %v", tt.wantErr, err)
+			} else if !compareJSON(string(resJSON), tt.want) {
+				t.Errorf("TransformSlice() = %v, want %v", string(resJSON), tt.want)
+			}
+		})
+	}
+}
+
 func Test_ToPromotionFlows(t *testing.T) {
 	type args struct {
 		promotionFlowsList string
@@ -122,107 +163,101 @@ func Test_ToPromotionFlows(t *testing.T) {
 		})
 	}
 }
+func UnmarshelSlice(releaseSlice Slice) (map[string]any, error) {
+	data, err := json.MarshalIndent(releaseSlice, "", "\t")
+	if err != nil {
+		return nil, err
+	}
 
-func getProductReleaseMock() platmodel.ProductReleaseSlice {
-	commiter := "kim-codefresh <kim.aharfi@codefresh.io>"
-	promotionFlows := []string{"flow1", "flow2"}
-	triggerEnv := "my-env"
+	var releaseMap map[string]any
+	err = json.Unmarshal(data, &releaseMap)
+	if err != nil {
+		return nil, err
+	}
+	return releaseMap, nil
+}
+func getProductReleaseMock() (map[string]any, error) {
 	pageInfo := platmodel.SliceInfo{
 		HasNextPage: true,
 		HasPrevPage: false,
 	}
-	node1 := platmodel.ProductRelease{
-		ReleaseID:          "669fac7668fc487b38c2ad19",
-		ReleaseName:        "669fac7",
-		PromotionFlowName:  &promotionFlows[0],
-		TriggerEnvironment: &triggerEnv,
-		Steps: []*platmodel.ProductReleaseStep{
+	node1 := map[string]any{
+		"releaseId": "669fac7668fc487b38c2ad19",
+		"steps": []map[string]interface{}{
 			{
-				EnvironmentName: "my-env",
-				Status:          platmodel.ProductReleaseStepStatusSucceeded,
-				DependsOn:       []string{},
-				EnvironmentKind: platmodel.EnvironmentKindNonProd,
-				Issues:          []platmodel.Issue{},
+				"environmentName": "my-env",
+				"status":          platmodel.ProductReleaseStepStatusSucceeded,
 			},
 			{
-				EnvironmentName: "staging",
-				Status:          platmodel.ProductReleaseStepStatusSucceeded,
-				DependsOn: []string{
-					"my-env",
-				},
-				EnvironmentKind: platmodel.EnvironmentKindNonProd,
-				Issues:          []platmodel.Issue{},
+				"environmentName": "staging",
+				"status":          platmodel.ProductReleaseStepStatusSucceeded,
 			},
 			{
-				EnvironmentName: "prod",
-				Status:          platmodel.ProductReleaseStepStatusFailed,
-				DependsOn: []string{
-					"staging",
-				},
-				EnvironmentKind: platmodel.EnvironmentKindProd,
-				Issues:          []platmodel.Issue{},
+				"environmentName": "prod",
+				"status":          platmodel.ProductReleaseStepStatusFailed,
 			},
 		},
-		TriggerCommit: &platmodel.CommitInfo{
-			Committer: &commiter,
-		},
-		Status:    platmodel.ProductReleaseStatusFailed,
-		UpdatedAt: "2024-07-25T12:34:56Z",
-		CreatedAt: "2024-07-24T12:34:56Z",
-		Error:     nil,
+		"status": platmodel.ProductReleaseStatusFailed,
 	}
-	edge1 := platmodel.ProductReleaseEdge{
-		Node: &node1,
+	edge1 := Edge{
+		Node: node1,
 	}
 
-	node2 := platmodel.ProductRelease{
-		ReleaseID:          "669fac7668fc487b38c2ad19",
-		ReleaseName:        "669fac7",
-		PromotionFlowName:  &promotionFlows[0],
-		TriggerEnvironment: &triggerEnv,
-		Steps: []*platmodel.ProductReleaseStep{
+	node2 := map[string]any{
+		"releaseId": "669fac7668fc487b38c2ad18",
+		"steps": []map[string]interface{}{
 			{
-				EnvironmentName: "my-env",
-				Status:          platmodel.ProductReleaseStepStatusSucceeded,
-				DependsOn:       []string{},
-				EnvironmentKind: platmodel.EnvironmentKindNonProd,
-				Issues:          []platmodel.Issue{},
+				"environmentName": "my-env",
+				"status":          platmodel.ProductReleaseStepStatusSucceeded,
 			},
 			{
-				EnvironmentName: "staging",
-				Status:          platmodel.ProductReleaseStepStatusSucceeded,
-				DependsOn: []string{
-					"my-env",
-				},
-				EnvironmentKind: platmodel.EnvironmentKindNonProd,
-				Issues:          []platmodel.Issue{},
+				"environmentName": "staging",
+				"status":          platmodel.ProductReleaseStepStatusSucceeded,
 			},
 			{
-				EnvironmentName: "prod",
-				Status:          platmodel.ProductReleaseStepStatusFailed,
-				DependsOn: []string{
-					"staging",
-				},
-				EnvironmentKind: platmodel.EnvironmentKindProd,
-				Issues:          []platmodel.Issue{},
+				"environmentName": "prod",
+				"status":          platmodel.ProductReleaseStepStatusFailed,
 			},
 		},
-		TriggerCommit: &platmodel.CommitInfo{
-			Committer: &commiter,
-		},
-		Status:    platmodel.ProductReleaseStatusFailed,
-		UpdatedAt: "2024-07-25T12:34:56Z",
-		CreatedAt: "2024-07-24T12:34:56Z",
-		Error:     nil,
+		"status": platmodel.ProductReleaseStatusFailed,
 	}
-	edge2 := platmodel.ProductReleaseEdge{
-		Node: &node2,
+	edge2 := Edge{
+		Node: node2,
 	}
-	return platmodel.ProductReleaseSlice{
-		Edges: []*platmodel.ProductReleaseEdge{
+	slice := Slice{
+		Edges: []*Edge{
 			&edge1,
 			&edge2,
 		},
 		PageInfo: &pageInfo,
 	}
+	return UnmarshelSlice(slice)
+}
+
+func getProductReleaseJsonStringMock() (string, error) {
+	file, err := os.Open("./product-release_mock.json")
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+func compareJSON(expected, actual string) bool {
+	var expectedData, actualData interface{}
+	err := json.Unmarshal([]byte(expected), &expectedData)
+	if err != nil {
+		return false
+	}
+	err = json.Unmarshal([]byte(actual), &actualData)
+	if err != nil {
+		return false
+	}
+	return reflect.DeepEqual(expectedData, actualData)
 }

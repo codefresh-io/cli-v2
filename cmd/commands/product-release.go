@@ -142,7 +142,7 @@ func RunProductReleaseList(ctx context.Context, filterArgs platmodel.ProductRele
 	if err != nil {
 		return err
 	}
-	productReleaseSlice, err := transformSlice(productReleasesPage)
+	productReleaseSlice, err := TransformSlice(productReleasesPage)
 	if len(productReleaseSlice.Edges) == 0 {
 		return fmt.Errorf("no product releases found")
 	}
@@ -165,8 +165,8 @@ func mapToSliceInfo(data map[string]interface{}) (*platmodel.SliceInfo, error) {
 	}, nil
 }
 
-func transformSlice(data map[string]any) (*Slice, error) {
-	edgesInterface, ok := data["edges"].([]interface{})
+func TransformSlice(slice map[string]any) (*Slice, error) {
+	edgesInterface, ok := slice["edges"].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid JSON structure: missing or invalid 'edges' field")
 	}
@@ -180,7 +180,7 @@ func transformSlice(data map[string]any) (*Slice, error) {
 		})
 	}
 
-	pageInfoData, ok := data["pageInfo"].(map[string]interface{})
+	pageInfoData, ok := slice["pageInfo"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid JSON structure: missing or invalid 'pageInfo' field")
 	}
