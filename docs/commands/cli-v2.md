@@ -41,6 +41,7 @@ cli-v2 [flags]
 * [cli-v2 integration](cli-v2_integration.md)	 - Manage integrations with git providers, container registries and more
 * [cli-v2 migrate](cli-v2_migrate.md)	 - migrate a cli-runtime to the new helm-runtime
 * [cli-v2 pipeline](cli-v2_pipeline.md)	 - Manage pipelines of Codefresh runtimes
+* [cli-v2 product-release](cli-v2_product-release.md)	 - Manage product releases of Codefresh account
 * [cli-v2 runtime](cli-v2_runtime.md)	 - Manage Codefresh runtimes
 * [cli-v2 upgrade](cli-v2_upgrade.md)	 - Upgrades the cli
 * [cli-v2 version](cli-v2_version.md)	 - Show cli version

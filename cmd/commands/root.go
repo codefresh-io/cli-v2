@@ -61,6 +61,7 @@ variables in advanced to simplify the use of those commands.
 	cmd.AddCommand(NewIntegrationCommand())
 	cmd.AddCommand(NewCompletionCommand())
 	cmd.AddCommand(NewMigrateCommand())
+	cmd.AddCommand(NewProductReleaseCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })
 
