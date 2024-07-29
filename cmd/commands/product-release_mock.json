@@ -1,0 +1,38 @@
+[
+	{
+		"releaseId": "669fac7668fc487b38c2ad19",
+		"status": "FAILED",
+		"steps": [
+			{
+				"environmentName": "my-env",
+				"status": "SUCCEEDED"
+			},
+			{
+				"environmentName": "staging",
+				"status": "SUCCEEDED"
+			},
+			{
+				"environmentName": "prod",
+				"status": "FAILED"
+			}
+		]
+	},
+	{
+		"releaseId": "669fac7668fc487b38c2ad18",
+		"status": "FAILED",
+		"steps": [
+			{
+				"environmentName": "my-env",
+				"status": "SUCCEEDED"
+			},
+			{
+				"environmentName": "staging",
+				"status": "SUCCEEDED"
+			},
+			{
+				"environmentName": "prod",
+				"status": "FAILED"
+			}
+		]
+	}
+]
