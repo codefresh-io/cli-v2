@@ -11,8 +11,8 @@ cli-v2 product-release list [flags]
 ```
 
             cli-v2 product-release list <product-name>
-            cli-v2 product-release list product-name --page-limit 3
-            cli-v2 product-release list product-name --status RUNNING,FAILED --promotion-flows base-flow,flow-2
+            cli-v2 product-release list <product-name> --page-limit 3
+            cli-v2 product-release list <product-name> --status RUNNING,FAILED --promotion-flows base-flow,flow-2
         
 ```
 

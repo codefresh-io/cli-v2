@@ -56,8 +56,7 @@ func NewProductReleaseCommand() *cobra.Command {
 
 func newProductReleaseListCommand() *cobra.Command {
 	var (
-		pageLimit int
-		// productName    string
+		pageLimit      int
 		statuses       []string
 		promotionFlows []string
 	)
@@ -68,17 +67,18 @@ func newProductReleaseListCommand() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
 			<BIN> product-release list <product-name>
-			<BIN> product-release list product-name --page-limit 3
-			<BIN> product-release list product-name --status RUNNING,FAILED --promotion-flows base-flow,flow-2
+			<BIN> product-release list <product-name> --page-limit 3
+			<BIN> product-release list <product-name> --status RUNNING,FAILED --promotion-flows base-flow,flow-2
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			if len(args) == 0 {
+				return fmt.Errorf("missing product name")
+			}
+
 			releaseStatus, err := toProductReleaseStatus(statuses)
 			if err != nil {
 				return fmt.Errorf("failed to convert status: %w", err)
-			}
-			if len(args) == 0 {
-				return fmt.Errorf("missing product name")
 			}
 
 			filterArgs := platmodel.ProductReleaseFiltersArgs{
@@ -92,7 +92,6 @@ func newProductReleaseListCommand() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&statuses, "status", "s", []string{}, "Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED")
 	cmd.Flags().StringSliceVar(&promotionFlows, "promotion-flows", []string{}, "Filter by promotion flows, comma seperated array")
 	cmd.Flags().IntVar(&pageLimit, "page-limit", 20, "page limit number, limited to 50")
-	// cmd.Flags().StringVarP(&productName, "product", "p", "", "product")
 
 	return cmd
 }

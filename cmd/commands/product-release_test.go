@@ -19,11 +19,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
-	"strings"
 	"testing"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/promotion-orchestrator"
+	"github.com/stretchr/testify/assert"
 )
 
 type ProductReleaseJson struct {
@@ -43,20 +42,20 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 		name    string
 		args    args
 		want    []platmodel.ProductReleaseStatus
-		wantErr error
+		wantErr string
 	}{
 		{
-			name: "should fail caused by invalid status input pattern",
+			name: "should fail when status include ;",
 			args: args{
 				statuses: []string{
 					"running; failed",
 				},
 			},
 			want:    nil,
-			wantErr: fmt.Errorf("invalid product release status: %s", "running; failed"),
+			wantErr: "invalid product release status: running; failed",
 		},
 		{
-			name: "should fail caused by invalid status",
+			name: "should fail caused by invalid status - pending",
 			args: args{
 				statuses: []string{
 					"running",
@@ -64,10 +63,10 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: fmt.Errorf("invalid product release status: %s", "pending"),
+			wantErr: "invalid product release status: pending",
 		},
 		{
-			name: "should convert to release status",
+			name: "should convert to release status when seperated by , with lower cases",
 			args: args{
 				statuses: []string{
 					"running",
@@ -78,10 +77,10 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 				platmodel.ProductReleaseStatusRunning,
 				platmodel.ProductReleaseStatusFailed,
 			},
-			wantErr: nil,
+			wantErr: "",
 		},
 		{
-			name: "should convert to release status",
+			name: "should convert to release status when including spaces",
 			args: args{
 				statuses: []string{
 					"RUNNING ",
@@ -92,10 +91,10 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 				platmodel.ProductReleaseStatusRunning,
 				platmodel.ProductReleaseStatusSucceeded,
 			},
-			wantErr: nil,
+			wantErr: "",
 		},
 		{
-			name: "should convert to release status",
+			name: "should convert to release status when separted with ,",
 			args: args{
 				statuses: []string{
 					"RUNNING",
@@ -106,21 +105,17 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 				platmodel.ProductReleaseStatusRunning,
 				platmodel.ProductReleaseStatusFailed,
 			},
-			wantErr: nil,
+			wantErr: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			statues, err := toProductReleaseStatus(tt.args.statuses)
-			if err == nil && tt.wantErr != nil {
-				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
-			} else if err != nil && tt.wantErr == nil {
-				t.Errorf("test shouldnt fail with error message: %v", err)
-			} else if err != nil && tt.wantErr != nil && !strings.Contains(err.Error(), tt.wantErr.Error()) {
-				t.Errorf("test should've fail with error message: %v got %v", tt.wantErr, err)
-			} else if !reflect.DeepEqual(tt.want, statues) {
-				t.Errorf("ToProductReleaseStatus() = %v, want %v", statues, tt.want)
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
 			}
+			assert.ElementsMatch(t, tt.want, statues)
 		})
 	}
 }
@@ -135,29 +130,27 @@ func Test_ExtractNodesFromEdges(t *testing.T) {
 		name    string
 		args    args
 		want    []map[string]any
-		wantErr error
+		wantErr string
 	}{
 		{
-			name: "should convert to release status",
+			name: "should extract node",
 			args: args{
 				edges: getProductReleaseMock().Edges,
 			},
 			want:    expected,
-			wantErr: nil,
+			wantErr: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nodes := extractNodesFromEdges(tt.args.edges)
-			if err == nil && tt.wantErr != nil {
-				t.Errorf("test should've fail with error message: %v didnt failed", tt.wantErr)
-			} else if err != nil && tt.wantErr == nil {
-				t.Errorf("test shouldnt fail with error message: %v", err)
-			} else if err != nil && tt.wantErr != nil && !strings.Contains(err.Error(), tt.wantErr.Error()) {
-				t.Errorf("test should've fail with error message: %v got %v", tt.wantErr, err)
-			} else if fmt.Sprintf("%v", tt.want) != fmt.Sprintf("%v", nodes) {
-				t.Errorf("ToProductReleaseStatus() = %v, want %v", nodes, tt.want)
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
 			}
+			stringNodes := fmt.Sprintf("%v", nodes)
+			stringWant := fmt.Sprintf("%v", tt.want)
+			assert.Equal(t, stringNodes, stringWant)
 		})
 	}
 }
