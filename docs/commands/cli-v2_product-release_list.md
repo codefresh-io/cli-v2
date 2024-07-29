@@ -1,6 +1,6 @@
 ## cli-v2 product-release list
 
-List all the pipelines
+List all product releases
 
 ```
 cli-v2 product-release list [flags]
@@ -10,7 +10,9 @@ cli-v2 product-release list [flags]
 
 ```
 
-            cli-v2 product-release list --product <product>
+            cli-v2 product-release list <product-name>
+            cli-v2 product-release list <product-name> --page-limit 3
+            cli-v2 product-release list <product-name> --status RUNNING,FAILED --promotion-flows base-flow,flow-2
         
 ```
 
@@ -18,9 +20,7 @@ cli-v2 product-release list [flags]
 
 ```
   -h, --help                      help for list
-      --page int                  page number (default 1)
-      --page-limit int            page limit number (default 20)
-  -p, --product string            product
+      --page-limit int            page limit number, limited to 50 (default 20)
       --promotion-flows strings   Filter by promotion flows, comma seperated array
   -s, --status strings            Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED
 ```

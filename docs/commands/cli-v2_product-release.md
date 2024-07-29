@@ -25,5 +25,5 @@ cli-v2 product-release [flags]
 ### SEE ALSO
 
 * [cli-v2](cli-v2.md)	 - cli-v2 is used for installing and managing codefresh installations using gitops
-* [cli-v2 product-release list](cli-v2_product-release_list.md)	 - List all the pipelines
+* [cli-v2 product-release list](cli-v2_product-release_list.md)	 - List all product releases
 

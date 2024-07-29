@@ -67,7 +67,9 @@ func newProductReleaseListCommand() *cobra.Command {
 		Short: "List all product releases",
 		Args:  cobra.MaximumNArgs(1),
 		Example: util.Doc(`
-			<BIN> product-release list <product>
+			<BIN> product-release list <product-name>
+			<BIN> product-release list product-name --page-limit 3
+			<BIN> product-release list product-name --status RUNNING,FAILED --promotion-flows base-flow,flow-2
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
