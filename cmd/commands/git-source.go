@@ -182,19 +182,28 @@ func runGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 }
 
 func newGitSourceListCommand() *cobra.Command {
-	var includeInternal bool
+	var (
+		runtimeName     string
+		includeInternal bool
+	)
 
 	cmd := &cobra.Command{
 		Use:     "list RUNTIME_NAME",
 		Short:   "List all Codefresh git-sources of a given runtime",
 		Args:    cobra.MaximumNArgs(1),
 		Example: util.Doc(`<BIN> git-source list my-runtime`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("must enter runtime name")
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			runtimeName, err = ensureRuntimeName(cmd.Context(), args, nil)
+			if err != nil {
+				return err
 			}
 
-			return runGitSourceList(cmd.Context(), args[0], includeInternal)
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runGitSourceList(cmd.Context(), runtimeName, includeInternal)
 		},
 	}
 
@@ -272,6 +281,11 @@ func runGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 }
 
 func newGitSourceDeleteCommand() *cobra.Command {
+	var (
+		runtimeName string
+		gsName      string
+	)
+
 	cmd := &cobra.Command{
 		Use:   "delete RUNTIME_NAME GITSOURCE_NAME",
 		Short: "delete a git-source from a runtime",
@@ -279,25 +293,27 @@ func newGitSourceDeleteCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source delete runtime_name git-source_name 
 		`),
-		PreRunE: func(_ *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
 			store.Get().Silent = true
 
-			if len(args) < 1 {
-				return fmt.Errorf("must enter runtime name")
+			runtimeName, err = ensureRuntimeName(cmd.Context(), args, nil)
+			if err != nil {
+				return err
 			}
 
 			if len(args) < 2 {
 				return fmt.Errorf("must enter git-source name")
 			}
 
+			gsName = args[1]
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			return runGitSourceDelete(ctx, &GitSourceDeleteOptions{
-				RuntimeName: args[0],
-				GsName:      args[1],
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runGitSourceDelete(cmd.Context(), &GitSourceDeleteOptions{
+				RuntimeName: runtimeName,
+				GsName:      gsName,
 				Timeout:     util.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 			})
 		},
@@ -323,9 +339,11 @@ func runGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 
 func newGitSourceEditCommand() *cobra.Command {
 	var (
-		repo    string
-		include string
-		exclude string
+		runtimeName string
+		gsName      string
+		repo        string
+		include     string
+		exclude     string
 	)
 
 	cmd := &cobra.Command{
@@ -335,31 +353,35 @@ func newGitSourceEditCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> git-source edit runtime_name git-source_name --git-src-repo https://github.com/owner/repo-name.git/path/to/dir
 		`),
-		PreRunE: func(_ *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 			store.Get().Silent = true
 
-			if len(args) < 1 {
-				return fmt.Errorf("must enter a runtime name")
+			runtimeName, err = ensureRuntimeName(cmd.Context(), args, nil)
+			if err != nil {
+				return err
 			}
 
 			if len(args) < 2 {
 				return fmt.Errorf("must enter a git-source name")
 			}
 
+			gsName = args[1]
 			if repo == "" {
 				return fmt.Errorf("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
 			}
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			opts := &GitSourceEditOptions{
-				RuntimeName: args[0],
-				GsName:      args[1],
+				RuntimeName: runtimeName,
+				GsName:      gsName,
 				Repo:        repo,
 			}
+
 			if cmd.Flags().Changed("include") {
 				opts.Include = &include
 			}
