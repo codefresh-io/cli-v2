@@ -35,21 +35,6 @@ func (m *MockFS) EXPECT() *MockFSMockRecorder {
 	return m.recorder
 }
 
-// CheckExistsOrWrite mocks base method.
-func (m *MockFS) CheckExistsOrWrite(filename string, data []byte) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckExistsOrWrite", filename, data)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CheckExistsOrWrite indicates an expected call of CheckExistsOrWrite.
-func (mr *MockFSMockRecorder) CheckExistsOrWrite(filename, data interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckExistsOrWrite", reflect.TypeOf((*MockFS)(nil).CheckExistsOrWrite), filename, data)
-}
-
 // Chroot mocks base method.
 func (m *MockFS) Chroot(path string) (billy.Filesystem, error) {
 	m.ctrl.T.Helper()
@@ -78,35 +63,6 @@ func (m *MockFS) Create(filename string) (billy.File, error) {
 func (mr *MockFSMockRecorder) Create(filename interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockFS)(nil).Create), filename)
-}
-
-// Exists mocks base method.
-func (m *MockFS) Exists(path string) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", path)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Exists indicates an expected call of Exists.
-func (mr *MockFSMockRecorder) Exists(path interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockFS)(nil).Exists), path)
-}
-
-// ExistsOrDie mocks base method.
-func (m *MockFS) ExistsOrDie(path string) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ExistsOrDie", path)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// ExistsOrDie indicates an expected call of ExistsOrDie.
-func (mr *MockFSMockRecorder) ExistsOrDie(path interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsOrDie", reflect.TypeOf((*MockFS)(nil).ExistsOrDie), path)
 }
 
 // Join mocks base method.

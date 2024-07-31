@@ -51,20 +51,6 @@ func (mr *MockFactoryMockRecorder) Apply(ctx, manifests interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Apply", reflect.TypeOf((*MockFactory)(nil).Apply), ctx, manifests)
 }
 
-// Delete mocks base method.
-func (m *MockFactory) Delete(arg0 context.Context, arg1 *kube.DeleteOptions) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Delete indicates an expected call of Delete.
-func (mr *MockFactoryMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockFactory)(nil).Delete), arg0, arg1)
-}
-
 // KubernetesClientSet mocks base method.
 func (m *MockFactory) KubernetesClientSet() (kubernetes.Interface, error) {
 	m.ctrl.T.Helper()
@@ -78,20 +64,6 @@ func (m *MockFactory) KubernetesClientSet() (kubernetes.Interface, error) {
 func (mr *MockFactoryMockRecorder) KubernetesClientSet() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KubernetesClientSet", reflect.TypeOf((*MockFactory)(nil).KubernetesClientSet))
-}
-
-// KubernetesClientSetOrDie mocks base method.
-func (m *MockFactory) KubernetesClientSetOrDie() kubernetes.Interface {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "KubernetesClientSetOrDie")
-	ret0, _ := ret[0].(kubernetes.Interface)
-	return ret0
-}
-
-// KubernetesClientSetOrDie indicates an expected call of KubernetesClientSetOrDie.
-func (mr *MockFactoryMockRecorder) KubernetesClientSetOrDie() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KubernetesClientSetOrDie", reflect.TypeOf((*MockFactory)(nil).KubernetesClientSetOrDie))
 }
 
 // ToRESTConfig mocks base method.

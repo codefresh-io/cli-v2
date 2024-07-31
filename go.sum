@@ -688,8 +688,6 @@ github.com/argoproj/argo-cd/v2 v2.11.4 h1:ADwC/pbRkAo4RQ0txHaMpd//yn0ZD/GkKuGXOk
 github.com/argoproj/argo-cd/v2 v2.11.4/go.mod h1:0H0h5kihqrTC5TiRxFkgE/IHirSN2bJ8JJVo3mMepnU=
 github.com/argoproj/argo-events v1.9.2 h1:BM9J26uAd2bEQsf5uXQCth9DNUcn5Gh+Xi9J+WYYZ6U=
 github.com/argoproj/argo-events v1.9.2/go.mod h1:wxff6Se5g/MJxzBkkSFOA6mkKwjqo1ppoQNrxPRxQlg=
-github.com/argoproj/argo-workflows/v3 v3.5.8 h1:URPUYYrkGlCOke7Ckvtda79Q4Q4DVX4+nxr6BCRL3v4=
-github.com/argoproj/argo-workflows/v3 v3.5.8/go.mod h1:abUJvLS9CB2GAryW4axGIS/l00dUoIkcjRcfbU55SYo=
 github.com/argoproj/gitops-engine v0.7.1-0.20240702153804-5995eca2fb63 h1:HsXZiXycvpK/+HENrSyUEGnH1afvvPJiBfbQowwbRXg=
 github.com/argoproj/gitops-engine v0.7.1-0.20240702153804-5995eca2fb63/go.mod h1:d4eLldeEFyZIcVySAMhXhnh1tTa4qfvPYfut9B8UClw=
 github.com/argoproj/notifications-engine v0.4.1-0.20240403133627-f48567108f01 h1:/V8+HM0VPPTrdjTwUrkIj5a+SjaU//tJwfIXJ1QAOvg=
@@ -1563,8 +1561,6 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.0-rc4 h1:oOxKUJWnFC4YGHCCMNql1x4YaDfYBTS5Y4x/Cgeo1E0=
 github.com/opencontainers/image-spec v1.1.0-rc4/go.mod h1:X4pATf0uXsnn3g5aiGIsVnJBR4mxhKzfwmvK/B2NTm8=
-github.com/openshift/api v3.9.0+incompatible h1:fJ/KsefYuZAjmrr3+5U9yZIZbTOpVkDDLDLFresAeYs=
-github.com/openshift/api v3.9.0+incompatible/go.mod h1:dh9o4Fs58gpFXGSYfnVxGR9PnV53I8TW84pQaJDdGiY=
 github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492/go.mod h1:Ngi6UdF0k5OKD5t5wlmGhe/EDKPoUM3BXZSSfIuJbis=
 github.com/opentracing/basictracer-go v1.0.0/go.mod h1:QfBfYuafItcjQuMwinw9GhYKwFXS9KnPs5lxoYwgW74=
 github.com/opentracing/opentracing-go v1.0.2/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
@@ -1613,8 +1609,6 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/poy/onpar v0.0.0-20190519213022-ee068f8ea4d1 h1:oL4IBbcqwhhNWh31bjOX8C/OCy0zs9906d/VUru+bqg=
 github.com/poy/onpar v0.0.0-20190519213022-ee068f8ea4d1/go.mod h1:nSbFQvMj97ZyhFRSJYtut+msi4sOY6zJDGCdSc+/rZU=
-github.com/projectcontour/contour v1.25.3 h1:bBhuCJu/DCgGEpAShSS/pdPoAxXEX7ha3oBcewpjh9g=
-github.com/projectcontour/contour v1.25.3/go.mod h1:kFkYnLYiLZnZAEr9jYK0M7oy9y0228u+O4VtHnlyGdI=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829/go.mod h1:p2iRAGwDERtqlqzRXnrOVns+ignqQo//hLXqYxZYVNs=
 github.com/prometheus/client_golang v1.0.0/go.mod h1:db9x61etRT2tGnBNRi70OPL5FsnadC4Ky3P0J6CfImo=

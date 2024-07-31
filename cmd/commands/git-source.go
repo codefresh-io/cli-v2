@@ -21,15 +21,13 @@ import (
 	"strings"
 	"time"
 
+	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
+	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	cfgit "github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
 	apu "github.com/codefresh-io/cli-v2/internal/util/aputil"
-	routingutil "github.com/codefresh-io/cli-v2/internal/util/routing"
-
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
@@ -50,7 +48,6 @@ type (
 		SkipIngress         bool
 		IngressHost         string
 		IngressClass        string
-		IngressController   routingutil.RoutingController
 		AccessMode          platmodel.AccessMode
 		GatewayName         string
 		GatewayNamespace    string
