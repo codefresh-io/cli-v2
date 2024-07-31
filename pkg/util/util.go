@@ -47,7 +47,8 @@ type RetryOptions struct {
 }
 
 const (
-	indentation = "    "
+	yamlSeperator = "\n---\n"
+	indentation   = "    "
 )
 
 var (
@@ -402,4 +403,26 @@ func isNetworkError(err error) bool {
 	}
 
 	return false
+}
+
+// JoinManifests concats all of the provided yaml manifests with a yaml separator.
+func JoinManifests(manifests ...[]byte) []byte {
+	res := make([]string, 0, len(manifests))
+	for _, m := range manifests {
+		if m == nil {
+			continue
+		}
+		res = append(res, string(m))
+	}
+	return []byte(strings.Join(res, yamlSeperator))
+}
+
+func SplitManifests(manifests []byte) [][]byte {
+	str := string(manifests)
+	stringManifests := strings.Split(str, yamlSeperator)
+	res := make([][]byte, 0, len(stringManifests))
+	for _, m := range stringManifests {
+		res = append(res, []byte(m))
+	}
+	return res
 }

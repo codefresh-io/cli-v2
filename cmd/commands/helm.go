@@ -25,14 +25,14 @@ import (
 	"strings"
 
 	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
-	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
@@ -44,7 +44,7 @@ type (
 	HelmValidateValuesOptions struct {
 		valuesFile  string
 		namespace   string
-		kubeFactory apkube.Factory
+		kubeFactory kube.Factory
 		helm        helm.Helm
 		hook        bool
 	}
@@ -95,7 +95,7 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
 	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
 	opts.helm, _ = helm.AddFlags(cmd.Flags())
-	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
+	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 
 	util.Die(cmd.Flags().MarkHidden("hook"))
 
@@ -162,7 +162,7 @@ func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values 
 }
 
 func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) error {
-	runtimeToken, _ := kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
+	runtimeToken, _ := kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
 	if runtimeToken == "" {
 		return ErrRuntimeTokenNotFound
 	}
@@ -405,7 +405,7 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 		return nil
 	}
 
-	cs := kube.GetClientSetOrDie(opts.kubeFactory)
+	cs := kubeutil.GetClientSetOrDie(opts.kubeFactory)
 	_, err = cs.NetworkingV1().IngressClasses().Get(ctx, className, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -560,7 +560,7 @@ func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptio
 		return "", nil
 	}
 
-	return kube.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, name, key)
+	return kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, name, key)
 }
 
 func filterOnlyClidRuntime(rt *platmodel.Runtime) bool {

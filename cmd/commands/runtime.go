@@ -27,21 +27,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/fs"
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/reporter"
-	"github.com/codefresh-io/cli-v2/pkg/runtime"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
 
-	"github.com/Masterminds/semver/v3"
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
-	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
-	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
@@ -57,7 +53,7 @@ type (
 		RuntimeName      string
 		Timeout          time.Duration
 		CloneOpts        *apgit.CloneOptions
-		KubeFactory      apkube.Factory
+		KubeFactory      kube.Factory
 		SkipChecks       bool
 		Force            bool
 		FastExit         bool
@@ -67,34 +63,6 @@ type (
 		kubeContext            string
 		skipAutopilotUninstall bool
 		runtimeNamespace       string
-	}
-
-	RuntimeUpgradeOptions struct {
-		RuntimeName               string
-		RuntimeNamespace          string
-		CloneOpts                 *apgit.CloneOptions
-		CommonConfig              *runtime.CommonConfig
-		SuggestedSharedConfigRepo string
-		DisableTelemetry          bool
-		SkipIngress               bool
-		runtimeDef                string
-
-		versionStr        string
-		featuresToInstall []runtime.InstallFeature
-	}
-
-	gvr struct {
-		resourceName string
-		group        string
-		version      string
-	}
-
-	reporterCreateOptions struct {
-		reporterName string
-		gvr          []gvr
-		saName       string
-		IsInternal   bool
-		clusterScope bool
 	}
 
 	summaryLogLevels string
@@ -211,65 +179,6 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 	return nil
 }
 
-func filterNonHostedRuntime(rt *platmodel.Runtime) bool {
-	return rt.InstallationType != platmodel.InstallationTypeHosted
-}
-
-func runtimeUpgradeCommandPreRunHandler(cmd *cobra.Command, args []string, opts *RuntimeUpgradeOptions) error {
-	var err error
-	ctx := cmd.Context()
-
-	handleCliStep(reporter.UpgradePhasePreCheckStart, "Starting pre checks", nil, true, false)
-
-	opts.RuntimeName, err = ensureRuntimeName(ctx, args, filterNonHostedRuntime)
-	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeName, "Ensuring runtime name", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	rt, err := getRuntime(ctx, opts.RuntimeName)
-	handleCliStep(reporter.UpgradeStepPreCheckIsManagedRuntime, "Checking if runtime is hosted", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	if rt.InstallationType == platmodel.InstallationTypeHelm {
-		return errors.New("This runtime was installed using Helm, please use Helm to upgrade it as well.")
-	}
-
-	opts.RuntimeNamespace = *rt.Metadata.Namespace
-
-	if rt.Managed {
-		return fmt.Errorf("manual upgrades are not allowed for hosted runtimes and are managed by Codefresh operational team")
-	}
-
-	if rt.AccessMode == platmodel.AccessModeTunnel {
-		opts.featuresToInstall = append(opts.featuresToInstall, runtime.InstallFeatureIngressless)
-	}
-
-	err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
-	handleCliStep(reporter.UpgradeStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, true)
-	handleCliStep(reporter.UpgradeStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	if opts.SuggestedSharedConfigRepo != "" {
-		sharedConfigRepo, err := suggestIscRepo(ctx, opts.SuggestedSharedConfigRepo)
-		if err != nil {
-			return fmt.Errorf("failed to ensure shared config repo for account: %w", err)
-		}
-		log.G(ctx).Infof("using repo '%s' as shared config repo for this account", sharedConfigRepo)
-	}
-
-	return nil
-}
-
 func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) error {
 	apClient, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
@@ -292,44 +201,6 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 	log.G(ctx).Info("Removed runtime git integrations")
 
 	return nil
-}
-
-func getComponentChecklistState(c platmodel.Component) (checklist.ListItemState, checklist.ListItemInfo) {
-	state := checklist.Waiting
-	name := strings.TrimPrefix(c.Metadata.Name, fmt.Sprintf("%s-", c.Metadata.Runtime))
-	version := "N/A"
-	syncStatus := "N/A"
-	healthStatus := "N/A"
-	errs := ""
-
-	if c.Version != "" {
-		version = c.Version
-	}
-
-	if c.Self != nil && c.Self.Status != nil {
-		syncStatus = string(c.Self.Status.SyncStatus)
-
-		if c.Self.Status.HealthStatus != nil {
-			healthStatus = string(*c.Self.Status.HealthStatus)
-		}
-
-		if len(c.Self.Errors) > 0 {
-			// use the first sync error due to lack of space
-			for _, err := range c.Self.Errors {
-				se, ok := err.(platmodel.SyncError)
-				if ok && se.Level == platmodel.ErrorLevelsError {
-					errs = se.Message
-					state = checklist.Error
-				}
-			}
-		}
-	}
-
-	if healthStatus == string(platmodel.HealthStatusHealthy) && syncStatus == string(platmodel.SyncStatusSynced) {
-		state = checklist.Ready
-	}
-
-	return state, []string{name, healthStatus, syncStatus, version, errs}
 }
 
 func NewRuntimeListCommand() *cobra.Command {
@@ -513,7 +384,7 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		CloneForWrite: true,
 		Optional:      true,
 	})
-	opts.KubeFactory = apkube.AddFlags(cmd.Flags())
+	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -608,7 +479,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 	return nil
 }
 
-func runPostUninstallCleanup(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
+func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
 	sealedSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
 	if err != nil {
 		return err
@@ -631,7 +502,7 @@ func runPostUninstallCleanup(ctx context.Context, kubeFactory apkube.Factory, na
 	return nil
 }
 
-func printApplicationsState(ctx context.Context, runtime string, f apkube.Factory, managed bool) error {
+func printApplicationsState(ctx context.Context, runtime string, f kube.Factory, managed bool) error {
 	if managed {
 		return nil
 	}
@@ -790,185 +661,18 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 }
 
 func NewRuntimeUpgradeCommand() *cobra.Command {
-	var (
-		finalParameters map[string]string
-		opts            = &RuntimeUpgradeOptions{
-			featuresToInstall: make([]runtime.InstallFeature, 0),
-		}
-	)
-
 	cmd := &cobra.Command{
-		Use:   "upgrade [RUNTIME_NAME]",
-		Short: "Upgrade a Codefresh runtime",
-		Args:  cobra.MaximumNArgs(1),
-		Example: util.Doc(`
-# To run this command you need to create a personal access token for your git provider
-# and provide it using:
-
-		export GIT_TOKEN=<token>
-
-# or with the flag:
-
-		--git-token <token>
-
-# Upgrade a runtime to version v0.0.30
-
-	<BIN> runtime upgrade runtime-name --version 0.0.30 --repo gitops_repo
-`),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			createAnalyticsReporter(ctx, reporter.UpgradeFlow, opts.DisableTelemetry)
-
-			err := runtimeUpgradeCommandPreRunHandler(cmd, args, opts)
-			handleCliStep(reporter.UpgradePhasePreCheckFinish, "Finished pre run checks", err, true, false)
-			if err != nil {
-				if errors.Is(err, promptui.ErrInterrupt) {
-					return fmt.Errorf("upgrade canceled by user")
-				}
-				return fmt.Errorf("pre run error: %w", err)
-			}
-
-			finalParameters = map[string]string{
-				"Codefresh context": cfConfig.GetCurrentContext().Name,
-				"Runtime name":      opts.RuntimeName,
-				"Repository URL":    opts.CloneOpts.Repo,
-			}
-
-			if opts.versionStr != "" {
-				finalParameters["Version"] = opts.versionStr
-			}
-
-			if opts.runtimeDef == "" {
-				opts.runtimeDef = runtime.GetRuntimeDefURL(opts.versionStr)
-			}
-
-			err = validateVersionIfExists(opts.versionStr)
-			if err != nil {
-				return err
-			}
-
-			err = getApprovalFromUser(ctx, finalParameters, "runtime upgrade")
-			if err != nil {
-				return err
-			}
-
-			opts.CloneOpts.Parse()
-			return nil
-		},
+		Use:        "upgrade [RUNTIME_NAME]",
+		Deprecated: "We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			var err error
-			ctx := cmd.Context()
-
-			opts.CommonConfig = &runtime.CommonConfig{
-				CodefreshBaseURL: cfConfig.GetCurrentContext().URL,
-			}
-
-			err = runRuntimeUpgrade(ctx, opts)
-			handleCliStep(reporter.UpgradePhaseFinish, "Runtime upgrade phase finished", err, false, false)
-			return err
+			return errors.New(`We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.
+As of January 30, 2024, CLI-based Runtimes are no longer supported.
+If you're currently using CLI-based Hybrid GitOps Runtimes, we encourage you to migrate to Helm by following our migration guidelines (https://codefresh.io/docs/docs/installation/gitops/migrate-cli-runtimes-helm).
+For Helm installation, review our documentation on installing Hybrid GitOps Runtimes (https://codefresh.io/docs/docs/installation/gitops/hybrid-gitops-helm-installation).`)
 		},
 	}
-
-	cmd.Flags().StringVar(&opts.versionStr, "version", "", "The runtime version to upgrade to, defaults to stable")
-	cmd.Flags().StringVar(&opts.SuggestedSharedConfigRepo, "shared-config-repo", "", "URL to the shared configurations repo. (default: <installation-repo> or the existing one for this account)")
-	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable analytics reporting for the upgrade process")
-	cmd.Flags().BoolVar(&store.Get().SetDefaultResources, "set-default-resources", false, "If true, will set default requests and limits on all of the runtime components")
-	cmd.Flags().StringVar(&opts.runtimeDef, "runtime-def", "", "Install runtime from a specific manifest")
-	cmd.Flags().BoolVar(&opts.SkipIngress, "skip-ingress", false, "Skips the creation of ingress resources")
-	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{CloneForWrite: true})
-	util.Die(cmd.Flags().MarkHidden("runtime-def"))
-	util.Die(cmd.Flags().MarkHidden("set-default-resources"))
-	cmd.MarkFlagsMutuallyExclusive("version", "runtime-def")
 
 	return cmd
-}
-
-func runRuntimeUpgrade(ctx context.Context, opts *RuntimeUpgradeOptions) error {
-	handleCliStep(reporter.UpgradePhaseStart, "Runtime upgrade phase started", nil, false, true)
-
-	log.G(ctx).Info("Downloading runtime definition")
-
-	runtimeDef := getRuntimeDef(opts.runtimeDef, opts.versionStr)
-	newRt, err := runtime.Download(runtimeDef, opts.RuntimeName, opts.RuntimeNamespace, opts.featuresToInstall)
-	handleCliStep(reporter.UpgradeStepDownloadRuntimeDefinition, "Downloading runtime definition", err, true, false)
-	if err != nil {
-		return fmt.Errorf("failed to download runtime definition: %w", err)
-	}
-
-	if newRt.Spec.DefVersion != nil && newRt.Spec.DefVersion.GreaterThan(store.Get().MaxDefVersion) {
-		err = fmt.Errorf("please upgrade your cli version before upgrading to %s", newRt.Spec.Version)
-	}
-	handleCliStep(reporter.UpgradeStepRunPreCheckEnsureCliVersion, "Checking CLI version", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	err = runtime.CheckRuntimeVersionCompatible(newRt.Spec.RequiredCLIVersion)
-	if err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Cloning installation repository")
-	r, fs, err := opts.CloneOpts.GetRepo(ctx)
-	handleCliStep(reporter.UpgradeStepGetRepo, "Getting repository", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	log.G(ctx).Info("Loading current runtime definition")
-	curRt, err := runtime.Load(fs, fs.Join(apstore.Default.BootsrtrapDir, opts.RuntimeName+".yaml"))
-	handleCliStep(reporter.UpgradeStepLoadRuntimeDefinition, "Loading runtime definition", err, true, false)
-	if err != nil {
-		return fmt.Errorf("failed to load current runtime definition: %w", err)
-	}
-
-	log.G(ctx).Infof("Upgrading runtime \"%s\" to version: v%s", opts.RuntimeName, newRt.Spec.Version)
-	newComponents, err := curRt.Upgrade(fs, newRt, opts.CommonConfig)
-	handleCliStep(reporter.UpgradeStepUpgradeRuntime, "Upgrading runtime", err, false, false)
-	if err != nil {
-		return fmt.Errorf("failed to upgrade runtime: %w", err)
-	}
-
-	err = patchClusterResourcesAppSet(fs)
-	if err != nil {
-		log.G(ctx).Warnf("failed to patch cluster-resources ApplicationSet: %w", err)
-	}
-
-	log.G(ctx).Info("Pushing new runtime definition")
-	err = apu.PushWithMessage(ctx, r, fmt.Sprintf("Upgraded to %s", newRt.Spec.Version))
-	handleCliStep(reporter.UpgradeStepPushRuntimeDefinition, "Pushing new runtime definition", err, false, false)
-	if err != nil {
-		return err
-	}
-
-	for _, component := range newComponents {
-		log.G(ctx).Infof("Installing new component \"%s\"", component.Name)
-		component.IsInternal = true
-		err = component.CreateApp(ctx, nil, opts.CloneOpts, opts.RuntimeName, opts.RuntimeNamespace, store.Get().CFComponentType)
-		if err != nil {
-			err = fmt.Errorf("failed to create \"%s\" application: %w", component.Name, err)
-			break
-		}
-	}
-
-	hasLatestInternalRouter := !curRt.Spec.Version.LessThan(semver.MustParse("v0.0.549"))
-	isIngress := curRt.Spec.AccessMode == platmodel.AccessModeIngress
-
-	handleCliStep(reporter.UpgradeStepInstallNewComponents, "Install new components", err, false, false)
-	if !opts.SkipIngress && !hasLatestInternalRouter && isIngress {
-		log.G(ctx).Info("Migrating to Internal Router ")
-
-		err = migrateInternalRouter(ctx, opts, newRt)
-		if err != nil {
-			return fmt.Errorf("failed to migrate internal router: %w", err)
-		}
-		handleCliStep(reporter.UpgradeStepMigrateInternalRouter, "Migrate internal router", err, false, false)
-	}
-
-	log.G(ctx).Infof("Runtime upgraded to version: v%s", newRt.Spec.Version)
-
-	return nil
 }
 
 func NewRuntimeLogsCommand() *cobra.Command {
@@ -989,55 +693,6 @@ func NewRuntimeLogsCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&store.Get().IsDownloadRuntimeLogs, "download", false, "If true, will download logs from all componnents that consist of current runtime")
 	cmd.Flags().StringVar(&store.Get().IngressHost, "ingress-host", "", "Set runtime ingress host")
 	return cmd
-}
-
-func migrateInternalRouter(ctx context.Context, opts *RuntimeUpgradeOptions, newRt *runtime.Runtime) error {
-	dbRuntime, err := getRuntime(ctx, opts.RuntimeName)
-	if err != nil {
-		return fmt.Errorf("failed to get runtime: %s. Error: %w", opts.RuntimeName, err)
-	}
-
-	gatewayName := ""
-	gatewaysNamespace := ""
-
-	if dbRuntime.GatewayName != nil {
-		gatewayName = *dbRuntime.GatewayName
-	}
-
-	if dbRuntime.GatewayNamespace != nil {
-		gatewaysNamespace = *dbRuntime.GatewayNamespace
-	}
-
-	createOpts := &CreateIngressOptions{
-		IngressHost:         newRt.Spec.IngressHost,
-		IngressClass:        newRt.Spec.IngressClass,
-		InternalIngressHost: newRt.Spec.InternalIngressHost,
-		IngressController:   routingutil.GetIngressController(newRt.Spec.IngressController),
-		InsCloneOpts:        opts.CloneOpts,
-		useGatewayAPI:       gatewayName != "",
-		GatewayName:         gatewayName,
-		GatewayNamespace:    gatewaysNamespace,
-	}
-
-	if err = parseHostName(newRt.Spec.IngressHost, &createOpts.HostName); err != nil {
-		return err
-	}
-
-	if createOpts.InternalIngressHost != "" {
-		if err := parseHostName(newRt.Spec.InternalIngressHost, &createOpts.InternalHostName); err != nil {
-			return err
-		}
-	}
-
-	if err := util.Retry(ctx, &util.RetryOptions{
-		Func: func() error {
-			return CreateInternalRouterIngress(ctx, createOpts, newRt, true)
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to patch Internal Router ingress: %w", err)
-	}
-
-	return nil
 }
 
 func isAllRequiredFlagsForDownloadRuntimeLogs() bool {
@@ -1091,7 +746,7 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	return err
 }
 
-var getProjectInfoFromFile = func(repofs apfs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
+var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
 	proj := &argocdv1alpha1.AppProject{}
 	appSet := &argocdv1alpha1.ApplicationSet{}
 	if err := repofs.ReadYamls(name, proj, appSet); err != nil {
