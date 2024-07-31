@@ -20,8 +20,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"

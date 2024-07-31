@@ -17,8 +17,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
 
 	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	"github.com/spf13/cobra"

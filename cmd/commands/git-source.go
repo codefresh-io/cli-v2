@@ -21,12 +21,12 @@ import (
 	"strings"
 	"time"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	routingutil "github.com/codefresh-io/cli-v2/pkg/util/routing"
+	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
+	apu "github.com/codefresh-io/cli-v2/internal/util/aputil"
+	routingutil "github.com/codefresh-io/cli-v2/internal/util/routing"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"

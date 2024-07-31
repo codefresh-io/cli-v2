@@ -22,11 +22,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/codefresh-io/cli-v2/pkg/config"
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/config"
+	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"

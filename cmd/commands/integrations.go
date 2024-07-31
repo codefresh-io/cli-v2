@@ -21,10 +21,10 @@ import (
 	"os"
 	"strings"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
