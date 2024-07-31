@@ -23,7 +23,6 @@ import (
 	reflect "reflect"
 
 	kube "github.com/codefresh-io/cli-v2/internal/kube"
-
 	gomock "github.com/golang/mock/gomock"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"

@@ -561,7 +561,3 @@ func getValueFromSecretKeyRef(ctx context.Context, opts *helmValidateValuesOptio
 
 	return kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, name, key)
 }
-
-func filterOnlyClidRuntime(rt *platmodel.Runtime) bool {
-	return rt.InstallationType == platmodel.InstallationTypeCli
-}

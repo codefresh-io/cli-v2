@@ -7,7 +7,6 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.11.7
 	github.com/codefresh-io/go-sdk v1.3.4
 	github.com/fatih/color v1.16.0
-	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
@@ -77,6 +76,7 @@ require (
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
+	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-git/go-git/v5 v5.12.0 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
