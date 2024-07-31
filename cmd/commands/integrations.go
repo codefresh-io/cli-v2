@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
@@ -49,10 +49,10 @@ type (
 )
 
 var cliToModelMap = map[string]string{
-	string(cfgit.BITBUCKET):        apmodel.GitProvidersBitbucket.String(),
-	string(cfgit.BITBUCKET_SERVER): apmodel.GitProvidersBitbucketServer.String(),
-	string(cfgit.GITHUB):           apmodel.GitProvidersGithub.String(),
-	string(cfgit.GITLAB):           apmodel.GitProvidersGitlab.String(),
+	string(git.BITBUCKET):        apmodel.GitProvidersBitbucket.String(),
+	string(git.BITBUCKET_SERVER): apmodel.GitProvidersBitbucketServer.String(),
+	string(git.GITHUB):           apmodel.GitProvidersGithub.String(),
+	string(git.GITLAB):           apmodel.GitProvidersGitlab.String(),
 }
 
 var modelToCliMap = util.ReverseMap(cliToModelMap)
@@ -507,11 +507,11 @@ func cliToModelGitProvider(provider string) (apmodel.GitProviders, error) {
 
 // modelToCliGitProvider converts model uppercase provider string (BITBUCKET|BITBUCKET_SERVER|GITHUB|GITLAB)
 // to cli lowercase provider string (bitbucket|bitbucket-server|github|gitlab)
-func modelToCliGitProvider(provider string) (cfgit.ProviderType, error) {
+func modelToCliGitProvider(provider string) (git.ProviderType, error) {
 	p, ok := modelToCliMap[provider]
 	if !ok {
-		return cfgit.ProviderType(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
+		return git.ProviderType(""), fmt.Errorf("provider \"%s\" is not a valid provider name", provider)
 	}
 
-	return cfgit.ProviderType(p), nil
+	return git.ProviderType(p), nil
 }
