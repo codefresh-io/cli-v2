@@ -290,3 +290,10 @@ func SplitManifests(manifests []byte) [][]byte {
 	}
 	return res
 }
+
+// MustParseDuration parses the given string as "time.Duration", or panic.
+func MustParseDuration(dur string) time.Duration {
+	d, err := time.ParseDuration(dur)
+	Die(err)
+	return d
+}

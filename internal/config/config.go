@@ -25,11 +25,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	cfrest "github.com/codefresh-io/go-sdk/pkg/rest"
 	"github.com/fatih/color"
@@ -271,7 +271,7 @@ func (c *ConfigImpl) CreateContext(ctx context.Context, name, token, url, caCert
 }
 
 func (c *ConfigImpl) clientForContext(ctx *AuthContext) (codefresh.Codefresh, error) {
-	transport, err := apgit.DefaultTransportWithCa(ctx.CACert)
+	transport, err := git.DefaultTransportWithCa(ctx.CACert)
 	if err != nil {
 		return nil, err
 	}

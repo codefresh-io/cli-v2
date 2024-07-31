@@ -26,8 +26,6 @@ import (
 	"strings"
 
 	httputil "github.com/codefresh-io/cli-v2/internal/util/http"
-
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
 type (
@@ -70,17 +68,6 @@ func (g *gitlab) ApiURL() string {
 	return g.apiURL.String()
 }
 
-func (g *gitlab) BaseURL() string {
-	urlClone := *g.apiURL
-	urlClone.Path = ""
-	urlClone.RawQuery = ""
-	return urlClone.String()
-}
-
-func (g *gitlab) SupportsMarketplace() bool {
-	return false
-}
-
 func (g *gitlab) IsCloud() bool {
 	return g.apiURL.Host == GITLAB_CLOUD_DOMAIN
 }
@@ -89,31 +76,8 @@ func (g *gitlab) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *gitlab) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+func (g *gitlab) VerifyRuntimeToken(ctx context.Context, auth Auth) error {
 	return g.checkApiScope(ctx, auth.Password)
-}
-
-func (g *gitlab) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
-	return g.checkReadRepositoryScope(ctx, auth.Password)
-}
-
-func (g *gitlab) ValidateToken(ctx context.Context, auth apgit.Auth) error {
-	if auth.Password == "" {
-		return fmt.Errorf("user name is require for bitbucket cloud request")
-	}
-
-	res, err := g.request(ctx, auth.Password, http.MethodHead, "user")
-
-	if err != nil {
-		return fmt.Errorf("failed getting user: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode == 401 {
-		return fmt.Errorf("invalid token")
-	}
-	return nil
 }
 
 // POST to projects without a body.
@@ -170,23 +134,6 @@ func (g *gitlab) checkTokenType(token string, ctx context.Context) (string, erro
 	}
 
 	return "personal", nil
-}
-
-// HEAD to projects.
-// if it returns 200 - the token has "repo_read" scope
-// otherwise - the token does not have the scope
-func (g *gitlab) checkReadRepositoryScope(ctx context.Context, token string) error {
-	res, err := g.request(ctx, token, http.MethodHead, "projects")
-	if err != nil {
-		return fmt.Errorf("failed checking read_repository scope: %w", err)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return errors.New("personal-git-token is invalid or missing required \"read_api\" or \"read_repository\" scope")
-	}
-
-	return nil
 }
 
 func (g *gitlab) request(ctx context.Context, token, method, urlPath string) (*http.Response, error) {

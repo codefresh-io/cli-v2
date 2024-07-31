@@ -1,7 +1,20 @@
+// Copyright 2024 The Codefresh Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package fs
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -9,7 +22,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5"
-	billyUtils "github.com/go-git/go-billy/v5/util"
 )
 
 //go:generate mockgen -destination=./mocks/fs.go -package=mocks -source=./fs.go FS
@@ -17,20 +29,8 @@ import (
 type FS interface {
 	billy.Filesystem
 
-	// ReadFile returns the entire file as []byte
-	ReadFile(filename string) ([]byte, error)
-
 	// ReadYamls reads the file data as yaml into o
 	ReadYamls(filename string, o ...interface{}) error
-
-	// WriteYamls writes the data as yaml into the file
-	WriteYamls(filename string, o ...interface{}) error
-
-	// ReadJson reads the file data as json into o
-	ReadJson(filename string, o interface{}) error
-
-	// WriteJson writes the data as json into the file
-	WriteJson(filename string, o interface{}) error
 }
 
 type fsimpl struct {
@@ -41,18 +41,8 @@ func Create(bfs billy.Filesystem) FS {
 	return &fsimpl{bfs}
 }
 
-func (fs *fsimpl) ReadFile(filename string) ([]byte, error) {
-	f, err := fs.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	return io.ReadAll(f)
-}
-
 func (fs *fsimpl) ReadYamls(filename string, o ...interface{}) error {
-	data, err := fs.ReadFile(filename)
+	data, err := readFile(fs, filename)
 	if err != nil {
 		return err
 	}
@@ -76,34 +66,12 @@ func (fs *fsimpl) ReadYamls(filename string, o ...interface{}) error {
 	return nil
 }
 
-func (fs *fsimpl) WriteYamls(filename string, o ...interface{}) error {
-	var err error
-	yamls := make([][]byte, len(o))
-	for i, e := range o {
-		yamls[i], err = yaml.Marshal(e)
-		if err != nil {
-			return err
-		}
-	}
-
-	data := util.JoinManifests(yamls...)
-	return billyUtils.WriteFile(fs, filename, data, 0666)
-}
-
-func (fs *fsimpl) ReadJson(filename string, o interface{}) error {
-	data, err := fs.ReadFile(filename)
+func readFile(fs FS, filename string) ([]byte, error) {
+	f, err := fs.Open(filename)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	defer f.Close()
 
-	return json.Unmarshal(data, o)
-}
-
-func (fs *fsimpl) WriteJson(filename string, o interface{}) error {
-	data, err := json.MarshalIndent(o, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return billyUtils.WriteFile(fs, filename, data, 0666)
+	return io.ReadAll(f)
 }

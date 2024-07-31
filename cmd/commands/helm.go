@@ -24,6 +24,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/codefresh-io/cli-v2/internal/git"
 	cfgit "github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
@@ -32,7 +33,6 @@ import (
 	"github.com/codefresh-io/cli-v2/internal/util/helm"
 	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
@@ -41,7 +41,7 @@ import (
 )
 
 type (
-	HelmValidateValuesOptions struct {
+	helmValidateValuesOptions struct {
 		valuesFile  string
 		namespace   string
 		kubeFactory kube.Factory
@@ -54,7 +54,7 @@ var (
 	ErrRuntimeTokenNotFound = errors.New("runtime token not found")
 )
 
-func NewHelmCommand() *cobra.Command {
+func newHelmCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "helm",
 		Short: "Helm related commands",
@@ -65,13 +65,13 @@ func NewHelmCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewHelmValidateValuesCommand())
+	cmd.AddCommand(newHelmValidateValuesCommand())
 
 	return cmd
 }
 
-func NewHelmValidateValuesCommand() *cobra.Command {
-	opts := &HelmValidateValuesOptions{}
+func newHelmValidateValuesCommand() *cobra.Command {
+	opts := &helmValidateValuesOptions{}
 
 	cmd := &cobra.Command{
 		Use:     "validate",
@@ -102,7 +102,7 @@ func NewHelmValidateValuesCommand() *cobra.Command {
 	return cmd
 }
 
-func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error {
+func runHelmValidate(ctx context.Context, opts *helmValidateValuesOptions) error {
 	log.G(ctx).Infof("Validating helm values file \"%s\"", opts.valuesFile)
 	if opts.hook {
 		log.G(ctx).Infof("Running in hook-mode")
@@ -142,7 +142,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 	return nil
 }
 
-func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, runtimeName string) (platmodel.GitProviders, string, error) {
+func checkPlatform(ctx context.Context, opts *helmValidateValuesOptions, values chartutil.Values, runtimeName string) (platmodel.GitProviders, string, error) {
 	codefreshValues, err := values.Table("global.codefresh")
 	if err != nil {
 		return "", "", err
@@ -161,7 +161,7 @@ func checkPlatform(ctx context.Context, opts *HelmValidateValuesOptions, values 
 	return "", "", nil
 }
 
-func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) error {
+func validateWithRuntimeToken(ctx context.Context, opts *helmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) error {
 	runtimeToken, _ := kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
 	if runtimeToken == "" {
 		return ErrRuntimeTokenNotFound
@@ -181,7 +181,7 @@ func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptio
 	return nil
 }
 
-func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) (platmodel.GitProviders, string, error) {
+func validateWithUserToken(ctx context.Context, opts *helmValidateValuesOptions, codefreshValues chartutil.Values, runtimeName string) (platmodel.GitProviders, string, error) {
 	userToken, err := getUserToken(ctx, opts, codefreshValues)
 	if err != nil {
 		return "", "", fmt.Errorf("failed getting user token: %w", err)
@@ -229,7 +229,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 	return gitProvider, gitApiUrl, nil
 }
 
-func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
+func getUserToken(ctx context.Context, opts *helmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
 	userTokenValues, err := codefreshValues.Table("userToken")
 	if err != nil {
 		return "", errors.New("missing \"global.codefresh.userToken\" field")
@@ -254,7 +254,7 @@ func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefres
 	return token, nil
 }
 
-func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, cfToken string) (codefresh.Codefresh, error) {
+func getPlatformClient(ctx context.Context, opts *helmValidateValuesOptions, codefreshValues chartutil.Values, cfToken string) (codefresh.Codefresh, error) {
 	url, err := helm.PathValue[string](codefreshValues, "url")
 	if err != nil || url == "" {
 		return nil, errors.New("\"global.codefresh.url\" must be a non-empty string")
@@ -272,7 +272,7 @@ func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, cod
 	return cfConfig.NewAdHocClient(ctx, url, cfToken, caCert)
 }
 
-func getPlatformCertFile(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
+func getPlatformCertFile(ctx context.Context, opts *helmValidateValuesOptions, codefreshValues chartutil.Values) (string, error) {
 	tlsValues, err := codefreshValues.Table("tls.caCerts")
 	if err != nil {
 		return "", errors.New("missing \"global.codefresh.tls.caCerts\" field")
@@ -334,7 +334,7 @@ func checkRuntimeName(ctx context.Context, cfClient codefresh.Codefresh, runtime
 	return fmt.Errorf("runtime \"%s\" already exists", runtimeName)
 }
 
-func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values) error {
+func checkIngress(ctx context.Context, opts *helmValidateValuesOptions, values chartutil.Values) error {
 	ingressValues, err := values.Table("global.runtime.ingress")
 	if err != nil {
 		return errors.New("missing \"global.runtime.ingress\" values")
@@ -379,7 +379,7 @@ func checkIngress(ctx context.Context, opts *HelmValidateValuesOptions, values c
 	return nil
 }
 
-func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingress chartutil.Values) error {
+func checkIngressDef(ctx context.Context, opts *helmValidateValuesOptions, ingress chartutil.Values) error {
 	hosts, err := helm.PathValue[[]interface{}](ingress, "hosts")
 	if err != nil || len(hosts) == 0 {
 		return errors.New("\"global.runtime.ingress.hosts\" array must contain an array of strings")
@@ -425,7 +425,7 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 	return nil
 }
 
-func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chartutil.Values, platGitProvider platmodel.GitProviders, gitApiUrl string) error {
+func checkGit(ctx context.Context, opts *helmValidateValuesOptions, values chartutil.Values, platGitProvider platmodel.GitProviders, gitApiUrl string) error {
 	gitValues, err := values.Table("global.runtime.gitCredentials")
 	if gitValues == nil || err != nil {
 		log.G(ctx).Debug("No gitCredentials field, skipping git validation")
@@ -471,7 +471,7 @@ func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chart
 		return err
 	}
 
-	err = provider.VerifyRuntimeToken(ctx, apgit.Auth{
+	err = provider.VerifyRuntimeToken(ctx, git.Auth{
 		Username: username,
 		Password: password,
 	})
@@ -523,7 +523,7 @@ func getGitCertFile(ctx context.Context, values chartutil.Values, gitApiUrl stri
 	return tmpCaCertFile, nil
 }
 
-func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git chartutil.Values) (string, error) {
+func getGitPassword(ctx context.Context, opts *helmValidateValuesOptions, git chartutil.Values) (string, error) {
 	password, _ := helm.PathValue[string](git, "password.value")
 	if password != "" {
 		log.G(ctx).Debug("Got git password from \"value\" field")
@@ -549,7 +549,7 @@ func getGitPassword(ctx context.Context, opts *HelmValidateValuesOptions, git ch
 	return password, nil
 }
 
-func getValueFromSecretKeyRef(ctx context.Context, opts *HelmValidateValuesOptions, secretKeyRef chartutil.Values) (string, error) {
+func getValueFromSecretKeyRef(ctx context.Context, opts *helmValidateValuesOptions, secretKeyRef chartutil.Values) (string, error) {
 	name, err := helm.PathValue[string](secretKeyRef, "name")
 	if name == "" || err != nil {
 		return "", nil

@@ -23,13 +23,10 @@ import (
 	"strings"
 
 	"github.com/codefresh-io/cli-v2/internal/config"
-	cfgit "github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -41,9 +38,6 @@ var (
 	die  = util.Die
 	exit = os.Exit
 
-	//go:embed assets/workflows-route-patch.json
-	workflowsRoutePatch []byte
-
 	cfConfig config.Config
 
 	GREEN           = "\033[32m"
@@ -54,8 +48,6 @@ var (
 	COLOR_RESET     = "\033[0m"
 	UNDERLINE_RESET = "\033[24m"
 	BOLD_RESET      = "\033[22m"
-
-	errUserCanceledInsecureInstall = fmt.Errorf("cancelled installation due to invalid ingress host certificate")
 )
 
 func postInitCommands(commands []*cobra.Command) {
@@ -78,61 +70,6 @@ func presetRequiredFlags(cmd *cobra.Command) {
 
 func IsValidName(s string) (bool, error) {
 	return regexp.MatchString(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`, s)
-}
-
-func ensureRepo(cmd *cobra.Command, runtimeName string, cloneOpts *apgit.CloneOptions, fromAPI bool) error {
-	ctx := cmd.Context()
-	if cloneOpts.Repo != "" {
-		return nil
-	}
-
-	if fromAPI {
-		runtime, err := getRuntime(ctx, runtimeName)
-		if err != nil {
-			return fmt.Errorf("failed getting runtime repo information: %w", err)
-		}
-
-		if runtime.Repo != nil {
-			die(cmd.Flags().Set("repo", *runtime.Repo))
-			return nil
-		}
-	}
-
-	if !store.Get().Silent {
-		err := getRepoFromUserInput(cmd)
-		if err != nil {
-			return err
-		}
-	}
-
-	if cloneOpts.Repo == "" {
-		return fmt.Errorf("must enter a valid installation repository URL, using --repo")
-	}
-
-	return nil
-}
-
-func getRepoFromUserInput(cmd *cobra.Command) error {
-	repoPrompt := promptui.Prompt{
-		Label: "Repository URL",
-		Validate: func(value string) error {
-			if strings.HasPrefix(value, "http:") {
-				return fmt.Errorf("Invalid URL for Git repository - http is not allowed")
-			}
-
-			host, orgRepo, _, _, _, _, _ := aputil.ParseGitUrl(value)
-			if host != "" && orgRepo != "" {
-				return nil
-			}
-			return fmt.Errorf("Invalid URL for Git repository")
-		},
-	}
-	repoInput, err := repoPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	return cmd.Flags().Set("repo", repoInput)
 }
 
 func ensureRuntimeName(ctx context.Context, args []string, filter func(runtime *platmodel.Runtime) bool) (string, error) {
@@ -197,57 +134,6 @@ func getRuntimeNameFromUserSelect(ctx context.Context, filter func(runtime *plat
 
 	i, _, err := prompt.Run()
 	return filteredRuntimes[i].Metadata.Name, err
-}
-
-// ensureGitRuntimeToken gets the runtime token from the user (if !silent), and verifys it with he provider (if available)
-func ensureGitRuntimeToken(cmd *cobra.Command, gitProvider cfgit.Provider, cloneOpts *apgit.CloneOptions, skipPermissionsValidation bool) error {
-	ctx := cmd.Context()
-	errMessage := "Value stored in environment variable GIT_TOKEN is invalid; enter a valid runtime token: %w"
-	if cloneOpts.Auth.Password == "" && !store.Get().Silent {
-		err := getGitTokenFromUserInput(cmd)
-		errMessage = "Invalid runtime token; enter a valid token: %w"
-		if err != nil {
-			return err
-		}
-	}
-
-	if gitProvider != nil {
-		var err error
-		if skipPermissionsValidation {
-			err = gitProvider.ValidateToken(ctx, cloneOpts.Auth)
-		} else {
-			err = gitProvider.VerifyRuntimeToken(ctx, cloneOpts.Auth)
-		}
-
-		if err != nil {
-			// in case when we get invalid value from env variable TOKEN we clean
-			cloneOpts.Auth.Password = ""
-			return fmt.Errorf(errMessage, err)
-		}
-
-		if cloneOpts.Auth.Username == "" && gitProvider.Type() == cfgit.BITBUCKET {
-			return fmt.Errorf("must provide a git user using --git-user for bitbucket cloud")
-		}
-	} else if cloneOpts.Auth.Password == "" {
-		return fmt.Errorf("must provide a git token using --git-token")
-	}
-
-	return nil
-}
-
-func getGitTokenFromUserInput(cmd *cobra.Command) error {
-	gitTokenPrompt := promptui.Prompt{
-		Label: fmt.Sprintf("Runtime git token: (required scopes should be as described in: %s )", store.Get().GitTokensLink),
-		Mask:  '*',
-	}
-	gitTokenInput, err := gitTokenPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	die(cmd.Flags().Set("git-token", gitTokenInput))
-
-	return nil
 }
 
 func getApprovalFromUser(ctx context.Context, finalParameters map[string]string, description string) error {
@@ -375,32 +261,6 @@ func getIscRepo(ctx context.Context) (string, error) {
 	return *currentUser.ActiveAccount.SharedConfigRepo, nil
 }
 
-func ensureRuntimeOnKubeContext(ctx context.Context, kubeconfig string, runtimeName string, kubeContextName string) error {
-	rt, err := getRuntime(ctx, runtimeName)
-	if err != nil {
-		return err
-	}
-
-	runtimeClusterServer := rt.Cluster
-
-	kubeContextServer, err := util.KubeServerByContextName(kubeContextName, kubeconfig)
-	if err != nil {
-		return err
-	}
-
-	// in case Cluster field does not exist on runtime
-	// this is a temp solution. need to figure out why runtime is deleted from platform when uninstall fails
-	if runtimeClusterServer == nil {
-		return fmt.Errorf("failed to verify runtime is installed on the selected kubernetes context. you can use --force to bypass this check")
-	}
-
-	if *runtimeClusterServer != kubeContextServer {
-		return fmt.Errorf("runtime '%s' does not exist on context '%s'. Make sure you are providing the right kube context or use --force to bypass this check", runtimeName, kubeContextName)
-	}
-
-	return nil
-}
-
 func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, error) {
 	rt, err := cfConfig.NewClient().GraphQL().Runtime().Get(ctx, runtimeName)
 	if err != nil {
@@ -408,4 +268,17 @@ func getRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime, er
 	}
 
 	return rt, nil
+}
+
+func checkExistingRuntimes(ctx context.Context, runtime string) error {
+	_, err := getRuntime(ctx, runtime)
+	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil // runtime does not exist
+		}
+
+		return fmt.Errorf("failed to get runtime: %w", err)
+	}
+
+	return fmt.Errorf("runtime \"%s\" already exists", runtime)
 }

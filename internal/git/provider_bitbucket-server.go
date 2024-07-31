@@ -23,8 +23,6 @@ import (
 	"path"
 
 	httputil "github.com/codefresh-io/cli-v2/internal/util/http"
-
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
 type (
@@ -69,17 +67,6 @@ func (bbs *bitbucketServer) ApiURL() string {
 	return bbs.apiURL.String()
 }
 
-func (bbs *bitbucketServer) BaseURL() string {
-	urlClone := *bbs.apiURL
-	urlClone.Path = ""
-	urlClone.RawQuery = ""
-	return urlClone.String()
-}
-
-func (bbs *bitbucketServer) SupportsMarketplace() bool {
-	return false
-}
-
 func (_ *bitbucketServer) IsCloud() bool {
 	return false
 }
@@ -88,21 +75,8 @@ func (bbs *bitbucketServer) Type() ProviderType {
 	return bbs.providerType
 }
 
-func (bbs *bitbucketServer) ValidateToken(ctx context.Context, auth apgit.Auth) error {
-	_, err := bbs.getCurrentUsername(ctx, auth.Password)
-	if err != nil {
-		return fmt.Errorf("failed validate token: %w", err)
-	}
-
-	return nil
-}
-
-func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+func (bbs *bitbucketServer) VerifyRuntimeToken(ctx context.Context, auth Auth) error {
 	return bbs.checkProjectAdminPermission(ctx, auth.Password)
-}
-
-func (bbs *bitbucketServer) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
-	return bbs.checkRepoReadPermission(ctx, auth.Password)
 }
 
 // POST to users/<username>/repos with an invalid repo name (starts with "!").
@@ -126,18 +100,6 @@ func (bbs *bitbucketServer) checkProjectAdminPermission(ctx context.Context, tok
 
 	if res.StatusCode != http.StatusBadRequest {
 		return errors.New("git-token is invalid or missing required \"Project admin\" scope")
-	}
-
-	return nil
-}
-
-// if there is no username in the response headers - that means the token was invalid.
-// in bitbucket-server - all tokens have "Repository read" permission.
-// the only way to not have this permission, is to use an invalid token.
-func (bbs *bitbucketServer) checkRepoReadPermission(ctx context.Context, token string) error {
-	_, err := bbs.getCurrentUsername(ctx, token)
-	if err != nil {
-		return fmt.Errorf("failed checking Repo read permission: %w", err)
 	}
 
 	return nil

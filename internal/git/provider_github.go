@@ -23,8 +23,6 @@ import (
 	"strings"
 
 	httputil "github.com/codefresh-io/cli-v2/internal/util/http"
-
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
 type (
@@ -71,17 +69,6 @@ func (g *github) ApiURL() string {
 	return g.apiURL.String()
 }
 
-func (g *github) BaseURL() string {
-	urlClone := *g.apiURL
-	urlClone.Path = ""
-	urlClone.RawQuery = ""
-	return urlClone.String()
-}
-
-func (g *github) SupportsMarketplace() bool {
-	return true
-}
-
 func (g *github) IsCloud() bool {
 	return g.ApiURL() == GITHUB_CLOUD_API_URL
 }
@@ -90,7 +77,7 @@ func (g *github) Type() ProviderType {
 	return g.providerType
 }
 
-func (g *github) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+func (g *github) VerifyRuntimeToken(ctx context.Context, auth Auth) error {
 	tokenType, err := g.getTokenType(auth.Password)
 	if err != nil {
 		return fmt.Errorf("failed getting token type: %w", err)
@@ -106,50 +93,6 @@ func (g *github) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error 
 	}
 
 	return nil
-}
-
-func (g *github) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
-	tokenType, err := g.getTokenType(auth.Password)
-	if err != nil {
-		return fmt.Errorf("failed getting token type: %w", err)
-	}
-
-	if tokenType == "fine-grained" {
-		return fmt.Errorf("validation for github fine-grained PAT is not supported yet, please retry with --skip-permissions-validation or use a classic token")
-	}
-
-	err = g.verifyToken(ctx, auth.Password, user_token_scopes)
-	if err != nil {
-		return fmt.Errorf("personal-git-token invalid: %w", err)
-	}
-
-	return nil
-}
-
-func (g *github) ValidateToken(ctx context.Context, auth apgit.Auth) error {
-	if auth.Password == "" {
-		return fmt.Errorf("user name is require for bitbucket cloud request")
-	}
-
-	reqHeaders := map[string]string{
-		"Authorization": "token " + auth.Password,
-	}
-	req, err := httputil.NewRequest(ctx, http.MethodHead, g.apiURL.String(), reqHeaders, nil)
-	if err != nil {
-		return err
-	}
-
-	res, err := g.c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode == 401 {
-		return fmt.Errorf("invalid token")
-	}
-	return nil
-
 }
 
 func (g *github) getTokenType(token string) (string, error) {

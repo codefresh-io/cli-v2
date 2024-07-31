@@ -25,8 +25,6 @@ import (
 	"strings"
 
 	httputil "github.com/codefresh-io/cli-v2/internal/util/http"
-
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 )
 
 type (
@@ -88,17 +86,6 @@ func (bb *bitbucket) ApiURL() string {
 	return bb.apiURL.String()
 }
 
-func (bb *bitbucket) BaseURL() string {
-	urlClone := *bb.apiURL
-	urlClone.Path = ""
-	urlClone.RawQuery = ""
-	return urlClone.String()
-}
-
-func (bb *bitbucket) SupportsMarketplace() bool {
-	return false
-}
-
 func (_ *bitbucket) IsCloud() bool {
 	return true
 }
@@ -107,37 +94,12 @@ func (bb *bitbucket) Type() ProviderType {
 	return bb.providerType
 }
 
-func (bb *bitbucket) VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error {
+func (bb *bitbucket) VerifyRuntimeToken(ctx context.Context, auth Auth) error {
 	if auth.Password == "" {
 		return fmt.Errorf("user name is require for bitbucket cloud request")
 	}
 
 	return bb.verifyToken(ctx, auth.Password, auth.Username, runtimeScopes)
-}
-
-func (bb *bitbucket) VerifyUserToken(ctx context.Context, auth apgit.Auth) error {
-	if auth.Password == "" {
-		return fmt.Errorf("user name is require for bitbucket cloud request")
-	}
-	return bb.verifyToken(ctx, auth.Password, auth.Username, patScopes)
-}
-
-func (bb *bitbucket) ValidateToken(ctx context.Context, auth apgit.Auth) error {
-	if auth.Username == "" {
-		return fmt.Errorf("user name is require for bitbucket cloud request")
-	}
-
-	res, err := bb.request(ctx, auth.Username, auth.Password, http.MethodHead, "user", nil)
-	if err != nil {
-		return fmt.Errorf("failed getting current user: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode == 401 {
-		return fmt.Errorf("invalid token")
-	}
-	return nil
 }
 
 func (bb *bitbucket) verifyToken(ctx context.Context, token string, username string, requiredScopes [][]string) error {

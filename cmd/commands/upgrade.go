@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewUpgradeCommand() *cobra.Command {
+func newUpgradeCommand() *cobra.Command {
 	var opts struct {
 		version string
 		output  string

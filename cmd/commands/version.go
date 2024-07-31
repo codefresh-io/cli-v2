@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewVersionCommand() *cobra.Command {
+func newVersionCommand() *cobra.Command {
 	var opts struct {
 		long bool
 	}
