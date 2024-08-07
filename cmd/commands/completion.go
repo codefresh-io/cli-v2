@@ -17,7 +17,7 @@ package commands
 import (
 	"os"
 
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	"github.com/spf13/cobra"
 )
