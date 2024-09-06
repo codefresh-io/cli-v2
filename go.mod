@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
-	github.com/argoproj/argo-cd/v2 v2.12.0
+	github.com/argoproj/argo-cd/v2 v2.12.3
 	github.com/codefresh-io/go-sdk v1.3.4
 	github.com/fatih/color v1.16.0
 	github.com/gobuffalo/packr v1.30.1
@@ -64,6 +64,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.5.0 // indirect
+	github.com/dlclark/regexp2 v1.11.2 // indirect
 	github.com/docker/cli v25.0.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker v25.0.5+incompatible // indirect
