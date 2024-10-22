@@ -22,6 +22,7 @@ import (
 
 	"github.com/codefresh-io/cli-v2/pkg/util"
 
+	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/go-sdk/pkg/client"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/promotion-orchestrator"
 	"github.com/spf13/cobra"
@@ -36,6 +37,55 @@ type (
 		Node map[string]any `json:"node"`
 	}
 )
+
+const latest_query = `
+query getProductReleasesList(
+	$productName: String!
+	$filters: ProductReleaseFiltersArgs!
+	$pagination: SlicePaginationArgs
+) {
+	productReleases(productName: $productName, filters: $filters, pagination: $pagination) {
+		edges {
+			node {
+			releaseId
+			steps {
+				environmentName
+				status
+				promotionCommits {
+					applicationId {
+						runtime
+						namespace
+						name
+					}
+					commitSha
+				}
+			}
+			status
+			}
+		}
+	}
+}
+`
+
+const v0_13_4_query = `
+query getProductReleasesList(
+	$productName: String!
+	$filters: ProductReleaseFiltersArgs!
+	$pagination: SlicePaginationArgs
+) {
+	productReleases(productName: $productName, filters: $filters, pagination: $pagination) {
+		edges {
+			node {
+			releaseId
+			steps {
+				environmentName
+				status
+			}
+			status
+			}
+		}
+	}
+}`
 
 func NewProductReleaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -98,33 +148,7 @@ func newProductReleaseListCommand() *cobra.Command {
 
 // client here is for mock testings usage
 func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, pageLimit int) error {
-	query := `
-query getProductReleasesList(
-	$productName: String!
-	$filters: ProductReleaseFiltersArgs!
-	$pagination: SlicePaginationArgs
-) {
-	productReleases(productName: $productName, filters: $filters, pagination: $pagination) {
-		edges {
-			node {
-			releaseId
-			steps {
-				environmentName
-				status
-				promotionCommits {
-					applicationId {
-						runtime
-						namespace
-						name
-					}
-					commitSha
-				}
-			}
-			status
-			}
-		}
-	}
-}`
+
 	// add pagination - default for now is last 20
 	variables := map[string]any{
 		"filters":     filterArgs,
@@ -134,9 +158,15 @@ query getProductReleasesList(
 		},
 	}
 
-	productReleasesPage, err := client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), query, variables)
+	productReleasesPage, err := client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), latest_query, variables)
 	if err != nil {
-		return fmt.Errorf("failed to get product releases: %w", err)
+		if strings.Contains(err.Error(), "Cannot query field \\\"promotionCommits\\\" on type \\\"ProductReleaseStep\\\".") {
+			log.G().Warn("codefresh version v0.13.4 or older detected. Using v0.13.4 query which excludes promotionCommits.")
+			productReleasesPage, err = client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), v0_13_4_query, variables)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get product releases: %s", err.Error())
+		}
 	}
 
 	if len(productReleasesPage.Edges) == 0 {
