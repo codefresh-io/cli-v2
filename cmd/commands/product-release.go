@@ -48,6 +48,14 @@ query getProductReleasesList(
 		edges {
 			node {
 			releaseId
+			triggerCommit {
+  				sha
+  				committer
+  				date
+  				message
+  				repoURL
+ 				revision
+			}
 			steps {
 				environmentName
 				status
