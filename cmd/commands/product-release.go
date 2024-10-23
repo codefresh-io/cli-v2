@@ -67,7 +67,7 @@ query getProductReleasesList(
 }
 `
 
-const v0_13_4_query = `
+const pre_v1_3120_1_query = `
 query getProductReleasesList(
 	$productName: String!
 	$filters: ProductReleaseFiltersArgs!
@@ -160,9 +160,9 @@ func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductRele
 
 	productReleasesPage, err := client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), latest_query, variables)
 	if err != nil {
-		if strings.Contains(err.Error(), "Cannot query field \\\"promotionCommits\\\" on type \\\"ProductReleaseStep\\\".") {
-			log.G().Warn("codefresh version v0.13.4 or older detected. Using v0.13.4 query which excludes promotionCommits.")
-			productReleasesPage, err = client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), v0_13_4_query, variables)
+		if strings.Contains(err.Error(), "Cannot query field \\\"applications\\\" on type \\\"ProductReleaseStep\\\".") {
+			log.G().Warn("codefresh version older than v1.3120.1 detected. Using pre v1.3120.1 query which excludes applications.")
+			productReleasesPage, err = client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), pre_v1_3120_1_query, variables)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get product releases: %s", err.Error())
