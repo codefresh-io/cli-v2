@@ -51,7 +51,7 @@ query getProductReleasesList(
 			steps {
 				environmentName
 				status
-				promotionCommits {
+				applications {
 					applicationId {
 						runtime
 						namespace
