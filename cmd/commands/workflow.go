@@ -19,15 +19,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
 
-func NewWorkflowCommand() *cobra.Command {
+func newWorkflowCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "workflow",
 		Short:             "Manage workflows of Codefresh runtimes",
@@ -39,13 +39,13 @@ func NewWorkflowCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewWorkflowGetCommand())
-	cmd.AddCommand(NewWorkflowListCommand())
+	cmd.AddCommand(newWorkflowGetCommand())
+	cmd.AddCommand(newWorkflowListCommand())
 
 	return cmd
 }
 
-func NewWorkflowGetCommand() *cobra.Command {
+func newWorkflowGetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get UID",
 		Args:  cobra.MaximumNArgs(1),
@@ -59,14 +59,14 @@ func NewWorkflowGetCommand() *cobra.Command {
 				return fmt.Errorf("must enter uid")
 			}
 
-			return RunWorkflowGet(ctx, args[0])
+			return runWorkflowGet(ctx, args[0])
 		},
 	}
 
 	return cmd
 }
 
-func NewWorkflowListCommand() *cobra.Command {
+func newWorkflowListCommand() *cobra.Command {
 	var (
 		namespace string
 		runtime   string
@@ -92,7 +92,7 @@ func NewWorkflowListCommand() *cobra.Command {
 				Runtime:   &runtime,
 				Project:   &project,
 			}
-			return RunWorkflowList(ctx, filterArgs)
+			return runWorkflowList(ctx, filterArgs)
 		},
 	}
 
@@ -103,7 +103,7 @@ func NewWorkflowListCommand() *cobra.Command {
 	return cmd
 }
 
-func RunWorkflowGet(ctx context.Context, uid string) error {
+func runWorkflowGet(ctx context.Context, uid string) error {
 	workflow, err := cfConfig.NewClient().GraphQL().Workflow().Get(ctx, uid)
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func RunWorkflowGet(ctx context.Context, uid string) error {
 	return tb.Flush()
 }
 
-func RunWorkflowList(ctx context.Context, filterArgs platmodel.WorkflowsFilterArgs) error {
+func runWorkflowList(ctx context.Context, filterArgs platmodel.WorkflowsFilterArgs) error {
 	workflows, err := cfConfig.NewClient().GraphQL().Workflow().List(ctx, filterArgs)
 	if err != nil {
 		return err

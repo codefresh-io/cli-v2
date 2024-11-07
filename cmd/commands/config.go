@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"os"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
@@ -38,14 +38,14 @@ type (
 	}
 
 	updateGitOpsSettingsOpts struct {
-		gitProvider      cfgit.ProviderType
+		gitProvider      git.ProviderType
 		gitApiURL        string
 		sharedConfigRepo string
 		inferred         bool
 	}
 )
 
-func NewConfigCommand() *cobra.Command {
+func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "config",
 		Short:             "Manage Codefresh authentication contexts",
@@ -338,7 +338,7 @@ func updateGitOpsSettingsPreRunHandler(opts *updateGitOpsSettingsOpts) error {
 		baseURL = opts.gitApiURL
 	}
 
-	provider, err := cfgit.GetProvider(opts.gitProvider, baseURL, "")
+	provider, err := git.GetProvider(opts.gitProvider, baseURL, "")
 	if err != nil {
 		return err
 	}
