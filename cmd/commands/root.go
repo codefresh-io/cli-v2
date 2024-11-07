@@ -15,9 +15,9 @@
 package commands
 
 import (
-	"github.com/codefresh-io/cli-v2/pkg/config"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/config"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	"github.com/spf13/cobra"
 )

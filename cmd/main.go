@@ -19,11 +19,11 @@ import (
 	"syscall"
 
 	"github.com/codefresh-io/cli-v2/cmd/commands"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/reporter"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
-	cliutil "github.com/codefresh-io/cli-v2/pkg/util/cli"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/reporter"
+	"github.com/codefresh-io/cli-v2/internal/util"
+	apu "github.com/codefresh-io/cli-v2/internal/util/aputil"
+	cliutil "github.com/codefresh-io/cli-v2/internal/util/cli"
 
 	"github.com/sirupsen/logrus"
 )

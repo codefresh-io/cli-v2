@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"os"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"

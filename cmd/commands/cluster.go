@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/pkg/kube"
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	"github.com/codefresh-io/cli-v2/internal/kube"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
+	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
+	kustutil "github.com/codefresh-io/cli-v2/internal/util/kust"
 
 	"github.com/Masterminds/semver/v3"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"

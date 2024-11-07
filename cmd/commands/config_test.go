@@ -17,8 +17,8 @@ package commands
 import (
 	"testing"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/store"
+	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/store"
 
 	"github.com/stretchr/testify/assert"
 )

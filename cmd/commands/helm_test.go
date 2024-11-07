@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
+	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	gitmocks "github.com/codefresh-io/cli-v2/internal/git/mocks"
 
 	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"

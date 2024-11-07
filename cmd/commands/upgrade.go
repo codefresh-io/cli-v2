@@ -15,7 +15,7 @@
 package commands
 
 import (
-	cliutil "github.com/codefresh-io/cli-v2/pkg/util/cli"
+	cliutil "github.com/codefresh-io/cli-v2/internal/util/cli"
 
 	"github.com/spf13/cobra"
 )
