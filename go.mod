@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/argoproj/argo-cd/v2 v2.11.7
-	github.com/codefresh-io/go-sdk v1.3.1
+	github.com/codefresh-io/go-sdk v1.3.4
 	github.com/fatih/color v1.16.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.5.0

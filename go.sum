@@ -730,8 +730,8 @@ github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20220314180256-7f1daf1720fc/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20230105202645-06c439db220b/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codefresh-io/go-sdk v1.3.1 h1:tKDLb8gPDfk5o6hv5PkHelL8qHaxNpEJ38p6h+tx/6Q=
-github.com/codefresh-io/go-sdk v1.3.1/go.mod h1:9h1dhKQVupmt/66gWChokPfrGVFKfMMAxcfvPzh4r0U=
+github.com/codefresh-io/go-sdk v1.3.4 h1:wal0fVJzgJPMxfVvpGo6/Of8upc9ZJICNq+/aQMOHc4=
+github.com/codefresh-io/go-sdk v1.3.4/go.mod h1:9h1dhKQVupmt/66gWChokPfrGVFKfMMAxcfvPzh4r0U=
 github.com/containerd/cgroups v1.0.3 h1:ADZftAkglvCiD44c77s5YmMqaP2pzVCFZvBmAlBdAP4=
 github.com/containerd/cgroups v1.0.3/go.mod h1:/ofk34relqNjSGyqPrmEULrO4Sc8LJhvJmWbUCUKqj8=
 github.com/containerd/containerd v1.6.3 h1:JfgUEIAH07xDWk6kqz0P3ArZt+KJ9YeihSC9uyFtSKg=
