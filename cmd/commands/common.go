@@ -78,8 +78,14 @@ func ensureRuntimeName(ctx context.Context, args []string, filter func(runtime *
 		err         error
 	)
 
-	if len(args) > 0 {
-		return args[0], nil
+	if len(args) > 0 && args[0] != "" {
+		runtimeName := args[0]
+		isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
+		if isRuntimeExists == nil {
+			return "", fmt.Errorf("there is no runtime by the name: %s", runtimeName)
+		}
+
+		return runtimeName, nil
 	}
 
 	if !store.Get().Silent {

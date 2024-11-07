@@ -53,7 +53,7 @@ func newVersionCommand() *cobra.Command {
 				runtime := ""
 				var apClient ap.AppProxyAPI
 
-				if err := getAppProxyClient(&runtime, &apClient)(cmd, args); err != nil {
+				if err := getAppProxyClient(runtime, &apClient)(cmd, args); err != nil {
 					// can't create client, print error only if in debug level
 					log.G(cmd.Context()).Debug(fmt.Errorf("failed to build app proxy client: %w", err))
 					return nil

@@ -48,6 +48,8 @@ func newComponentCommand() *cobra.Command {
 }
 
 func newComponentListCommand() *cobra.Command {
+	var runtimeName string
+
 	cmd := &cobra.Command{
 		Use:   "list RUNTIME_NAME",
 		Short: "List all the components under a specific runtime",
@@ -55,15 +57,18 @@ func newComponentListCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> component list runtime_name
 		`),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			if len(args) < 1 {
-				log.G(cmd.Context()).Fatal("must enter runtime name")
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			runtimeName, err = ensureRuntimeName(cmd.Context(), args, nil)
+			if err != nil {
+				return err
 			}
+
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			return runComponentList(ctx, args[0])
+			return runComponentList(cmd.Context(), runtimeName)
 		},
 	}
 

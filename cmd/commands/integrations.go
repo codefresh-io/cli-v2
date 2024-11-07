@@ -67,7 +67,7 @@ func newIntegrationCommand() *cobra.Command {
 		Use:               "integration",
 		Aliases:           []string{"integrations", "intg"},
 		Short:             "Manage integrations with git providers, container registries and more",
-		PersistentPreRunE: getAppProxyClient(&runtime, &apClient),
+		PersistentPreRunE: getAppProxyClient(runtime, &apClient),
 		Args:              cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
@@ -405,23 +405,20 @@ func runGitIntegrationDeregisterCommand(ctx context.Context, apClient ap.AppProx
 	return nil
 }
 
-func getAppProxyClient(runtime *string, apClient *ap.AppProxyAPI) func(*cobra.Command, []string) error {
+func getAppProxyClient(runtime string, apClient *ap.AppProxyAPI) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+
 		if err := cfConfig.RequireAuthentication(cmd, args); err != nil {
 			return err
 		}
 
-		if *runtime == "" {
-			cur := cfConfig.GetCurrentContext()
-
-			if cur.DefaultRuntime == "" {
-				return fmt.Errorf("default runtime not set, you must specify the runtime name with --runtime")
-			}
-
-			*runtime = cur.DefaultRuntime
+		runtimeName, err := ensureRuntimeName(ctx, []string{runtime}, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get runtime name: %w", err)
 		}
 
-		appProxy, err := cfConfig.NewClient().AppProxy(cmd.Context(), *runtime, store.Get().InsecureIngressHost)
+		appProxy, err := cfConfig.NewClient().AppProxy(cmd.Context(), runtimeName, store.Get().InsecureIngressHost)
 		if err != nil {
 			return err
 		}
@@ -469,6 +466,7 @@ func printIntegration(i interface{}, format string) error {
 		data []byte
 		err  error
 	)
+
 	switch format {
 	case "json":
 		data, err = json.Marshal(i)
