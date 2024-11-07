@@ -22,7 +22,6 @@ import (
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/reporter"
 	"github.com/codefresh-io/cli-v2/internal/util"
-	apu "github.com/codefresh-io/cli-v2/internal/util/aputil"
 	cliutil "github.com/codefresh-io/cli-v2/internal/util/cli"
 
 	"github.com/sirupsen/logrus"
@@ -41,9 +40,6 @@ func main() {
 	cliutil.AddCLIVersionCheck(c)
 
 	lgr.AddPFlags(c)
-
-	// configure autopilot logger
-	apu.ConfigureLoggerOrDie(c)
 
 	err := c.ExecuteContext(ctx)
 	reporter.G().Close("", err)

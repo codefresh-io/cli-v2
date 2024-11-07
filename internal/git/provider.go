@@ -16,16 +16,18 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"slices"
 
 	"github.com/codefresh-io/cli-v2/internal/store"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	"github.com/manifoldco/promptui"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 //go:generate mockgen -destination=./mocks/roundTripper.go -package=mocks net/http RoundTripper
@@ -36,13 +38,15 @@ type (
 	// Provider represents a git provider
 	Provider interface {
 		ApiURL() string
-		BaseURL() string
-		SupportsMarketplace() bool
 		IsCloud() bool
 		Type() ProviderType
-		VerifyRuntimeToken(ctx context.Context, auth apgit.Auth) error
-		VerifyUserToken(ctx context.Context, auth apgit.Auth) error
-		ValidateToken(ctx context.Context, auth apgit.Auth) error
+		VerifyRuntimeToken(ctx context.Context, auth Auth) error
+	}
+
+	Auth struct {
+		Username string
+		Password string
+		CertFile string
 	}
 )
 
@@ -89,8 +93,54 @@ func (pt *ProviderType) Type() string {
 	return "ProviderType"
 }
 
+func (a *Auth) GetCertificate() ([]byte, error) {
+	if a.CertFile == "" {
+		return nil, nil
+	}
+
+	return os.ReadFile(a.CertFile)
+}
+
+func DefaultTransportWithCa(certFile string) (*http.Transport, error) {
+	rootCAs, err := getRootCas(certFile)
+	if err != nil {
+		return nil, err
+	}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{RootCAs: rootCAs}
+	return transport, nil
+}
+
+func getRootCas(certFile string) (*x509.CertPool, error) {
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("failed getting system certificates: %w", err)
+	}
+
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	if certFile == "" {
+		return rootCAs, nil
+	}
+
+	certs, err := os.ReadFile(certFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed reading certificate from %s: %w", certFile, err)
+	}
+
+	// Append our cert to the system pool
+	if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+		return nil, fmt.Errorf("failed adding certificate to rootCAs")
+	}
+
+	return rootCAs, nil
+}
+
 func getProvider(providerType ProviderType, cloneURL, certFile string) (Provider, error) {
-	transport, err := apgit.DefaultTransportWithCa(certFile)
+	transport, err := DefaultTransportWithCa(certFile)
 	if err != nil {
 		return nil, err
 	}

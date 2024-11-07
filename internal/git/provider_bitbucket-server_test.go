@@ -158,53 +158,6 @@ func Test_bitbucketServer_checkProjectAdminPermission(t *testing.T) {
 	}
 }
 
-func Test_bitbucketServer_checkRepoReadPermission(t *testing.T) {
-	tests := map[string]struct {
-		wantErr  string
-		beforeFn func(t *testing.T, c *mocks.MockRoundTripper)
-	}{
-		"Should fail if get current username fails": {
-			wantErr: "failed checking Repo read permission: failed getting current user: Head \"https://some.server/rest/api/1.0/application-properties\": some error",
-			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
-			},
-		},
-		"Should fail if token is invalid": {
-			wantErr: "failed checking Repo read permission: invalid token",
-			beforeFn: func(_ *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(&http.Response{
-					StatusCode: 200,
-				}, nil)
-			},
-		},
-		"Should succeed if there is a username": {
-			beforeFn: func(t *testing.T, c *mocks.MockRoundTripper) {
-				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(func(_ *http.Request) (*http.Response, error) {
-					header := http.Header{}
-					header.Add("X-AUSERNAME", "username")
-					res := &http.Response{
-						StatusCode: 200,
-						Header:     header,
-					}
-					return res, nil
-				})
-			},
-		},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			mockTransport := mocks.NewMockRoundTripper(ctrl)
-			tt.beforeFn(t, mockTransport)
-			bbs := newBitbucketServer(mockTransport)
-			err := bbs.checkRepoReadPermission(context.Background(), "token")
-			if err != nil || tt.wantErr != "" {
-				assert.EqualError(t, err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func Test_bitbucketServer_getCurrentUsername(t *testing.T) {
 	tests := map[string]struct {
 		want     string

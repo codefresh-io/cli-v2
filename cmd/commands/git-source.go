@@ -21,38 +21,25 @@ import (
 	"strings"
 	"time"
 
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	cfgit "github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
-	apu "github.com/codefresh-io/cli-v2/internal/util/aputil"
+
 	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type (
 	GitSourceCreateOptions struct {
-		InsCloneOpts        *apgit.CloneOptions
-		GsCloneOpts         *apgit.CloneOptions
-		GsName              string
-		RuntimeName         string
-		RuntimeNamespace    string
-		CreateDemoResources bool
-		Exclude             string
-		Include             string
-		HostName            string
-		SkipIngress         bool
-		IngressHost         string
-		IngressClass        string
-		AccessMode          platmodel.AccessMode
-		GatewayName         string
-		GatewayNamespace    string
-		GitProvider         cfgit.Provider
-		useGatewayAPI       bool
+		Repo             string
+		CreateRepo       bool
+		GsName           string
+		RuntimeName      string
+		RuntimeNamespace string
+		Exclude          string
+		Include          string
 	}
 
 	GitSourceDeleteOptions struct {
@@ -64,13 +51,13 @@ type (
 	GitSourceEditOptions struct {
 		RuntimeName string
 		GsName      string
-		GsCloneOpts *apgit.CloneOptions
+		Repo        string
 		Include     *string
 		Exclude     *string
 	}
 )
 
-func NewGitSourceCommand() *cobra.Command {
+func newGitSourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "git-source",
 		Short:             "Manage git-sources of Codefresh runtimes",
@@ -82,21 +69,20 @@ func NewGitSourceCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewGitSourceCreateCommand())
-	cmd.AddCommand(NewGitSourceListCommand())
-	cmd.AddCommand(NewGitSourceDeleteCommand())
-	cmd.AddCommand(NewGitSourceEditCommand())
+	cmd.AddCommand(newGitSourceCreateCommand())
+	cmd.AddCommand(newGitSourceListCommand())
+	cmd.AddCommand(newGitSourceDeleteCommand())
+	cmd.AddCommand(newGitSourceEditCommand())
 
 	return cmd
 }
 
-func NewGitSourceCreateCommand() *cobra.Command {
+func newGitSourceCreateCommand() *cobra.Command {
 	var (
-		gsCloneOpts *apgit.CloneOptions
-		gitProvider cfgit.Provider
-		createRepo  bool
-		include     string
-		exclude     string
+		repo       string
+		createRepo bool
+		include    string
+		exclude    string
 	)
 
 	cmd := &cobra.Command{
@@ -118,7 +104,7 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				log.G(ctx).Fatal("must enter git-source name")
 			}
 
-			if gsCloneOpts.Repo == "" {
+			if repo == "" {
 				log.G(ctx).Fatal("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name/path/to/workflow")
 			}
 
@@ -129,18 +115,6 @@ func NewGitSourceCreateCommand() *cobra.Command {
 
 			if !isValid {
 				log.G(ctx).Fatal("git-source name cannot have any uppercase letters, must start with a character, end with character or number, and be shorter than 63 chars")
-			}
-
-			if createRepo {
-				gsCloneOpts.CreateIfNotExist = createRepo
-			}
-
-			gsCloneOpts.Parse()
-
-			baseURL, _, _, _, _, _, _ := aputil.ParseGitUrl(gsCloneOpts.Repo)
-			gitProvider, err = cfgit.GetProvider(cfgit.ProviderType(gsCloneOpts.Provider), baseURL, gsCloneOpts.Auth.CertFile)
-			if err != nil {
-				log.G(ctx).Fatal("failed to infer git provider for git-source")
 			}
 
 			return nil
@@ -159,15 +133,14 @@ func NewGitSourceCreateCommand() *cobra.Command {
 				runtimeNamespace = *runtime.Metadata.Namespace
 			}
 
-			return RunGitSourceCreate(ctx, &GitSourceCreateOptions{
-				GsCloneOpts:         gsCloneOpts,
-				GitProvider:         gitProvider,
-				GsName:              args[1],
-				RuntimeName:         runtimeName,
-				RuntimeNamespace:    runtimeNamespace,
-				CreateDemoResources: false,
-				Include:             include,
-				Exclude:             exclude,
+			return runGitSourceCreate(ctx, &GitSourceCreateOptions{
+				Repo:             repo,
+				CreateRepo:       createRepo,
+				GsName:           args[1],
+				RuntimeName:      runtimeName,
+				RuntimeNamespace: runtimeNamespace,
+				Include:          include,
+				Exclude:          exclude,
 			})
 		},
 	}
@@ -175,32 +148,30 @@ func NewGitSourceCreateCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
 	cmd.Flags().StringVar(&include, "include", "", "files to include. can be either filenames or a glob")
 	cmd.Flags().StringVar(&exclude, "exclude", "", "files to exclude. can be either filenames or a glob")
+	cmd.Flags().StringVar(&repo, "git-source-repo", "", "Repository URL [%sGIT_SOURCE_GIT_REPO]")
 
-	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		Prefix:   "git-src",
-		Optional: true,
-	})
+	util.Die(viper.BindEnv("git-source-repo", "GIT_SOURCE_GIT_REPO"))
 
 	return cmd
 }
 
-func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
+func runGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error {
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
 	}
 
-	appSpecifier := opts.GsCloneOpts.Repo
 	isInternal := util.StringIndexOf(store.Get().CFInternalGitSources, opts.GsName) > -1
 
 	err = appProxy.GitSource().Create(ctx, &apmodel.CreateGitSourceInput{
 		AppName:       opts.GsName,
-		AppSpecifier:  appSpecifier,
+		AppSpecifier:  opts.Repo,
 		DestServer:    store.Get().InClusterServerURL,
 		DestNamespace: &opts.RuntimeNamespace,
 		IsInternal:    &isInternal,
 		Include:       &opts.Include,
 		Exclude:       &opts.Exclude,
+		CreateRepo:    &opts.CreateRepo,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create git-source: %w", err)
@@ -210,7 +181,7 @@ func RunGitSourceCreate(ctx context.Context, opts *GitSourceCreateOptions) error
 	return nil
 }
 
-func NewGitSourceListCommand() *cobra.Command {
+func newGitSourceListCommand() *cobra.Command {
 	var includeInternal bool
 
 	cmd := &cobra.Command{
@@ -223,7 +194,7 @@ func NewGitSourceListCommand() *cobra.Command {
 				return fmt.Errorf("must enter runtime name")
 			}
 
-			return RunGitSourceList(cmd.Context(), args[0], includeInternal)
+			return runGitSourceList(cmd.Context(), args[0], includeInternal)
 		},
 	}
 
@@ -232,7 +203,7 @@ func NewGitSourceListCommand() *cobra.Command {
 	return cmd
 }
 
-func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal bool) error {
+func runGitSourceList(ctx context.Context, runtimeName string, includeInternal bool) error {
 	isRuntimeExists := checkExistingRuntimes(ctx, runtimeName)
 	if isRuntimeExists == nil {
 		return fmt.Errorf("there is no runtime by the name: %s", runtimeName)
@@ -300,7 +271,7 @@ func RunGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 	return tb.Flush()
 }
 
-func NewGitSourceDeleteCommand() *cobra.Command {
+func newGitSourceDeleteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete RUNTIME_NAME GITSOURCE_NAME",
 		Short: "delete a git-source from a runtime",
@@ -324,10 +295,10 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			return RunGitSourceDelete(ctx, &GitSourceDeleteOptions{
+			return runGitSourceDelete(ctx, &GitSourceDeleteOptions{
 				RuntimeName: args[0],
 				GsName:      args[1],
-				Timeout:     aputil.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
+				Timeout:     util.MustParseDuration(cmd.Flag("request-timeout").Value.String()),
 			})
 		},
 	}
@@ -335,7 +306,7 @@ func NewGitSourceDeleteCommand() *cobra.Command {
 	return cmd
 }
 
-func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
+func runGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error {
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
@@ -350,11 +321,11 @@ func RunGitSourceDelete(ctx context.Context, opts *GitSourceDeleteOptions) error
 	return nil
 }
 
-func NewGitSourceEditCommand() *cobra.Command {
+func newGitSourceEditCommand() *cobra.Command {
 	var (
-		gsCloneOpts *apgit.CloneOptions
-		include     string
-		exclude     string
+		repo    string
+		include string
+		exclude string
 	)
 
 	cmd := &cobra.Command{
@@ -375,11 +346,10 @@ func NewGitSourceEditCommand() *cobra.Command {
 				return fmt.Errorf("must enter a git-source name")
 			}
 
-			if gsCloneOpts.Repo == "" {
+			if repo == "" {
 				return fmt.Errorf("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
 			}
 
-			gsCloneOpts.Parse()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -388,7 +358,7 @@ func NewGitSourceEditCommand() *cobra.Command {
 			opts := &GitSourceEditOptions{
 				RuntimeName: args[0],
 				GsName:      args[1],
-				GsCloneOpts: gsCloneOpts,
+				Repo:        repo,
 			}
 			if cmd.Flags().Changed("include") {
 				opts.Include = &include
@@ -398,22 +368,18 @@ func NewGitSourceEditCommand() *cobra.Command {
 				opts.Exclude = &exclude
 			}
 
-			return RunGitSourceEdit(ctx, opts)
+			return runGitSourceEdit(ctx, opts)
 		},
 	}
 
 	cmd.Flags().StringVar(&include, "include", "", "files to include. can be either filenames or a glob")
 	cmd.Flags().StringVar(&exclude, "exclude", "", "files to exclude. can be either filenames or a glob")
+	cmd.Flags().StringVar(&repo, "git-source-repo", "", "Repository URL [%sGIT_SOURCE_GIT_REPO]")
 
-	gsCloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		Prefix:           "git-src",
-		Optional:         true,
-		CreateIfNotExist: true,
-	})
 	return cmd
 }
 
-func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
+func runGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	appProxy, err := cfConfig.NewClient().AppProxy(ctx, opts.RuntimeName, store.Get().InsecureIngressHost)
 	if err != nil {
 		return err
@@ -421,7 +387,7 @@ func RunGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 
 	err = appProxy.GitSource().Edit(ctx, &apmodel.EditGitSourceInput{
 		AppName:      opts.GsName,
-		AppSpecifier: opts.GsCloneOpts.Repo,
+		AppSpecifier: opts.Repo,
 		Include:      opts.Include,
 		Exclude:      opts.Exclude,
 	})

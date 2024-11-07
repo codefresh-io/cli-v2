@@ -86,7 +86,7 @@ var (
 	}
 )
 
-func NewClusterCommand() *cobra.Command {
+func newClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "cluster",
 		Short:             "Manage clusters of Codefresh runtimes",

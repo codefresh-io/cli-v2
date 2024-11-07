@@ -1,3 +1,17 @@
+// Copyright 2024 The Codefresh Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package kube
 
 import (
@@ -9,13 +23,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
@@ -96,47 +107,6 @@ func AddFlags(flags *pflag.FlagSet) Factory {
 	return &factory{f: cmdutil.NewFactory(mvFlags)}
 }
 
-func DefaultIOStreams() genericclioptions.IOStreams {
-	return genericclioptions.IOStreams{
-		In:     os.Stdin,
-		Out:    os.Stdout,
-		ErrOut: os.Stderr,
-	}
-}
-
-// CurrentContext returns the name of the current kubernetes context or dies.
-func CurrentContext() (string, error) {
-	configAccess := clientcmd.NewDefaultPathOptions()
-	conf, err := configAccess.GetStartingConfig()
-	if err != nil {
-		return "", err
-	}
-
-	return conf.CurrentContext, nil
-}
-
-func GenerateNamespace(namespace string, labels map[string]string) *corev1.Namespace {
-	if labels == nil {
-		labels = map[string]string{}
-	}
-
-	namespaceObj := &corev1.Namespace{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Namespace",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-			Annotations: map[string]string{
-				"argocd.argoproj.io/sync-options": "Prune=false",
-			},
-			Labels: labels,
-		},
-	}
-
-	return namespaceObj
-}
-
 func (f *factory) KubernetesClientSet() (kubernetes.Interface, error) {
 	return f.f.KubernetesClientSet()
 }
@@ -151,7 +121,7 @@ func (f *factory) Apply(ctx context.Context, manifests []byte) error {
 		return err
 	}
 
-	cmd := apply.NewCmdApply("apply", f.f, DefaultIOStreams())
+	cmd := apply.NewCmdApply("apply", f.f, defaultIOStreams())
 
 	stdin := os.Stdin
 	os.Stdin = reader
@@ -231,4 +201,12 @@ func (f *factory) Wait(ctx context.Context, opts *WaitOptions) error {
 
 		return allReady, nil
 	})
+}
+
+func defaultIOStreams() genericclioptions.IOStreams {
+	return genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
 }

@@ -25,50 +25,12 @@ import (
 
 	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
-	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
-	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-)
-
-type (
-	ClusterRequirementsOptions struct {
-		KubeFactory        kube.Factory
-		Namespace          string
-		ContextUrl         string
-		AccessMode         platmodel.AccessMode
-		TunnelRegisterHost string
-		IsCustomInstall    bool
-	}
-
-	rbacValidation struct {
-		Namespace string
-		Resource  string
-		Verbs     []string
-		Group     string
-	}
-
-	validationRequest struct {
-		cpu        string
-		memorySize string
-		rbac       []rbacValidation
-	}
-
-	LaunchJobOptions struct {
-		Client        kubernetes.Interface
-		Namespace     string
-		ContainerName string
-		GenerateName  string
-		Image         string
-		Env           []v1.EnvVar
-		RestartPolicy v1.RestartPolicy
-		BackOffLimit  int32
-	}
 )
 
 func WaitForJob(ctx context.Context, kubeFactory kube.Factory, ns, jobName string) error {
@@ -166,40 +128,6 @@ func getPodLogs(ctx context.Context, client kubernetes.Interface, namespace, nam
 	return strings.Trim(logsBuf.String(), "\n"), nil
 }
 
-func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory kube.Factory, secret *v1.Secret) error {
-	client, err := GetClientSet(kubeFactory)
-	if err != nil {
-		return err
-	}
-
-	secret.Finalizers = nil
-	secret, err = client.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to remove finalizers from secret %s", secret.Name)
-	}
-
-	err = client.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-	if k8serrors.IsNotFound(err) {
-		return nil
-	}
-
-	return err
-}
-
-func GetSecretsWithLabel(ctx context.Context, kubeFactory kube.Factory, namespace, label string) (*v1.SecretList, error) {
-	client, err := GetClientSet(kubeFactory)
-	if err != nil {
-		return nil, err
-	}
-
-	secrets, err := client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: label})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secrets: %w", err)
-	}
-
-	return secrets, nil
-}
-
 func GetClientSet(kubeFactory kube.Factory) (kubernetes.Interface, error) {
 	cs, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
@@ -215,7 +143,7 @@ func GetClientSet(kubeFactory kube.Factory) (kubernetes.Interface, error) {
 
 func GetClientSetOrDie(kubeFactory kube.Factory) kubernetes.Interface {
 	cs, err := GetClientSet(kubeFactory)
-	aputil.Die(err)
+	util.Die(err)
 	return cs
 }
 
@@ -237,13 +165,4 @@ func GetValueFromSecret(ctx context.Context, kubeFactory kube.Factory, namespace
 	}
 
 	return value, nil
-}
-
-func GetDynamicClientOrDie(kubeFactory kube.Factory) dynamic.Interface {
-	restConfig, err := kubeFactory.ToRESTConfig()
-	if err != nil {
-		panic(err)
-	}
-
-	return dynamic.NewForConfigOrDie(restConfig)
 }

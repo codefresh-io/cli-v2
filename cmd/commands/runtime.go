@@ -23,46 +23,26 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/codefresh-io/cli-v2/internal/fs"
-	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/reporter"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
-	apu "github.com/codefresh-io/cli-v2/internal/util/aputil"
-	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
 
-	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
-	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argocdv1alpha1cs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/manifoldco/promptui"
-	"github.com/rkrmr33/checklist"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
 	RuntimeUninstallOptions struct {
 		RuntimeName      string
-		Timeout          time.Duration
-		CloneOpts        *apgit.CloneOptions
-		KubeFactory      kube.Factory
-		SkipChecks       bool
 		Force            bool
-		FastExit         bool
 		DisableTelemetry bool
-		Managed          bool
-
-		kubeContext            string
-		skipAutopilotUninstall bool
-		runtimeNamespace       string
 	}
 
 	summaryLogLevels string
@@ -80,7 +60,7 @@ const (
 
 var summaryArr []summaryLog
 
-func NewRuntimeCommand() *cobra.Command {
+func newRuntimeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "runtime",
 		Short:             "Manage Codefresh runtimes",
@@ -93,12 +73,27 @@ func NewRuntimeCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewRuntimeInstallCommand())
-	cmd.AddCommand(NewRuntimeListCommand())
-	cmd.AddCommand(NewRuntimeUninstallCommand())
-	cmd.AddCommand(NewRuntimeUpgradeCommand())
-	cmd.AddCommand(NewRuntimeLogsCommand())
+	cmd.AddCommand(newRuntimeListCommand())
+	cmd.AddCommand(newRuntimeUninstallCommand())
+	cmd.AddCommand(newRuntimeUpgradeCommand())
+	cmd.AddCommand(newRuntimeLogsCommand())
 
 	cmd.PersistentFlags().BoolVar(&store.Get().Silent, "silent", false, "Disables the command wizard")
+
+	return cmd
+}
+
+func NewRuntimeInstallCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:        "install [runtime_name]",
+		Deprecated: "We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return errors.New(`We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.
+As of January 30, 2024, CLI-based Runtimes are no longer supported.
+If you're currently using CLI-based Hybrid GitOps Runtimes, we encourage you to migrate to Helm by following our migration guidelines (https://codefresh.io/docs/docs/installation/gitops/migrate-cli-runtimes-helm).
+For Helm installation, review our documentation on installing Hybrid GitOps Runtimes (https://codefresh.io/docs/docs/installation/gitops/hybrid-gitops-helm-installation).`)
+		},
+	}
 
 	return cmd
 }
@@ -124,56 +119,8 @@ func runtimeUninstallCommandPreRunHandler(cmd *cobra.Command, args []string, opt
 		return errors.New("This runtime was installed using Helm, please use Helm to uninstall it as well.")
 	}
 
-	opts.Managed = rt.Managed
-	if !opts.Managed {
-		opts.kubeContext, err = getKubeContextName(cmd.Flag("context"), cmd.Flag("kubeconfig"))
-	}
-
-	opts.runtimeNamespace, _ = cmd.Flags().GetString("namespace")
-	if opts.runtimeNamespace == "" {
-		opts.runtimeNamespace = opts.RuntimeName
-	}
-
-	if rt.Metadata.Namespace != nil {
-		opts.runtimeNamespace = *rt.Metadata.Namespace
-	}
-
-	handleCliStep(reporter.UninstallStepPreCheckGetKubeContext, "Getting kube context name", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	if !opts.Managed {
-		kubeconfig := cmd.Flag("kubeconfig").Value.String()
-		err = ensureRuntimeOnKubeContext(ctx, kubeconfig, opts.RuntimeName, opts.kubeContext)
-
-		if err != nil && opts.Force {
-			log.G(ctx).Warn("Failed to verify runtime is installed on the selected kubernetes context, installation repository will not be cleaned")
-			err = nil
-			opts.skipAutopilotUninstall = true // will not touch the cluster and repo
-		}
-	}
-
-	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeOnKubeContext, "Ensuring runtime is on the kube context", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	if !opts.Managed {
-		err = ensureRepo(cmd, opts.RuntimeName, opts.CloneOpts, true)
-	}
-	handleCliStep(reporter.UninstallStepPreCheckEnsureRuntimeRepo, "Getting runtime repo", err, true, false)
-	if err != nil {
-		return err
-	}
-
-	if !opts.Managed {
-		err = ensureGitRuntimeToken(cmd, nil, opts.CloneOpts, true)
-	}
-
-	handleCliStep(reporter.UninstallStepPreCheckEnsureGitToken, "Getting git token", err, true, false)
-	if err != nil {
-		return err
+	if !rt.Managed {
+		return errors.New("The runtime uninstall command is only supported for managed runtimes")
 	}
 
 	return nil
@@ -191,7 +138,7 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 	}
 
 	for _, intg := range integrations {
-		if err = RunGitIntegrationRemoveCommand(ctx, apClient, intg.Name); err != nil {
+		if err = runGitIntegrationRemoveCommand(ctx, apClient, intg.Name); err != nil {
 			command := util.Doc(fmt.Sprintf("\t<BIN> integration git remove %s", intg.Name))
 
 			return fmt.Errorf(`%w. You can try to remove it manually by running: %s`, err, command)
@@ -203,7 +150,7 @@ func removeGitIntegrations(ctx context.Context, opts *RuntimeUninstallOptions) e
 	return nil
 }
 
-func NewRuntimeListCommand() *cobra.Command {
+func newRuntimeListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
@@ -306,7 +253,7 @@ func runRuntimeList(ctx context.Context) error {
 	return tb.Flush()
 }
 
-func NewRuntimeUninstallCommand() *cobra.Command {
+func newRuntimeUninstallCommand() *cobra.Command {
 	var (
 		opts            RuntimeUninstallOptions
 		finalParameters map[string]string
@@ -348,21 +295,12 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 			finalParameters = map[string]string{
 				"Codefresh context": cfConfig.GetCurrentContext().Name,
 				"Runtime name":      opts.RuntimeName,
-				"Runtime namespace": opts.runtimeNamespace,
-			}
-
-			if !opts.Managed {
-				finalParameters["Kube context"] = opts.kubeContext
-				finalParameters["Repository URL"] = opts.CloneOpts.Repo
-				opts.CloneOpts.Parse()
 			}
 
 			err = getApprovalFromUser(ctx, finalParameters, "runtime uninstall")
 			if err != nil {
 				return err
 			}
-
-			opts.Timeout = store.Get().WaitTimeout
 
 			return nil
 		},
@@ -373,18 +311,10 @@ func NewRuntimeUninstallCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.SkipChecks, "skip-checks", false, "If true, will not verify that runtime exists before uninstalling")
 	cmd.Flags().DurationVar(&store.Get().WaitTimeout, "wait-timeout", store.Get().WaitTimeout, "How long to wait for the runtime components to be deleted")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "If true, will guarantee the runtime is removed from the platform, even in case of errors while cleaning the repo and the cluster")
-	cmd.Flags().BoolVar(&opts.FastExit, "fast-exit", false, "If true, will not wait for deletion of cluster resources. This means that full resource deletion will not be verified")
 	cmd.Flags().BoolVar(&opts.DisableTelemetry, "disable-telemetry", false, "If true, will disable the analytics reporting for the uninstall process")
 	_ = cmd.Flags().MarkDeprecated("skip-checks", "this flag was removed, runtime must exist on platform for uninstall to run")
-
-	opts.CloneOpts = apu.AddCloneFlags(cmd, &apu.CloneFlagsOptions{
-		CloneForWrite: true,
-		Optional:      true,
-	})
-	opts.KubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -419,200 +349,21 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		return err
 	}
 
-	if !opts.skipAutopilotUninstall {
-		subCtx, cancel := context.WithCancel(ctx)
-		go func() {
-			if err := printApplicationsState(subCtx, opts.RuntimeName, opts.KubeFactory, opts.Managed); err != nil {
-				log.G(ctx).WithError(err).Debug("failed to print uninstallation progress")
-			}
-		}()
-
-		if !opts.Managed {
-			err = apcmd.RunRepoUninstall(ctx, &apcmd.RepoUninstallOptions{
-				Namespace:       opts.runtimeNamespace,
-				KubeContextName: opts.kubeContext,
-				Timeout:         opts.Timeout,
-				CloneOptions:    opts.CloneOpts,
-				KubeFactory:     opts.KubeFactory,
-				Force:           opts.Force,
-				FastExit:        opts.FastExit,
-			})
-		}
-		cancel() // to tell the progress to stop displaying even if it's not finished
-		if opts.Force {
-			err = nil
-		}
-	}
-	handleCliStep(reporter.UninstallStepUninstallRepo, "Uninstalling repo", err, false, !opts.Managed && !opts.skipAutopilotUninstall)
-	if err != nil {
-		summaryArr = append(summaryArr, summaryLog{"you can attempt to uninstall again with the \"--force\" flag", Info})
-		return err
-	}
-
 	err = deleteRuntimeFromPlatform(ctx, opts)
-	if opts.Managed {
-		log.G(ctx).Infof("It may take up to 5 minutes until your hosted runtime will be fully deleted")
-	}
-	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, !opts.Managed)
+	handleCliStep(reporter.UninstallStepDeleteRuntimeFromPlatform, "Deleting runtime from platform", err, false, false)
 	if err != nil {
 		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
 
+	log.G(ctx).Infof("It may take up to 5 minutes until your hosted runtime will be fully deleted")
 	if cfConfig.GetCurrentContext().DefaultRuntime == opts.RuntimeName {
 		cfConfig.GetCurrentContext().DefaultRuntime = ""
-	}
-
-	if !opts.Managed {
-		err = runPostUninstallCleanup(ctx, opts.KubeFactory, opts.runtimeNamespace)
-		if err != nil {
-			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
-			if !opts.Force {
-				return fmt.Errorf(errorMsg)
-			}
-			log.G().Warn(errorMsg)
-		}
 	}
 
 	uninstallDoneStr := fmt.Sprintf("Done uninstalling runtime \"%s\"", opts.RuntimeName)
 	appendLogToSummary(uninstallDoneStr, nil)
 
 	return nil
-}
-
-func runPostUninstallCleanup(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
-	sealedSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorSealedSecret)
-	if err != nil {
-		return err
-	}
-
-	gitIntegrationSecrets, err := kubeutil.GetSecretsWithLabel(ctx, kubeFactory, namespace, store.Get().LabelSelectorGitIntegrationSecret)
-	if err != nil {
-		return err
-	}
-
-	secrets := append(sealedSecrets.Items, gitIntegrationSecrets.Items...)
-
-	for _, secret := range secrets {
-		err = kubeutil.DeleteSecretWithFinalizer(ctx, kubeFactory, &secret)
-		if err != nil {
-			log.G().Warnf("failed to delete secret: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func printApplicationsState(ctx context.Context, runtime string, f kube.Factory, managed bool) error {
-	if managed {
-		return nil
-	}
-
-	apps := map[string]*argocdv1alpha1.Application{}
-	lock := sync.Mutex{}
-
-	rc, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-
-	cs, err := argocdv1alpha1cs.NewForConfig(rc)
-	if err != nil {
-		return err
-	}
-
-	appIf := cs.ArgoprojV1alpha1().Applications(runtime)
-	componentsLabelSelector := fmt.Sprintf("%s=%s", store.Get().LabelKeyCFType, store.Get().CFComponentType)
-
-	curApps, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: componentsLabelSelector})
-	if err != nil {
-		return err
-	}
-
-	if len(curApps.Items) == 0 {
-		// all apps already deleted nothing to wait for
-		return nil
-	}
-
-	for i, a := range curApps.Items {
-		apps[a.Name] = &curApps.Items[i]
-	}
-
-	// refresh components state
-	go func() {
-		t := time.NewTicker(time.Second)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-			}
-
-			curApps, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: componentsLabelSelector})
-			if err != nil {
-				log.G(ctx).WithError(err).Debug("failed to refresh components state")
-				continue
-			}
-
-			newApps := make(map[string]*argocdv1alpha1.Application, len(curApps.Items))
-			for i, a := range curApps.Items {
-				newApps[a.Name] = &curApps.Items[i]
-			}
-
-			lock.Lock()
-			// update existing
-			for i, a := range curApps.Items {
-				apps[a.Name] = &curApps.Items[i]
-			}
-
-			// clear deleted apps
-			for name := range apps {
-				if _, ok := newApps[name]; !ok {
-					delete(apps, name)
-				}
-			}
-			lock.Unlock()
-		}
-	}()
-
-	checkers := make([]checklist.Checker, len(curApps.Items))
-	for i, a := range curApps.Items {
-		name := a.Name
-		checkers[i] = func(_ context.Context) (checklist.ListItemState, checklist.ListItemInfo) {
-			lock.Lock()
-			defer lock.Unlock()
-			return getApplicationChecklistState(name, apps[name], runtime)
-		}
-	}
-
-	cl := checklist.NewCheckList(
-		os.Stdout,
-		checklist.ListItemInfo{"COMPONENT", "STATUS"},
-		checkers,
-		&checklist.CheckListOptions{
-			WaitAllReady: true,
-		},
-	)
-
-	if err := cl.Start(ctx); err != nil && ctx.Err() == nil {
-		return err
-	}
-
-	return nil
-}
-
-func getApplicationChecklistState(name string, a *argocdv1alpha1.Application, runtime string) (checklist.ListItemState, checklist.ListItemInfo) {
-	state := checklist.Waiting
-	name = strings.TrimPrefix(name, fmt.Sprintf("%s-", runtime))
-	status := "N/A"
-
-	if a == nil {
-		status = "Deleted"
-		state = checklist.Ready
-	} else if string(a.Status.Health.Status) != "" {
-		status = string(a.Status.Health.Status)
-	}
-
-	return state, []string{name, status}
 }
 
 func removeRuntimeIsc(ctx context.Context, runtimeName string) error {
@@ -653,14 +404,14 @@ func deleteRuntimeFromPlatform(ctx context.Context, opts *RuntimeUninstallOption
 	log.G(ctx).Infof("Deleting runtime \"%s\" from the platform", opts.RuntimeName)
 	_, err := cfConfig.NewClient().GraphQL().Runtime().Delete(ctx, opts.RuntimeName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete runtime from the platform: %w", err)
 	}
 
 	log.G(ctx).Infof("Successfully deleted runtime \"%s\" from the platform", opts.RuntimeName)
 	return nil
 }
 
-func NewRuntimeUpgradeCommand() *cobra.Command {
+func newRuntimeUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:        "upgrade [RUNTIME_NAME]",
 		Deprecated: "We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.",
@@ -675,7 +426,7 @@ For Helm installation, review our documentation on installing Hybrid GitOps Runt
 	return cmd
 }
 
-func NewRuntimeLogsCommand() *cobra.Command {
+func newRuntimeLogsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs [--ingress-host <url>] [--download]",
 		Short: "Work with current runtime logs",
