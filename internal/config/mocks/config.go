@@ -67,21 +67,6 @@ func (mr *MockConfigMockRecorder) DeleteContext(name interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContext", reflect.TypeOf((*MockConfig)(nil).DeleteContext), name)
 }
 
-// GetAccountId mocks base method.
-func (m *MockConfig) GetAccountId(ctx context.Context) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAccountId", ctx)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetAccountId indicates an expected call of GetAccountId.
-func (mr *MockConfigMockRecorder) GetAccountId(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAccountId", reflect.TypeOf((*MockConfig)(nil).GetAccountId), ctx)
-}
-
 // GetCurrentContext mocks base method.
 func (m *MockConfig) GetCurrentContext() *config.AuthContext {
 	m.ctrl.T.Helper()
