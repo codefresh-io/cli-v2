@@ -25,13 +25,11 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/internal/fs"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/reporter"
 	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
 
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/manifoldco/promptui"
@@ -495,16 +493,6 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	defer fileDescriptor.Close()
 	_, err = io.Copy(fileDescriptor, response.Body)
 	return err
-}
-
-var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
-	proj := &argocdv1alpha1.AppProject{}
-	appSet := &argocdv1alpha1.ApplicationSet{}
-	if err := repofs.ReadYamls(name, proj, appSet); err != nil {
-		return nil, nil, err
-	}
-
-	return proj, appSet, nil
 }
 
 func handleCliStep(step reporter.CliStep, message string, err error, preStep bool, appendToLog bool) {

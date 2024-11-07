@@ -420,20 +420,3 @@ func runGitSourceEdit(ctx context.Context, opts *GitSourceEditOptions) error {
 	log.G(ctx).Infof("Successfully edited git-source: \"%s\"", opts.GsName)
 	return nil
 }
-
-func nestedMapLookup(m map[string]interface{}, ks ...string) (rval interface{}, mm map[string]interface{}) {
-	var ok bool
-
-	if len(ks) == 0 {
-		return nil, nil
-	}
-	if rval, ok = m[ks[0]]; !ok {
-		return nil, nil
-	} else if len(ks) == 1 {
-		return rval, m
-	} else if m, ok = rval.(map[string]interface{}); !ok {
-		return nil, nil
-	} else {
-		return nestedMapLookup(m, ks[1:]...)
-	}
-}

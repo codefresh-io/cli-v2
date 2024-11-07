@@ -42,12 +42,6 @@ const (
 )
 
 var (
-	patScopes = [][]string{
-		{"repository:admin", "repository:write"},
-		{"account:read", "account:write"},
-		{"team", "team:write"},
-	}
-
 	runtimeScopes = [][]string{
 		{"repository:admin"},
 		{"account:read", "account:write"},

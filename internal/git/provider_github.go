@@ -41,10 +41,7 @@ const (
 	GITHUB_ENT           ProviderType = "github-enterpeise" // for backward compatability
 )
 
-var (
-	runtime_token_scopes = []string{"repo", "admin:repo_hook"}
-	user_token_scopes    = []string{"repo"}
-)
+var runtime_token_scopes = []string{"repo", "admin:repo_hook"}
 
 func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
 	u, err := url.Parse(baseURL)
