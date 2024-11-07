@@ -42,7 +42,6 @@ func BuildKustomization(k *kusttypes.Kustomization) ([]byte, error) {
 	}
 
 	opts := krusty.MakeDefaultOptions()
-	opts.DoLegacyResourceSort = true
 	kust := krusty.MakeKustomizer(opts)
 	fs := filesys.MakeFsOnDisk()
 	res, err := kust.Run(fs, td)
