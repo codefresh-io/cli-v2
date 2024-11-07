@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
-	github.com/argoproj/argo-cd/v2 v2.11.4
+	github.com/argoproj/argo-cd/v2 v2.11.7
 	github.com/codefresh-io/go-sdk v1.3.1
 	github.com/fatih/color v1.16.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -43,7 +43,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
-	github.com/argoproj/gitops-engine v0.7.1-0.20240702153804-5995eca2fb63 // indirect
+	github.com/argoproj/gitops-engine v0.7.1-0.20240715141605-18ba62e1f1fb // indirect
 	github.com/argoproj/pkg v0.13.7-0.20230901113346-235a5432ec98 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
