@@ -5,7 +5,7 @@ go 1.23.3
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/argoproj/argo-cd/v2 v2.12.7
-	github.com/codefresh-io/go-sdk v1.3.4
+	github.com/codefresh-io/go-sdk v1.4.0
 	github.com/fatih/color v1.17.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.6.0
