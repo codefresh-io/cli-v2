@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	"github.com/manifoldco/promptui"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -183,7 +183,7 @@ func CreateIngress(opts *CreateRouteOpts) *netv1.Ingress {
 	return ingress
 }
 
-func ValidateIngressController(ctx context.Context, kubeFactory apkube.Factory, requestedIngressClass string) (RoutingController, string, error) {
+func ValidateIngressController(ctx context.Context, kubeFactory kube.Factory, requestedIngressClass string) (RoutingController, string, error) {
 	var (
 		ingressController RoutingController
 		ingressClass      string
@@ -192,7 +192,7 @@ func ValidateIngressController(ctx context.Context, kubeFactory apkube.Factory, 
 
 	log.G(ctx).Info("Retrieving ingress class info from your cluster...\n")
 
-	cs := kube.GetClientSetOrDie(kubeFactory)
+	cs := kubeutil.GetClientSetOrDie(kubeFactory)
 	ingressClassList, err := cs.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get ingress class list from your cluster: %w", err)

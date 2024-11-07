@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	httproute "github.com/codefresh-io/cli-v2/pkg/util/routing/types"
 
-	apkkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -113,9 +113,9 @@ var SupportedGatewayControllers = []gatewayControllerType{GatewayControllerConto
 //	return httpRouteRules
 //}
 
-func ValidateGatewayController(ctx context.Context, kubeFactory apkkube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
+func ValidateGatewayController(ctx context.Context, kubeFactory kube.Factory, gatewayName, gatewayNamespace string) (RoutingController, error) {
 	// Get Gateway
-	cs := kube.GetDynamicClientOrDie(kubeFactory)
+	cs := kubeutil.GetDynamicClientOrDie(kubeFactory)
 	gatewayResourceId := schema.GroupVersionResource{
 		Group:    "gateway.networking.k8s.io",
 		Version:  "v1beta1",

@@ -22,20 +22,20 @@ import (
 
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/codefresh-io/cli-v2/pkg/fs"
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/templates"
 	"github.com/codefresh-io/cli-v2/pkg/util"
 	apu "github.com/codefresh-io/cli-v2/pkg/util/aputil"
 	"github.com/codefresh-io/cli-v2/pkg/util/helm"
-	"github.com/codefresh-io/cli-v2/pkg/util/kube"
+	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
 	"github.com/go-git/go-billy/v5/memfs"
 
 	apcmd "github.com/argoproj-labs/argocd-autopilot/cmd/commands"
 	apargocd "github.com/argoproj-labs/argocd-autopilot/pkg/argocd"
-	apfs "github.com/argoproj-labs/argocd-autopilot/pkg/fs"
 	apgit "github.com/argoproj-labs/argocd-autopilot/pkg/git"
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	apstore "github.com/argoproj-labs/argocd-autopilot/pkg/store"
 	aev1alpha1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
@@ -55,7 +55,7 @@ type (
 		cloneOpts       *apgit.CloneOptions
 		helm            helm.Helm
 		kubeContext     string
-		kubeFactory     apkube.Factory
+		kubeFactory     kube.Factory
 
 		runtimeNamespace string
 		runtimeRepo      string
@@ -125,7 +125,7 @@ func NewMigrateCommand() *cobra.Command {
 		Optional:         false,
 	})
 	opts.helm, _ = helm.AddFlags(cmd.Flags())
-	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
+	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 	util.Die(cobra.MarkFlagRequired(cmd.Flags(), "helm-release-name"))
 
 	return cmd
@@ -160,7 +160,7 @@ func runHelmMigrate(ctx context.Context, opts *MigrateOptions) error {
 	}
 
 	log.G(ctx).Infof("Cloned installation repo %q", opts.runtimeRepo)
-	destFs := apfs.Create(memfs.New())
+	destFs := fs.Create(memfs.New())
 	if isSharedConfigInInstallationRepo(opts.sharedConfigRepo, opts.runtimeRepo) {
 		destFs = opts.cloneOpts.FS
 	}
@@ -244,7 +244,7 @@ func getCliRuntime(ctx context.Context, runtimeName string) (*platmodel.Runtime,
 	return runtime, nil
 }
 
-func moveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs, destFs apfs.FS, opts *MigrateOptions) error {
+func moveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs, destFs fs.FS, opts *MigrateOptions) error {
 	projects, err := getProjects(srcFs)
 	if err != nil {
 		return err
@@ -267,7 +267,7 @@ func moveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs, destFs
 	return nil
 }
 
-func getProjects(srcFs apfs.FS) ([]projectData, error) {
+func getProjects(srcFs fs.FS) ([]projectData, error) {
 	res := []projectData{}
 	projects, err := billyUtils.Glob(srcFs, "/projects/*.yaml")
 	if err != nil {
@@ -314,7 +314,7 @@ func getClusterGlobs(projects []projectData) []globData {
 	return res
 }
 
-func preserveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs apfs.FS, opts *MigrateOptions, projects []projectData) error {
+func preserveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs fs.FS, opts *MigrateOptions, projects []projectData) error {
 	var err error
 	log.G(ctx).Info("Preserving Application resources on deletion")
 	err = setPreserveResourcesOnDeletion(ctx, srcRepo, srcFs, opts, projects, true)
@@ -337,7 +337,7 @@ func preserveGitSources(ctx context.Context, srcRepo apgit.Repository, srcFs apf
 	return nil
 }
 
-func setPreserveResourcesOnDeletion(ctx context.Context, srcRepo apgit.Repository, srcFs apfs.FS, opts *MigrateOptions, projects []projectData, preserve bool) error {
+func setPreserveResourcesOnDeletion(ctx context.Context, srcRepo apgit.Repository, srcFs fs.FS, opts *MigrateOptions, projects []projectData, preserve bool) error {
 	for _, project := range projects {
 		project.appSet.Spec.SyncPolicy.PreserveResourcesOnDeletion = preserve
 		err := srcFs.WriteYamls(project.filePath, project.project, project.appSet)
@@ -355,7 +355,7 @@ func setPreserveResourcesOnDeletion(ctx context.Context, srcRepo apgit.Repositor
 	return nil
 }
 
-func removeGitSourceGenerator(ctx context.Context, srcRepo apgit.Repository, srcFs apfs.FS, opts *MigrateOptions, projects []projectData) error {
+func removeGitSourceGenerator(ctx context.Context, srcRepo apgit.Repository, srcFs fs.FS, opts *MigrateOptions, projects []projectData) error {
 	for _, project := range projects {
 		for _, generator := range project.appSet.Spec.Generators {
 			if generator.Git == nil {
@@ -401,12 +401,12 @@ func persistAndWaitForSync(ctx context.Context, srcRepo apgit.Repository, opts *
 	return nil
 }
 
-func waitForSync(ctx context.Context, f apkube.Factory, namespace, revision string) error {
+func waitForSync(ctx context.Context, f kube.Factory, namespace, revision string) error {
 	log.G(ctx).Infof("Waiting for Argo-CD App sync to revision %s", revision)
-	return f.Wait(ctx, &apkube.WaitOptions{
+	return f.Wait(ctx, &kube.WaitOptions{
 		Interval: apstore.Default.WaitInterval,
 		Timeout:  store.Get().WaitTimeout,
-		Resources: []apkube.Resource{
+		Resources: []kube.Resource{
 			{
 				Name:      apstore.Default.BootsrtrapAppName,
 				Namespace: namespace,
@@ -416,7 +416,7 @@ func waitForSync(ctx context.Context, f apkube.Factory, namespace, revision stri
 	})
 }
 
-func moveClusterGitSources(srcFs, destFs apfs.FS, glob, runtimeName, clusterName string) error {
+func moveClusterGitSources(srcFs, destFs fs.FS, glob, runtimeName, clusterName string) error {
 	if clusterName == runtimeName {
 		clusterName = store.Get().InClusterName
 	}
@@ -436,7 +436,7 @@ func moveClusterGitSources(srcFs, destFs apfs.FS, glob, runtimeName, clusterName
 	return nil
 }
 
-func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName, clusterName string) error {
+func moveSingleGitSource(srcFs, destFs fs.FS, configPath, runtimeName, clusterName string) error {
 	config := &templates.GitSourceConfig{}
 	err := srcFs.ReadJson(configPath, config)
 	if err != nil {
@@ -474,7 +474,7 @@ func moveSingleGitSource(srcFs, destFs apfs.FS, configPath, runtimeName, cluster
 	return nil
 }
 
-func moveArgoRollouts(ctx context.Context, srcFs, destFs apfs.FS, opts *MigrateOptions) error {
+func moveArgoRollouts(ctx context.Context, srcFs, destFs fs.FS, opts *MigrateOptions) error {
 	rolloutsOverlaysPath := srcFs.Join("apps", "rollouts", "overlays")
 	rolloutsOverlays, err := srcFs.ReadDir(rolloutsOverlaysPath)
 	if err != nil {
@@ -505,7 +505,7 @@ func moveArgoRollouts(ctx context.Context, srcFs, destFs apfs.FS, opts *MigrateO
 	return nil
 }
 
-func moveClusterArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
+func moveClusterArgoRollouts(srcFs, destFs fs.FS, opts *MigrateOptions, clusterName string) error {
 	err := createClusterArgoRollouts(destFs, opts, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed creating argo-rollouts: %w", err)
@@ -520,7 +520,7 @@ func moveClusterArgoRollouts(srcFs, destFs apfs.FS, opts *MigrateOptions, cluste
 	return nil
 }
 
-func createClusterArgoRollouts(destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
+func createClusterArgoRollouts(destFs fs.FS, opts *MigrateOptions, clusterName string) error {
 	appName := addSuffix(clusterName, "-"+store.Get().RolloutResourceName, 63)
 	repoURL, targetRevision, err := opts.helm.GetDependency("argo-rollouts")
 	if err != nil {
@@ -545,7 +545,7 @@ func createClusterArgoRollouts(destFs apfs.FS, opts *MigrateOptions, clusterName
 	return nil
 }
 
-func moveClusterRolloutReporter(srcFs, destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
+func moveClusterRolloutReporter(srcFs, destFs fs.FS, opts *MigrateOptions, clusterName string) error {
 	err := createClusterRolloutReporter(destFs, opts, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed creating rollout-reporter: %w", err)
@@ -567,7 +567,7 @@ func moveClusterRolloutReporter(srcFs, destFs apfs.FS, opts *MigrateOptions, clu
 	return nil
 }
 
-func createClusterRolloutReporter(destFs apfs.FS, opts *MigrateOptions, clusterName string) error {
+func createClusterRolloutReporter(destFs fs.FS, opts *MigrateOptions, clusterName string) error {
 	name := addSuffix(clusterName, "-"+store.Get().RolloutReporterName, 63)
 	triggerUrl, err := url.JoinPath(cfConfig.GetCurrentContext().URL, store.Get().EventReportingEndpoint)
 	if err != nil {
@@ -592,7 +592,7 @@ func createClusterRolloutReporter(destFs apfs.FS, opts *MigrateOptions, clusterN
 	return nil
 }
 
-func createRbacInIsc(destFs apfs.FS, opts *MigrateOptions) error {
+func createRbacInIsc(destFs fs.FS, opts *MigrateOptions) error {
 	yaml, err := templates.RenderRBAC(&templates.RbacConfig{
 		Namespace: opts.runtimeNamespace,
 	})
@@ -608,7 +608,7 @@ func createRbacInIsc(destFs apfs.FS, opts *MigrateOptions) error {
 	return nil
 }
 
-func writeYamlInIsc(destFs apfs.FS, fileName, runtimeName, clusterName string, data []byte) error {
+func writeYamlInIsc(destFs fs.FS, fileName, runtimeName, clusterName string, data []byte) error {
 	relPath := destFs.Join(runtimeName, fileName+".yaml")
 	fullPAth := destFs.Join("resources", relPath)
 	err := billyUtils.WriteFile(destFs, fullPAth, data, 0666)
@@ -619,7 +619,7 @@ func writeYamlInIsc(destFs apfs.FS, fileName, runtimeName, clusterName string, d
 	return addPathToClusterApp(destFs, runtimeName, clusterName, relPath)
 }
 
-func addPathToClusterApp(destFs apfs.FS, runtimeName, clusterName, path string) error {
+func addPathToClusterApp(destFs fs.FS, runtimeName, clusterName, path string) error {
 	filename := destFs.Join("runtimes", runtimeName, clusterName+".yaml")
 	app := &argocdv1alpha1.Application{}
 	err := destFs.ReadYamls(filename, app)
@@ -662,7 +662,7 @@ func addSuffix(str, suffix string, length int) string {
 	return str[:length-len(suffix)] + suffix
 }
 
-func removeFromCluster(ctx context.Context, releaseName, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory apkube.Factory) error {
+func removeFromCluster(ctx context.Context, releaseName, runtimeNamespace, kubeContext string, cloneOptions *apgit.CloneOptions, kubeFactory kube.Factory) error {
 	err := switchManagedByLabel(ctx, kubeFactory, runtimeNamespace)
 	if err != nil {
 		return fmt.Errorf("failed preserving codefresh token secret: %w", err)
@@ -699,8 +699,8 @@ func removeFromCluster(ctx context.Context, releaseName, runtimeNamespace, kubeC
 	return nil
 }
 
-func switchManagedByLabel(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
-	secretsInterface := kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace)
+func switchManagedByLabel(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+	secretsInterface := kubeutil.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace)
 	secrets, err := secretsInterface.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", apstore.Default.LabelKeyAppManagedBy, apstore.Default.LabelValueManagedBy),
 	})
@@ -724,13 +724,13 @@ func switchManagedByLabel(ctx context.Context, kubeFactory apkube.Factory, names
 	return nil
 }
 
-func removeArgoEventsResources(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
-	err := kube.GetDynamicClientOrDie(kubeFactory).Resource(EventSourceGVR).Namespace(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
+func removeArgoEventsResources(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+	err := kubeutil.GetDynamicClientOrDie(kubeFactory).Resource(EventSourceGVR).Namespace(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed deleting event sources: %w", err)
 	}
 
-	err = kube.GetDynamicClientOrDie(kubeFactory).Resource(SensorGVR).Namespace(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
+	err = kubeutil.GetDynamicClientOrDie(kubeFactory).Resource(SensorGVR).Namespace(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed deleting sensors: %w", err)
 	}
@@ -738,9 +738,9 @@ func removeArgoEventsResources(ctx context.Context, kubeFactory apkube.Factory, 
 	return nil
 }
 
-func patchCrds(ctx context.Context, kubeFactory apkube.Factory, releaseName, releaseNamespace string) error {
+func patchCrds(ctx context.Context, kubeFactory kube.Factory, releaseName, releaseNamespace string) error {
 	gvr := schema.GroupVersionResource(apiextv1.SchemeGroupVersion.WithResource("customresourcedefinitions"))
-	crdInterface := kube.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
+	crdInterface := kubeutil.GetDynamicClientOrDie(kubeFactory).Resource(gvr)
 	crds, err := crdInterface.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed listing crds: %w", err)
@@ -768,8 +768,8 @@ func patchCrds(ctx context.Context, kubeFactory apkube.Factory, releaseName, rel
 	return nil
 }
 
-func deleteInitialAdminSecret(ctx context.Context, kubeFactory apkube.Factory, namespace string) error {
-	return kube.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace).Delete(ctx, "argocd-initial-admin-secret", metav1.DeleteOptions{})
+func deleteInitialAdminSecret(ctx context.Context, kubeFactory kube.Factory, namespace string) error {
+	return kubeutil.GetClientSetOrDie(kubeFactory).CoreV1().Secrets(namespace).Delete(ctx, "argocd-initial-admin-secret", metav1.DeleteOptions{})
 }
 
 func getLabelPatch(value string) string {

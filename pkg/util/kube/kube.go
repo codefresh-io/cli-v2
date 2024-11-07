@@ -23,11 +23,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 
 	"github.com/Masterminds/semver/v3"
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	aputil "github.com/argoproj-labs/argocd-autopilot/pkg/util"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	authv1 "k8s.io/api/authorization/v1"
@@ -43,7 +43,7 @@ import (
 
 type (
 	ClusterRequirementsOptions struct {
-		KubeFactory        apkube.Factory
+		KubeFactory        kube.Factory
 		Namespace          string
 		ContextUrl         string
 		AccessMode         platmodel.AccessMode
@@ -254,7 +254,7 @@ func runTCPConnectionTest(ctx context.Context, runtimeInstallOptions *ClusterReq
 	return checkPodLastState(ctx, client, podLastState)
 }
 
-func GetClusterSecret(ctx context.Context, kubeFactory apkube.Factory, namespace string, name string) (*v1.Secret, error) {
+func GetClusterSecret(ctx context.Context, kubeFactory kube.Factory, namespace string, name string) (*v1.Secret, error) {
 	client, err := GetClientSet(kubeFactory)
 	if err != nil {
 		return nil, err
@@ -287,17 +287,17 @@ func GetClusterSecret(ctx context.Context, kubeFactory apkube.Factory, namespace
 	return res, nil
 }
 
-func WaitForJob(ctx context.Context, kubeFactory apkube.Factory, ns, jobName string) error {
+func WaitForJob(ctx context.Context, kubeFactory kube.Factory, ns, jobName string) error {
 	var attempt int32
 	var jobErr error
-	_ = kubeFactory.Wait(ctx, &apkube.WaitOptions{
+	_ = kubeFactory.Wait(ctx, &kube.WaitOptions{
 		Interval: time.Second * 5,
 		Timeout:  time.Minute,
-		Resources: []apkube.Resource{
+		Resources: []kube.Resource{
 			{
 				Name:      jobName,
 				Namespace: ns,
-				WaitFunc: func(ctx context.Context, kubeFactory apkube.Factory, ns, name string) (bool, error) {
+				WaitFunc: func(ctx context.Context, kubeFactory kube.Factory, ns, name string) (bool, error) {
 					cs, err := GetClientSet(kubeFactory)
 					if err != nil {
 						return false, err
@@ -350,7 +350,7 @@ func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1
 	fmt.Printf("=====\n%s\n=====\n\n", logs)
 }
 
-func runNetworkTest(ctx context.Context, kubeFactory apkube.Factory, urls ...string) error {
+func runNetworkTest(ctx context.Context, kubeFactory kube.Factory, urls ...string) error {
 	const networkTestsTimeout = 120 * time.Second
 
 	envVars := map[string]string{
@@ -597,7 +597,7 @@ func getPodLogs(ctx context.Context, client kubernetes.Interface, namespace, nam
 	return strings.Trim(logsBuf.String(), "\n"), nil
 }
 
-func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory apkube.Factory) (bool, error) {
+func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory kube.Factory) (bool, error) {
 	client, err := GetClientSet(kubeFactory)
 	if err != nil {
 		return false, err
@@ -614,7 +614,7 @@ func CheckNamespaceExists(ctx context.Context, namespace string, kubeFactory apk
 	return true, nil
 }
 
-func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory apkube.Factory, secret *v1.Secret) error {
+func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory kube.Factory, secret *v1.Secret) error {
 	client, err := GetClientSet(kubeFactory)
 	if err != nil {
 		return err
@@ -634,7 +634,7 @@ func DeleteSecretWithFinalizer(ctx context.Context, kubeFactory apkube.Factory, 
 	return err
 }
 
-func GetSecretsWithLabel(ctx context.Context, kubeFactory apkube.Factory, namespace, label string) (*v1.SecretList, error) {
+func GetSecretsWithLabel(ctx context.Context, kubeFactory kube.Factory, namespace, label string) (*v1.SecretList, error) {
 	client, err := GetClientSet(kubeFactory)
 	if err != nil {
 		return nil, err
@@ -648,7 +648,7 @@ func GetSecretsWithLabel(ctx context.Context, kubeFactory apkube.Factory, namesp
 	return secrets, nil
 }
 
-func GetClientSet(kubeFactory apkube.Factory) (kubernetes.Interface, error) {
+func GetClientSet(kubeFactory kube.Factory) (kubernetes.Interface, error) {
 	cs, err := kubeFactory.KubernetesClientSet()
 	if err != nil {
 		if strings.Contains(err.Error(), "exec plugin: invalid apiVersion") {
@@ -661,13 +661,13 @@ func GetClientSet(kubeFactory apkube.Factory) (kubernetes.Interface, error) {
 	return cs, nil
 }
 
-func GetClientSetOrDie(kubeFactory apkube.Factory) kubernetes.Interface {
+func GetClientSetOrDie(kubeFactory kube.Factory) kubernetes.Interface {
 	cs, err := GetClientSet(kubeFactory)
 	aputil.Die(err)
 	return cs
 }
 
-func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespace, name, key string) (string, error) {
+func GetValueFromSecret(ctx context.Context, kubeFactory kube.Factory, namespace, name, key string) (string, error) {
 	cs := GetClientSetOrDie(kubeFactory)
 	secret, err := cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -687,12 +687,12 @@ func GetValueFromSecret(ctx context.Context, kubeFactory apkube.Factory, namespa
 	return value, nil
 }
 
-func GetIngressClass(ctx context.Context, kubeFactory apkube.Factory, name string) (*netv1.IngressClass, error) {
+func GetIngressClass(ctx context.Context, kubeFactory kube.Factory, name string) (*netv1.IngressClass, error) {
 	cs := GetClientSetOrDie(kubeFactory)
 	return cs.NetworkingV1().IngressClasses().Get(ctx, name, metav1.GetOptions{})
 }
 
-func GetDynamicClientOrDie(kubeFactory apkube.Factory) dynamic.Interface {
+func GetDynamicClientOrDie(kubeFactory kube.Factory) dynamic.Interface {
 	restConfig, err := kubeFactory.ToRESTConfig()
 	if err != nil {
 		panic(err)

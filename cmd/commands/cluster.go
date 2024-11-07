@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codefresh-io/cli-v2/pkg/kube"
 	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/cli-v2/pkg/store"
 	"github.com/codefresh-io/cli-v2/pkg/util"
@@ -30,7 +31,6 @@ import (
 	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
 
 	"github.com/Masterminds/semver/v3"
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
@@ -51,7 +51,7 @@ type (
 		tag               string
 		dryRun            bool
 		skipTLSValidation bool
-		kubeFactory       apkube.Factory
+		kubeFactory       kube.Factory
 	}
 
 	ClusterRemoveOptions struct {
@@ -147,7 +147,7 @@ func newClusterAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.tag, "tag", "", "[dev only] - use a specific tag of the csdp-add-cluster image")
 
 	util.Die(cmd.Flags().MarkHidden("tag"))
-	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
+	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }
