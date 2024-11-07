@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/codefresh-io/cli-v2/internal/util"
+	"github.com/codefresh-io/cli-v2/internal/log"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
 	"github.com/codefresh-io/go-sdk/pkg/client"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/promotion-orchestrator"
 	"github.com/spf13/cobra"
