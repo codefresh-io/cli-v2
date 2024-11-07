@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/codefresh-io/cli-v2/internal/git"
-	cfgit "github.com/codefresh-io/cli-v2/internal/git"
 	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
@@ -466,7 +465,7 @@ func checkGit(ctx context.Context, opts *helmValidateValuesOptions, values chart
 		defer os.Remove(caCert)
 	}
 
-	provider, err := cfgit.GetProvider(cliGitProvider, gitApiUrl, caCert)
+	provider, err := git.GetProvider(cliGitProvider, gitApiUrl, caCert)
 	if err != nil {
 		return err
 	}

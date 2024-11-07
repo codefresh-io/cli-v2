@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	cfgit "github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/git"
 	gitmocks "github.com/codefresh-io/cli-v2/internal/git/mocks"
 	kubemocks "github.com/codefresh-io/cli-v2/internal/kube/mocks"
 
@@ -545,8 +545,8 @@ global:
 			},
 		},
 	}
-	orgGetProvider := cfgit.GetProvider
-	defer func() { cfgit.GetProvider = orgGetProvider }()
+	orgGetProvider := git.GetProvider
+	defer func() { git.GetProvider = orgGetProvider }()
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -562,11 +562,11 @@ global:
 				namespace:   "some-namespace",
 			}
 			mockRT := gitmocks.NewMockRoundTripper(ctrl)
-			cfgit.GetProvider = func(_ cfgit.ProviderType, baseURL, _ string) (cfgit.Provider, error) {
+			git.GetProvider = func(_ git.ProviderType, baseURL, _ string) (git.Provider, error) {
 				client := &http.Client{
 					Transport: mockRT,
 				}
-				return cfgit.NewGithubProvider(baseURL, client)
+				return git.NewGithubProvider(baseURL, client)
 			}
 			if tt.beforeFn != nil {
 				tt.beforeFn(mockRT)
