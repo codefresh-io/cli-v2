@@ -33,11 +33,11 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	cfrest "github.com/codefresh-io/go-sdk/pkg/rest"
 	"github.com/fatih/color"
-	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"sigs.k8s.io/yaml"
 )
 
 //go:generate mockgen -destination=./mocks/config.go -package=config -source=./config.go Config

@@ -28,10 +28,10 @@ import (
 
 	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	apmodel "github.com/codefresh-io/go-sdk/pkg/model/app-proxy"
-	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"sigs.k8s.io/yaml"
 )
 
 type (

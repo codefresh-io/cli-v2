@@ -32,11 +32,11 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
-	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/resid"
+	"sigs.k8s.io/yaml"
 )
 
 type (

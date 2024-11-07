@@ -20,8 +20,8 @@ import (
 
 	"github.com/codefresh-io/cli-v2/internal/util"
 
-	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5"
+	"sigs.k8s.io/yaml"
 )
 
 //go:generate mockgen -destination=./mocks/fs.go -package=mocks -source=./fs.go FS

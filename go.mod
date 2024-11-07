@@ -7,7 +7,6 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.11.7
 	github.com/codefresh-io/go-sdk v1.3.4
 	github.com/fatih/color v1.16.0
-	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.6.0
@@ -30,6 +29,7 @@ require (
 	k8s.io/kubectl v0.26.4
 	sigs.k8s.io/kustomize/api v0.12.1
 	sigs.k8s.io/kustomize/kyaml v0.13.9
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -222,7 +222,6 @@ require (
 	oras.land/oras-go/v2 v2.3.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 replace (
