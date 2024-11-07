@@ -3,7 +3,7 @@ module github.com/codefresh-io/cli-v2
 go 1.23.0
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/argoproj/argo-cd/v2 v2.12.0
 	github.com/codefresh-io/go-sdk v1.3.4
 	github.com/fatih/color v1.16.0
