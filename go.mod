@@ -23,13 +23,13 @@ require (
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f
 	gopkg.in/segmentio/analytics-go.v3 v3.1.0
 	helm.sh/helm/v3 v3.8.0-rc.1.0.20220506100945-5c256a5e7d55
-	k8s.io/api v0.29.2
-	k8s.io/apimachinery v0.29.2
+	k8s.io/api v0.26.11
+	k8s.io/apimachinery v0.26.11
 	k8s.io/cli-runtime v0.26.11
-	k8s.io/client-go v0.29.0
+	k8s.io/client-go v0.26.11
 	k8s.io/kubectl v0.26.4
-	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3
-	sigs.k8s.io/kustomize/kyaml v0.15.0
+	sigs.k8s.io/kustomize/api v0.12.1
+	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
 
 require (
@@ -94,7 +94,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/gnostic v0.6.9 // indirect
+	github.com/google/gnostic v0.7.0 // indirect
 	github.com/google/gnostic-models v0.6.9-0.20230804172637-c7be7c783f49 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-github/v62 v62.0.0 // indirect
@@ -231,12 +231,10 @@ replace (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
-
-	github.com/google/gnostic => github.com/google/gnostic v0.7.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
 	// Avoid  CVE-2023-46402
-	// github.com/whilp/git-urls => github.com/chainguard-dev/git-urls v1.0.2
+	github.com/whilp/git-urls => github.com/chainguard-dev/git-urls v1.0.2
 
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
@@ -266,7 +264,6 @@ replace (
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.26.11
 	k8s.io/kubectl => k8s.io/kubectl v0.26.11
 	k8s.io/kubelet => k8s.io/kubelet v0.26.11
-	k8s.io/kubernetes => k8s.io/kubernetes v1.26.15
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.26.11
 	k8s.io/metrics => k8s.io/metrics v0.26.11
 	k8s.io/mount-utils => k8s.io/mount-utils v0.26.11
@@ -274,7 +271,4 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.26.11
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.26.11
 	k8s.io/sample-controller => k8s.io/sample-controller v0.26.11
-
-	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.12.1
-	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.9
 )
