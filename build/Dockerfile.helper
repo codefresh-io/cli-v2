@@ -1,5 +1,5 @@
 # docker buildx build --platform linux/amd64,linux/arm64 -t quay.io/codefresh/golang-ci-helper:1.21.12 -f Dockerfile.helper .
-FROM golang:1.22.5-alpine3.20
+FROM golang:alpine3.20
 
 RUN apk -U add --no-cache \
   bash \
