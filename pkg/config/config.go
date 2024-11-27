@@ -97,7 +97,7 @@ var (
 	ErrInvalidConfig = errors.New("invalid config")
 
 	ErrContextDoesNotExist = func(context string) error {
-		return fmt.Errorf(
+		return errors.New(
 			util.Doc(
 				fmt.Sprintf("%s: current context \"%s\" does not exist in config file. run '<BIN> config create-context' to create one.", ErrInvalidConfig, context),
 			),

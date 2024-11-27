@@ -222,7 +222,7 @@ func newConfigGetRuntimeCommand() *cobra.Command {
 func runConfigGetRuntime(ctx context.Context) error {
 	cur := cfConfig.GetCurrentContext()
 	if cur.DefaultRuntime == "" {
-		return fmt.Errorf(util.Doc("no default runtime is set for current context, use '<BIN> config set-runtime' to set one"))
+		return errors.New(util.Doc("no default runtime is set for current context, use '<BIN> config set-runtime' to set one"))
 	}
 
 	log.G(ctx).Infof("default runtime set to: %s", cur.DefaultRuntime)

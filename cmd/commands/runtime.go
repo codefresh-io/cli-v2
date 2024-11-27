@@ -596,7 +596,7 @@ func runRuntimeUninstall(ctx context.Context, opts *RuntimeUninstallOptions) err
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to do post uninstall cleanup: %v", err)
 			if !opts.Force {
-				return fmt.Errorf(errorMsg)
+				return errors.New(errorMsg)
 			}
 			log.G().Warn(errorMsg)
 		}

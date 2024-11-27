@@ -329,9 +329,9 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 					Behavior:  "merge",
 					KvPairSources: kusttypes.KvPairSources{
 						LiteralSources: []string{
-							fmt.Sprintf("ingressUrl=" + ingressUrl),
-							fmt.Sprintf("contextName=" + opts.clusterName),
-							fmt.Sprintf("server=" + server),
+							fmt.Sprint("ingressUrl=" + ingressUrl),
+							fmt.Sprint("contextName=" + opts.clusterName),
+							fmt.Sprint("server=" + server),
 							fmt.Sprintf("skipTLSValidation=%v", opts.skipTLSValidation),
 						},
 					},
@@ -346,7 +346,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 					Behavior:  "merge",
 					KvPairSources: kusttypes.KvPairSources{
 						LiteralSources: []string{
-							fmt.Sprintf("csdpToken=" + csdpToken),
+							fmt.Sprint("csdpToken=" + csdpToken),
 						},
 					},
 				},
@@ -401,7 +401,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 			return nil, "", fmt.Errorf("failed encoding annotations: %w", err)
 		}
 
-		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("annotations="+annotationsStr))
+		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprint("annotations="+annotationsStr))
 	}
 
 	if len(opts.labels) > 0 {
@@ -410,7 +410,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 			return nil, "", fmt.Errorf("failed encoding labels: %w", err)
 		}
 
-		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprintf("labels="+labelsStr))
+		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprint("labels="+labelsStr))
 	}
 
 	if opts.tag != "" {
