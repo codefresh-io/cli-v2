@@ -82,7 +82,7 @@ func BuildKustomization(k *kusttypes.Kustomization) ([]byte, error) {
 	}
 
 	opts := krusty.MakeDefaultOptions()
-	opts.DoLegacyResourceSort = true
+	opts.Reorder = krusty.ReorderOptionLegacy
 	kust := krusty.MakeKustomizer(opts)
 	fs := filesys.MakeFsOnDisk()
 	res, err := kust.Run(fs, td)

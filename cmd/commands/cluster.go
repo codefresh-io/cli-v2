@@ -422,9 +422,6 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 		}
 	}
 
-	k.FixKustomizationPostUnmarshalling()
-	util.Die(k.FixKustomizationPreMarshalling())
-
 	manifests, err := kustutil.BuildKustomization(k)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to build kustomization: %w", err)
