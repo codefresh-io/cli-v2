@@ -1,29 +1,23 @@
-# docker buildx build --platform linux/amd64,linux/arm64 -t quay.io/codefresh/golang-ci-helper:1.21.12 -f Dockerfile.helper .
-FROM golang:1.22.5-alpine3.20
+# docker buildx build --platform linux/amd64,linux/arm64 --build-arg GO_VERSION -t quay.io/codefresh/golang-ci-helper:${GO_VERSION} -f Dockerfile.helper .
+ARG GO_VERSION=1.23.4
+FROM golang:${GO_VERSION}-alpine3.20
 
 RUN apk -U add --no-cache \
   bash \
-  ca-certificates \
-  curl \
-  g++ \
-  gcc \
-  git \
-  jq \
-  make \
+	@@ -13,14 +14,14 @@ RUN apk -U add --no-cache \
   openssl \
   && update-ca-certificates
 
-ARG GH_VERSION=2.52.0
+ARG GH_VERSION=2.64.0
 RUN curl -L https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz --output gh.tar.gz \
   && tar -xzf gh.tar.gz \
   && mv gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin \
   && rm gh.tar.gz \
   && rm -rf gh_${GH_VERSION}_linux_amd64
 
-ARG KUSTOMIZE_VERSION=5.4.2
+ARG KUSTOMIZE_VERSION=5.5.0
 RUN curl -Ls https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz --output kustomize.tar.gz  \
   && tar -xzf kustomize.tar.gz \
   && mv ./kustomize /usr/bin \
   && rm kustomize.tar.gz
-
 ENTRYPOINT [ "/bin/bash" ]
