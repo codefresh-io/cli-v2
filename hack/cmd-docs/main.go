@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -38,25 +39,25 @@ func main() {
 	log.Printf("new home: %s", home)
 
 	if err := doc.GenMarkdownTree(commands.NewRoot(), outputDir); err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("failed generating markdown tree: %w", err))
 	}
 
 	if err := replaceHome(); err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("failed replacing home: %w", err))
 	}
 }
 
 func replaceHome() error {
 	files, err := fs.Glob(os.DirFS(outputDir), "*.md")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed globbing files: %w", err)
 	}
 
 	for _, fname := range files {
 		fname = filepath.Join(outputDir, fname)
 		data, err := os.ReadFile(fname)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed reading file: %w", err)
 		}
 
 		datastr := string(data)
@@ -70,7 +71,7 @@ func replaceHome() error {
 
 		err = os.WriteFile(fname, []byte(newstr), 0422)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed writing file: %w", err)
 		}
 	}
 	return nil

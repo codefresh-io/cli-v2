@@ -5,4 +5,4 @@
 [![Documentation Status](https://readthedocs.org/projects/cli-v2/badge/?version=latest)](https://cli-v2.readthedocs.io/en/latest/?badge=latest)
 [![slack](https://img.shields.io/badge/slack-codefresh-brightgreen.svg?logo=slack)](https://codefresh.slack.com/archives/C01FG6M5KDY/)
 
-New Codefresh cli tool, using argocd-autopilot
+Codefresh cli got gitops-runtime management
