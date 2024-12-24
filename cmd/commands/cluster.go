@@ -23,20 +23,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
-	kubeutil "github.com/codefresh-io/cli-v2/pkg/util/kube"
-	kustutil "github.com/codefresh-io/cli-v2/pkg/util/kust"
+	"github.com/codefresh-io/cli-v2/internal/kube"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
+	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
+	kustutil "github.com/codefresh-io/cli-v2/internal/util/kust"
 
 	"github.com/Masterminds/semver/v3"
-	apkube "github.com/argoproj-labs/argocd-autopilot/pkg/kube"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
-	"github.com/ghodss/yaml"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/resid"
+	"sigs.k8s.io/yaml"
 )
 
 type (
@@ -51,7 +51,7 @@ type (
 		tag               string
 		dryRun            bool
 		skipTLSValidation bool
-		kubeFactory       apkube.Factory
+		kubeFactory       kube.Factory
 	}
 
 	ClusterRemoveOptions struct {
@@ -86,7 +86,7 @@ var (
 	}
 )
 
-func NewClusterCommand() *cobra.Command {
+func newClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "cluster",
 		Short:             "Manage clusters of Codefresh runtimes",
@@ -147,7 +147,7 @@ func newClusterAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.tag, "tag", "", "[dev only] - use a specific tag of the csdp-add-cluster image")
 
 	util.Die(cmd.Flags().MarkHidden("tag"))
-	opts.kubeFactory = apkube.AddFlags(cmd.Flags())
+	opts.kubeFactory = kube.AddFlags(cmd.Flags())
 
 	return cmd
 }

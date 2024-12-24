@@ -19,15 +19,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
 
-func NewPipelineCommand() *cobra.Command {
+func newPipelineCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "pipeline",
 		Short:             "Manage pipelines of Codefresh runtimes",
@@ -39,13 +39,13 @@ func NewPipelineCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewPipelineGetCommand())
-	cmd.AddCommand(NewPipelineListCommand())
+	cmd.AddCommand(newPipelineGetCommand())
+	cmd.AddCommand(newPipelineListCommand())
 
 	return cmd
 }
 
-func NewPipelineGetCommand() *cobra.Command {
+func newPipelineGetCommand() *cobra.Command {
 	var (
 		name      string
 		namespace string
@@ -64,7 +64,7 @@ func NewPipelineGetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			return RunPipelineGet(ctx, name, namespace, runtime)
+			return runPipelineGet(ctx, name, namespace, runtime)
 		},
 	}
 
@@ -78,7 +78,7 @@ func NewPipelineGetCommand() *cobra.Command {
 	return cmd
 }
 
-func NewPipelineListCommand() *cobra.Command {
+func newPipelineListCommand() *cobra.Command {
 	var (
 		name      string
 		namespace string
@@ -106,7 +106,7 @@ func NewPipelineListCommand() *cobra.Command {
 				Runtime:   &runtime,
 				Project:   &project,
 			}
-			return RunPipelineList(ctx, filterArgs)
+			return runPipelineList(ctx, filterArgs)
 		},
 	}
 
@@ -118,7 +118,7 @@ func NewPipelineListCommand() *cobra.Command {
 	return cmd
 }
 
-func RunPipelineGet(ctx context.Context, name, namespace, runtime string) error {
+func runPipelineGet(ctx context.Context, name, namespace, runtime string) error {
 	pipeline, err := cfConfig.NewClient().GraphQL().Pipeline().Get(ctx, name, namespace, runtime)
 	if err != nil {
 		return err
@@ -158,7 +158,7 @@ func RunPipelineGet(ctx context.Context, name, namespace, runtime string) error 
 	return tb.Flush()
 }
 
-func RunPipelineList(ctx context.Context, filterArgs platmodel.PipelinesFilterArgs) error {
+func runPipelineList(ctx context.Context, filterArgs platmodel.PipelinesFilterArgs) error {
 	pipelines, err := cfConfig.NewClient().GraphQL().Pipeline().List(ctx, filterArgs)
 	if err != nil {
 		return err

@@ -15,12 +15,12 @@
 package commands
 
 import (
-	cliutil "github.com/codefresh-io/cli-v2/pkg/util/cli"
+	cliutil "github.com/codefresh-io/cli-v2/internal/util/cli"
 
 	"github.com/spf13/cobra"
 )
 
-func NewUpgradeCommand() *cobra.Command {
+func newUpgradeCommand() *cobra.Command {
 	var opts struct {
 		version string
 		output  string

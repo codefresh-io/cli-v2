@@ -17,8 +17,8 @@ package commands
 import (
 	"testing"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/internal/git"
+	"github.com/codefresh-io/cli-v2/internal/store"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -27,18 +27,18 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 	store.Get().Silent = true
 	tests := map[string]struct {
 		opts            *updateGitOpsSettingsOpts
-		wantGitProvider cfgit.ProviderType
+		wantGitProvider git.ProviderType
 		wantGitApiURL   string
 		wantInferred    bool
 		wantErr         string
 	}{
 		"should succeed when all values are available and matching": {
 			opts: &updateGitOpsSettingsOpts{
-				gitProvider:      cfgit.GITHUB,
+				gitProvider:      git.GITHUB,
 				gitApiURL:        "https://api.github.com",
 				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
-			wantGitProvider: cfgit.GITHUB,
+			wantGitProvider: git.GITHUB,
 			wantGitApiURL:   "https://api.github.com",
 			wantInferred:    false,
 		},
@@ -46,23 +46,23 @@ func Test_updateCsdpSettingsPreRunHandler(t *testing.T) {
 			opts: &updateGitOpsSettingsOpts{
 				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
-			wantGitProvider: cfgit.GITHUB,
+			wantGitProvider: git.GITHUB,
 			wantGitApiURL:   "https://api.github.com",
 			wantInferred:    true,
 		},
 		"should succeed when shared-config-repo is on-prem and all values are supplied": {
 			opts: &updateGitOpsSettingsOpts{
-				gitProvider:      cfgit.GITHUB,
+				gitProvider:      git.GITHUB,
 				gitApiURL:        "https://some.ghe.server/api/v3",
 				sharedConfigRepo: "https://some.ghe.server/org/repo.git",
 			},
-			wantGitProvider: cfgit.GITHUB,
+			wantGitProvider: git.GITHUB,
 			wantGitApiURL:   "https://some.ghe.server/api/v3",
 			wantInferred:    false,
 		},
 		"should fail when user supplies wrong git-provider": {
 			opts: &updateGitOpsSettingsOpts{
-				gitProvider:      cfgit.GITLAB,
+				gitProvider:      git.GITLAB,
 				sharedConfigRepo: "https://github.com/org/repo.git",
 			},
 			wantErr: "supplied provider \"gitlab\" does not match inferred cloud provider \"github\" for url \"https://github.com/org/repo.git\"",
