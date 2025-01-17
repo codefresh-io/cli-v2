@@ -1,4 +1,4 @@
-// Copyright 2024 The Codefresh Authors.
+// Copyright 2025 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -168,7 +168,7 @@ func NewRuntimeInstallCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use: "install [runtime_name]",
+		Use:        "install [runtime_name]",
 		Deprecated: "We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return errors.New(`We have transitioned our GitOps Runtimes from CLI-based to Helm-based installation.
