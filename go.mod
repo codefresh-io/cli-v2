@@ -7,7 +7,7 @@ toolchain go1.23.4
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/argoproj-labs/argocd-autopilot v0.4.18
-	github.com/argoproj/argo-cd/v2 v2.13.1
+	github.com/argoproj/argo-cd/v2 v2.13.4
 	github.com/argoproj/argo-events v1.9.2
 	github.com/argoproj/argo-workflows/v3 v3.6.2
 	github.com/briandowns/spinner v1.23.1
@@ -63,7 +63,7 @@ require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis/v2 v2.33.0 // indirect
 	github.com/antonmedv/expr v1.15.5 // indirect
-	github.com/argoproj/gitops-engine v0.7.1-0.20240905010810-bd7681ae3f8b // indirect
+	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-4c6e03c46314 // indirect
 	github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621 // indirect
 	github.com/argoproj/pkg v0.13.7-0.20240704113442-a69fd34a8117 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
