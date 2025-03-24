@@ -24,7 +24,6 @@ import (
 	reflect "reflect"
 
 	config "github.com/codefresh-io/cli-v2/internal/config"
-
 	codefresh "github.com/codefresh-io/go-sdk/pkg/codefresh"
 	rest "github.com/codefresh-io/go-sdk/pkg/rest"
 	gomock "github.com/golang/mock/gomock"

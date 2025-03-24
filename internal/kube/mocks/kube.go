@@ -1,4 +1,4 @@
-// Copyright 2024 The Codefresh Authors.
+// Copyright 2025 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import (
 	reflect "reflect"
 
 	kube "github.com/codefresh-io/cli-v2/internal/kube"
-
 	gomock "github.com/golang/mock/gomock"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
