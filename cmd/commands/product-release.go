@@ -69,6 +69,8 @@ query getProductReleasesList(
 				}
 			}
 			status
+			updatedAt
+			createdAt
 			}
 		}
 	}
