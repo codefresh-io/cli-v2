@@ -22,10 +22,10 @@ import (
 	"strings"
 	"testing"
 
-	cfgit "github.com/codefresh-io/cli-v2/pkg/git"
-	gitmocks "github.com/codefresh-io/cli-v2/pkg/git/mocks"
+	"github.com/codefresh-io/cli-v2/internal/git"
+	gitmocks "github.com/codefresh-io/cli-v2/internal/git/mocks"
+	kubemocks "github.com/codefresh-io/cli-v2/internal/kube/mocks"
 
-	kubemocks "github.com/argoproj-labs/argocd-autopilot/pkg/kube/mocks"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -126,7 +126,7 @@ userToken:
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &HelmValidateValuesOptions{
+			opts := &helmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   tt.namespace,
 			}
@@ -272,7 +272,7 @@ tunnel-client:
 			http.DefaultClient = &http.Client{
 				Transport: mockRT,
 			}
-			opts := &HelmValidateValuesOptions{
+			opts := &helmValidateValuesOptions{
 				kubeFactory: mockKube,
 			}
 			values, err := chartutil.ReadValues([]byte(tt.values))
@@ -412,7 +412,7 @@ className: some-ingressclass`,
 				tt.beforeFn(t, mockRT)
 			}
 
-			opts := &HelmValidateValuesOptions{
+			opts := &helmValidateValuesOptions{
 				kubeFactory: mockKube,
 			}
 			http.DefaultClient = &http.Client{
@@ -545,8 +545,8 @@ global:
 			},
 		},
 	}
-	orgGetProvider := cfgit.GetProvider
-	defer func() { cfgit.GetProvider = orgGetProvider }()
+	orgGetProvider := git.GetProvider
+	defer func() { git.GetProvider = orgGetProvider }()
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -557,16 +557,16 @@ global:
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &HelmValidateValuesOptions{
+			opts := &helmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
 			mockRT := gitmocks.NewMockRoundTripper(ctrl)
-			cfgit.GetProvider = func(_ cfgit.ProviderType, baseURL, _ string) (cfgit.Provider, error) {
+			git.GetProvider = func(_ git.ProviderType, baseURL, _ string) (git.Provider, error) {
 				client := &http.Client{
 					Transport: mockRT,
 				}
-				return cfgit.NewGithubProvider(baseURL, client)
+				return git.NewGithubProvider(baseURL, client)
 			}
 			if tt.beforeFn != nil {
 				tt.beforeFn(mockRT)
@@ -726,7 +726,7 @@ password:
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &HelmValidateValuesOptions{
+			opts := &helmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
@@ -798,7 +798,7 @@ key: some-key`,
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &HelmValidateValuesOptions{
+			opts := &helmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
