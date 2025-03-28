@@ -368,7 +368,7 @@ func newGitSourceEditCommand() *cobra.Command {
 
 			gsName = args[1]
 			if repo == "" {
-				return fmt.Errorf("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
+				return fmt.Errorf("must enter a valid value to --git-source-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
 			}
 
 			return nil
