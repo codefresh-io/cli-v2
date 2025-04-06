@@ -15,9 +15,9 @@
 package commands
 
 import (
-	"github.com/codefresh-io/cli-v2/pkg/config"
-	"github.com/codefresh-io/cli-v2/pkg/store"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/config"
+	"github.com/codefresh-io/cli-v2/internal/store"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	"github.com/spf13/cobra"
 )
@@ -48,19 +48,18 @@ variables in advanced to simplify the use of those commands.
 
 	cfConfig = config.AddFlags(cmd.PersistentFlags())
 
-	cmd.AddCommand(NewVersionCommand())
-	cmd.AddCommand(NewUpgradeCommand())
-	cmd.AddCommand(NewConfigCommand())
-	cmd.AddCommand(NewRuntimeCommand())
-	cmd.AddCommand(NewGitSourceCommand())
-	cmd.AddCommand(NewClusterCommand())
-	cmd.AddCommand(NewComponentCommand())
-	cmd.AddCommand(NewHelmCommand())
-	cmd.AddCommand(NewWorkflowCommand())
-	cmd.AddCommand(NewPipelineCommand())
-	cmd.AddCommand(NewIntegrationCommand())
+	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newUpgradeCommand())
+	cmd.AddCommand(newConfigCommand())
+	cmd.AddCommand(newRuntimeCommand())
+	cmd.AddCommand(newGitSourceCommand())
+	cmd.AddCommand(newClusterCommand())
+	cmd.AddCommand(newComponentCommand())
+	cmd.AddCommand(newHelmCommand())
+	cmd.AddCommand(newWorkflowCommand())
+	cmd.AddCommand(newPipelineCommand())
+	cmd.AddCommand(newIntegrationCommand())
 	cmd.AddCommand(NewCompletionCommand())
-	cmd.AddCommand(NewMigrateCommand())
 	cmd.AddCommand(NewProductReleaseCommand())
 
 	cobra.OnInitialize(func() { postInitCommands(cmd.Commands()) })

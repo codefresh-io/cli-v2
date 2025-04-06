@@ -20,8 +20,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/util"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/util"
 
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/juju/ansiterm"
@@ -30,7 +30,7 @@ import (
 
 type ()
 
-func NewComponentCommand() *cobra.Command {
+func newComponentCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "component",
 		Short:             "Manage components of Codefresh runtimes",
@@ -42,12 +42,14 @@ func NewComponentCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(NewComponentListCommand())
+	cmd.AddCommand(newComponentListCommand())
 
 	return cmd
 }
 
-func NewComponentListCommand() *cobra.Command {
+func newComponentListCommand() *cobra.Command {
+	var runtimeName string
+
 	cmd := &cobra.Command{
 		Use:   "list RUNTIME_NAME",
 		Short: "List all the components under a specific runtime",
@@ -55,22 +57,25 @@ func NewComponentListCommand() *cobra.Command {
 		Example: util.Doc(`
 			<BIN> component list runtime_name
 		`),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			if len(args) < 1 {
-				log.G(cmd.Context()).Fatal("must enter runtime name")
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+
+			runtimeName, err = ensureRuntimeName(cmd.Context(), args, nil)
+			if err != nil {
+				return err
 			}
+
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			return RunComponentList(ctx, args[0])
+			return runComponentList(cmd.Context(), runtimeName)
 		},
 	}
 
 	return cmd
 }
 
-func RunComponentList(ctx context.Context, runtimeName string) error {
+func runComponentList(ctx context.Context, runtimeName string) error {
 	components, err := cfConfig.NewClient().GraphQL().Component().List(ctx, runtimeName)
 	if err != nil {
 		return err

@@ -17,14 +17,14 @@ package commands
 import (
 	"fmt"
 
-	"github.com/codefresh-io/cli-v2/pkg/log"
-	"github.com/codefresh-io/cli-v2/pkg/store"
+	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
 
 	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	"github.com/spf13/cobra"
 )
 
-func NewVersionCommand() *cobra.Command {
+func newVersionCommand() *cobra.Command {
 	var opts struct {
 		long bool
 	}
@@ -53,7 +53,7 @@ func NewVersionCommand() *cobra.Command {
 				runtime := ""
 				var apClient ap.AppProxyAPI
 
-				if err := getAppProxyClient(&runtime, &apClient)(cmd, args); err != nil {
+				if err := getAppProxyClient(runtime, &apClient)(cmd, args); err != nil {
 					// can't create client, print error only if in debug level
 					log.G(cmd.Context()).Debug(fmt.Errorf("failed to build app proxy client: %w", err))
 					return nil

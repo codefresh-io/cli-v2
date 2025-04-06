@@ -17,14 +17,10 @@ cli-v2 git-source edit RUNTIME_NAME GITSOURCE_NAME [flags]
 ### Options
 
 ```
-      --exclude string                  files to exclude. can be either filenames or a glob
-      --git-src-git-server-crt string   Git Server certificate fileGIT_SRC_
-      --git-src-git-token string        Your git provider api token [GIT_SRC_GIT_TOKEN]
-      --git-src-git-user string         Your git provider user name [GIT_SRC_GIT_USER] (not required in GitHub)
-      --git-src-provider string         The git provider, one of: azure|bitbucket|bitbucket-server|gitea|github|gitlab
-      --git-src-repo string             Repository URL [GIT_SRC_GIT_REPO]
-  -h, --help                            help for edit
-      --include string                  files to include. can be either filenames or a glob
+      --exclude string           files to exclude. can be either filenames or a glob
+      --git-source-repo string   Repository URL [%sGIT_SOURCE_GIT_REPO]
+  -h, --help                     help for edit
+      --include string           files to include. can be either filenames or a glob
 ```
 
 ### Options inherited from parent commands
