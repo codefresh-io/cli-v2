@@ -30,8 +30,6 @@ var (
 	buildDate        = ""
 	gitCommit        = ""
 	SegmentWriteKey  = ""
-	RuntimeDefURL    = "https://raw.githubusercontent.com/codefresh-io/csdp-official/stable/csdp/hybrid/basic/runtime.yaml"
-	OldRuntimeDefURL = "https://github.com/codefresh-io/cli-v2/releases/latest/download/runtime.yaml"
 	AddClusterDefURL = "https://github.com/codefresh-io/csdp-official/add-cluster/kustomize"
 )
 
