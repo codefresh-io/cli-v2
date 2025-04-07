@@ -67,7 +67,7 @@ func newIntegrationCommand() *cobra.Command {
 		Use:               "integration",
 		Aliases:           []string{"integrations", "intg"},
 		Short:             "Manage integrations with git providers, container registries and more",
-		PersistentPreRunE: getppProxyClient(&runtime, &apClient),
+		PersistentPreRunE: getAppProxyClient(&runtime, &apClient),
 		Args:              cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
