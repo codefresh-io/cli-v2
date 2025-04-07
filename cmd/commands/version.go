@@ -17,10 +17,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
 
-	ap "github.com/codefresh-io/go-sdk/pkg/appproxy"
 	"github.com/spf13/cobra"
 )
 
@@ -44,32 +42,6 @@ func newVersionCommand() *cobra.Command {
 				fmt.Printf("    GoVersion: %s\n", s.Version.GoVersion)
 				fmt.Printf("    GoCompiler: %s\n", s.Version.GoCompiler)
 				fmt.Printf("    Platform: %s\n", s.Version.Platform)
-
-				// try to get app proxy version info
-				if err := cfConfig.Load(cmd, args); err != nil {
-					return err
-				}
-
-				runtime := ""
-				var apClient ap.AppProxyAPI
-
-				if err := getAppProxyClient(runtime, &apClient)(cmd, args); err != nil {
-					// can't create client, print error only if in debug level
-					log.G(cmd.Context()).Debug(fmt.Errorf("failed to build app proxy client: %w", err))
-					return nil
-				}
-
-				apInfo, err := apClient.VersionInfo().VersionInfo(cmd.Context())
-				if err != nil {
-					// can't get version, print error only if in debug level
-					log.G(cmd.Context()).Debug(fmt.Errorf("failed to get app proxy version info: %w", err))
-					return nil
-				}
-
-				fmt.Printf("\nAppProxy:\n")
-				fmt.Printf("    Version: %s\n", apInfo.Version)
-				fmt.Printf("    PlatformHost: %s\n", apInfo.PlatformHost)
-				fmt.Printf("    PlatformVersion: %s\n", apInfo.PlatformVersion)
 			} else {
 				fmt.Printf("%+s\n", s.Version.Version)
 			}
