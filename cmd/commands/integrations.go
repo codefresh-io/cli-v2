@@ -67,7 +67,7 @@ func newIntegrationCommand() *cobra.Command {
 		Use:               "integration",
 		Aliases:           []string{"integrations", "intg"},
 		Short:             "Manage integrations with git providers, container registries and more",
-		PersistentPreRunE: getAppProxyClient(runtime, &apClient),
+		PersistentPreRunE: getppProxyClient(&runtime, &apClient),
 		Args:              cobra.NoArgs, // Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
@@ -405,7 +405,7 @@ func runGitIntegrationDeregisterCommand(ctx context.Context, apClient ap.AppProx
 	return nil
 }
 
-func getAppProxyClient(runtime string, apClient *ap.AppProxyAPI) func(*cobra.Command, []string) error {
+func getAppProxyClient(runtime *string, apClient *ap.AppProxyAPI) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
@@ -413,7 +413,7 @@ func getAppProxyClient(runtime string, apClient *ap.AppProxyAPI) func(*cobra.Com
 			return err
 		}
 
-		runtimeName, err := ensureRuntimeName(ctx, []string{runtime}, nil)
+		runtimeName, err := ensureRuntimeName(ctx, []string{*runtime}, nil)
 		if err != nil {
 			return fmt.Errorf("failed to get runtime name: %w", err)
 		}
