@@ -17,11 +17,11 @@ cli-v2 git-source create RUNTIME_NAME GITSOURCE_NAME [flags]
 ### Options
 
 ```
-      --create-repo              If true, will create the specified git-source repo in case it doesn't already exist
-      --exclude string           files to exclude. can be either filenames or a glob
-      --git-source-repo string   Repository URL [%sGIT_SOURCE_GIT_REPO]
-  -h, --help                     help for create
-      --include string           files to include. can be either filenames or a glob
+      --create-repo           If true, will create the specified git-source repo in case it doesn't already exist
+      --exclude string        files to exclude. can be either filenames or a glob
+      --git-src-repo string   Repository URL [%sGIT_SOURCE_GIT_REPO]
+  -h, --help                  help for create
+      --include string        files to include. can be either filenames or a glob
 ```
 
 ### Options inherited from parent commands

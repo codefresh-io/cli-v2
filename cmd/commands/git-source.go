@@ -148,9 +148,9 @@ func newGitSourceCreateCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "If true, will create the specified git-source repo in case it doesn't already exist")
 	cmd.Flags().StringVar(&include, "include", "", "files to include. can be either filenames or a glob")
 	cmd.Flags().StringVar(&exclude, "exclude", "", "files to exclude. can be either filenames or a glob")
-	cmd.Flags().StringVar(&repo, "git-source-repo", "", "Repository URL [%sGIT_SOURCE_GIT_REPO]")
+	cmd.Flags().StringVar(&repo, "git-src-repo", "", "Repository URL [%sGIT_SOURCE_GIT_REPO]")
 
-	util.Die(viper.BindEnv("git-source-repo", "GIT_SOURCE_GIT_REPO"))
+	util.Die(viper.BindEnv("git-src-repo", "GIT_SOURCE_GIT_REPO"))
 
 	return cmd
 }
