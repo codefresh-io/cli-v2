@@ -368,7 +368,7 @@ func newGitSourceEditCommand() *cobra.Command {
 
 			gsName = args[1]
 			if repo == "" {
-				return fmt.Errorf("must enter a valid value to --git-source-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
+				return fmt.Errorf("must enter a valid value to --git-src-repo. Example: https://github.com/owner/repo-name.git/path/to/dir")
 			}
 
 			return nil
@@ -396,7 +396,7 @@ func newGitSourceEditCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&include, "include", "", "files to include. can be either filenames or a glob")
 	cmd.Flags().StringVar(&exclude, "exclude", "", "files to exclude. can be either filenames or a glob")
-	cmd.Flags().StringVar(&repo, "git-source-repo", "", "Repository URL [%sGIT_SOURCE_GIT_REPO]")
+	cmd.Flags().StringVar(&repo, "git-src-repo", "", "Repository URL [%sGIT_SOURCE_GIT_REPO]")
 
 	return cmd
 }
