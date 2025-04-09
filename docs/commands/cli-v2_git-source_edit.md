@@ -17,10 +17,10 @@ cli-v2 git-source edit RUNTIME_NAME GITSOURCE_NAME [flags]
 ### Options
 
 ```
-      --exclude string           files to exclude. can be either filenames or a glob
-      --git-source-repo string   Repository URL [%sGIT_SOURCE_GIT_REPO]
-  -h, --help                     help for edit
-      --include string           files to include. can be either filenames or a glob
+      --exclude string        files to exclude. can be either filenames or a glob
+      --git-src-repo string   Repository URL [%sGIT_SOURCE_GIT_REPO]
+  -h, --help                  help for edit
+      --include string        files to include. can be either filenames or a glob
 ```
 
 ### Options inherited from parent commands
