@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/util"
+	"github.com/codefresh-io/go-sdk/pkg/graphql"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +57,8 @@ func NewValidateLimitsCommand() *cobra.Command {
 		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Example:           util.Doc("<BIN> account validate-limits"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := runValidateLimits(cmd.Context(), opts)
+			payments := cfConfig.NewClient().GraphQL().Payments()
+			err := runValidateLimits(cmd.Context(), opts, payments)
 			if err != nil {
 				return fmt.Errorf("failed validating limits: %w", err)
 			}
@@ -72,13 +74,13 @@ func NewValidateLimitsCommand() *cobra.Command {
 	return cmd
 }
 
-func runValidateLimits(ctx context.Context, opts *ValidateLimitsOptions) error {
+func runValidateLimits(ctx context.Context, opts *ValidateLimitsOptions, payments graphql.PaymentsAPI) error {
 	log.G(ctx).Info("Validating account limits")
 	if opts.hook {
 		log.G(ctx).Info("Running in hook-mode")
 	}
 
-	limitsStatus, err := cfConfig.NewClient().GraphQL().Payments().GetLimitsStatus(ctx)
+	limitsStatus, err := payments.GetLimitsStatus(ctx)
 	statusString, _ := json.MarshalIndent(limitsStatus, "", "  ")
 
 	if err != nil {
@@ -89,7 +91,10 @@ func runValidateLimits(ctx context.Context, opts *ValidateLimitsOptions) error {
 		return fmt.Errorf("account limits exceeded for account: %s", string(statusString))
 	}
 
-	if opts.hook && limitsStatus.Limits.Clusters == limitsStatus.Usage.Clusters {
+	if opts.hook &&
+		limitsStatus.Limits.Clusters != nil &&
+		limitsStatus.Usage.Clusters != nil &&
+		*limitsStatus.Limits.Clusters == *limitsStatus.Usage.Clusters {
 		limitsStatus.Status = false
 		statusString, _ := json.MarshalIndent(limitsStatus, "", "  ")
 		return fmt.Errorf("account limits (clusters) exceeded for account: %s", string(statusString))
