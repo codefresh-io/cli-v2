@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -23,22 +22,21 @@ func (m *MockPaymentsClient) GetLimitsStatus(ctx context.Context) (*platmodel.Li
 	return args.Get(0).(*platmodel.LimitsStatus), args.Error(1)
 }
 
+func ptr(i int) *int { return &i }
+
 // ---- Tests ----
 
 func TestRunValidateLimits_Success(t *testing.T) {
 	ctx := context.TODO()
 	mockClient := new(MockPaymentsClient)
 
-	limitClusters := 10
-	usageClusters := 5
 	limits := &platmodel.LimitsStatus{
-		Status: true,
-		Limits: &platmodel.GitOpsLimits{Clusters: &limitClusters},
-		Usage:  &platmodel.GitOpsUsage{Clusters: &usageClusters},
+		Limits: &platmodel.GitOpsLimits{Clusters: ptr(10)},
+		Usage:  &platmodel.GitOpsUsage{Clusters: ptr(5), Applications: ptr(10)},
 	}
 	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
 
-	opts := ValidateLimitsOptions{hook: false}
+	opts := ValidateLimitsOptions{failCondition: "reached"}
 	err := runValidateLimits(ctx, &opts, mockClient)
 
 	assert.NoError(t, err)
@@ -62,42 +60,185 @@ func TestRunValidateLimits_LimitsExceeded(t *testing.T) {
 	ctx := context.TODO()
 	mockClient := new(MockPaymentsClient)
 
-	limitClusters := 10
-	usageClusters := 12
 	limits := &platmodel.LimitsStatus{
-		Status: false,
-		Limits: &platmodel.GitOpsLimits{Clusters: &limitClusters},
-		Usage:  &platmodel.GitOpsUsage{Clusters: &usageClusters},
+		Limits: &platmodel.GitOpsLimits{Clusters: ptr(10)},
+		Usage:  &platmodel.GitOpsUsage{Clusters: ptr(12), Applications: ptr(10)},
 	}
 	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
 
-	opts := ValidateLimitsOptions{}
+	opts := ValidateLimitsOptions{failCondition: "exceeded"}
 	err := runValidateLimits(ctx, &opts, mockClient)
 
-	expected, _ := json.MarshalIndent(limits, "", "  ")
-	assert.EqualError(t, err, "account limits exceeded for account: "+string(expected))
+	assert.EqualError(t, err, "usage validation error: clusters limit exceeded: usage=12, limit=10")
 	mockClient.AssertExpectations(t)
 }
 
-func TestRunValidateLimits_HookClusterLimitMatch(t *testing.T) {
+func TestRunValidateLimits_ClusterLimitReached(t *testing.T) {
 	ctx := context.TODO()
 	mockClient := new(MockPaymentsClient)
 
-	limitClusters := 5
-	usageClusters := 5
 	limits := &platmodel.LimitsStatus{
-		Status: true,
-		Limits: &platmodel.GitOpsLimits{Clusters: &limitClusters},
-		Usage:  &platmodel.GitOpsUsage{Clusters: &usageClusters},
+		Limits: &platmodel.GitOpsLimits{Clusters: ptr(5)},
+		Usage:  &platmodel.GitOpsUsage{Clusters: ptr(5), Applications: ptr(5)},
 	}
 	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
 
-	opts := ValidateLimitsOptions{hook: true}
+	opts := ValidateLimitsOptions{failCondition: "reached", subject: "clusters"}
 	err := runValidateLimits(ctx, &opts, mockClient)
 
-	// Status should be set to false by hook condition
-	limits.Status = false
-	expected, _ := json.MarshalIndent(limits, "", "  ")
-	assert.EqualError(t, err, "account limits (clusters) exceeded for account: "+string(expected))
+	assert.EqualError(t, err, "usage validation error: clusters limit reached: usage=5, limit=5")
 	mockClient.AssertExpectations(t)
+}
+
+func TestRunValidateLimits_UsageMissing(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{Clusters: ptr(10)},
+		Usage:  &platmodel.GitOpsUsage{Applications: ptr(5)},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "reached", subject: "clusters"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.EqualError(t, err, "usage validation error: clusters usage is missing")
+	mockClient.AssertExpectations(t)
+}
+
+func TestRunValidateLimits_ExceededPassesOnEqual(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{Applications: ptr(10)},
+		Usage:  &platmodel.GitOpsUsage{Applications: ptr(10)},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "exceeded", subject: "applications"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.NoError(t, err)
+}
+
+func TestRunValidateLimits_SubjectApplicationsOnly(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{
+			Applications: ptr(10),
+			Clusters:     ptr(20),
+		},
+		Usage: &platmodel.GitOpsUsage{
+			Applications: ptr(15),
+			Clusters:     ptr(25), // will be ignored
+		},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "exceeded", subject: "applications"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.EqualError(t, err, "usage validation error: applications limit exceeded: usage=15, limit=10")
+}
+
+func TestRunValidateLimits_InvalidFailCondition(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{Applications: ptr(10)},
+		Usage:  &platmodel.GitOpsUsage{Applications: ptr(10)},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "oops", subject: "applications"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.EqualError(t, err, "usage validation error: invalid fail condition")
+}
+
+func TestRunValidateLimits_NoLimitsSet(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{
+			Applications: nil,
+			Clusters:     nil,
+		},
+		Usage: &platmodel.GitOpsUsage{
+			Applications: ptr(7),
+			Clusters:     ptr(7),
+		},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "exceeded", subject: ""}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.NoError(t, err)
+}
+
+func TestRunValidateLimits_ReachedFailsOnEqual(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{Clusters: ptr(10)},
+		Usage:  &platmodel.GitOpsUsage{Clusters: ptr(10)},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "reached", subject: "clusters"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.EqualError(t, err, "usage validation error: clusters limit reached: usage=10, limit=10")
+}
+
+func TestRunValidateLimits_SubjectIgnoredClustersExceeded(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{
+			Applications: ptr(10),
+			Clusters:     ptr(20),
+		},
+		Usage: &platmodel.GitOpsUsage{
+			Applications: ptr(5),
+			Clusters:     ptr(25), // exceeded, but should be ignored
+		},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "exceeded", subject: "applications"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.NoError(t, err)
+}
+
+func TestRunValidateLimits_InvalidSubject(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: &platmodel.GitOpsLimits{
+			Applications: ptr(5),
+			Clusters:     ptr(5),
+		},
+		Usage: &platmodel.GitOpsUsage{
+			Applications: ptr(5),
+			Clusters:     ptr(5),
+		},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "exceeded", subject: "invalid-subject"}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.EqualError(t, err, "usage validation error: invalid subject: invalid-subject")
 }

@@ -16,18 +16,29 @@ package commands
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/util"
 	"github.com/codefresh-io/go-sdk/pkg/graphql"
+	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 type (
 	ValidateLimitsOptions struct {
-		hook bool
+		hook          bool
+		failCondition string
+		subject       string
 	}
+)
+
+const (
+	failConditionReached  = "reached"
+	failConditionExceeded = "exceeded"
+
+	subjectClusters     = "clusters"
+	subjectApplications = "applications"
 )
 
 func NewAccountCommand() *cobra.Command {
@@ -50,56 +61,106 @@ func NewValidateLimitsCommand() *cobra.Command {
 	opts := &ValidateLimitsOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "validate-limits",
-		Aliases:           []string{"vl"},
+		Use:               "validate-usage",
+		Aliases:           []string{"vu"},
 		Args:              cobra.NoArgs,
-		Short:             "Validate account limits",
+		Short:             "Validate usage of account resources",
 		PersistentPreRunE: cfConfig.RequireAuthentication,
-		Example:           util.Doc("<BIN> account validate-limits"),
+		Example:           util.Doc("<BIN> account validate-usage"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payments := cfConfig.NewClient().GraphQL().Payments()
 			err := runValidateLimits(cmd.Context(), opts, payments)
 			if err != nil {
-				return fmt.Errorf("failed validating limits: %w", err)
+				return fmt.Errorf("failed validating usage: %w", err)
 			}
 
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
-
-	util.Die(cmd.Flags().MarkHidden("hook"))
+	cmd.Flags().StringVar(&opts.failCondition, "fail-condition", failConditionExceeded, "condition to validate [reached | exceeded]")
+	cmd.Flags().StringVar(&opts.subject, "subject", "", "subject to validate [clusters | applications]. All subjects when omitted")
 
 	return cmd
 }
 
 func runValidateLimits(ctx context.Context, opts *ValidateLimitsOptions, payments graphql.PaymentsAPI) error {
-	log.G(ctx).Info("Validating account limits")
-	if opts.hook {
-		log.G(ctx).Info("Running in hook-mode")
-	}
+	log.G(ctx).Info("Validating account usage")
 
 	limitsStatus, err := payments.GetLimitsStatus(ctx)
-	statusString, _ := json.MarshalIndent(limitsStatus, "", "  ")
-
 	if err != nil {
 		return err
 	}
 
-	if !limitsStatus.Status {
-		return fmt.Errorf("account limits exceeded for account: %s", string(statusString))
+	err = ValidateGitOpsUsage(*limitsStatus.Usage, *limitsStatus.Limits, opts.failCondition, opts.subject)
+	if err != nil {
+		return fmt.Errorf("usage validation error: %s", err.Error())
 	}
 
-	if opts.hook &&
-		limitsStatus.Limits.Clusters != nil &&
-		limitsStatus.Usage.Clusters != nil &&
-		*limitsStatus.Limits.Clusters == *limitsStatus.Usage.Clusters {
-		limitsStatus.Status = false
-		statusString, _ := json.MarshalIndent(limitsStatus, "", "  ")
-		return fmt.Errorf("account limits (clusters) exceeded for account: %s", string(statusString))
+	log.G(ctx).Infof("Successfully validated usage for account")
+	return nil
+}
+
+// ValidateGitOpsUsage checks whether the usage exceeds or reaches the defined limits.
+// - If 'limits' for a field is nil, validation passes for that field.
+// - If 'subject' is provided, only that field is checked. Otherwise, all fields are checked.
+// - If 'failCondition' is "reached", validation fails if usage == limit.
+// - If 'failCondition' is "exceeded", validation fails only if usage > limit.
+// - If a field in 'usage' has no corresponding field in 'limits', validation passes for that field.
+func ValidateGitOpsUsage(usage platmodel.GitOpsUsage, limits platmodel.GitOpsLimits, failCondition string, subject string) error {
+	check := func(usageVal, limitVal *int, name string) error {
+		// If usageVal is nil, return an error
+		if usageVal == nil {
+			return fmt.Errorf("%s usage is missing", name)
+		}
+
+		// Skip validation if the limit is not set
+		if limitVal == nil {
+			return nil
+		}
+
+		switch failCondition {
+		case "reached":
+			if *usageVal >= *limitVal {
+				condition := "reached"
+				if *usageVal > *limitVal {
+					condition = "exceeded"
+				}
+				return fmt.Errorf("%s limit %s: usage=%d, limit=%d", name, condition, *usageVal, *limitVal)
+			}
+		case "exceeded":
+			if *usageVal > *limitVal {
+				return fmt.Errorf("%s limit exceeded: usage=%d, limit=%d", name, *usageVal, *limitVal)
+			}
+		default:
+			return fmt.Errorf("invalid fail condition")
+		}
+		return nil
 	}
 
-	log.G(ctx).Infof("Successfully validated limits for account")
+	subject = strings.ToLower(subject)
+	validSubjects := map[string]bool{
+		"":             true,
+		"applications": true,
+		"clusters":     true,
+	}
+
+	if !validSubjects[subject] {
+		return fmt.Errorf("invalid subject: %s", subject)
+	}
+
+	if subject == "applications" || subject == "" {
+		if err := check(usage.Applications, limits.Applications, "applications"); err != nil {
+			return err
+		}
+	}
+
+	if subject == "clusters" || subject == "" {
+		if err := check(usage.Clusters, limits.Clusters, "clusters"); err != nil {
+			return err
+		}
+	}
+
+	// No validation errors
 	return nil
 }
