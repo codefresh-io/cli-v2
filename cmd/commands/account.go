@@ -27,7 +27,6 @@ import (
 
 type (
 	ValidateLimitsOptions struct {
-		hook          bool
 		failCondition string
 		subject       string
 	}
@@ -120,15 +119,15 @@ func ValidateGitOpsUsage(usage platmodel.GitOpsUsage, limits platmodel.GitOpsLim
 		}
 
 		switch failCondition {
-		case "reached":
+		case failConditionReached:
 			if *usageVal >= *limitVal {
-				condition := "reached"
+				condition := failConditionReached
 				if *usageVal > *limitVal {
-					condition = "exceeded"
+					condition = failConditionExceeded
 				}
 				return fmt.Errorf("%s limit %s: usage=%d, limit=%d", name, condition, *usageVal, *limitVal)
 			}
-		case "exceeded":
+		case failConditionExceeded:
 			if *usageVal > *limitVal {
 				return fmt.Errorf("%s limit exceeded: usage=%d, limit=%d", name, *usageVal, *limitVal)
 			}
@@ -140,23 +139,23 @@ func ValidateGitOpsUsage(usage platmodel.GitOpsUsage, limits platmodel.GitOpsLim
 
 	subject = strings.ToLower(subject)
 	validSubjects := map[string]bool{
-		"":             true,
-		"applications": true,
-		"clusters":     true,
+		"":                  true,
+		subjectApplications: true,
+		subjectClusters:     true,
 	}
 
 	if !validSubjects[subject] {
 		return fmt.Errorf("invalid subject: %s", subject)
 	}
 
-	if subject == "applications" || subject == "" {
-		if err := check(usage.Applications, limits.Applications, "applications"); err != nil {
+	if subject == subjectApplications || subject == "" {
+		if err := check(usage.Applications, limits.Applications, subjectApplications); err != nil {
 			return err
 		}
 	}
 
-	if subject == "clusters" || subject == "" {
-		if err := check(usage.Clusters, limits.Clusters, "clusters"); err != nil {
+	if subject == subjectClusters || subject == "" {
+		if err := check(usage.Clusters, limits.Clusters, subjectClusters); err != nil {
 			return err
 		}
 	}
