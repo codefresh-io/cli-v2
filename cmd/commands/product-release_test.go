@@ -55,15 +55,15 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 			wantErr: "invalid product release status: running; failed",
 		},
 		{
-			name: "should fail caused by invalid status - pending",
+			name: "should fail caused by invalid status - non-existent",
 			args: args{
 				statuses: []string{
 					"running",
-					"pending",
+					"non-existent",
 				},
 			},
 			want:    nil,
-			wantErr: "invalid product release status: pending",
+			wantErr: "invalid product release status: non-existent",
 		},
 		{
 			name: "should convert to release status when seperated by , with lower cases",
@@ -94,7 +94,7 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "should convert to release status when separted with ,",
+			name: "should convert to release status when separated with ,",
 			args: args{
 				statuses: []string{
 					"RUNNING",

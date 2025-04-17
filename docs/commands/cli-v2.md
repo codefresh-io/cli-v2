@@ -32,6 +32,7 @@ cli-v2 [flags]
 
 ### SEE ALSO
 
+* [cli-v2 account](cli-v2_account.md)	 - Account related commands
 * [cli-v2 cluster](cli-v2_cluster.md)	 - Manage clusters of Codefresh runtimes
 * [cli-v2 completion](cli-v2_completion.md)	 - Generates shell completion script.
 * [cli-v2 component](cli-v2_component.md)	 - Manage components of Codefresh runtimes
