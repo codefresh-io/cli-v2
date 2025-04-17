@@ -6,7 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/argoproj/argo-cd/v2 v2.14.10
+	github.com/argoproj/argo-cd/v2 v2.13.4
 	github.com/codefresh-io/go-sdk v1.4.0
 	github.com/fatih/color v1.18.0
 	github.com/gobuffalo/packr v1.30.1
@@ -53,8 +53,6 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.7.1 // indirect
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.12.0 // indirect
-	github.com/casbin/casbin/v2 v2.102.0 // indirect
-	github.com/casbin/govaluate v1.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
