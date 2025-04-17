@@ -7,7 +7,7 @@ toolchain go1.23.4
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/argoproj/argo-cd/v2 v2.13.1
-	github.com/codefresh-io/go-sdk v1.4.0
+	github.com/codefresh-io/go-sdk v1.4.8
 	github.com/fatih/color v1.18.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.6.0
