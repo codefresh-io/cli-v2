@@ -80,6 +80,7 @@ func NewValidateLimitsCommand() *cobra.Command {
 		Example: util.Doc("<BIN> account validate-usage"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
+			log.G(ctx).Infof("Arguments: failCondition=%s, subject=%s", opts.failCondition, opts.subject)
 			if opts.hook {
 				log.G(ctx).Infof("Running in hook-mode")
 			}
