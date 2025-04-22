@@ -175,6 +175,25 @@ func TestRunValidateLimits_InvalidFailCondition(t *testing.T) {
 	assert.EqualError(t, err, "usage validation error: invalid fail condition")
 }
 
+func TestRunValidateLimits_LimitsNil(t *testing.T) {
+	ctx := context.TODO()
+	mockClient := new(MockPaymentsClient)
+
+	limits := &platmodel.LimitsStatus{
+		Limits: nil,
+		Usage: &platmodel.GitOpsUsage{
+			Applications: ptr(5),
+			Clusters:     ptr(3),
+		},
+	}
+	mockClient.On("GetLimitsStatus", ctx).Return(limits, nil)
+
+	opts := ValidateLimitsOptions{failCondition: "exceeded", subject: ""}
+	err := runValidateLimits(ctx, &opts, mockClient)
+
+	assert.NoError(t, err)
+}
+
 func TestRunValidateLimits_NoLimitsSet(t *testing.T) {
 	ctx := context.TODO()
 	mockClient := new(MockPaymentsClient)

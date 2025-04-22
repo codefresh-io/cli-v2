@@ -16,9 +16,15 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
+	"github.com/codefresh-io/cli-v2/internal/util/helm"
+	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/graphql"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
@@ -27,6 +33,7 @@ import (
 
 type (
 	ValidateLimitsOptions struct {
+		HelmValidateValuesOptions
 		failCondition string
 		subject       string
 	}
@@ -67,8 +74,25 @@ func NewValidateLimitsCommand() *cobra.Command {
 		PersistentPreRunE: cfConfig.RequireAuthentication,
 		Example:           util.Doc("<BIN> account validate-usage"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payments := cfConfig.NewClient().GraphQL().Payments()
-			err := runValidateLimits(cmd.Context(), opts, payments)
+			ctx := cmd.Context()
+			if opts.hook {
+				log.G(ctx).Infof("Running in hook-mode")
+			}
+
+			var (
+				client codefresh.Codefresh
+				err    error
+			)
+			if opts.hook {
+				client, err = CreatePlatformClientInRuntime(ctx, opts)
+				if err != nil {
+					return err
+				}
+			} else {
+				client = cfConfig.NewClient()
+			}
+			payments := client.GraphQL().Payments()
+			err = runValidateLimits(cmd.Context(), opts, payments)
 			if err != nil {
 				return fmt.Errorf("failed validating usage: %w", err)
 			}
@@ -79,6 +103,12 @@ func NewValidateLimitsCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&opts.failCondition, "fail-condition", failConditionExceeded, "condition to validate [reached | exceeded]")
 	cmd.Flags().StringVar(&opts.subject, "subject", "", "subject to validate [clusters | applications]. All subjects when omitted")
+	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
+	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
+	opts.helm, _ = helm.AddFlags(cmd.Flags())
+	opts.kubeFactory = kube.AddFlags(cmd.Flags())
+
+	util.Die(cmd.Flags().MarkHidden("hook"))
 
 	return cmd
 }
@@ -89,6 +119,11 @@ func runValidateLimits(ctx context.Context, opts *ValidateLimitsOptions, payment
 	limitsStatus, err := payments.GetLimitsStatus(ctx)
 	if err != nil {
 		return err
+	}
+
+	if limitsStatus.Limits == nil {
+		log.G(ctx).Infof("Limits are not defined for account")
+		return nil
 	}
 
 	err = ValidateGitOpsUsage(*limitsStatus.Usage, *limitsStatus.Limits, opts.failCondition, opts.subject)
@@ -162,4 +197,54 @@ func ValidateGitOpsUsage(usage platmodel.GitOpsUsage, limits platmodel.GitOpsLim
 
 	// No validation errors
 	return nil
+}
+
+func CreatePlatformClientInRuntime(ctx context.Context, opts *ValidateLimitsOptions) (codefresh.Codefresh, error) {
+	var cfClient codefresh.Codefresh
+	valuesFile, err := opts.helm.GetValues(opts.valuesFile, !opts.hook)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting values: %w", err)
+	}
+	codefreshValues, err := valuesFile.Table("global.codefresh")
+	if err != nil {
+		return nil, errors.New("missing \"global.codefresh\" field")
+	}
+
+	// Try to use runtime token
+	runtimeToken, _ := kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
+	if runtimeToken != "" {
+		log.G(ctx).Info("Used runtime token to validate account usage")
+		cfClient, err = GetPlatformClient(ctx, &opts.HelmValidateValuesOptions, codefreshValues, runtimeToken)
+		if err != nil {
+			return nil, err
+		}
+		return cfClient, nil
+	}
+
+	// Try to use user token
+	userTokenValues, err := codefreshValues.Table("userToken")
+	if err != nil {
+		return nil, errors.New("missing \"global.codefresh.userToken\" field")
+	}
+
+	userToken, _ := helm.PathValue[string](userTokenValues, "token")
+	if userToken != "" {
+		log.G(ctx).Debug("Got user token from \"token\" field")
+	} else {
+		secretKeyRef, err := userTokenValues.Table("secretKeyRef")
+		if err != nil {
+			return nil, errors.New("userToken must contain either a \"token\" field, or a \"secretKeyRef\"")
+		}
+
+		userToken, err = getValueFromSecretKeyRef(ctx, &opts.HelmValidateValuesOptions, secretKeyRef)
+		if err != nil {
+			return nil, fmt.Errorf("failed getting user token from secretKeyRef: %w", err)
+		}
+	}
+
+	cfClient, err = GetPlatformClient(ctx, &opts.HelmValidateValuesOptions, codefreshValues, userToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating codefresh client using user token: %w", err)
+	}
+	return cfClient, nil
 }
