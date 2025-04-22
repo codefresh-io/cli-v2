@@ -107,7 +107,7 @@ func NewValidateLimitsCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.failCondition, "condition", failConditionExceeded, "condition to validate [reached | exceeded]")
+	cmd.Flags().StringVar(&opts.failCondition, "condition", "", "condition to validate [reached | exceeded]")
 	cmd.Flags().StringVar(&opts.subject, "subject", "", "subject to validate [clusters | applications]. All subjects when omitted")
 	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
 	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
