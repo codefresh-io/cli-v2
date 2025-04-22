@@ -67,12 +67,17 @@ func NewValidateLimitsCommand() *cobra.Command {
 	opts := &ValidateLimitsOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "validate-usage",
-		Aliases:           []string{"vu"},
-		Args:              cobra.NoArgs,
-		Short:             "Validate usage of account resources",
-		PersistentPreRunE: cfConfig.RequireAuthentication,
-		Example:           util.Doc("<BIN> account validate-usage"),
+		Use:     "validate-usage",
+		Aliases: []string{"vu"},
+		Args:    cobra.NoArgs,
+		Short:   "Validate usage of account resources",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if opts.hook {
+				return nil
+			}
+			return cfConfig.RequireAuthentication(cmd, args)
+		},
+		Example: util.Doc("<BIN> account validate-usage"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			if opts.hook {
