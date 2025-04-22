@@ -174,7 +174,7 @@ func ValidateGitOpsUsage(usage platmodel.GitOpsUsage, limits platmodel.GitOpsLim
 		default:
 			return fmt.Errorf("invalid fail condition")
 		}
-		log.G().Infof("Limit checking succeeded. subject=%s, usage=%d, limit=%d\n", subject, *usageVal, *limitVal)
+		log.G().Infof("Limit checking succeeded. condition=%s, subject=%s, usage=%d, limit=%d", failCondition, subject, *usageVal, *limitVal)
 		return nil
 	}
 
