@@ -80,7 +80,6 @@ func NewValidateLimitsCommand() *cobra.Command {
 		Example: util.Doc("<BIN> account validate-usage"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-			log.G(ctx).Infof("Arguments: failCondition=%s, subject=%s", opts.failCondition, opts.subject)
 			if opts.hook {
 				log.G(ctx).Infof("Running in hook-mode")
 			}
@@ -107,7 +106,7 @@ func NewValidateLimitsCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.failCondition, "condition", "", "condition to validate [reached | exceeded]")
+	cmd.Flags().StringVar(&opts.failCondition, "fail-condition", failConditionExceeded, "condition to validate [reached | exceeded]")
 	cmd.Flags().StringVar(&opts.subject, "subject", "", "subject to validate [clusters | applications]. All subjects when omitted")
 	cmd.Flags().StringVarP(&opts.valuesFile, "values", "f", "", "specify values in a YAML file or a URL")
 	cmd.Flags().BoolVar(&opts.hook, "hook", false, "set to true when running inside a helm-hook")
