@@ -17,7 +17,11 @@ package commands
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
+	"github.com/codefresh-io/cli-v2/internal/util/helm"
+	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"os"
 	"regexp"
 	"strings"
@@ -293,4 +297,54 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	}
 
 	return fmt.Errorf("runtime \"%s\" already exists", runtime)
+}
+
+func createPlatformClientInRuntime(ctx context.Context, opts *ValidateLimitsOptions) (codefresh.Codefresh, error) {
+	var cfClient codefresh.Codefresh
+	valuesFile, err := opts.helm.GetValues(opts.valuesFile, !opts.hook)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting values: %w", err)
+	}
+	codefreshValues, err := valuesFile.Table("global.codefresh")
+	if err != nil {
+		return nil, errors.New("missing \"global.codefresh\" field")
+	}
+
+	// Try to use runtime token
+	runtimeToken, _ := kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
+	if runtimeToken != "" {
+		log.G(ctx).Info("Used runtime token to validate account usage")
+		cfClient, err = getPlatformClient(ctx, &opts.HelmValidateValuesOptions, codefreshValues, runtimeToken)
+		if err != nil {
+			return nil, err
+		}
+		return cfClient, nil
+	}
+
+	// Try to use user token
+	userTokenValues, err := codefreshValues.Table("userToken")
+	if err != nil {
+		return nil, errors.New("missing \"global.codefresh.userToken\" field")
+	}
+
+	userToken, _ := helm.PathValue[string](userTokenValues, "token")
+	if userToken != "" {
+		log.G(ctx).Debug("Got user token from \"token\" field")
+	} else {
+		secretKeyRef, err := userTokenValues.Table("secretKeyRef")
+		if err != nil {
+			return nil, errors.New("userToken must contain either a \"token\" field, or a \"secretKeyRef\"")
+		}
+
+		userToken, err = getValueFromSecretKeyRef(ctx, &opts.HelmValidateValuesOptions, secretKeyRef)
+		if err != nil {
+			return nil, fmt.Errorf("failed getting user token from secretKeyRef: %w", err)
+		}
+	}
+
+	cfClient, err = getPlatformClient(ctx, &opts.HelmValidateValuesOptions, codefreshValues, userToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating codefresh client using user token: %w", err)
+	}
+	return cfClient, nil
 }

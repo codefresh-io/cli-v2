@@ -167,7 +167,7 @@ func validateWithRuntimeToken(ctx context.Context, opts *HelmValidateValuesOptio
 	}
 
 	log.G(ctx).Info("Used runtime token to validate platform reachability")
-	cfClient, err := GetPlatformClient(ctx, opts, codefreshValues, runtimeToken)
+	cfClient, err := getPlatformClient(ctx, opts, codefreshValues, runtimeToken)
 	if err != nil {
 		return fmt.Errorf("failed creating codefresh client using runtime token: %v", err)
 	}
@@ -187,7 +187,7 @@ func validateWithUserToken(ctx context.Context, opts *HelmValidateValuesOptions,
 	}
 
 	log.G(ctx).Info("Using user token to validate platform reachability")
-	cfClient, err := GetPlatformClient(ctx, opts, codefreshValues, userToken)
+	cfClient, err := getPlatformClient(ctx, opts, codefreshValues, userToken)
 	if err != nil {
 		return "", "", fmt.Errorf("failed creating codefresh client using user token: %w", err)
 	}
@@ -253,7 +253,7 @@ func getUserToken(ctx context.Context, opts *HelmValidateValuesOptions, codefres
 	return token, nil
 }
 
-func GetPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, cfToken string) (codefresh.Codefresh, error) {
+func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, codefreshValues chartutil.Values, cfToken string) (codefresh.Codefresh, error) {
 	url, err := helm.PathValue[string](codefreshValues, "url")
 	if err != nil || url == "" {
 		return nil, errors.New("\"global.codefresh.url\" must be a non-empty string")
