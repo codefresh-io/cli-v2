@@ -7,7 +7,7 @@ toolchain go1.23.4
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/argoproj/argo-cd/v2 v2.13.4
-	github.com/codefresh-io/go-sdk v1.4.0
+	github.com/codefresh-io/go-sdk v1.4.8
 	github.com/fatih/color v1.18.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.6.0
@@ -178,6 +178,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect

@@ -126,7 +126,7 @@ userToken:
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &helmValidateValuesOptions{
+			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   tt.namespace,
 			}
@@ -272,7 +272,7 @@ tunnel-client:
 			http.DefaultClient = &http.Client{
 				Transport: mockRT,
 			}
-			opts := &helmValidateValuesOptions{
+			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 			}
 			values, err := chartutil.ReadValues([]byte(tt.values))
@@ -412,7 +412,7 @@ className: some-ingressclass`,
 				tt.beforeFn(t, mockRT)
 			}
 
-			opts := &helmValidateValuesOptions{
+			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 			}
 			http.DefaultClient = &http.Client{
@@ -557,7 +557,7 @@ global:
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &helmValidateValuesOptions{
+			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
@@ -726,7 +726,7 @@ password:
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &helmValidateValuesOptions{
+			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
@@ -798,7 +798,7 @@ key: some-key`,
 				mockKube.EXPECT().KubernetesClientSet().Return(tt.clientSet, nil)
 			}
 
-			opts := &helmValidateValuesOptions{
+			opts := &HelmValidateValuesOptions{
 				kubeFactory: mockKube,
 				namespace:   "some-namespace",
 			}
