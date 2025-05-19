@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
+	"github.com/codefresh-io/cli-v2/internal/store"
 	"github.com/codefresh-io/cli-v2/internal/util"
 	"github.com/codefresh-io/cli-v2/internal/util/helm"
+	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
 	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"github.com/codefresh-io/go-sdk/pkg/graphql"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
@@ -89,7 +91,12 @@ func NewValidateLimitsCommand() *cobra.Command {
 				err    error
 			)
 			if opts.hook {
-				client, err = createPlatformClientInRuntime(ctx, opts)
+				runtimeToken, _ := kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
+				if runtimeToken != "" {
+					log.G(ctx).Infof("Skip hook execution. Runtime already exists.")
+					return nil
+				}
+				client, err = createPlatformClientInRuntime(ctx, &opts.HelmValidateValuesOptions)
 				if err != nil {
 					return err
 				}
