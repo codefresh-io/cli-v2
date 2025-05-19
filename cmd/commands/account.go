@@ -75,6 +75,9 @@ func NewValidateLimitsCommand() *cobra.Command {
 			return cfConfig.RequireAuthentication(cmd, args)
 		},
 		Example: util.Doc("<BIN> account validate-usage"),
+		PreRun: func(cmd *cobra.Command, _ []string) {
+			opts.namespace = cmd.Flag("namespace").Value.String()
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			if opts.hook {
