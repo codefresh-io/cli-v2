@@ -103,6 +103,14 @@ func NewValidateLimitsCommand() *cobra.Command {
 			} else {
 				client = cfConfig.NewClient()
 			}
+			user, err := client.GraphQL().User().GetCurrent(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if !*user.ActiveAccount.Features.GitopsPlanEnforcement {
+				log.G(ctx).Infof("Skip hook execution. GitopsPlanEnforcement feature is disabled.")
+				return nil
+			}
 			payments := client.GraphQL().Payments()
 			err = runValidateLimits(cmd.Context(), opts, payments)
 			if err != nil {
