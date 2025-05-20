@@ -299,7 +299,7 @@ func checkExistingRuntimes(ctx context.Context, runtime string) error {
 	return fmt.Errorf("runtime \"%s\" already exists", runtime)
 }
 
-func createPlatformClientInRuntime(ctx context.Context, opts *ValidateLimitsOptions) (codefresh.Codefresh, error) {
+func createPlatformClientInRuntime(ctx context.Context, opts *HelmValidateValuesOptions) (codefresh.Codefresh, error) {
 	var cfClient codefresh.Codefresh
 	valuesFile, err := opts.helm.GetValues(opts.valuesFile, !opts.hook)
 	if err != nil {
@@ -314,7 +314,7 @@ func createPlatformClientInRuntime(ctx context.Context, opts *ValidateLimitsOpti
 	runtimeToken, _ := kubeutil.GetValueFromSecret(ctx, opts.kubeFactory, opts.namespace, store.Get().CFTokenSecret, "token")
 	if runtimeToken != "" {
 		log.G(ctx).Info("Used runtime token to validate account usage")
-		cfClient, err = getPlatformClient(ctx, &opts.HelmValidateValuesOptions, codefreshValues, runtimeToken)
+		cfClient, err = getPlatformClient(ctx, opts, codefreshValues, runtimeToken)
 		if err != nil {
 			return nil, err
 		}
@@ -336,13 +336,13 @@ func createPlatformClientInRuntime(ctx context.Context, opts *ValidateLimitsOpti
 			return nil, errors.New("userToken must contain either a \"token\" field, or a \"secretKeyRef\"")
 		}
 
-		userToken, err = getValueFromSecretKeyRef(ctx, &opts.HelmValidateValuesOptions, secretKeyRef)
+		userToken, err = getValueFromSecretKeyRef(ctx, opts, secretKeyRef)
 		if err != nil {
 			return nil, fmt.Errorf("failed getting user token from secretKeyRef: %w", err)
 		}
 	}
 
-	cfClient, err = getPlatformClient(ctx, &opts.HelmValidateValuesOptions, codefreshValues, userToken)
+	cfClient, err = getPlatformClient(ctx, opts, codefreshValues, userToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating codefresh client using user token: %w", err)
 	}
