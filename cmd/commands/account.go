@@ -107,7 +107,7 @@ func NewValidateLimitsCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !*user.ActiveAccount.Features.GitopsPlanEnforcement {
+			if v := user.ActiveAccount.Features.GitopsPlanEnforcement; v == nil || !*v {
 				log.G(ctx).Infof("Skip hook execution. GitopsPlanEnforcement feature is disabled.")
 				return nil
 			}
