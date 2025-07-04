@@ -6,7 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/argoproj/argo-cd/v2 v2.13.4
+	github.com/argoproj/argo-cd/v2 v2.13.8
 	github.com/codefresh-io/go-sdk v1.4.9
 	github.com/fatih/color v1.18.0
 	github.com/gobuffalo/packr v1.30.1
@@ -201,7 +201,7 @@ require (
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.37.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
