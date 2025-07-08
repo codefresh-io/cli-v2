@@ -1,4 +1,4 @@
-FROM golang:1.23.4-alpine3.21 AS base
+FROM golang:1.24.4-alpine3.22 AS base
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
@@ -27,7 +27,7 @@ RUN go mod verify
 
 ############################### CLI ###############################
 ### Compile
-FROM golang:1.23.4-alpine3.21 AS codefresh-build
+FROM golang:1.24.4-alpine3.22 AS codefresh-build
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
@@ -38,14 +38,14 @@ COPY --from=base /go/pkg/mod /go/pkg/mod
 
 COPY . .
 
-ENV GOPATH /go
-ENV GOBIN /go/bin
+ENV GOPATH=/go
+ENV GOBIN=/go/bin
 
 ARG SEGMENT_WRITE_KEY
 RUN make local DEV_MODE=false SEGMENT_WRITE_KEY=${SEGMENT_WRITE_KEY}
 
 ### Run
-FROM alpine:3.21 AS codefresh
+FROM alpine:3.22 AS codefresh
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
