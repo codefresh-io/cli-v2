@@ -1,8 +1,6 @@
 module github.com/codefresh-io/cli-v2
 
-go 1.23.1
-
-toolchain go1.23.4
+go 1.24.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
