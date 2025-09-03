@@ -49,7 +49,7 @@ func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
 		return nil, err
 	}
 
-	if u.Host == GITHUB_CLOUD_DOMAIN {
+	if strings.Contains(u.Hostname(), GITHUB_CLOUD_DOMAIN) {
 		u, _ = url.Parse(GITHUB_CLOUD_API_URL)
 	} else if u.Path == "" {
 		u.Path = GITHUB_REST_ENDPOINT
@@ -106,7 +106,8 @@ func (g *github) verifyToken(ctx context.Context, token string, requiredScopes [
 	reqHeaders := map[string]string{
 		"Authorization": "token " + token,
 	}
-	req, err := httputil.NewRequest(ctx, http.MethodHead, g.apiURL.String(), reqHeaders, nil)
+	url := g.apiURL.String()
+	req, err := httputil.NewRequest(ctx, http.MethodHead, url, reqHeaders, nil)
 	if err != nil {
 		return err
 	}
