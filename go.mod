@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/argoproj/argo-cd/v2 v2.13.8
+	github.com/argoproj/argo-cd/v2 v2.13.9
 	github.com/codefresh-io/go-sdk v1.4.9
 	github.com/fatih/color v1.18.0
 	github.com/gobuffalo/packr v1.30.1
