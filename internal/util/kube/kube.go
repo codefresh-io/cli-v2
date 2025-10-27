@@ -117,7 +117,7 @@ func getPodLogs(ctx context.Context, client kubernetes.Interface, namespace, nam
 	if err != nil {
 		return "", fmt.Errorf("failed to get network-tester pod logs: %w", err)
 	}
-	defer func() { _ = podLogs.Close() }()
+	defer podLogs.Close()
 
 	logsBuf := new(bytes.Buffer)
 	_, err = io.Copy(logsBuf, podLogs)

@@ -662,7 +662,7 @@ argo-cd:
 			}
 
 			if got != "" {
-				defer func() { _ = os.Remove(got) }()
+				defer os.Remove(got)
 			}
 
 			if !strings.HasSuffix(got, tt.want) {

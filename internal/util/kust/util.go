@@ -29,7 +29,7 @@ func BuildKustomization(k *kusttypes.Kustomization) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = os.RemoveAll(td) }()
+	defer os.RemoveAll(td)
 
 	kyaml, err := yaml.Marshal(k)
 	if err != nil {

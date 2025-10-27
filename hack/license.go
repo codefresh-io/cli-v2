@@ -59,7 +59,7 @@ func main() {
 		}
 		f, err := os.OpenFile(path, os.O_RDWR, info.Mode())
 		die(err)
-		defer func() { _ = f.Close() }()
+		defer f.Close()
 
 		data, err := io.ReadAll(f)
 		die(err)

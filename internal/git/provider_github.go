@@ -116,7 +116,7 @@ func (g *github) verifyToken(ctx context.Context, token string, requiredScopes [
 	if err != nil {
 		return err
 	}
-	defer func() { _ = res.Body.Close() }()
+	defer res.Body.Close()
 
 	rawScopes := res.Header.Get("X-Oauth-Scopes")
 	if rawScopes == "" {

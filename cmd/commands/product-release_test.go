@@ -213,7 +213,7 @@ func getProductReleaseJsonStringMock() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = file.Close() }()
+	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {

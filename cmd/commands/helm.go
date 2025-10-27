@@ -265,7 +265,7 @@ func getPlatformClient(ctx context.Context, opts *HelmValidateValuesOptions, cod
 	}
 
 	if caCert != "" {
-		defer func() { _ = os.Remove(caCert) }()
+		defer os.Remove(caCert)
 	}
 
 	return cfConfig.NewAdHocClient(ctx, url, cfToken, caCert)
@@ -420,7 +420,7 @@ func checkIngressDef(ctx context.Context, opts *HelmValidateValuesOptions, ingre
 		return err
 	}
 
-	_ = res.Body.Close()
+	res.Body.Close()
 	return nil
 }
 
@@ -462,7 +462,7 @@ func checkGit(ctx context.Context, opts *HelmValidateValuesOptions, values chart
 	}
 
 	if caCert != "" {
-		defer func() { _ = os.Remove(caCert) }()
+		defer os.Remove(caCert)
 	}
 
 	provider, err := git.GetProvider(cliGitProvider, gitApiUrl, caCert)
