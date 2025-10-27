@@ -3,7 +3,7 @@ version: "2"
 # options for analysis running
 run:
   # Updated to match go.mod version
-  go: "1.25"
+  go: "1.24"
 
   # default concurrency is a available CPU number
   concurrency: 4
