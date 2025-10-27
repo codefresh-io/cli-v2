@@ -1,9 +1,10 @@
-version: "2"
+# This file contains all available configuration options
+# with their default values.
 
 # options for analysis running
 run:
   # Updated to match go.mod version
-  go: "1.24"
+  go: "1.25"
 
   # default concurrency is a available CPU number
   concurrency: 4
@@ -15,14 +16,12 @@ run:
   issues-exit-code: 1
 
 linters:
-  default: none
   enable:
     - gocyclo
     - errcheck
     - godox
-
 # all available settings of specific linters
-linters.settings:
+linters-settings:
   errcheck:
     # report about not checking of errors in type assertions: `a := b.(MyStruct)`;
     # default is false: such cases aren't reported by default.
