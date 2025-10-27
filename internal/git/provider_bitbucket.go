@@ -123,7 +123,7 @@ func (bb *bitbucket) getCurrentUserScopes(ctx context.Context, token, username s
 	if err != nil {
 		return "", fmt.Errorf("failed getting current user: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	scopes := res.Header.Get("x-oauth-scopes")
 

@@ -98,7 +98,7 @@ func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
 	if err != nil {
 		return fmt.Errorf("failed checking api scope: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusBadRequest {
 		return errors.New("git-token is invalid or missing required \"api\" scope")
@@ -114,7 +114,7 @@ func (g *gitlab) checkTokenType(token string, ctx context.Context) (string, erro
 		return "", fmt.Errorf("failed getting user: %w", err)
 	}
 
-	defer userRes.Body.Close()
+	defer func() { _ = userRes.Body.Close() }()
 
 	bodyBytes, err := io.ReadAll(userRes.Body)
 	if err != nil {

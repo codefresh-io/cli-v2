@@ -454,7 +454,7 @@ func downloadRuntimeLogs() error {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	fullFilename, err := getFullFilename(response)
 	if err != nil {
 		return err
@@ -490,7 +490,7 @@ func downloadFile(response *http.Response, fullFilename string) error {
 	if err != nil {
 		return err
 	}
-	defer fileDescriptor.Close()
+	defer func() { _ = fileDescriptor.Close() }()
 	_, err = io.Copy(fileDescriptor, response.Body)
 	return err
 }

@@ -216,7 +216,7 @@ func getLatestCliVersion(ctx context.Context) (*semver.Version, error) {
 		return nil, fmt.Errorf("failed to get latest version file: %w", err)
 	}
 
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	buf := &bytes.Buffer{}
 
@@ -264,7 +264,7 @@ func downloadAndExtract(ctx context.Context, url, version string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("failed send request: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode == http.StatusNotFound {
 		return "", fmt.Errorf("could not find version %s", version)
@@ -362,7 +362,7 @@ func decompressTarStream(ctx context.Context, r io.Reader, version string) (stri
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				return "", fmt.Errorf("failed to write to file %s: %w", path, err)
 			}
-			outFile.Close()
+			_ = outFile.Close()
 			log.G(ctx).Debugf("done extracting file: %s", path)
 			if header.Name == expectedFile {
 				binFileName = path

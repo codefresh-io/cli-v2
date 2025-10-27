@@ -96,7 +96,7 @@ func (bbs *bitbucketServer) checkProjectAdminPermission(ctx context.Context, tok
 	if err != nil {
 		return fmt.Errorf("failed checking Project admin permission: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusBadRequest {
 		return errors.New("git-token is invalid or missing required \"Project admin\" scope")
@@ -112,7 +112,7 @@ func (bbs *bitbucketServer) getCurrentUsername(ctx context.Context, token string
 	if err != nil {
 		return "", fmt.Errorf("failed getting current user: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	username := res.Header.Get("X-AUSERNAME")
 	if username == "" {
