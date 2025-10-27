@@ -223,6 +223,9 @@ require (
 )
 
 replace (
+	// to avoid error :  ../gopath/pkg/mod/github.com/argoproj/argo-cd/v2@v2.14.20/util/io/files/secure_mkdir_linux.go:16:47: cannot use int(mode) (value of type int) as os.FileMode value in argument to securejoin.MkdirAll
+	github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.3.6
+
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
