@@ -9,7 +9,6 @@ RUN adduser \
     --gecos "" \
     --home "/home/codefresh" \
     --shell "/sbin/nologin" \
-    --no-create-home \
     --uid 10001 \
     codefresh
 
