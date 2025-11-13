@@ -1,0 +1,95 @@
+[
+	{
+		"__typename": "Promotion",
+		"createdAt": "2025-11-12T07:58:00.829Z",
+		"environments": [
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "dev",
+				"status": "TERMINATED"
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "staging",
+				"status": "SKIPPED"
+			}
+		],
+		"failure": {
+			"message": "terminated by concurrency"
+		},
+		"id": "69143e08d3fc600692f605b6",
+		"productName": "my-product",
+		"promotionAppVersion": "0.1.0",
+		"promotionFlowName": "test-post-trigger",
+		"status": "TERMINATED",
+		"triggerCommitInfo": {
+			"avatarURL": "https://avatars.githubusercontent.com/u/88274488?v=4",
+			"commitAuthor": "kim-codefresh <kim.aharfi@codefresh.io>",
+			"commitSha": "b03059b9defaaef46f7d3a817eb9449cf8d89730"
+		}
+	},
+	{
+		"__typename": "Promotion",
+		"createdAt": "2025-11-12T07:57:04.410Z",
+		"environments": [
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "dev",
+				"status": "TERMINATED"
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "staging",
+				"status": "SKIPPED"
+			}
+		],
+		"failure": {
+			"message": "terminated by concurrency"
+		},
+		"id": "69143dd0d3fc600692f6056d",
+		"productName": "my-product",
+		"promotionAppVersion": "0.1.0",
+		"promotionFlowName": "test-post-trigger",
+		"status": "TERMINATED",
+		"triggerCommitInfo": {
+			"avatarURL": "https://avatars.githubusercontent.com/u/88274488?v=4",
+			"commitAuthor": "kim-codefresh <kim.aharfi@codefresh.io>",
+			"commitSha": "b03059b9defaaef46f7d3a817eb9449cf8d89730"
+		}
+	},
+	{
+		"__typename": "Promotion",
+		"createdAt": "2025-11-11T11:37:10.675Z",
+		"environments": [
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "dev",
+				"status": "SUCCEEDED"
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "staging",
+				"status": "SUCCEEDED"
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name": "production",
+				"status": "TERMINATED"
+			}
+		],
+		"failure": {
+			"message": "terminated by concurrency"
+		},
+		"id": "69131fe6f2ed885fcec97175",
+		"productName": "my-product",
+		"promotionAppVersion": "0.1.0",
+		"promotionFlowName": "demo",
+		"status": "TERMINATED",
+		"triggerCommitInfo": {
+			"avatarURL": "https://avatars.githubusercontent.com/u/88274488?v=4",
+			"commitAuthor": "kim-codefresh <kim.aharfi@codefresh.io>",
+			"commitSha": "b03059b9defaaef46f7d3a817eb9449cf8d89730"
+		}
+	}
+]
+
