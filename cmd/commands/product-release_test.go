@@ -133,7 +133,7 @@ func Test_ExtractNodesFromEdges(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name: "should extract node",
+			name: "should extract node from ProductRelease",
 			args: args{
 				edges: getProductReleaseMock().Edges,
 			},
@@ -151,6 +151,87 @@ func Test_ExtractNodesFromEdges(t *testing.T) {
 			stringNodes := fmt.Sprintf("%v", nodes)
 			stringWant := fmt.Sprintf("%v", tt.want)
 			assert.Equal(t, stringNodes, stringWant)
+		})
+	}
+}
+
+func Test_ExtractNodesFromEdges_WithPromotions(t *testing.T) {
+	type args struct {
+		edges []productReleaseEdge
+	}
+	expected, err := getPromotionJsonStringMock()
+
+	tests := []struct {
+		name    string
+		args    args
+		want    []map[string]any
+		wantErr string
+	}{
+		{
+			name: "should extract node from Promotion",
+			args: args{
+				edges: getPromotionMock().Edges,
+			},
+			want:    expected,
+			wantErr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nodes := extractNodesFromEdges(tt.args.edges)
+			if err != nil || tt.wantErr != "" {
+				assert.EqualError(t, err, tt.wantErr)
+				return
+			}
+			stringNodes := fmt.Sprintf("%v", nodes)
+			stringWant := fmt.Sprintf("%v", tt.want)
+			assert.Equal(t, stringNodes, stringWant)
+		})
+	}
+}
+
+func Test_ExtractNodesFromEdges_Mixed(t *testing.T) {
+	type args struct {
+		edges []productReleaseEdge
+	}
+	productReleaseMock := getProductReleaseMock()
+	promotionMock := getPromotionMock()
+
+	// Create mixed edges
+	mixedEdges := append(productReleaseMock.Edges, promotionMock.Edges...)
+
+	tests := []struct {
+		name    string
+		args    args
+		wantLen int
+	}{
+		{
+			name: "should extract nodes from mixed ProductRelease and Promotion",
+			args: args{
+				edges: mixedEdges,
+			},
+			wantLen: len(productReleaseMock.Edges) + len(promotionMock.Edges),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nodes := extractNodesFromEdges(tt.args.edges)
+			assert.Equal(t, tt.wantLen, len(nodes))
+
+			// Verify first node is ProductRelease type
+			if len(nodes) > 0 {
+				_, hasReleaseId := nodes[0]["releaseId"]
+				assert.True(t, hasReleaseId, "First node should have releaseId (ProductRelease)")
+			}
+
+			// Verify last nodes are Promotion type
+			if len(nodes) > len(productReleaseMock.Edges) {
+				lastNode := nodes[len(nodes)-1]
+				_, hasId := lastNode["id"]
+				_, hasTypename := lastNode["__typename"]
+				assert.True(t, hasId, "Last node should have id (Promotion)")
+				assert.True(t, hasTypename, "Last node should have __typename (Promotion)")
+			}
 		})
 	}
 }
@@ -226,4 +307,270 @@ func getProductReleaseJsonStringMock() ([]map[string]any, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+func getPromotionMock() productReleaseSlice {
+	node1 := map[string]any{
+		"__typename": "Promotion",
+		"createdAt":  "2025-11-12T07:58:00.829Z",
+		"environments": []map[string]interface{}{
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "dev",
+				"status":     "TERMINATED",
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "staging",
+				"status":     "SKIPPED",
+			},
+		},
+		"failure": map[string]interface{}{
+			"message": "terminated by concurrency",
+		},
+		"id":                  "69143e08d3fc600692f605b6",
+		"productName":         "my-product",
+		"promotionAppVersion": "0.1.0",
+		"promotionFlowName":   "test-post-trigger",
+		"status":              "TERMINATED",
+		"triggerCommitInfo": map[string]interface{}{
+			"avatarURL":    "https://avatars.githubusercontent.com/u/88274488?v=4",
+			"commitAuthor": "kim-codefresh <kim.aharfi@codefresh.io>",
+			"commitSha":    "b03059b9defaaef46f7d3a817eb9449cf8d89730",
+		},
+	}
+	edge1 := productReleaseEdge{
+		Node: node1,
+	}
+
+	node2 := map[string]any{
+		"__typename": "Promotion",
+		"createdAt":  "2025-11-12T07:57:04.410Z",
+		"environments": []map[string]interface{}{
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "dev",
+				"status":     "TERMINATED",
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "staging",
+				"status":     "SKIPPED",
+			},
+		},
+		"failure": map[string]interface{}{
+			"message": "terminated by concurrency",
+		},
+		"id":                  "69143dd0d3fc600692f6056d",
+		"productName":         "my-product",
+		"promotionAppVersion": "0.1.0",
+		"promotionFlowName":   "test-post-trigger",
+		"status":              "TERMINATED",
+		"triggerCommitInfo": map[string]interface{}{
+			"avatarURL":    "https://avatars.githubusercontent.com/u/88274488?v=4",
+			"commitAuthor": "kim-codefresh <kim.aharfi@codefresh.io>",
+			"commitSha":    "b03059b9defaaef46f7d3a817eb9449cf8d89730",
+		},
+	}
+	edge2 := productReleaseEdge{
+		Node: node2,
+	}
+
+	node3 := map[string]any{
+		"__typename": "Promotion",
+		"createdAt":  "2025-11-11T11:37:10.675Z",
+		"environments": []map[string]interface{}{
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "dev",
+				"status":     "SUCCEEDED",
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "staging",
+				"status":     "SUCCEEDED",
+			},
+			{
+				"__typename": "PromotionEnvironment",
+				"name":       "production",
+				"status":     "TERMINATED",
+			},
+		},
+		"failure": map[string]interface{}{
+			"message": "terminated by concurrency",
+		},
+		"id":                  "69131fe6f2ed885fcec97175",
+		"productName":         "my-product",
+		"promotionAppVersion": "0.1.0",
+		"promotionFlowName":   "demo",
+		"status":              "TERMINATED",
+		"triggerCommitInfo": map[string]interface{}{
+			"avatarURL":    "https://avatars.githubusercontent.com/u/88274488?v=4",
+			"commitAuthor": "kim-codefresh <kim.aharfi@codefresh.io>",
+			"commitSha":    "b03059b9defaaef46f7d3a817eb9449cf8d89730",
+		},
+	}
+	edge3 := productReleaseEdge{
+		Node: node3,
+	}
+
+	slice := productReleaseSlice{
+		Edges: []productReleaseEdge{
+			edge1,
+			edge2,
+			edge3,
+		},
+	}
+	return slice
+}
+
+func getPromotionJsonStringMock() ([]map[string]any, error) {
+	file, err := os.Open("./promotion_mock.json")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []map[string]interface{}
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func Test_ToProductReleaseStatus_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []string
+		wantErr string
+	}{
+		{
+			name:    "should fail with semicolon in status",
+			input:   []string{"running; failed"},
+			wantErr: "invalid product release status: running; failed",
+		},
+		{
+			name:    "should fail with completely invalid status",
+			input:   []string{"invalid-status"},
+			wantErr: "invalid product release status: invalid-status",
+		},
+		{
+			name:    "should fail with empty status string",
+			input:   []string{""},
+			wantErr: "invalid product release status: ",
+		},
+		{
+			name:    "should fail with mixed valid and invalid",
+			input:   []string{"RUNNING", "INVALID", "FAILED"},
+			wantErr: "invalid product release status: INVALID",
+		},
+		{
+			name:    "should fail with numeric status",
+			input:   []string{"123"},
+			wantErr: "invalid product release status: 123",
+		},
+		{
+			name:    "should fail with special characters",
+			input:   []string{"RUNNING@#$"},
+			wantErr: "invalid product release status: RUNNING@#$",
+		},
+		{
+			name:    "should fail with SQL injection attempt",
+			input:   []string{"RUNNING' OR '1'='1"},
+			wantErr: "invalid product release status: RUNNING' OR '1'='1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := toProductReleaseStatus(tt.input)
+			assert.Error(t, err)
+			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func Test_ToProductReleaseStatus_SuccessCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected []platmodel.ProductReleaseStatus
+	}{
+		{
+			name:  "should handle lowercase statuses",
+			input: []string{"running", "failed", "succeeded"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+				platmodel.ProductReleaseStatusFailed,
+				platmodel.ProductReleaseStatusSucceeded,
+			},
+		},
+		{
+			name:  "should handle uppercase statuses",
+			input: []string{"RUNNING", "FAILED", "SUCCEEDED"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+				platmodel.ProductReleaseStatusFailed,
+				platmodel.ProductReleaseStatusSucceeded,
+			},
+		},
+		{
+			name:  "should handle mixed case statuses",
+			input: []string{"RuNnInG", "FaIlEd", "SuCcEeDeD"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+				platmodel.ProductReleaseStatusFailed,
+				platmodel.ProductReleaseStatusSucceeded,
+			},
+		},
+		{
+			name:  "should trim whitespace",
+			input: []string{"  RUNNING  ", "FAILED   ", "   SUCCEEDED"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+				platmodel.ProductReleaseStatusFailed,
+				platmodel.ProductReleaseStatusSucceeded,
+			},
+		},
+		{
+			name:     "should handle empty array",
+			input:    []string{},
+			expected: nil,
+		},
+		{
+			name:  "should handle single status",
+			input: []string{"RUNNING"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusRunning,
+			},
+		},
+		{
+			name:  "should handle suspended status",
+			input: []string{"SUSPENDED"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusSuspended,
+			},
+		},
+		{
+			name:  "should handle terminated status",
+			input: []string{"TERMINATED"},
+			expected: []platmodel.ProductReleaseStatus{
+				platmodel.ProductReleaseStatusTerminated,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := toProductReleaseStatus(tt.input)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

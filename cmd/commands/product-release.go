@@ -38,7 +38,74 @@ type (
 	}
 )
 
+const pre_v1_3808_0_err_message = "Cannot query field \\\"promotions\\\" on type \\\"Query\\\""
+const pre_v1_3728_0_err_message = "Unknown argument \"productNames\""
+const pre_v1_3120_1_err_message = "Cannot query field \\\"applications\\\" on type \\\"ProductReleaseStep\\\"."
 const latest_query = `
+  query Promotions($filters: ProductReleaseFiltersArgs, $pagination: SlicePaginationArgs) {
+    promotions(filters: $filters, pagination: $pagination) {
+      pageInfo {
+        hasNextPage
+        hasPrevPage
+        startCursor
+        endCursor
+      }
+      edges {
+        node {
+          __typename
+          ... on ProductRelease {
+            releaseId
+            releaseName
+            productName
+            promotionFlowName
+            error {
+              message
+              code
+            }
+            status
+            environmentsStatuses {
+              __typename
+              environmentName
+              status
+            }
+            createdAt
+            triggerCommit {
+              sha
+            }
+            initiator {
+              name
+              avatarUrl
+            }
+            version
+          }
+          ... on Promotion {
+            id
+            productName
+            promotionFlowName
+            status
+            environments {
+              __typename
+              name
+              status
+            }
+            createdAt
+            triggerCommitInfo {
+              commitSha
+              commitAuthor
+              avatarURL
+            }
+            promotionAppVersion
+            failure {
+              message
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
+const pre_v1_3808_0_query = `
 query getProductReleasesList(
 	$productName: String!
 	$filters: ProductReleaseFiltersArgs!
@@ -160,9 +227,9 @@ func newProductReleaseListCommand() *cobra.Command {
 func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, pageLimit int) error {
 
 	// add pagination - default for now is last 20
+	filterArgs.ProductNames = []string{productName}
 	variables := map[string]any{
-		"filters":     filterArgs,
-		"productName": productName,
+		"filters": filterArgs,
 		"pagination": platmodel.SlicePaginationArgs{
 			First: &pageLimit,
 		},
@@ -170,9 +237,19 @@ func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductRele
 
 	productReleasesPage, err := client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), latest_query, variables)
 	if err != nil {
-		if strings.Contains(err.Error(), "Cannot query field \\\"applications\\\" on type \\\"ProductReleaseStep\\\".") {
+		pre_v1_3808_0_variables := map[string]any{
+			"filters":     filterArgs,
+			"productName": productName,
+			"pagination": platmodel.SlicePaginationArgs{
+				First: &pageLimit,
+			},
+		}
+		if strings.Contains(err.Error(), pre_v1_3120_1_err_message) {
 			log.G().Warn("codefresh version older than v1.3120.1 detected. Using pre v1.3120.1 query which excludes applications.")
-			productReleasesPage, err = client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), pre_v1_3120_1_query, variables)
+			productReleasesPage, err = client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), pre_v1_3120_1_query, pre_v1_3808_0_variables)
+		} else if strings.Contains(err.Error(), pre_v1_3808_0_err_message) || strings.Contains(err.Error(), pre_v1_3728_0_err_message) {
+			log.G().Warn("codefresh version older than v1.3808.0 detected. Using pre v1.3808.0 for old arch without promotions.")
+			productReleasesPage, err = client.GraphqlAPI[productReleaseSlice](ctx, cfConfig.NewClient().InternalClient(), pre_v1_3808_0_query, pre_v1_3808_0_variables)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get product releases: %s", err.Error())
