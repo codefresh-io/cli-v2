@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/argoproj/argo-cd/v2 v2.14.20
-	github.com/codefresh-io/go-sdk v1.4.9
+	github.com/codefresh-io/go-sdk v1.4.14
 	github.com/fatih/color v1.18.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.6.0
@@ -223,7 +223,6 @@ require (
 )
 
 replace (
-	github.com/codefresh-io/go-sdk => /Users/kimaharfishalti/workspaces/products/go-sdk // TODO update after go-sdk will be merged
 	// to avoid error :  ../gopath/pkg/mod/github.com/argoproj/argo-cd/v2@v2.14.20/util/io/files/secure_mkdir_linux.go:16:47: cannot use int(mode) (value of type int) as os.FileMode value in argument to securejoin.MkdirAll
 	github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.3.6
 
