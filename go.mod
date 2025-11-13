@@ -223,6 +223,7 @@ require (
 )
 
 replace (
+	github.com/codefresh-io/go-sdk => /Users/kimaharfishalti/workspaces/products/go-sdk
 	// to avoid error :  ../gopath/pkg/mod/github.com/argoproj/argo-cd/v2@v2.14.20/util/io/files/secure_mkdir_linux.go:16:47: cannot use int(mode) (value of type int) as os.FileMode value in argument to securejoin.MkdirAll
 	github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.3.6
 
