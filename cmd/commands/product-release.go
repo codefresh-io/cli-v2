@@ -254,7 +254,7 @@ func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductRele
 	}
 
 	if len(productReleasesPage.Edges) == 0 {
-		fmt.Println("No product releases or promotions found")
+		fmt.Println("No product releases found")
 		return nil
 	}
 
