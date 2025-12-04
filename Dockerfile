@@ -1,4 +1,4 @@
-FROM golang:1.24.6-alpine3.22 AS base
+FROM golang:1.25.5-alpine3.22 AS base
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
@@ -27,7 +27,7 @@ RUN go mod verify
 
 ############################### CLI ###############################
 ### Compile
-FROM golang:1.24.6-alpine3.22 AS codefresh-build
+FROM golang:1.25.5-alpine3.22 AS codefresh-build
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
