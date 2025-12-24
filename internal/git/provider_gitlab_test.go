@@ -46,12 +46,12 @@ func TestNewGitlabProvider(t *testing.T) {
 	}{
 		"should use standard api path when base is cloud host": {
 			baseURL:    "https://gitlab.com",
-			wantApiURL: "https://gitlab.com/api/v4",
+			wantApiURL: "https://gitlab.com",
 			wantCloud:  true,
 		},
 		"should use standard api path when base is cloud host with path": {
 			baseURL:    "https://gitlab.com/org/repo",
-			wantApiURL: "https://gitlab.com/api/v4",
+			wantApiURL: "https://gitlab.com",
 			wantCloud:  true,
 		},
 		"should use standard api path when base is host only": {
@@ -59,9 +59,9 @@ func TestNewGitlabProvider(t *testing.T) {
 			wantApiURL: "https://some.server/api/v4",
 			wantCloud:  false,
 		},
-		"should use baseUrl as apiUrl if it on-prem and has path": {
+		"should ignore on-prem baseUrl path and use standard api path": {
 			baseURL:    "https://some.server/some/api/v-whatever",
-			wantApiURL: "https://some.server/some/api/v-whatever",
+			wantApiURL: "https://some.server/api/v4",
 			wantCloud:  false,
 		},
 		"should fail when base is not a valid url": {
