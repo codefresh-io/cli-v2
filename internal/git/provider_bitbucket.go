@@ -37,7 +37,8 @@ type (
 
 const (
 	BITBUCKET_CLOUD_DOMAIN               = "bitbucket.org"
-	BITBUCKET_REST_ENDPOINT              = "/api/2.0"
+	BITBUCKET_CLOUD_API_URL              = "api.bitbucket.org"
+	BITBUCKET_REST_ENDPOINT              = "/2.0"
 	BITBUCKET               ProviderType = "bitbucket"
 )
 
@@ -68,7 +69,10 @@ func NewBitbucketProvider(baseURL string, client *http.Client) (Provider, error)
 		return nil, fmt.Errorf("wrong domain for bitbucket provider: \"%s\", expected \"%s\"\n  maybe you meant to use \"bitbucket-server\" for on-prem git provider?", baseURL, BITBUCKET_CLOUD_DOMAIN)
 	}
 
+	// new api token working only with api.bitbucket.org/2.0
+	u.Host = BITBUCKET_CLOUD_API_URL
 	u.Path = BITBUCKET_REST_ENDPOINT
+	u.User = nil // make sure to remove prefix of https://user:pass@..
 	return &bitbucket{
 		providerType: BITBUCKET,
 		apiURL:       u,
