@@ -37,7 +37,7 @@ type (
 
 const (
 	BITBUCKET_CLOUD_DOMAIN               = "bitbucket.org"
-	BITBUCKET_CLOUD_API_URL              = "api.bitbucket.org/2.0"
+	BITBUCKET_CLOUD_API_URL              = "https://api.bitbucket.org/2.0"
 	BITBUCKET               ProviderType = "bitbucket"
 )
 
