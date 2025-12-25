@@ -37,8 +37,7 @@ type (
 
 const (
 	BITBUCKET_CLOUD_DOMAIN               = "bitbucket.org"
-	BITBUCKET_CLOUD_API_URL              = "api.bitbucket.org"
-	BITBUCKET_REST_ENDPOINT              = "/2.0"
+	BITBUCKET_CLOUD_API_URL              = "api.bitbucket.org/2.0"
 	BITBUCKET               ProviderType = "bitbucket"
 )
 
@@ -70,12 +69,14 @@ func NewBitbucketProvider(baseURL string, client *http.Client) (Provider, error)
 	}
 
 	// new api token working only with api.bitbucket.org/2.0
-	u.Host = BITBUCKET_CLOUD_API_URL
-	u.Path = BITBUCKET_REST_ENDPOINT
-	u.User = nil // make sure to remove prefix of https://user:pass@..
+	apiUrl, err := url.Parse(BITBUCKET_CLOUD_API_URL)
+	if err != nil {
+		return nil, err
+	}
+
 	return &bitbucket{
 		providerType: BITBUCKET,
-		apiURL:       u,
+		apiURL:       apiUrl,
 		c:            client,
 	}, nil
 }
