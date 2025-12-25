@@ -539,7 +539,7 @@ global:
       username: some-username`,
 			gitProvider: platmodel.GitProvidersGithub,
 			gitApiUrl:   "some-api-url",
-			wantErr:     "failed verifying runtime git token with git server \"some-api-url\": invalid git-token: Head \"some-api-url\": some error",
+			wantErr:     "failed verifying runtime git token with git server \"some-api-url\": invalid git-token: Head \"/api/v3\": some error",
 			beforeFn: func(rt *gitmocks.MockRoundTripper) {
 				rt.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(nil, errors.New("some error"))
 			},
