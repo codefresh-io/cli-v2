@@ -45,15 +45,18 @@ const (
 	GITLAB_CLOUD_DOMAIN               = "gitlab.com"
 	GITLAB_REST_ENDPOINT              = "/api/v4"
 	GITLAB               ProviderType = "gitlab"
+	GITLAB_CLOUD_API_URL              = "https://gitlab.com"
 )
 
 func NewGitlabProvider(baseURL string, client *http.Client) (Provider, error) {
-	u, err := url.Parse(baseURL)
+	u, err := url.Parse(baseURL) // baseURL is the isc url
 	if err != nil {
 		return nil, err
 	}
 
-	if u.Host == GITLAB_CLOUD_DOMAIN || u.Path == "" {
+	if strings.Contains(u.Hostname(), GITLAB_CLOUD_DOMAIN) {
+		u, _ = url.Parse(GITLAB_CLOUD_API_URL)
+	} else {
 		u.Path = GITLAB_REST_ENDPOINT
 	}
 

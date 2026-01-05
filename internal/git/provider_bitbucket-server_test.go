@@ -44,9 +44,9 @@ func TestNewBitbucketServerProvider(t *testing.T) {
 			baseURL:    "https://some.server",
 			wantApiURL: "https://some.server/rest/api/1.0",
 		},
-		"should use baseUrl as apiUrl if it has path": {
+		"should ignore baseUrl path and use standard api path": {
 			baseURL:    "https://some.server/some/api/v-whatever",
-			wantApiURL: "https://some.server/some/api/v-whatever",
+			wantApiURL: "https://some.server/rest/api/1.0",
 		},
 		"should fail when base is not a valid url": {
 			baseURL: "https://contains-bad-\x7f",

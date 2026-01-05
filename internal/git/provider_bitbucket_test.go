@@ -42,11 +42,11 @@ func TestNewBitbucketProvider(t *testing.T) {
 	}{
 		"should use standard api path when base is host only": {
 			baseURL:    "https://bitbucket.org",
-			wantApiURL: "https://bitbucket.org/api/2.0",
+			wantApiURL: "https://api.bitbucket.org/2.0",
 		},
 		"should ignore baseUrl path if it contains it": {
 			baseURL:    "https://bitbucket.org/some/api/v-whatever",
-			wantApiURL: "https://bitbucket.org/api/2.0",
+			wantApiURL: "https://api.bitbucket.org/2.0",
 		},
 		"should fail when base is not a valid url": {
 			baseURL: "https://bitbucket.org/\x7f",
@@ -78,7 +78,7 @@ func Test_bitbucket_verifyToken(t *testing.T) {
 		beforeFn       func(c *mocks.MockRoundTripper)
 	}{
 		"Should fail if HEAD fails": {
-			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://bitbucket.org/api/2.0/user\": some error",
+			wantErr: "failed checking token scope permission: failed getting current user: Head \"https://api.bitbucket.org/2.0/user\": some error",
 			beforeFn: func(c *mocks.MockRoundTripper) {
 				c.EXPECT().RoundTrip(gomock.AssignableToTypeOf(&http.Request{})).Return(nil, errors.New("some error"))
 			},

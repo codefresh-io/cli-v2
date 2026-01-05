@@ -184,9 +184,10 @@ func getProvider(providerType ProviderType, cloneURL, certFile string) (Provider
 
 func getGitProviderFromUserSelect(baseURL string, client *http.Client) Provider {
 	var providers = map[string]func(string, *http.Client) (Provider, error){
-		"Bitbucket": NewBitbucketServerProvider,
-		"GitHub":    NewGithubProvider,
-		"GitLab":    NewGitlabProvider,
+		"Bitbucket":        NewBitbucketProvider,
+		"GitHub":           NewGithubProvider,
+		"GitLab":           NewGitlabProvider,
+		"Bitbucket Server": NewBitbucketServerProvider,
 	}
 
 	templates := &promptui.SelectTemplates{

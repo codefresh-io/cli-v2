@@ -36,18 +36,18 @@ func TestGetProvider(t *testing.T) {
 		"should return gitlab when url is in gitlab.com": {
 			baseURL:    "https://gitlab.com/org/repo",
 			wantType:   GITLAB,
-			wantApiURL: "https://gitlab.com/api/v4",
+			wantApiURL: "https://gitlab.com",
 		},
 		"should return bitbucket when url is in bitbucket.org": {
 			baseURL:    "https://bitbucket.org/org/repo",
 			wantType:   BITBUCKET,
-			wantApiURL: "https://bitbucket.org/api/2.0",
+			wantApiURL: "https://api.bitbucket.org/2.0",
 		},
 		"should use providedType when domain doesn't match known cloud providers": {
 			providerType: BITBUCKET_SERVER,
 			baseURL:      "https://some.on-prem-provider.com/org/repo",
 			wantType:     BITBUCKET_SERVER,
-			wantApiURL:   "https://some.on-prem-provider.com/org/repo",
+			wantApiURL:   "https://some.on-prem-provider.com/rest/api/1.0",
 		},
 		"should fail if provider does not match known cloud url, and no providerType was supplied": {
 			providerType: GITLAB,

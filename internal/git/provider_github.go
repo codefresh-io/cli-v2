@@ -51,7 +51,7 @@ func NewGithubProvider(baseURL string, client *http.Client) (Provider, error) {
 
 	if strings.Contains(u.Hostname(), GITHUB_CLOUD_DOMAIN) {
 		u, _ = url.Parse(GITHUB_CLOUD_API_URL)
-	} else if u.Path == "" {
+	} else {
 		u.Path = GITHUB_REST_ENDPOINT
 	}
 
