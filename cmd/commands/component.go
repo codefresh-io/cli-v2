@@ -28,8 +28,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type ()
-
 func newComponentCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "component",
@@ -112,8 +110,8 @@ func printComponents(w io.Writer, components []platmodel.Component) error {
 
 func printComponent(w io.Writer, c platmodel.Component) error {
 	name := c.Metadata.Name
-	healthStatus := "N/A"
-	syncStatus := "N/A"
+	healthStatus := notAvailable
+	syncStatus := notAvailable
 	version := c.Version
 
 	if c.Self != nil {

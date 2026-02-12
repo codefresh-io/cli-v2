@@ -36,7 +36,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// we don't want to slow down the cli so it is noticable
+// we don't want to slow down the cli so it is noticeable
 // so you get 2 seconds to check the version, which should
 // be enough for most configurations
 var getVersionTimeout = time.Second * 2

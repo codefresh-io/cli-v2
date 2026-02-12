@@ -19,12 +19,13 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/codefresh-io/cli-v2/internal/util/helm"
-	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
-	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/codefresh-io/cli-v2/internal/util/helm"
+	kubeutil "github.com/codefresh-io/cli-v2/internal/util/kube"
+	"github.com/codefresh-io/go-sdk/pkg/codefresh"
 
 	"github.com/codefresh-io/cli-v2/internal/config"
 	"github.com/codefresh-io/cli-v2/internal/log"
@@ -36,6 +37,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+)
+
+const (
+	notAvailable = "N/A"
 )
 
 var (

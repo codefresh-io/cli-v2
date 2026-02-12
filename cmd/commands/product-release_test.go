@@ -66,7 +66,7 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 			wantErr: "invalid product release status: non-existent",
 		},
 		{
-			name: "should convert to release status when seperated by , with lower cases",
+			name: "should convert to release status when separated by , with lower cases",
 			args: args{
 				statuses: []string{
 					"running",

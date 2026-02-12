@@ -137,7 +137,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 		return fmt.Errorf("failed validating git credentials data: %w", err)
 	}
 
-	log.G(ctx).Infof("Successfuly validated helm values file")
+	log.G(ctx).Infof("Successfully validated helm values file")
 	return nil
 }
 

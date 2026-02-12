@@ -157,7 +157,7 @@ func (bb *bitbucket) request(ctx context.Context, username, token, method, urlPa
 }
 
 func (bb *bitbucket) getRequestedScopes(requiredScopes [][]string) string {
-	var requestedScopes string = ""
+	var requestedScopes = ""
 
 	for _, requiredScopeOpts := range requiredScopes {
 		var scopeOpts = ""

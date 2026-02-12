@@ -17,6 +17,8 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/codefresh-io/cli-v2/internal/kube"
 	"github.com/codefresh-io/cli-v2/internal/log"
 	"github.com/codefresh-io/cli-v2/internal/store"
@@ -27,7 +29,6 @@ import (
 	"github.com/codefresh-io/go-sdk/pkg/graphql"
 	platmodel "github.com/codefresh-io/go-sdk/pkg/model/platform"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 type (

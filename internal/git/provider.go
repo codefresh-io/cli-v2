@@ -64,7 +64,7 @@ var (
 		BITBUCKET:        NewBitbucketProvider,
 		BITBUCKET_SERVER: NewBitbucketServerProvider,
 		GITHUB:           NewGithubProvider,
-		GITHUB_ENT:       NewGithubProvider, // for backward compatability
+		GITHUB_ENT:       NewGithubProvider, // for backward compatibility
 		GITLAB:           NewGitlabProvider,
 	}
 

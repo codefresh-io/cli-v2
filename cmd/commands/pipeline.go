@@ -140,7 +140,7 @@ func runPipelineGet(ctx context.Context, name, namespace, runtime string) error 
 		return err
 	}
 
-	healthStatus := "N/A"
+	healthStatus := notAvailable
 	if pipeline.Self.HealthStatus != nil {
 		healthStatus = pipeline.Self.HealthStatus.String()
 	}
@@ -176,7 +176,7 @@ func runPipelineList(ctx context.Context, filterArgs platmodel.PipelinesFilterAr
 	}
 
 	for _, p := range pipelines {
-		healthStatus := "N/A"
+		healthStatus := notAvailable
 		if p.Self.HealthStatus != nil {
 			healthStatus = p.Self.HealthStatus.String()
 		}

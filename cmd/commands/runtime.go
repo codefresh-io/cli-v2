@@ -187,16 +187,16 @@ func runRuntimeList(ctx context.Context) error {
 
 	for _, rt := range runtimes {
 		name := rt.Metadata.Name
-		namespace := "N/A"
-		cluster := "N/A"
-		version := "N/A"
+		namespace := notAvailable
+		cluster := notAvailable
+		version := notAvailable
 		syncStatus := rt.SyncStatus
 		healthStatus := rt.HealthStatus
-		healthMessage := "N/A"
+		healthMessage := notAvailable
 		installationStatus := rt.InstallationStatus
-		ingressHost := "N/A"
-		internalIngressHost := "N/A"
-		ingressClass := "N/A"
+		ingressHost := notAvailable
+		internalIngressHost := notAvailable
+		ingressClass := notAvailable
 
 		if rt.Managed {
 			name = fmt.Sprintf("%s (hosted)", rt.Metadata.Name)
@@ -528,11 +528,12 @@ func appendLogToSummary(message string, err error) {
 
 func printSummaryToUser() {
 	for i := 0; i < len(summaryArr); i++ {
-		if summaryArr[i].level == Success {
+		switch summaryArr[i].level {
+		case Success:
 			fmt.Printf("%s -> %v%s%v\n", summaryArr[i].message, GREEN, summaryArr[i].level, COLOR_RESET)
-		} else if summaryArr[i].level == Failed {
+		case Failed:
 			fmt.Printf("%s -> %v%s%v\n", summaryArr[i].message, RED, summaryArr[i].level, COLOR_RESET)
-		} else {
+		default:
 			fmt.Printf("%s\n", summaryArr[i].message)
 		}
 	}

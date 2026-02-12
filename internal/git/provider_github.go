@@ -38,7 +38,7 @@ const (
 	GITHUB_CLOUD_API_URL              = "https://api.github.com"
 	GITHUB_REST_ENDPOINT              = "/api/v3"
 	GITHUB               ProviderType = "github"
-	GITHUB_ENT           ProviderType = "github-enterpeise" // for backward compatability
+	GITHUB_ENT           ProviderType = "github-enterpeise" // for backward compatibility
 )
 
 var runtime_token_scopes = []string{"repo", "admin:repo_hook"}

@@ -247,9 +247,9 @@ func runGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 			continue
 		}
 
-		repoURL := "N/A"
-		path := "N/A"
-		healthStatus := "N/A"
+		repoURL := notAvailable
+		path := notAvailable
+		healthStatus := notAvailable
 		syncStatus := gs.Self.Status.SyncStatus.String()
 
 		if gs.Self.Status.HealthStatus != nil {

@@ -87,7 +87,6 @@ func (g *gitlab) VerifyRuntimeToken(ctx context.Context, auth Auth) error {
 // if it returns 400 - the token has "api" scope
 // otherwise - the token does not have the scope
 func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
-
 	tokenType, err := g.checkTokenType(token, ctx)
 	if err != nil {
 		return fmt.Errorf("failed checking api scope: %w", err)
