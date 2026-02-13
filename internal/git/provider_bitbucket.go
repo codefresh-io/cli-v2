@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -157,7 +157,7 @@ func (bb *bitbucket) request(ctx context.Context, username, token, method, urlPa
 }
 
 func (bb *bitbucket) getRequestedScopes(requiredScopes [][]string) string {
-	var requestedScopes string = ""
+	var requestedScopes = ""
 
 	for _, requiredScopeOpts := range requiredScopes {
 		var scopeOpts = ""

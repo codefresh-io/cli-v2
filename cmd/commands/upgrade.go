@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ func newUpgradeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&opts.version, "version", "", "Specify a cli version to upgrade to")
-	cmd.Flags().StringVarP(&opts.output, "ouput", "o", "", "Where to save the new binary (default: replace the old binary)")
+	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Where to save the new binary (default: replace the old binary)")
 
 	return cmd
 }

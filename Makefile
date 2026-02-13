@@ -1,4 +1,6 @@
-VERSION=v0.2.17
+VERSION=v1.0.0
+
+GOLANGCI_LINT_VERSION?= v2.8.0
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -124,9 +126,9 @@ $(OUT_DIR)/$(CLI_NAME).image: $(CLI_SRCS)
 	@touch $(OUT_DIR)/$(CLI_NAME).image
 
 .PHONY: lint
-lint: $(GOBIN)/golangci-lint tidy
+lint: build-lint tidy
 	@echo linting go code...
-	@golangci-lint run --fix --timeout 10m
+	@$(GOBIN)/golangci-lint run --fix --timeout 10m
 
 .PHONY: test
 test:
@@ -135,7 +137,7 @@ test:
 .PHONY: codegen
 codegen: $(GOBIN)/mockgen
 	rm -f ./docs/commands/*
-	go generate ./...
+	PATH="$(GOBIN):$$PATH" go generate ./...
 	go run ./hack/license.go --license ./hack/boilerplate.txt --year $(YEAR) .
 
 .PHONY: pre-commit
@@ -171,9 +173,9 @@ check-worktree:
 
 $(GOBIN)/mockgen:
 	@go install github.com/golang/mock/mockgen@v1.6.0
-	@mockgen -version
+	@$(GOBIN)/mockgen -version
 
-$(GOBIN)/golangci-lint:
-	@mkdir dist || true
+.PHONY: build-lint
+build-lint:
 	@echo installing: golangci-lint
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.64.8
+	@GOBIN=$(GOBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)

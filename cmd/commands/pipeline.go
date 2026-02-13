@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ func runPipelineGet(ctx context.Context, name, namespace, runtime string) error 
 		return err
 	}
 
-	healthStatus := "N/A"
+	healthStatus := notAvailable
 	if pipeline.Self.HealthStatus != nil {
 		healthStatus = pipeline.Self.HealthStatus.String()
 	}
@@ -176,7 +176,7 @@ func runPipelineList(ctx context.Context, filterArgs platmodel.PipelinesFilterAr
 	}
 
 	for _, p := range pipelines {
-		healthStatus := "N/A"
+		healthStatus := notAvailable
 		if p.Self.HealthStatus != nil {
 			healthStatus = p.Self.HealthStatus.String()
 		}

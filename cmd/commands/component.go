@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,6 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 )
-
-type ()
 
 func newComponentCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -112,8 +110,8 @@ func printComponents(w io.Writer, components []platmodel.Component) error {
 
 func printComponent(w io.Writer, c platmodel.Component) error {
 	name := c.Metadata.Name
-	healthStatus := "N/A"
-	syncStatus := "N/A"
+	healthStatus := notAvailable
+	syncStatus := notAvailable
 	version := c.Version
 
 	if c.Self != nil {

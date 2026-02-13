@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package log
 import (
 	"fmt"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// we don't want to slow down the cli so it is noticable
+// we don't want to slow down the cli so it is noticeable
 // so you get 2 seconds to check the version, which should
 // be enough for most configurations
 var getVersionTimeout = time.Second * 2

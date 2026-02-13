@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,7 +87,6 @@ func (g *gitlab) VerifyRuntimeToken(ctx context.Context, auth Auth) error {
 // if it returns 400 - the token has "api" scope
 // otherwise - the token does not have the scope
 func (g *gitlab) checkApiScope(ctx context.Context, token string) error {
-
 	tokenType, err := g.checkTokenType(token, ctx)
 	if err != nil {
 		return fmt.Errorf("failed checking api scope: %w", err)

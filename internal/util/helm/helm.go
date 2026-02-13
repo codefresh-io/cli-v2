@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ func AddFlags(flags *pflag.FlagSet) (Helm, error) {
 	}
 
 	flags.BoolVar(&helm.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored")
-	flags.StringVar(&helm.install.ChartPathOptions.Version, "version", "", "specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used")
+	flags.StringVar(&helm.install.Version, "version", "", "specify a version constraint for the chart version to use. This constraint can be a specific tag (e.g. 1.1.1) or it may reference a valid range (e.g. ^2.0.0). If this is not specified, the latest version is used")
 	flags.StringVar(&helm.chart, "chart", "oci://quay.io/codefresh/gitops-runtime", "chart oci url [oci://quay.io/codefresh/gitops-runtime]")
 
 	util.Die(flags.MarkHidden("chart"))
@@ -98,8 +98,8 @@ func (h *helmImpl) GetDependency(name string) (string, string, error) {
 }
 
 func (h *helmImpl) loadHelmChart() (*chart.Chart, error) {
-	if h.install.ChartPathOptions.Version == "" && h.devel {
-		h.install.ChartPathOptions.Version = ">0.0.0-0"
+	if h.install.Version == "" && h.devel {
+		h.install.Version = ">0.0.0-0"
 	}
 
 	settings := cli.New()

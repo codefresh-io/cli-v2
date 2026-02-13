@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ var (
 		BITBUCKET:        NewBitbucketProvider,
 		BITBUCKET_SERVER: NewBitbucketServerProvider,
 		GITHUB:           NewGithubProvider,
-		GITHUB_ENT:       NewGithubProvider, // for backward compatability
+		GITHUB_ENT:       NewGithubProvider, // for backward compatibility
 		GITLAB:           NewGitlabProvider,
 	}
 

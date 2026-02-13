@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -396,7 +396,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 			return nil, "", fmt.Errorf("failed encoding annotations: %w", err)
 		}
 
-		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprint("annotations="+annotationsStr))
+		k.ConfigMapGenerator[0].LiteralSources = append(k.ConfigMapGenerator[0].LiteralSources, fmt.Sprint("annotations="+annotationsStr))
 	}
 
 	if len(opts.labels) > 0 {
@@ -405,7 +405,7 @@ func createAddClusterManifests(opts *ClusterAddOptions, ingressUrl, server, csdp
 			return nil, "", fmt.Errorf("failed encoding labels: %w", err)
 		}
 
-		k.ConfigMapGenerator[0].KvPairSources.LiteralSources = append(k.ConfigMapGenerator[0].KvPairSources.LiteralSources, fmt.Sprint("labels="+labelsStr))
+		k.ConfigMapGenerator[0].LiteralSources = append(k.ConfigMapGenerator[0].LiteralSources, fmt.Sprint("labels="+labelsStr))
 	}
 
 	if opts.tag != "" {

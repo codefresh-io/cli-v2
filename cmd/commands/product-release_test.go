@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ func Test_ToProductReleaseStatus(t *testing.T) {
 			wantErr: "invalid product release status: non-existent",
 		},
 		{
-			name: "should convert to release status when seperated by , with lower cases",
+			name: "should convert to release status when separated by , with lower cases",
 			args: args{
 				statuses: []string{
 					"running",

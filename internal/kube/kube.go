@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ type (
 
 		// WaitFunc will be called to check if the resources is ready. Should return (true, nil)
 		// if the resources is ready, (false, nil) if the resource is not ready yet, or (false, err)
-		// if some error occured (in that case the `Wait` will fail with that error).
+		// if some error occurred (in that case the `Wait` will fail with that error).
 		WaitFunc WaitFunc
 	}
 

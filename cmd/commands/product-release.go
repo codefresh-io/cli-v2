@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -216,8 +216,8 @@ func newProductReleaseListCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringSliceVarP(&statuses, "status", "s", []string{}, "Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED")
-	cmd.Flags().StringSliceVar(&promotionFlows, "promotion-flows", []string{}, "Filter by promotion flows, comma seperated array")
+	cmd.Flags().StringSliceVarP(&statuses, "status", "s", []string{}, "Filter by statuses, comma separated array RUNNING|SUCCEEDED|SUSPENDED|FAILED")
+	cmd.Flags().StringSliceVar(&promotionFlows, "promotion-flows", []string{}, "Filter by promotion flows, comma separated array")
 	cmd.Flags().IntVar(&pageLimit, "page-limit", 20, "page limit number, limited to 50")
 
 	return cmd
@@ -225,7 +225,6 @@ func newProductReleaseListCommand() *cobra.Command {
 
 // client here is for mock testings usage
 func runProductReleaseList(ctx context.Context, filterArgs platmodel.ProductReleaseFiltersArgs, productName string, pageLimit int) error {
-
 	// add pagination - default for now is last 20
 	filterArgs.ProductNames = []string{productName}
 	variables := map[string]any{

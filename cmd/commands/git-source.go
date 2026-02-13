@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -247,9 +247,9 @@ func runGitSourceList(ctx context.Context, runtimeName string, includeInternal b
 			continue
 		}
 
-		repoURL := "N/A"
-		path := "N/A"
-		healthStatus := "N/A"
+		repoURL := notAvailable
+		path := notAvailable
+		healthStatus := notAvailable
 		syncStatus := gs.Self.Status.SyncStatus.String()
 
 		if gs.Self.Status.HealthStatus != nil {

@@ -1,4 +1,4 @@
-// Copyright 2025 The Codefresh Authors.
+// Copyright 2026 The Codefresh Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -137,7 +137,7 @@ func runHelmValidate(ctx context.Context, opts *HelmValidateValuesOptions) error
 		return fmt.Errorf("failed validating git credentials data: %w", err)
 	}
 
-	log.G(ctx).Infof("Successfuly validated helm values file")
+	log.G(ctx).Infof("Successfully validated helm values file")
 	return nil
 }
 
