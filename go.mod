@@ -1,6 +1,6 @@
 module github.com/codefresh-io/cli-v2
 
-go 1.25.5
+go 1.25.7
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -229,6 +229,9 @@ require (
 )
 
 replace (
+	// Avoid CVE-2026-25934
+	github.com/go-git/go-git/v5 => github.com/go-git/go-git/v5 v5.16.5
+
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
