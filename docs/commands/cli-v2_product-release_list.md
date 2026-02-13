@@ -21,8 +21,8 @@ cli-v2 product-release list [flags]
 ```
   -h, --help                      help for list
       --page-limit int            page limit number, limited to 50 (default 20)
-      --promotion-flows strings   Filter by promotion flows, comma seperated array
-  -s, --status strings            Filter by statuses, comma seperated array RUNNING|SUCCEEDED|SUSPENDED|FAILED
+      --promotion-flows strings   Filter by promotion flows, comma separated array
+  -s, --status strings            Filter by statuses, comma separated array RUNNING|SUCCEEDED|SUSPENDED|FAILED
 ```
 
 ### Options inherited from parent commands

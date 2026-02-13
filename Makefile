@@ -137,7 +137,7 @@ test:
 .PHONY: codegen
 codegen: $(GOBIN)/mockgen
 	rm -f ./docs/commands/*
-	go generate ./...
+	PATH="$(GOBIN):$$PATH" go generate ./...
 	go run ./hack/license.go --license ./hack/boilerplate.txt --year $(YEAR) .
 
 .PHONY: pre-commit
@@ -173,7 +173,7 @@ check-worktree:
 
 $(GOBIN)/mockgen:
 	@go install github.com/golang/mock/mockgen@v1.6.0
-	@mockgen -version
+	@$(GOBIN)/mockgen -version
 
 .PHONY: build-lint
 build-lint:

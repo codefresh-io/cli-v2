@@ -10,7 +10,7 @@ cli-v2 upgrade [flags]
 
 ```
   -h, --help             help for upgrade
-  -o, --ouput string     Where to save the new binary (default: replace the old binary)
+  -o, --output string    Where to save the new binary (default: replace the old binary)
       --version string   Specify a cli version to upgrade to
 ```
 
