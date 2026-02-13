@@ -1,6 +1,6 @@
 VERSION=v0.3.0
 
-GOLANGCI_LINT_VERSION?= v2.6.2
+GOLANGCI_LINT_VERSION?= v2.8.0
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
