@@ -27,7 +27,7 @@ RUN go mod verify
 
 ############################### CLI ###############################
 ### Compile
-FROM golang:1.25.7-alpine3.23 AS codefresh-build
+FROM golang:1.25.10-alpine3.23 AS codefresh-build
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
