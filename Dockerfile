@@ -1,4 +1,4 @@
-FROM golang:1.25.11-alpine3.23 AS base
+FROM golang:1.26.5-alpine3.24 AS base
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
