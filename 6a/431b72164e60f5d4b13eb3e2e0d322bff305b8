@@ -1,0 +1,32 @@
+Makefile
+  h_51acfbafc7319b 1
+go.mod
+  s_08cafa1626fbc6::t_08cfd4b547739a 7
+  s_08cafa1626fbc6::t_aab86ccb1c965a 241-246
+  h_51acfbafc7319b 3,16,43,55,61,63,71,99-100,102,109,116-117,146,173,198,200,204-207,209-212,214-215,237
+Dockerfile
+  h_51acfbafc7319b 1
+go.sum
+  h_51acfbafc7319b 14-15,49-50,54-57,73-74,77-78,116-117,230-231,234-235,240-243,275-276,301-304,331-332,399-400,427-428,498-499,524-525,568-569,602-603,671-672,679-682,693-696,715-716,719-722,725-726,757-758,777-778,816-817,821-822,891-892,918-919,941-942,944-945,960-963,1059-1060
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "6a431b72164e60f5d4b13eb3e2e0d322bff305b8",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  },
+  "sessions": {
+    "s_08cafa1626fbc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f5c5df2-2f7e-46e5-9a07-4680414717b9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
