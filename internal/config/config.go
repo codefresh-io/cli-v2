@@ -217,7 +217,7 @@ func (c *ConfigImpl) DeleteContext(name string) error {
 
 	delete(c.Contexts, name)
 	if c.CurrentContext == name {
-		log.G().Warnf(util.Doc("Deleted context is set as current context, specify a new current context with '<BIN> config use-context'"))
+		log.G().Warn(util.Doc("Deleted context is set as current context, specify a new current context with '<BIN> config use-context'"))
 		c.CurrentContext = ""
 	}
 
