@@ -1,0 +1,14 @@
+Makefile
+  h_48b74706cf95a4 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "d530d8d5283d23fa0767f8ee24584dd0ee4c38f2",
+  "prompts": {},
+  "humans": {
+    "h_48b74706cf95a4": {
+      "author": "Bohdan Pysarenko <bohdan.pisarenko@octopus.com>"
+    }
+  }
+}
