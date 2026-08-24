@@ -45,7 +45,7 @@ ARG SEGMENT_WRITE_KEY
 RUN make local DEV_MODE=false SEGMENT_WRITE_KEY=${SEGMENT_WRITE_KEY}
 
 ### Run
-FROM alpine:3.23 AS codefresh
+FROM alpine:3.24 AS codefresh
 
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 
