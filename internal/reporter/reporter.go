@@ -193,7 +193,7 @@ func (r *segmentAnalyticsReporter) ReportStep(data CliStepData) {
 	})
 
 	if err != nil {
-		log.G().Debugf("Failed reporting to segment: %w", err)
+		log.G().Debugf("Failed reporting to segment: %v", err)
 		r.Close(data.Status, err)
 		ar = &noopAnalyticsReporter{}
 	}
@@ -215,7 +215,7 @@ func (r *segmentAnalyticsReporter) Close(status CliStepStatus, err error) {
 	})
 
 	if err := r.client.Close(); err != nil {
-		log.G().Debugf("Failed to close segment client: %w", err)
+		log.G().Debugf("Failed to close segment client: %v", err)
 	}
 }
 

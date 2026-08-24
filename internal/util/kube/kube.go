@@ -83,13 +83,13 @@ func WaitForJob(ctx context.Context, kubeFactory kube.Factory, ns, jobName strin
 func printJobLogs(ctx context.Context, client kubernetes.Interface, job *batchv1.Job) {
 	p, err := getPodByJob(ctx, client, job)
 	if err != nil {
-		log.G(ctx).Errorf("Failed getting pod for job: $s", err.Error())
+		log.G(ctx).Errorf("Failed getting pod for job: %s", err.Error())
 		return
 	}
 
 	logs, err := getPodLogs(ctx, client, p.GetNamespace(), p.GetName())
 	if err != nil {
-		log.G(ctx).Errorf("Failed getting logs for pod: $s", err.Error())
+		log.G(ctx).Errorf("Failed getting logs for pod: %s", err.Error())
 		return
 	}
 
