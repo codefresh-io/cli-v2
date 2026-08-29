@@ -1,0 +1,19 @@
+CLAUDE.md
+  s_f3e6c67f9ea0de::t_095cee894c1f02 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "361bdc2433083431ea5124335737c6d7223500eb",
+  "prompts": {},
+  "sessions": {
+    "s_f3e6c67f9ea0de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "976a4d00-d905-4af0-94e1-26c4f92af958",
+        "model": "unknown"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
