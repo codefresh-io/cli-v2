@@ -1,0 +1,25 @@
+.mcp.json
+  s_57e36d1d1633a5::t_48b92d57f68ebc 5,7,9
+  h_51acfbafc7319b 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "9529df44ee085749b34ac335f0635d0221f6170c",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  },
+  "sessions": {
+    "s_57e36d1d1633a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5acea97-5bcd-4aa5-9510-e84b9196695c",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
