@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "8196542b7cf07d24c624a104b70547ed4201c624",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
