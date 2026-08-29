@@ -1,0 +1,14 @@
+.mcp.json
+  h_51acfbafc7319b 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "2959e262e3b3ab06cd5e5ebfc32fa03a0aad2f4a",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
