@@ -1,0 +1,50 @@
+.claude/commands/cve-check.md
+  s_64ccae7c79caee::t_a097c24f49dd81 148-153
+  s_95d864b2d03af5::t_e6e5ed7b9e255d 168-169
+  s_95d864b2d03af5::t_9f8a936e2bdf65 166
+  s_99284f8586a085::t_54268571f78d83 3-5
+  h_51acfbafc7319b 161,163,165
+  s_95d864b2d03af5::t_09310c15d51535 167
+.mcp.json
+  h_51acfbafc7319b 3-4,6
+  h_51acfbafc7319b 5,7,10
+CLAUDE.md
+  h_51acfbafc7319b 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "296099767aaaba1b6699feca9f02282143875429",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  },
+  "sessions": {
+    "s_64ccae7c79caee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a7b1c343-08c5-44ea-a488-5ec0f310f6cb",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    },
+    "s_95d864b2d03af5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c414e5e-65cf-4dc1-b585-8a23a80689a7",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    },
+    "s_99284f8586a085": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4576167-2404-43e0-ba42-3529c3f36637",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
