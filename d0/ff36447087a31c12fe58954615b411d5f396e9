@@ -1,0 +1,47 @@
+.claude/mcp/gsheet-append-mcp/src/auth.ts
+  h_51acfbafc7319b 1-60
+.gitignore
+  h_51acfbafc7319b 100-102
+.claude/mcp/gsheet-append-mcp/scripts/authorize.ts
+  s_756324edf36245::t_02901fe75f1060 27,30,35,38
+  h_51acfbafc7319b 1-26,28-29,31-34,36-37,39-57
+.claude/mcp/gsheet-append-mcp/yarn.lock
+  s_040f82f44f9e75::t_c0e8e05c091fb6 1-548
+.claude/mcp/gsheet-append-mcp/README.md
+  h_51acfbafc7319b 1-88
+.claude/mcp/gsheet-append-mcp/package.json
+  h_51acfbafc7319b 1-25
+.claude/mcp/gsheet-append-mcp/src/index.ts
+  h_51acfbafc7319b 1-85
+.claude/mcp/gsheet-append-mcp/tsconfig.json
+  h_51acfbafc7319b 1-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d0ff36447087a31c12fe58954615b411d5f396e9",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  },
+  "sessions": {
+    "s_040f82f44f9e75": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2d753095-1ae8-4668-8f84-e8e9ac43ff22",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    },
+    "s_756324edf36245": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "334c3bbc-2def-4e20-82a1-6bc2fb20976a",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
