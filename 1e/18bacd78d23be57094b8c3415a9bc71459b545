@@ -1,0 +1,28 @@
+.claude/mcp/gsheet-append-mcp/src/index.ts
+  h_51acfbafc7319b 8
+.claude/mcp/gsheet-append-mcp/src/auth.ts
+  s_52248e4f5f2d72::t_2b2b4f046fbf3a 3,6
+.claude/commands/cve-check.md
+  h_51acfbafc7319b 156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1e18bacd78d23be57094b8c3415a9bc71459b545",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  },
+  "sessions": {
+    "s_52248e4f5f2d72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a7e66ce3-360f-436b-86f4-5e62f02e1243",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
