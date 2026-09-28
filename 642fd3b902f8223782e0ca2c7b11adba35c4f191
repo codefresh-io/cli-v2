@@ -1,0 +1,14 @@
+Makefile
+  h_51acfbafc7319b 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "642fd3b902f8223782e0ca2c7b11adba35c4f191",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}

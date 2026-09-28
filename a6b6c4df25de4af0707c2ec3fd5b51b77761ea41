@@ -1,0 +1,18 @@
+Makefile
+  h_51acfbafc7319b 1
+Dockerfile
+  h_51acfbafc7319b 1,30
+go.mod
+  h_51acfbafc7319b 3,7,21,35-38,74,95-96,138,166,200,204-206,208-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "a6b6c4df25de4af0707c2ec3fd5b51b77761ea41",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}

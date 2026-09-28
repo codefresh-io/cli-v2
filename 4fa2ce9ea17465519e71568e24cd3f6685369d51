@@ -1,0 +1,28 @@
+internal/reporter/reporter.go
+  s_08cafa1626fbc6::t_44b7441c9db447 218
+  s_08cafa1626fbc6::t_708e56a9642410 196
+internal/util/kube/kube.go
+  s_08cafa1626fbc6::t_0e67fc24562817 92
+  s_08cafa1626fbc6::t_289d32ac7dc3ad 86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "4fa2ce9ea17465519e71568e24cd3f6685369d51",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  },
+  "sessions": {
+    "s_08cafa1626fbc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f5c5df2-2f7e-46e5-9a07-4680414717b9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}

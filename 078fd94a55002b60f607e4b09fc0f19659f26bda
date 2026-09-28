@@ -1,0 +1,21 @@
+Dockerfile
+  h_51acfbafc7319b 48
+go.mod
+  h_51acfbafc7319b 95,214-216
+  h_51acfbafc7319b 205,211
+Makefile
+  h_51acfbafc7319b 1
+go.sum
+  h_51acfbafc7319b 210-211,711-712,715-716,777-778,941-942,951-952,960-963,969-970
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "078fd94a55002b60f607e4b09fc0f19659f26bda",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+go.mod
+  h_51acfbafc7319b 3,7,21,35-38,74,95-96,138,166,200,204-206,208-211
+Makefile
+  h_51acfbafc7319b 1
+Dockerfile
+  h_51acfbafc7319b 1,30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "4e5742d1b96dbf48cb6ce11500fe6759d80fcade",
+  "prompts": {}
+}

@@ -1,0 +1,14 @@
+go.mod
+  h_51acfbafc7319b 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "e0c3eb5fadd2432b9bf4eab036fe86b33a11ef59",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
