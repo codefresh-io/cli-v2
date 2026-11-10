@@ -1,0 +1,14 @@
+Dockerfile
+  h_e5037b46dfdc11 32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fed568092561821da0a20a846091a1fb76ef277e",
+  "prompts": {},
+  "humans": {
+    "h_e5037b46dfdc11": {
+      "author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  }
+}
