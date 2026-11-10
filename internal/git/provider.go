@@ -50,6 +50,14 @@ type (
 	}
 )
 
+const (
+	headerAuthorization = "Authorization"
+	headerAccept        = "Accept"
+	headerContentType   = "Content-Type"
+
+	mimeTypeJSON = "application/json"
+)
+
 var (
 	CYAN        = "\033[36m"
 	COLOR_RESET = "\033[0m"

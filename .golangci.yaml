@@ -1,7 +1,7 @@
 version: "2"
 run:
   concurrency: 4
-  go: "1.25"
+  go: "1.27"
   issues-exit-code: 1
 linters:
   default: none
@@ -14,6 +14,9 @@ linters:
     - unconvert
     - whitespace
   settings:
+    goconst:
+      ignore-string-values:
+        - "^list$"
     errcheck:
       check-type-assertions: false
       check-blank: false

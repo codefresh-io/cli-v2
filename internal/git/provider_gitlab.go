@@ -142,9 +142,9 @@ func (g *gitlab) request(ctx context.Context, token, method, urlPath string) (*h
 	urlClone := *g.apiURL
 	urlClone.Path = path.Join(urlClone.Path, urlPath)
 	headers := map[string]string{
-		"Authorization": "Bearer " + token,
-		"Accept":        "application/json",
-		"Content-Type":  "application/json",
+		headerAuthorization: "Bearer " + token,
+		headerAccept:        mimeTypeJSON,
+		headerContentType:   mimeTypeJSON,
 	}
 	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, nil)
 	if err != nil {
