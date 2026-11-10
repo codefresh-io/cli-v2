@@ -29,8 +29,8 @@ RUN go mod verify
 FROM base AS codefresh-build
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
 RUN apk -U add --no-cache git make bash
-COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=base /go/pkg/mod /go/pkg/mod
+COPY --from=base-build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=base-build /go/pkg/mod /go/pkg/mod
 COPY . .
 ENV GOPATH=/go
 ENV GOBIN=/go/bin
