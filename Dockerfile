@@ -1,9 +1,9 @@
-FROM golang:1.26.10-alpine3.24 AS base
+FROM golang:1.27.3-alpine3.24@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS base
 
+
+FROM base AS base-build
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
-
 RUN apk -U add --no-cache git ca-certificates && update-ca-certificates
-
 RUN adduser \
     --disabled-password \
     --gecos "" \
@@ -12,7 +12,6 @@ RUN adduser \
     --no-create-home \
     --uid 10001 \
     codefresh
-
 RUN --mount=type=secret,id=GITHUB_TOKEN \
     GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) \
     git config \
@@ -21,42 +20,32 @@ RUN --mount=type=secret,id=GITHUB_TOKEN \
     "https://github.com"
 COPY go.mod .
 COPY go.sum .
-
 RUN go mod download -x
 RUN go mod verify
 
+
 ############################### CLI ###############################
 ### Compile
-FROM golang:1.26.10-alpine3.24 AS codefresh-build
-
+FROM base AS codefresh-build
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
-
 RUN apk -U add --no-cache git make bash
-
 COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=base /go/pkg/mod /go/pkg/mod
-
 COPY . .
-
 ENV GOPATH=/go
 ENV GOBIN=/go/bin
-
 ARG SEGMENT_WRITE_KEY
 RUN make local DEV_MODE=false SEGMENT_WRITE_KEY=${SEGMENT_WRITE_KEY}
 
+
 ### Run
-FROM alpine:3.24 AS codefresh
-
+FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS codefresh
 WORKDIR /go/src/github.com/codefresh-io/cli-v2
-
 RUN apk -U add --no-cache git
-
 # copy ca-certs and user details
-COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=base /etc/passwd /etc/passwd
-COPY --from=base /etc/group /etc/group
+COPY --from=base-build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=base-build /etc/passwd /etc/passwd
+COPY --from=base-build /etc/group /etc/group
 COPY --chown=codefresh:codefresh --from=codefresh-build /go/src/github.com/codefresh-io/cli-v2/dist/* /usr/local/bin/cf
-
 USER codefresh:codefresh
-
 ENTRYPOINT [ "cf" ]
