@@ -1,0 +1,158 @@
+name: Bump version on comment
+
+# Bumps VERSION in the Makefile when a maintainer comments "/bump major",
+# "/bump minor" or "/bump patch" on a pull request.
+#
+# The new version is always computed relative to the PR's base branch, so
+# commenting several times only ever produces a single bump from the base.
+#
+# The repository is public, so the job never checks out or executes PR code and
+# never writes the token to disk: files are read and the commit is created via
+# the GitHub API, and every untrusted value reaches the shell through env vars
+# rather than ${{ }} interpolation.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: version-bump-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  bump-version:
+    if: >-
+      github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      startsWith(github.event.comment.body, '/bump ')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR: ${{ github.event.issue.number }}
+      COMMENT_ID: ${{ github.event.comment.id }}
+      VERSION_FILE: Makefile
+    steps:
+      - name: Acknowledge command
+        run: |
+          gh api --method POST --silent \
+            "repos/$GH_REPO/issues/comments/$COMMENT_ID/reactions" \
+            -f content=eyes
+
+      - name: Parse command
+        id: parse
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          # Only the first line counts: integrations (e.g. Linear) may append
+          # extra lines such as "<!-- linear:isThreadRoot -->".
+          first_line=$(printf '%s\n' "$COMMENT_BODY" | head -n1 | tr -d '\r')
+          if [[ ! "$first_line" =~ ^/bump[[:space:]]+(major|minor|patch)[[:space:]]*$ ]]; then
+            echo "::error::Unsupported command. Use '/bump major', '/bump minor' or '/bump patch'."
+            exit 1
+          fi
+          echo "bump=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve PR
+        id: pr
+        run: |
+          pr_json=$(gh pr view "$PR" --json state,isCrossRepository,headRefName,baseRefName)
+          if [ "$(jq -r .state <<< "$pr_json")" != "OPEN" ]; then
+            echo "::error::PR #$PR is not open."
+            exit 1
+          fi
+          # GITHUB_TOKEN cannot push to forks, and a fork's branch name may
+          # collide with a branch in this repository.
+          if [ "$(jq -r .isCrossRepository <<< "$pr_json")" = "true" ]; then
+            echo "::error::PRs from forks are not supported."
+            exit 1
+          fi
+          {
+            echo "head=$(jq -r .headRefName <<< "$pr_json")"
+            echo "base=$(jq -r .baseRefName <<< "$pr_json")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Bump version
+        id: bump
+        env:
+          BUMP: ${{ steps.parse.outputs.bump }}
+          BASE_REF: ${{ steps.pr.outputs.base }}
+          HEAD_REF: ${{ steps.pr.outputs.head }}
+        run: |
+          fetch_file() {
+            gh api --method GET "repos/$GH_REPO/contents/$VERSION_FILE" -f ref="$1"
+          }
+          read_version() {
+            awk -F= '/^VERSION[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); print $2; exit }'
+          }
+
+          base_version=$(fetch_file "$BASE_REF" | jq -r .content | base64 -d | read_version)
+          if [[ ! "$base_version" =~ ^(v?)([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Cannot parse VERSION '$base_version' from $VERSION_FILE on '$BASE_REF'."
+            exit 1
+          fi
+          prefix=${BASH_REMATCH[1]}
+          major=${BASH_REMATCH[2]}
+          minor=${BASH_REMATCH[3]}
+          patch=${BASH_REMATCH[4]}
+          case "$BUMP" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+          new_version="${prefix}${major}.${minor}.${patch}"
+          echo "Base ($BASE_REF) version: $base_version, new version: $new_version"
+          {
+            echo "base_version=$base_version"
+            echo "new_version=$new_version"
+          } >> "$GITHUB_OUTPUT"
+
+          head_json=$(fetch_file "$HEAD_REF")
+          head_sha=$(jq -r .sha <<< "$head_json")
+          jq -r .content <<< "$head_json" | base64 -d > "$RUNNER_TEMP/version-file"
+
+          if [ "$(read_version < "$RUNNER_TEMP/version-file")" = "$new_version" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          sed -i -E "s/^VERSION[[:space:]]*=.*/VERSION=${new_version}/" "$RUNNER_TEMP/version-file"
+
+          # Passing the blob sha makes the API reject the commit if the file
+          # changed on the branch in the meantime.
+          gh api --method PUT --silent "repos/$GH_REPO/contents/$VERSION_FILE" \
+            -f branch="$HEAD_REF" \
+            -f sha="$head_sha" \
+            -f message="ci: bump version to ${new_version}" \
+            -f content="$(base64 -w0 < "$RUNNER_TEMP/version-file")"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Report result
+        env:
+          BUMP: ${{ steps.parse.outputs.bump }}
+          BASE_REF: ${{ steps.pr.outputs.base }}
+          CHANGED: ${{ steps.bump.outputs.changed }}
+          BASE_VERSION: ${{ steps.bump.outputs.base_version }}
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+        run: |
+          details="\`$BUMP\` from \`$BASE_VERSION\` on \`$BASE_REF\`"
+          if [ "$CHANGED" = "true" ]; then
+            body="✅ Bumped version to \`$NEW_VERSION\` ($details)."
+          else
+            body="ℹ️ Version is already \`$NEW_VERSION\` ($details). Nothing to do."
+          fi
+          gh pr comment "$PR" --body "$body"
+
+      - name: Report failure
+        if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api --method POST --silent \
+            "repos/$GH_REPO/issues/comments/$COMMENT_ID/reactions" \
+            -f content=confused
+          gh pr comment "$PR" --body "❌ Version bump failed. See [the workflow run]($RUN_URL) for details."
