@@ -1,0 +1,14 @@
+build/Dockerfile.helper
+  h_e5037b46dfdc11 2-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4b50c71cd6509f4053354c4b0758cf768945d090",
+  "prompts": {},
+  "humans": {
+    "h_e5037b46dfdc11": {
+      "author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  }
+}
