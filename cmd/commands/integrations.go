@@ -34,6 +34,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	outputFormatList = "list"
+	outputFormatYAML = "yaml"
+	outputFormatYML  = "yml"
+	outputFormatJSON = "json"
+)
+
 type (
 	GitIntegrationAddOptions struct {
 		Name          string
@@ -108,7 +115,7 @@ func newGitIntegrationCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 func newGitIntegrationListCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 	var format string
 
-	allowedFormats := []string{"list", "yaml", "yml", "json"}
+	allowedFormats := []string{outputFormatList, outputFormatYAML, outputFormatYML, outputFormatJSON}
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -123,7 +130,7 @@ func newGitIntegrationListCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&format, "output", "o", "list", "Output format, one of: "+strings.Join(allowedFormats, "|"))
+	cmd.Flags().StringVarP(&format, "output", "o", outputFormatList, "Output format, one of: "+strings.Join(allowedFormats, "|"))
 
 	return cmd
 }
@@ -134,7 +141,7 @@ func runGitIntegrationListCommand(ctx context.Context, apClient ap.AppProxyAPI, 
 		return err
 	}
 
-	if format == "list" {
+	if format == outputFormatList {
 		tb := ansiterm.NewTabWriter(os.Stdout, 0, 0, 4, ' ', 0)
 		_, err = fmt.Fprintln(tb, "NAME\tPROVIDER\tAPI URL\tREGISTERED USERS\tSHARING POLICY")
 		if err != nil {
@@ -166,7 +173,7 @@ func newGitIntegrationGetCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 		integration *string
 	)
 
-	allowedFormats := []string{"yaml", "yml", "json"}
+	allowedFormats := []string{outputFormatYAML, outputFormatYML, outputFormatJSON}
 
 	cmd := &cobra.Command{
 		Use:   "get [NAME]",
@@ -185,7 +192,7 @@ func newGitIntegrationGetCommand(apClient *ap.AppProxyAPI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&format, "output", "o", "yaml", "Output format, one of: "+strings.Join(allowedFormats, "|"))
+	cmd.Flags().StringVarP(&format, "output", "o", outputFormatYAML, "Output format, one of: "+strings.Join(allowedFormats, "|"))
 
 	return cmd
 }
@@ -468,9 +475,9 @@ func printIntegration(i interface{}, format string) error {
 	)
 
 	switch format {
-	case "json":
+	case outputFormatJSON:
 		data, err = json.Marshal(i)
-	case "yaml", "yml":
+	case outputFormatYAML, outputFormatYML:
 		data, err = yaml.Marshal(i)
 	default:
 		return fmt.Errorf("invalid output format: %s", format)

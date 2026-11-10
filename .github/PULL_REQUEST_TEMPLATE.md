@@ -1,8 +1,15 @@
 ## What
-<!-- What is changing in this PR? -->
 
-## Why
-<!-- Why are these changes being made? -->
+<!--
+Describe the changes briefly yet comprehensively.
+Link relevant Linear issues, e.g.:
+Closes CF-1234
+-->
 
-## Notes
-<!-- Add any additional notes here -->
+## PR Comments
+
+Add the following comments to the PR:
+
+* `/bump patch` - to bump the patch version
+* `/bump minor` - to bump the minor version
+* `/bump major` - to bump the major version

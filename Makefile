@@ -1,6 +1,6 @@
-VERSION=v1.0.11
+VERSION=v1.0.12
 
-GOLANGCI_LINT_VERSION?= v2.8.0
+GOLANGCI_LINT_VERSION?= v2.15.0
 
 OUT_DIR=dist
 YEAR?=$(shell date +"%Y")
@@ -178,4 +178,4 @@ $(GOBIN)/mockgen:
 .PHONY: build-lint
 build-lint:
 	@echo installing: golangci-lint
-	@GOBIN=$(GOBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@GOBIN=$(GOBIN) GOTOOLCHAIN=$(shell go env GOVERSION) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)

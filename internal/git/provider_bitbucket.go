@@ -39,11 +39,13 @@ const (
 	BITBUCKET_CLOUD_DOMAIN               = "bitbucket.org"
 	BITBUCKET_CLOUD_API_URL              = "https://api.bitbucket.org/2.0"
 	BITBUCKET               ProviderType = "bitbucket"
+
+	scopeRepositoryAdmin = "repository:admin"
 )
 
 var (
 	runtimeScopes = [][]string{
-		{"repository:admin"},
+		{scopeRepositoryAdmin},
 		{"account:read", "account:write"},
 		{"team", "team:write"},
 		{"webhook"},
@@ -52,7 +54,7 @@ var (
 	scopesApiMap = map[string]string{
 		"account:read account:write":        "account:read",
 		"repository:admin repository:write": "repository:write",
-		"repository:admin":                  "repository:admin",
+		scopeRepositoryAdmin:                scopeRepositoryAdmin,
 		"team team:write":                   "workspace membership:write (team:write)",
 		"webhook":                           "webhook:read and write",
 	}
@@ -144,9 +146,9 @@ func (bb *bitbucket) request(ctx context.Context, username, token, method, urlPa
 	urlClone.Path = path.Join(urlClone.Path, urlPath)
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + token))
 	headers := map[string]string{
-		"Authorization": "Basic " + auth,
-		"Accept":        "application/json",
-		"Content-Type":  "application/json",
+		headerAuthorization: "Basic " + auth,
+		headerAccept:        mimeTypeJSON,
+		headerContentType:   mimeTypeJSON,
 	}
 	req, err := httputil.NewRequest(ctx, method, urlClone.String(), headers, body)
 	if err != nil {

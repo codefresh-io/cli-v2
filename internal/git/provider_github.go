@@ -104,7 +104,7 @@ func (g *github) getTokenType(token string) (string, error) {
 
 func (g *github) verifyToken(ctx context.Context, token string, requiredScopes []string) error {
 	reqHeaders := map[string]string{
-		"Authorization": "token " + token,
+		headerAuthorization: "token " + token,
 	}
 	url := g.apiURL.String()
 	req, err := httputil.NewRequest(ctx, http.MethodHead, url, reqHeaders, nil)
