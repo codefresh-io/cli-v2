@@ -1,0 +1,21 @@
+go.mod
+  s_a716208d28d127::t_902ef7156bb6fc 237-239,265-268
+go.sum
+  s_a716208d28d127::t_4105c03c4f838d 54-55,285-296,304-305,682-685,760,763,765,785-786,788,790-791,794-795,797,802,809,812-813,816,818,820,835,837,859-862,864-867,889,893,895,899,920,934-935,947,949,986-1019,1043-1049,1078-1082,1085
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef6c6ab46fc0e8ea4119f0318e6bd2829ee62351",
+  "prompts": {},
+  "sessions": {
+    "s_a716208d28d127": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6609a49e-a977-4366-b7ea-7405d11d036d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  }
+}
