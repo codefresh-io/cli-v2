@@ -1,0 +1,30 @@
+.github/workflows/version-bump.yml
+  s_aa05c447f1cfa5::t_5a8ef0c6ea990c 3-158
+  s_aa05c447f1cfa5::t_3befdd814bd153 1-2
+.github/dependabot.yml
+  h_e5037b46dfdc11 25
+  h_e5037b46dfdc11 1-24,26-59
+.github/PULL_REQUEST_TEMPLATE.md
+  h_e5037b46dfdc11 3-7,9-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "692a1379830b7a2f514c7ed211fd910756a70d99",
+  "prompts": {},
+  "humans": {
+    "h_e5037b46dfdc11": {
+      "author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  },
+  "sessions": {
+    "s_aa05c447f1cfa5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "96ef10d6-c5cc-49fd-995b-fb4f8c4a2611",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  }
+}
