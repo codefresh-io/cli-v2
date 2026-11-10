@@ -1,0 +1,40 @@
+.golangci.yaml
+  s_07b1f57cdf2a2d::t_a985e75db09c9c 4,17-19
+internal/git/provider_github.go
+  s_07b1f57cdf2a2d::t_0cbd3ec27c5156 107
+cmd/commands/integrations.go
+  s_07b1f57cdf2a2d::t_5ebc134a00b44a 37-43
+  s_07b1f57cdf2a2d::t_0cbd3ec27c5156 118,133,144,176,195,478,480
+internal/git/provider.go
+  s_07b1f57cdf2a2d::t_dc535ed8d530cd 57-58
+  s_07b1f57cdf2a2d::t_0cbd3ec27c5156 53-56,59-60
+Makefile
+  s_07b1f57cdf2a2d::t_1ee7b43336aab8 181
+  s_07b1f57cdf2a2d::t_de1201766cf84e 3
+internal/git/provider_gitlab.go
+  s_07b1f57cdf2a2d::t_dc535ed8d530cd 146-147
+  s_07b1f57cdf2a2d::t_0cbd3ec27c5156 145
+internal/git/provider_bitbucket.go
+  s_07b1f57cdf2a2d::t_0cbd3ec27c5156 42-43,48,149
+  s_07b1f57cdf2a2d::t_5ebc134a00b44a 57
+  s_07b1f57cdf2a2d::t_dc535ed8d530cd 150-151
+internal/git/provider_bitbucket-server.go
+  s_07b1f57cdf2a2d::t_0cbd3ec27c5156 127
+  s_07b1f57cdf2a2d::t_dc535ed8d530cd 128-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "588c45674e34512b42712260cd94754b9683d641",
+  "prompts": {},
+  "sessions": {
+    "s_07b1f57cdf2a2d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e1aa87d7-0304-48bb-80af-ea931dd1a5c2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  }
+}
