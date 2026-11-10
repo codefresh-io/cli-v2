@@ -33,6 +33,10 @@ updates:
       - "gomod"
     cooldown:
       default-days: 7
+    ignore:
+      # Must match the Argo CD version shipped in gitops-runtime, and bumps require
+      # manual updates to the gitops-engine and k8s.io replace directives in go.mod.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
     groups:
       minor-and-patch-security:
         applies-to: security-updates
