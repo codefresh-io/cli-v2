@@ -1,0 +1,18 @@
+go.mod
+  h_e5037b46dfdc11 3
+  h_e5037b46dfdc11 195-196
+Dockerfile
+  h_e5037b46dfdc11 1,4-5,29,41-42,46-48
+  h_e5037b46dfdc11 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b95215416057762735a08822a8eae57a6dec4941",
+  "prompts": {},
+  "humans": {
+    "h_e5037b46dfdc11": {
+      "author": "Zhenya Tikhonov <zhenya.tikhonov@octopus.com>"
+    }
+  }
+}
