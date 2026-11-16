@@ -1,6 +1,6 @@
 # https://github.com/orgs/codefresh-io/teams/r-d/teams
 # use teams and github usernames, instead of email addresses
-*                             @codefresh-io/Backend
+*                             @codefresh-io/developers
 
 # only teamleads can approve CODEOOWNERS rule changes
 CODEOWNERS                    @codefresh-io/teamleads
